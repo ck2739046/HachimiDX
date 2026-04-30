@@ -53,8 +53,8 @@ Step 4: FFmpeg Hardware Acceleration Configuration (One-time Setup)
 First-time setup requires configuring the FFmpeg Hardware Acceleration。
 
 1. Go to the "Settings" page
-2. In the "FFmpeg Hardware Acceleration" section, find the "Encoder" and "Decoder"
-   options, select the appropriate options
+2. In the "FFmpeg Hardware Acceleration" section, find the "Encoder" option,
+   select the appropriate option
 3. If you're not sure, click the "Auto-detect Best Configuration" button
 4. Remember to click the "Save" button at the bottom of the page
 

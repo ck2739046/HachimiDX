@@ -40,15 +40,6 @@ ENCODER_TESTS = [
     },
 ]
 
-# 解码器测试定义 — 按优先级排序
-DECODER_TESTS = [
-    {
-        "id": "D3D 11",
-        "desc": "d3d11va",
-        "args": ["-hwaccel", "d3d11va", "-hwaccel_output_format", "nv12", "-i", TEST_INPUT, "-f", "null", "-"]
-    },
-]
-
 
 
 
@@ -104,18 +95,9 @@ def main():
         encoder_id = "CPU"
     print(f"  => Best encoder: {encoder_id}")
 
-    # 解码器检测
-    print()
-    print("Decoder detection (priority: D3D 11 > CPU):")
-    decoder_id = _test_list(DECODER_TESTS)
-    if decoder_id is None:
-        decoder_id = "CPU"
-    print(f"  => Best decoder: {decoder_id}")
-
     # 输出结果
     print()
     print(f"FFMPEG_HW_ENCODER_RESULT:{encoder_id}")
-    print(f"FFMPEG_HW_DECODER_RESULT:{decoder_id}")
 
 
 if __name__ == "__main__":

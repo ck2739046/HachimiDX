@@ -400,10 +400,6 @@ zh_CN:
         CPU:    libx264 软件编码。
         Intel:  Intel QSV (h264_qsv) 硬件编码。
         Nvidia: NVIDIA NVENC (h264_nvenc) 硬件编码。
-      ui_ffmpeg_decoder_label: "解码器: "
-      ui_ffmpeg_decoder_help: |
-        CPU:    软件解码。
-        D3D 11: d3d11va 硬件加速解码。
       ui_auto_detect_hw_button: "自动检测最佳设置"
 
       ui_general_divider: "通用设置"

@@ -15,24 +15,13 @@ from src.core.schemas.media_config import MediaConfig_Definitions as M_Defs
 ENCODER_MAP = {
     "CPU":    {"codec": "libx264",
                "quality_param": "-crf",
-               "quality_default": M_Defs.get_default_video_quality_by_encoder("CPU"),
-               "preset": "veryfast",
                "pix_fmt": "yuv420p"},
     "Nvidia": {"codec": "h264_nvenc",
                "quality_param": "-cq",
-               "quality_default": M_Defs.get_default_video_quality_by_encoder("Nvidia"),
-               "preset": "p2",
                "pix_fmt": "nv12"},
     "Intel":  {"codec": "h264_qsv",
                "quality_param": "-global_quality",
-               "quality_default": M_Defs.get_default_video_quality_by_encoder("Intel"),
-               "preset": "faster",
                "pix_fmt": "nv12"},
-}
-
-DECODER_MAP = {
-    "CPU":    [],
-    "D3D 11": ["-hwaccel", "d3d11va", "-hwaccel_output_format", "nv12"],
 }
 
 
@@ -47,19 +36,6 @@ def _resolve_video_encoder() -> OpResult[dict]:
         return err(f"Unknown ffmpeg_hw_encoder: {encoder_id}")
 
     return ok(entry)
-
-
-def _resolve_video_decoder() -> OpResult[list[str]]:
-    res = SettingsManage.get(S_Defs.ffmpeg_hw_decoder.key)
-    if not res.is_ok:
-        return err("Failed to read ffmpeg_hw_decoder setting", inner=res)
-
-    decoder_id = str(res.value).strip()
-    args = DECODER_MAP.get(decoder_id)
-    if args is None:
-        return err(f"Unknown ffmpeg_hw_decoder: {decoder_id}")
-
-    return ok(args)
 
 
 
@@ -140,13 +116,6 @@ def _build_common_args(data: MediaModel) -> OpResult[list[str]]:
     """构建 FFmpeg 通用参数部分"""
 
     args = []
-
-    # 如果是视频，注入硬件解码参数
-    if data.media_type in (MediaType.VIDEO_WITH_AUDIO, MediaType.VIDEO_WITHOUT_AUDIO):
-        video_dec_res = _resolve_video_decoder()
-        if not video_dec_res.is_ok:
-            return err("Failed to resolve video decoder args", inner=video_dec_res)
-        args.extend(video_dec_res.value)
 
     # 输入文件
     args.extend(["-i", str(data.input_path)])

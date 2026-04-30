@@ -128,14 +128,6 @@ class SettingsConfig_Definitions:
         constraints={"options": ["CPU", "Intel", "Nvidia"]},
     )
 
-    ffmpeg_hw_decoder = SettingsConfig_Definition(
-        key="ffmpeg_hw_decoder",
-        type="str",
-        group="ffmpeg",
-        default="CPU",
-        constraints={"options": ["CPU", "D3D 11"]},
-    )
-
     # general
 
     language = SettingsConfig_Definition(

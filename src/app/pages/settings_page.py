@@ -46,7 +46,6 @@ class SettingsPage(BaseOutputPage):
         self.convert_model_button = None
         self.cancel_convert_model_button = None
         self.ffmpeg_hw_encoder_combo_box = None
-        self.ffmpeg_hw_decoder_combo_box = None
         self.check_ffmpeg_hw_accel_button = None
 
         self._task_state = _SettingsTaskState()
@@ -65,7 +64,6 @@ class SettingsPage(BaseOutputPage):
         self._save_order_keys = [
             S_Defs.model_backend.key,
             S_Defs.ffmpeg_hw_encoder.key,
-            S_Defs.ffmpeg_hw_decoder.key,
             S_Defs.language.key,
             S_Defs.main_app_init_size.key,
             S_Defs.main_app_min_size.key,
@@ -124,10 +122,6 @@ class SettingsPage(BaseOutputPage):
         self.ffmpeg_hw_encoder_combo_box = self._create_combo_from_definition(S_Defs.ffmpeg_hw_encoder, length=80)
         encoder_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_ffmpeg_encoder_help"))
 
-        decoder_label = create_label(i18n.t(f"{I18N_Prefix}.ui_ffmpeg_decoder_label"))
-        self.ffmpeg_hw_decoder_combo_box = self._create_combo_from_definition(S_Defs.ffmpeg_hw_decoder, length=80)
-        decoder_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_ffmpeg_decoder_help"))
-
         self.check_ffmpeg_hw_accel_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_auto_detect_hw_button"))
         self.check_ffmpeg_hw_accel_button.clicked.connect(self.on_check_ffmpeg_hw_accel_clicked)
 
@@ -135,10 +129,6 @@ class SettingsPage(BaseOutputPage):
             encoder_label,
             self.ffmpeg_hw_encoder_combo_box,
             encoder_help,
-
-            decoder_label,
-            self.ffmpeg_hw_decoder_combo_box,
-            decoder_help,
 
             self.check_ffmpeg_hw_accel_button,
             add_stretch=True,
@@ -243,16 +233,14 @@ class SettingsPage(BaseOutputPage):
 
 
 
-    def _refresh_ffmpeg_hw_accel_ui(self, encoder_value: str | None = None, decoder_value: str | None = None) -> None:
+    def _refresh_ffmpeg_hw_accel_ui(self, encoder_value: str | None = None) -> None:
         self._refresh_combo_options(self.ffmpeg_hw_encoder_combo_box, S_Defs.ffmpeg_hw_encoder, encoder_value)
-        self._refresh_combo_options(self.ffmpeg_hw_decoder_combo_box, S_Defs.ffmpeg_hw_decoder, decoder_value)
 
 
 
     @staticmethod
-    def _parse_ffmpeg_hw_accel_results(recent_output: str) -> tuple[str | None, str | None]:
+    def _parse_ffmpeg_hw_accel_results(recent_output: str) -> str | None:
         encoder_value = None
-        decoder_value = None
 
         for line in recent_output.splitlines():
             line = line.strip()
@@ -261,12 +249,8 @@ class SettingsPage(BaseOutputPage):
 
             if line.startswith("FFMPEG_HW_ENCODER_RESULT:"):
                 encoder_value = line.partition(":")[2].strip() or None
-                continue
 
-            if line.startswith("FFMPEG_HW_DECODER_RESULT:"):
-                decoder_value = line.partition(":")[2].strip() or None
-
-        return encoder_value, decoder_value
+        return encoder_value
 
 
 
@@ -286,7 +270,6 @@ class SettingsPage(BaseOutputPage):
 
         self._set_combo_value(self.model_backend_combo_box, settings[S_Defs.model_backend.key])
         self._set_combo_value(self.ffmpeg_hw_encoder_combo_box, settings[S_Defs.ffmpeg_hw_encoder.key])
-        self._set_combo_value(self.ffmpeg_hw_decoder_combo_box, settings[S_Defs.ffmpeg_hw_decoder.key])
         self._set_combo_value(self.language_combo_box, settings[S_Defs.language.key])
 
         init_size = settings[S_Defs.main_app_init_size.key]
@@ -306,7 +289,6 @@ class SettingsPage(BaseOutputPage):
         return {
             S_Defs.model_backend.key: self.model_backend_combo_box.currentText().strip(),
             S_Defs.ffmpeg_hw_encoder.key: self.ffmpeg_hw_encoder_combo_box.currentText().strip(),
-            S_Defs.ffmpeg_hw_decoder.key: self.ffmpeg_hw_decoder_combo_box.currentText().strip(),
             S_Defs.language.key: self.language_combo_box.currentText().strip(),
             S_Defs.main_app_init_size.key: (
                 self.init_width_line_edit.text().strip(),
@@ -398,7 +380,6 @@ class SettingsPage(BaseOutputPage):
         self.check_model_button.setEnabled(not is_busy)
         self.convert_model_button.setEnabled(not is_busy)
         self.ffmpeg_hw_encoder_combo_box.setEnabled(not is_busy)
-        self.ffmpeg_hw_decoder_combo_box.setEnabled(not is_busy)
         self.check_ffmpeg_hw_accel_button.setEnabled(not is_busy)
         self.save_button.setEnabled(not is_busy)
         self.reset_button.setEnabled(not is_busy)
@@ -685,5 +666,5 @@ class SettingsPage(BaseOutputPage):
             return
 
         self.output_widget.flush_buffer()
-        encoder_value, decoder_value = self._parse_ffmpeg_hw_accel_results(self.output_widget.get_recent_lines(7))
-        self._refresh_ffmpeg_hw_accel_ui(encoder_value, decoder_value)
+        encoder_value = self._parse_ffmpeg_hw_accel_results(self.output_widget.get_recent_lines(7))
+        self._refresh_ffmpeg_hw_accel_ui(encoder_value)
