@@ -13,7 +13,6 @@ from .schemas.settings_config import SettingsConfig_Definitions as SC_Defs
 from .tools.media_ffprobe_inspect import FFprobeInspect
 from .tools.popup_dialog import show_confirm_dialog
 from .build_worker_cmd import build_cmd_head_python_exe
-from .build_ffmpeg_cmd import _resolve_video_encoder
 
 
 
@@ -96,15 +95,6 @@ def build_auto_convert_cmd(data: AutoConvertModel) -> OpResult[list[str]]:
             if not res.is_ok:
                 return err("Failed to get detect model paths", inner=res)
             cmd.extend(res.value)
-
-            # 构建 export_track_video FFmpeg 参数（包含编码器、preset、画质、pix_fmt）
-            encoder_res = _resolve_video_encoder()
-            if not encoder_res.is_ok:
-                return err("Failed to resolve video encoder from settings", inner=encoder_res)
-            entry = encoder_res.value
-            ffmpeg_args = f"-c:v {entry['codec']} -preset {entry['preset']} {entry['quality_param']} {entry['quality_default']} -pix_fmt {entry['pix_fmt']}"
-            cmd.append("--export_track_video_ffmpeg_args")
-            cmd.append(ffmpeg_args)
 
 
 

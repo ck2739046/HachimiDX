@@ -32,8 +32,7 @@ def _get_total_frames_by_ffprobe(std_video_path: Path) -> OpResult[int]:
 def main(std_video_path,
          batch_detect, batch_cls, inference_device,
          detect_model_path, obb_model_path, cls_ex_model_path, cls_break_model_path,
-         export_track_video_ffmpeg_args: str,
-         skip_detect=False, skip_cls=False, skip_export_tracked_video=False,
+         skip_detect=False, skip_cls=False, skip_export_tracked_video=False
         ) -> OpResult[None]:
     try:
         # 检查输入文件
@@ -95,8 +94,7 @@ def main(std_video_path,
 
         # 导出追踪视频模块
         if not skip_export_tracked_video:
-            result = export_video_module(std_video_path, total_frames,
-                                         export_track_video_ffmpeg_args)
+            result = export_video_module(std_video_path, total_frames)
             if not result.is_ok:
                 return err("导出追踪视频模块失败", inner=result)
         else:

@@ -101,7 +101,6 @@ def main(args: list[str]) -> bool:
                 obb_model_path=_get_cfg(cfg, "obb_model_path", Path),
                 cls_ex_model_path=_get_cfg(cfg, "cls_ex_model_path", Path),
                 cls_break_model_path=_get_cfg(cfg, "cls_break_model_path", Path),
-                export_track_video_ffmpeg_args=_get_cfg(cfg, "export_track_video_ffmpeg_args"),
                 skip_detect=_get_cfg(cfg, "skip_detect", _as_bool),
                 skip_cls=_get_cfg(cfg, "skip_cls", _as_bool),
                 skip_export_tracked_video=_get_cfg(cfg, "skip_export_tracked_video", _as_bool),
