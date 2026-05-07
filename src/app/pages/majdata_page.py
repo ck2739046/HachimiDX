@@ -13,7 +13,7 @@ from PyQt6.QtCore import QUrl, pyqtSlot
 from PyQt6.QtGui import QWindow
 from PyQt6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 
-from src.services import PathManage, pause_majdata
+from src.services import PathManage, stop_majdata
 from ..ui_style import UI_Style
 from ..widgets import *
 import i18n
@@ -255,8 +255,8 @@ class MajdataPage(QWidget):
         # 1. Reset video player
         self.unload_video()
 
-        # 2. Pause majdata
-        pause_majdata()
+        # 2. Stop majdata
+        stop_majdata()
 
         # 3. Clear comboboxes
         self._maidata_combo.clear()

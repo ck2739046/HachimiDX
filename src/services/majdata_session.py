@@ -206,8 +206,8 @@ class MajdataSession(QObject):
         # Stop polling to avoid late emits during teardown.
         self._poll_timer.stop()
 
-        # 1) 先暂停 majdata
-        pause_majdata()
+        # 1) 先停止 majdata
+        stop_majdata()
         time.sleep(0.6) # 因为 MajdataEdit ControlFileWatcher 有 500ms 延时，所以这里多等一点
 
         # majdataedit 退出时会弹窗提示是否要关闭 majdataview
@@ -278,7 +278,7 @@ class MajdataSession(QObject):
 
 
 # static method
-def pause_majdata() -> None:
+def stop_majdata() -> None:
     try:
         text = "folder: ---\nmaidata: ---\ntrack: ---"
         control_txt = PathManage.MajdataEdit_CONTROL_TXT_PATH
