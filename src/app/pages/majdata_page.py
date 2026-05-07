@@ -201,8 +201,15 @@ class MajdataPage(QWidget):
         video_files = [f for f in os.listdir(song_path)
                        if f.lower().endswith(".mp4")]
         if video_files:
-            self._video_combo.addItems(sorted(video_files))
-            self._video_combo.setCurrentIndex(0)
+            video_files = sorted(video_files)
+            self._video_combo.addItems(video_files)
+            # 如果有 sync.mp4，优先选择它
+            if "sync.mp4" in video_files:
+                index = video_files.index("sync.mp4")
+                self._video_combo.setCurrentIndex(index)
+            # 否则默认选择第一个
+            else:
+                self._video_combo.setCurrentIndex(0)
 
 
 
