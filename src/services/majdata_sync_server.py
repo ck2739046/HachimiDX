@@ -3,6 +3,7 @@ import socket
 import threading
 import time
 import traceback
+from PyQt6.QtCore import QUrl
 
 
 # 允许 start/continue 指令中的时间，与自身的 last_position 相差 60ms
@@ -169,6 +170,8 @@ class VideoSyncServer:
                 self._handle_pause(data)
             elif control_value == 273:    # Set Position
                 self._handle_set_position(data)
+            elif control_value == 274:    # Unload video
+                self._handle_unload_video(data)
 
         except Exception as e:
             control_map = {
@@ -179,6 +182,7 @@ class VideoSyncServer:
                 4: "Continue",
                 5: "Record",
                 273: "SetPosition",
+                274: "UnloadVideo",
             }
             control_name = control_map.get(control_value, f"Unknown({control_value})")
             print(f"[VideoSync] Error handling {control_name}: {e}")
@@ -292,6 +296,34 @@ class VideoSyncServer:
 
         # 检查是否已超过防抖间隔
         self._process_scheduled_actions()
+
+
+
+
+
+    def _handle_unload_video(self, data) -> None:
+
+        # 清除未处理的 setPosition 请求
+        self._setpos_pending_position = None
+
+        def unload_action():
+            try:
+                mp = self.media_player
+                if not mp or not mp.hasVideo(): return
+
+                mp.stop()
+                mp.setSource(QUrl())
+
+                # 重置状态
+                self.last_position = None
+                self.last_play_speed = None
+                self._setpos_last_sent_pos = None
+
+                print(f"[VideoSync] Unload video executed")
+            except Exception as e:
+                print(f"[VideoSync] UI unload_action error: {e}")
+
+        self._dispatch_ui(unload_action)
 
 
 
