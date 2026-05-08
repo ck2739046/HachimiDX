@@ -120,7 +120,20 @@ class MediaInputProbeWidget(QWidget):
         # 更新公共变量
         self.selected_file_duration = ffprobe_result.duration
         self.selected_file_type = ffprobe_result.media_type
-        self.selected_video_fps = ffprobe_result.video_stream.get("avg_frame_rate")
+
+        raw_fps = ffprobe_result.video_stream.get("avg_frame_rate")
+        try:
+            if raw_fps is not None:
+                s = str(raw_fps).strip()
+                if "/" in s:
+                    num, denom = s.split("/")
+                    self.selected_video_fps = float(num) / float(denom)
+                else:
+                    self.selected_video_fps = float(s)
+            else:
+                self.selected_video_fps = None
+        except Exception:
+            self.selected_video_fps = None
         # 显示检测结果
         display_text = self._build_probe_result_text(ffprobe_result)
         self.probe_result_display_label.setText(display_text)

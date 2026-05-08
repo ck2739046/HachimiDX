@@ -384,6 +384,15 @@ zh_CN:
 
       ui_advanced_mode_label: "高级模式: "
 
+      ui_low_fps_warning_title: "警告: 帧率过低"
+      ui_low_fps_warning_text: |
+        当前谱面等级为 %{level}。
+
+        高等级谱面（Master及以上）建议使用 60 帧及以上的谱面确认视频，以保证自动识别的可靠性。
+        当前视频仅为 %{fps} 帧，偏低，识别结果可能不够准确。
+
+        是否仍要继续？
+
 
     # ---- settings 页面 ----
 

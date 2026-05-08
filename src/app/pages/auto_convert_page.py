@@ -8,7 +8,7 @@ from ..ui_style import UI_Style
 from ..widgets import *
 from src.services import process_manager_api
 from src.services.pipeline import AutoConvertPipeline
-from src.core.tools import show_notify_dialog
+from src.core.tools import show_confirm_dialog, show_notify_dialog
 from src.core.schemas.op_result import OpResult, ok, err, print_op_result
 from src.core.schemas.auto_convert_config import AutoConvertConfig_Definitions as AC_Defs
 import i18n
@@ -546,6 +546,19 @@ class AutoConvertPage(BaseOutputPage):
                     AC_Defs.base_denominator.key: try_int(self._transfer_base_denominator(self.base_denominator_combo_box.currentText())),
                     AC_Defs.duration_denominator.key: try_int(self.duration_denominator_combo_box.currentText()),
                 })
+
+            # 如果启用音符分析模组，并且处于非高级模式下
+            # 高等级谱面 + 低帧率视频 弹警告
+            if raw_data[AC_Defs.is_analyze_enabled.key]:
+                if not self.advanced_mode_check_box.isChecked():
+                    chart_lv = try_int(self.chart_lv_combo_box.currentText())
+                    fps = try_float(self.chart_confirm_video_input.selected_video_fps)
+                    if chart_lv is not None and fps is not None:
+                        if chart_lv >= 5 and fps < 58:
+                            title = i18n.t(f"{I18N_Prefix}.ui_low_fps_warning_title")
+                            text = i18n.t(f"{I18N_Prefix}.ui_low_fps_warning_text", level=chart_lv, fps=round(fps, 1))
+                            if not show_confirm_dialog(title, text):
+                                return
 
             task_name = self.taskname_line_edit.text().strip()
             result = AutoConvertPipeline.submit_task(raw_data, task_name)

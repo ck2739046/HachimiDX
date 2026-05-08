@@ -281,21 +281,6 @@ class SimplyAlignPage(BaseOutputPage):
 
 
     @staticmethod
-    def _parse_fps(raw_fps) -> float:
-        try:
-            if raw_fps is None:
-                return 0.0
-            s = str(raw_fps).strip()
-            if "/" in s:
-                num, denom = s.split("/")
-                return float(num) / float(denom)
-            return float(s)
-        except Exception:
-            return 0.0
-
-
-
-    @staticmethod
     def _build_sync_output_path(target_path: Path) -> Path:
         for i in range(0, 1000):
             candidate_name = "sync" if i == 0 else f"sync_{i}"
@@ -325,7 +310,7 @@ class SimplyAlignPage(BaseOutputPage):
         target_duration = self.target_media_input.selected_file_duration
 
         raw_fps = self.target_media_input.selected_video_fps
-        fps_float = self._parse_fps(raw_fps)
+        fps_float = raw_fps if raw_fps is not None else 0.0
         video_fps = 60 if fps_float > 45 else 30
 
         output_path = self._build_sync_output_path(target_path)

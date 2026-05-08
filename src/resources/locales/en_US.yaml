@@ -388,6 +388,15 @@ en_US:
 
       ui_advanced_mode_label: "Advanced Mode: "
 
+      ui_low_fps_warning_title: "Warning: FPS too low"
+      ui_low_fps_warning_text: |
+        The current chart is Level %{level}.
+
+        For high-level charts (Master+), a 60fps or higher video is recommended for reliable auto-detection.
+        Your video is only %{fps} fps, which may result in poor accuracy.
+
+        Continue anyway?
+
 
     # ---- settings page ----
 
