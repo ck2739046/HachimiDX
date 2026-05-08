@@ -84,6 +84,8 @@ Code lives in `src/`, organized in three layers:
     - Overlapping notes at the same spot are not supported.
     - Fireworks effects (`f`) are not supported.
 
+ - Fake jumps (`` ` ``) are not supported.
+
 - Songs are assumed to have a fixed BPM throughout and do not support BPM changes.
 
 - Camera-captured footage (off-screen recordings) may suffer from angle, color cast, or exposure issues. This hurts accuracy for ex/break classification.
