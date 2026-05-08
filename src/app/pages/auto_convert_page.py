@@ -351,6 +351,9 @@ class AutoConvertPage(BaseOutputPage):
         self.content_layout.addWidget(analyze_panel)
         self.overlay_analyze = OverlayWidget(analyze_panel)
 
+        # 连接信号
+        self.chart_lv_combo_box.currentTextChanged.connect(self._on_chart_lv_changed)
+
 
 
 
@@ -572,6 +575,33 @@ class AutoConvertPage(BaseOutputPage):
                 i18n.t("app.media_subpages.run_ffmpeg.warning_unexpected_submit_error", error=traceback.format_exc()))
         finally:
             self.submit_button.setEnabled(True)
+
+
+
+    def _on_chart_lv_changed(self, text: str):
+        try: chart_lv = int(text)
+        except: return
+        preset = AC_Defs.CHART_LV_PRESETS.get(chart_lv, None)
+        if preset is None: return
+
+        # is_big_touch
+        self.is_big_touch_check_box.setChecked(preset[AC_Defs.is_big_touch.key])
+
+        # base_denominator — combo 显示 "16 (12)" 格式，用 transfer 函数反向翻译后匹配
+        bd_value: int = preset[AC_Defs.base_denominator.key]
+        for i in range(self.base_denominator_combo_box.count()):
+            item_text = self.base_denominator_combo_box.itemText(i)
+            raw = self._transfer_base_denominator(item_text)
+            if int(raw) == bd_value:
+                self.base_denominator_combo_box.setCurrentIndex(i)
+                break
+
+        # duration_denominator — 直接字符串匹配
+        dd_value: int = preset[AC_Defs.duration_denominator.key]
+        for i in range(self.duration_denominator_combo_box.count()):
+            if int(self.duration_denominator_combo_box.itemText(i)) == dd_value:
+                self.duration_denominator_combo_box.setCurrentIndex(i)
+                break
 
 
 

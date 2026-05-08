@@ -206,7 +206,7 @@ class AutoConvertConfig_Definitions:
 		key="base_denominator",
 		type="int",
 		group="analyze",
-		default=16,
+		default=32, # 匹配 CHART_LV_PRESETS
 		constraints={"options": [4, 8, 16, 32, 64]}
 	)
 
@@ -214,10 +214,19 @@ class AutoConvertConfig_Definitions:
 		key="duration_denominator",
 		type="int",
 		group="analyze",
-		default=8,
+		default=32, # 匹配 CHART_LV_PRESETS
 		constraints={"options": [4, 8, 16, 32, 64]}
 	 )
 
+	CHART_LV_PRESETS = {
+		1: {is_big_touch.key: True,  base_denominator.key: 8,  duration_denominator.key: 8},
+		2: {is_big_touch.key: True,  base_denominator.key: 8,  duration_denominator.key: 8},
+		3: {is_big_touch.key: True,  base_denominator.key: 16, duration_denominator.key: 8},
+		4: {is_big_touch.key: False, base_denominator.key: 16, duration_denominator.key: 16},
+		5: {is_big_touch.key: False, base_denominator.key: 32, duration_denominator.key: 32},
+		6: {is_big_touch.key: False, base_denominator.key: 32, duration_denominator.key: 32},
+		7: {is_big_touch.key: False, base_denominator.key: 32, duration_denominator.key: 32},
+	}
 
 
 
