@@ -29,7 +29,7 @@
     - 内嵌 [`MajdataEdit`](https://github.com/LingFeng-bbben/MajdataView) 和 [`MajdataView`](https://github.com/TeamMajdata/MajdataView/tree/431-NC-TH)，识别结果一站式预览与修改。
 
 - **多后台推理支持**
-    - 支持 CPU / NVIDIA TensorRT / DirectML 多种深度学习推理后端，兼容多种硬件。
+    - 支持 PyTorch / NVIDIA TensorRT / DirectML 多种深度学习推理后端，兼容各类硬件。
 
 - **便捷的多媒体处理**
     - 内置多个实用工具：视频裁剪、音频匹配、格式转换，街机延迟调整等。
@@ -92,3 +92,18 @@
 
 - 相机实拍屏幕的视频可能存在拍摄角度、色偏、曝光等问题，此时 ex/break 等音符变体的分类准确率会下降。
 
+
+
+## 🏃 从源码运行
+
+Release 包含了独立的嵌入式 Python 3.13，因此无需预先在系统中安装 Python。如果要从源码运行，有以下两种方式可选：
+
+1. 将 [`嵌入式 Python`](src/resources/for_release_only/python%20portable/py3.13.11.zip) 解压到项目根目录，然后使用 `./python/python.exe` 运行脚本。
+2. 预先安装 Python 并创建虚拟环境 (venv)。
+
+配置好 Python 环境后，运行 `install/script/install.py` 安装项目依赖，然后运行 `main.py` 启动应用。
+
+**最低可用版本:** Python 3.10、3.11、3.12 似乎大概有可能支持，纯猜的，未经实际验证。
+
+> **注意 (2026.05.09):**<br>
+> NVIDIA TensorRT 目前不支持 Python 3.14。使用 `DirectML` 或 `PyTorch` 推理时，Python 3.14 可用；使用 `TensorRT` 时，最高支持到 Python 3.13。

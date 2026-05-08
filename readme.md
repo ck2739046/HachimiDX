@@ -27,7 +27,7 @@ A tool designed for the rhythm game `maimai`. Accepts chart confirmation videos 
     - Integrates [`MajdataEdit`](https://github.com/LingFeng-bbben/MajdataView) and [`MajdataView`](https://github.com/TeamMajdata/MajdataView/tree/431-NC-TH) so convertion results can be previewed and modified in one place.
 
 - **Flexible inference backends**
-    - Supports CPU / NVIDIA TensorRT / DirectML inference backends for compatibility with a range of hardware.
+    - Supports PyTorch / NVIDIA TensorRT / DirectML inference backends for compatibility with a range of hardware.
 
 - **Handy multimedia tools**
     - Trim videos, sync audio, convert formats, adjust arcade timing, etc.
@@ -89,3 +89,19 @@ Code lives in `src/`, organized in three layers:
 - Songs are assumed to have a fixed BPM throughout and do not support BPM changes.
 
 - Camera-captured footage (off-screen recordings) may suffer from angle, color cast, or exposure issues. This hurts accuracy for ex/break classification.
+
+
+
+## 🏃 Running from Source
+
+The release package ships with an embedded Python 3.13 interpreter, so no pre-installed Python is required. To run from source, there are two approaches:
+
+1. Extract [`embedded_python`](src/resources/for_release_only/python%20portable/py3.13.11.zip) to the project root directory, then use `./python/python.exe` to run scripts.
+2. Install Python and create a virtual environment (venv).
+
+After setting up the Python environment, run `install/script/install.py` to install project dependencies, then run `main.py` to launch the application.
+
+**Minimum supported version:** Python 3.10, 3.11, and 3.12 may work, but this is only a rough guess and has not been verified.
+
+> **Note (2026.05.09):**<br>
+> NVIDIA TensorRT currently does not support Python 3.14. When using `DirectML` or `PyTorch` inference, Python 3.14 works fine. For `TensorRT`, Python 3.13 is the highest supported version.
