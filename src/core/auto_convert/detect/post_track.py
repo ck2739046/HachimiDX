@@ -41,7 +41,7 @@ def main(std_video_path: Path) -> OpResult[None]:
         tracks, next_track_id = _split_touch_notes(tracks, context, next_track_id)
         tracks, next_track_id = _split_slide_notes(tracks, context, next_track_id)
 
-        _save_track_results(tracks, std_video_path.parent, is_cls=False)
+        _save_track_results(tracks, std_video_path.parent, call_fn="post_track")
         return ok()
 
     except Exception as e:

@@ -105,7 +105,7 @@ def main(std_video_path: Path,
         print(f"分类模块完成, 耗时{finish_time - start_time:.1f}s                       ")
         
         # 保存到文件
-        _save_track_results(track_results, std_video_path.parent, is_cls=True)
+        _save_track_results(track_results, std_video_path.parent, call_fn="classify")
         return ok()
         
     except Exception as e:

@@ -317,7 +317,7 @@ def main(std_video_path: Path,
             print(f"反向追踪: 为 {reverse_count} 条 slide track 补充了首帧")
 
         # 保存到文件
-        _save_track_results(final_tracked_results, std_video_path.parent, is_cls=False)
+        _save_track_results(final_tracked_results, std_video_path.parent, call_fn="track")
         return ok()
 
     except Exception as e:
@@ -409,7 +409,7 @@ def _parse_track_results(track_result, detections, note_type, frame_number, dete
 
 
 
-def _save_track_results(tracks, output_dir, is_cls):
+def _save_track_results(tracks, output_dir, call_fn=None):
 
     track_result_path = os.path.join(output_dir, "track_result.txt")
     
@@ -440,8 +440,8 @@ def _save_track_results(tracks, output_dir, is_cls):
 
                 f.write('\n')  # track_id 之间空行分隔
     
-    prefix = "分类后的" if is_cls else "未分类的"
-    print(f"{prefix}追踪结果已保存到: {track_result_path}")
+    prefix = f"[{call_fn}]: " if call_fn else ""
+    print(f"{prefix}追踪结果已保存到 {track_result_path}")
 
 
 
