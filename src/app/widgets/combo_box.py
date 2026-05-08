@@ -1,7 +1,8 @@
 import os
-from PyQt6.QtWidgets import QComboBox, QToolTip
+from PyQt6.QtWidgets import QComboBox
 from PyQt6.QtCore import QPoint, QEvent
 from ..ui_style import UI_Style
+from src.app.widgets.popup_tooltip import get_shared_tooltip
 
 class ToolTipComboBox(QComboBox):
     """QComboBox with immediate hover tooltip for dropdown items."""
@@ -11,6 +12,7 @@ class ToolTipComboBox(QComboBox):
         self._is_popup_shown = False
         self._connected_view = None
         self._event_filter_installed = False
+        self._tooltip = get_shared_tooltip()
         self.setMouseTracking(True)
 
 
@@ -49,7 +51,7 @@ class ToolTipComboBox(QComboBox):
         
         # 断开信号连接
         self._disconnect_view()
-        QToolTip.hideText()
+        self._tooltip.hide()
         super().hidePopup()
 
 
@@ -66,7 +68,7 @@ class ToolTipComboBox(QComboBox):
     def _on_view_entered(self, index):
         # 检查弹窗状态和索引有效性
         if not self._is_popup_shown or not index.isValid():
-            QToolTip.hideText()
+            self._tooltip.hide()
             return
         
         # 检查 view 和 viewport 是否存在
@@ -79,22 +81,20 @@ class ToolTipComboBox(QComboBox):
         # 获取项目数据
         text = index.data()
         if not text:  # 忽略空文本
-            QToolTip.hideText()
+            self._tooltip.hide()
             return
+        text = str(text)
         
         # 计算 tooltip 显示位置（选项右侧）
         viewport_right = viewport.mapToGlobal(QPoint(viewport.width(), 0))
         item_rect = view.visualRect(index)
         item_center_y = item_rect.center().y()
         item_center_global = viewport.mapToGlobal(QPoint(0, item_center_y))
-        tooltip_pos = QPoint(viewport_right.x()+2, item_center_global.y()-20)
+        tooltip_pos = QPoint(viewport_right.x()-5, item_center_global.y()-28)
+                                                # 此处是向左 5px，向上 28px
 
-        # 显示 tooltip（粗体文字)
-        QToolTip.showText(tooltip_pos, text, viewport)
-        font = QToolTip.font()
-        font.setFamilies(['Consolas', 'Microsoft YaHei UI'])
-        font.setBold(True)
-        QToolTip.setFont(font)
+        # 显示 tooltip
+        self._tooltip.show_text(text, tooltip_pos)
 
 
     def eventFilter(self, obj, event):
@@ -103,7 +103,7 @@ class ToolTipComboBox(QComboBox):
         # 检查 view 是否存在
         view = self.view()
         if view and view.viewport() and obj == view.viewport() and event.type() == QEvent.Type.Leave:
-            QToolTip.hideText()
+            self._tooltip.hide()
         
         return super().eventFilter(obj, event)
 
