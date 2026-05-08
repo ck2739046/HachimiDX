@@ -44,6 +44,8 @@ class ArcadeTimingPage(BaseOutputPage):
         self._offset_value_ms = None
 
         self._active_runner_id = None
+        self._active_media_runner_id = None
+        self._media_output_path = None
 
         self._build_file_section()
         self._build_param_section()
@@ -227,29 +229,53 @@ class ArcadeTimingPage(BaseOutputPage):
 
 
     def _on_runner_ended(self, runner_id: str, ended) -> None:
-        if not self._active_runner_id or runner_id != self._active_runner_id:
+        # Handle audio align worker
+        if self._active_runner_id and runner_id == self._active_runner_id:
+            self._active_runner_id = None
+            self.run_button.setEnabled(True)
+
+            if getattr(ended, "cancelled", False):
+                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_run_cancelled"))
+                return
+
+            failed = bool(getattr(ended, "crashed", False))
+            exit_code = getattr(ended, "exit_code", None)
+            if exit_code is None or exit_code != 0:
+                failed = True
+
+            if failed:
+                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.warning_run_failed"))
+                return
+
+            self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_run_success"))
+
+            self._try_parse_offset()
+            self._try_show_wave_image()
             return
 
-        self._active_runner_id = None
-        self.run_button.setEnabled(True)
+        # Handle media (edit audio) task
+        if self._active_media_runner_id and runner_id == self._active_media_runner_id:
+            self._active_media_runner_id = None
+            self.edit_audio_button.setEnabled(True)
 
-        if getattr(ended, "cancelled", False):
-            self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_run_cancelled"))
+            if getattr(ended, "cancelled", False):
+                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_run_cancelled"))
+                return
+
+            failed = bool(getattr(ended, "crashed", False))
+            exit_code = getattr(ended, "exit_code", None)
+            if exit_code is None or exit_code != 0:
+                failed = True
+
+            if failed:
+                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.warning_edit_audio_failed_log"))
+                return
+
+            output_path_str = str(self._media_output_path) if self._media_output_path else "?"
+            self.output_widget.append_text(
+                i18n.t(f"{I18N_Prefix}.notice_edit_audio_success", output_path=output_path_str)
+            )
             return
-
-        failed = bool(getattr(ended, "crashed", False))
-        exit_code = getattr(ended, "exit_code", None)
-        if exit_code is None or exit_code != 0:
-            failed = True
-
-        if failed:
-            self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.warning_run_failed"))
-            return
-
-        self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_run_success"))
-
-        self._try_parse_offset()
-        self._try_show_wave_image()
 
 
 
@@ -345,7 +371,7 @@ class ArcadeTimingPage(BaseOutputPage):
 
 
     def on_edit_audio_clicked(self) -> None:
-        if self._active_runner_id:
+        if self._active_runner_id or self._active_media_runner_id:
             return
 
         if self._offset_action is None or self._offset_value_ms is None:
@@ -401,20 +427,26 @@ class ArcadeTimingPage(BaseOutputPage):
         }
 
         self.edit_audio_button.setEnabled(False)
+        self._media_output_path = output_path
         self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_edit_audio_start"))
         
         try:
-            run_res = MediaPipeline.run_now(raw_data)
-            if not run_res.is_ok:
+            result = MediaPipeline.submit_task(raw_data, f"arcade_timing {target_path.name}")
+            if not result.is_ok:
                 show_notify_dialog(
                     i18n.t(f"{I18N_Prefix}.dialog_title"),
-                    i18n.t(f"{I18N_Prefix}.warning_edit_audio_failed", error=print_op_result(run_res)),
+                    i18n.t(f"{I18N_Prefix}.warning_edit_audio_failed", error=print_op_result(result)),
                 )
                 self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.warning_edit_audio_failed_log"))
                 return
 
-            self.output_widget.append_text(
-                i18n.t(f"{I18N_Prefix}.notice_edit_audio_success", output_path=str(output_path))
-            )
+            runner_id, cmd_list = result.value
+            self._active_media_runner_id = runner_id
+            self.output_widget.bind_current_runner_id(runner_id)
+
+            message = i18n.t("app.media_subpages.run_ffmpeg.notice_task_submit_success", task_id=runner_id)
+            create_floating_notification(message, self.window())
+
         finally:
-            self.edit_audio_button.setEnabled(True)
+            if not self._active_media_runner_id:
+                self.edit_audio_button.setEnabled(True)

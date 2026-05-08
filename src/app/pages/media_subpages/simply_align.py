@@ -33,6 +33,8 @@ class SimplyAlignPage(BaseOutputPage):
         self.offset_label = None
 
         self._active_runner_id = None
+        self._active_media_runner_id = None
+        self._media_output_path = None
         self._offset_action = None
         self._offset_value_ms = None
         self.generate_video_label = None
@@ -157,27 +159,56 @@ class SimplyAlignPage(BaseOutputPage):
 
 
     def _on_runner_ended(self, runner_id: str, ended) -> None:
-        if not self._active_runner_id or runner_id != self._active_runner_id:
+        # Handle audio align worker
+        if self._active_runner_id and runner_id == self._active_runner_id:
+            self._active_runner_id = None
+            self.run_button.setEnabled(True)
+
+            if getattr(ended, "cancelled", False):
+                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_run_cancelled"))
+                return
+
+            failed = bool(getattr(ended, "crashed", False))
+            exit_code = getattr(ended, "exit_code", None)
+            if exit_code is None or exit_code != 0:
+                failed = True
+
+            if failed:
+                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.warning_run_failed"))
+                return
+
+            self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_run_success"))
+            self._try_parse_offset()
             return
 
-        self._active_runner_id = None
-        self.run_button.setEnabled(True)
+        # Handle media (generate video) task
+        if self._active_media_runner_id and runner_id == self._active_media_runner_id:
+            self._active_media_runner_id = None
+            self.generate_video_button.setEnabled(True)
 
-        if getattr(ended, "cancelled", False):
-            self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_run_cancelled"))
+            if getattr(ended, "cancelled", False):
+                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_run_cancelled"))
+                return
+
+            failed = bool(getattr(ended, "crashed", False))
+            exit_code = getattr(ended, "exit_code", None)
+            if exit_code is None or exit_code != 0:
+                failed = True
+
+            if failed:
+                self.output_widget.append_text(
+                    i18n.t(f"{I18N_Simply_Align_Prefix}.warning_video_generate_failed_log")
+                )
+                return
+
+            output_path_str = str(self._media_output_path) if self._media_output_path else "?"
+            self.output_widget.append_text(
+                i18n.t(
+                    f"{I18N_Simply_Align_Prefix}.notice_video_generate_success",
+                    output_path=output_path_str,
+                )
+            )
             return
-
-        failed = bool(getattr(ended, "crashed", False))
-        exit_code = getattr(ended, "exit_code", None)
-        if exit_code is None or exit_code != 0:
-            failed = True
-
-        if failed:
-            self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.warning_run_failed"))
-            return
-
-        self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_run_success"))
-        self._try_parse_offset()
 
 
 
@@ -316,18 +347,19 @@ class SimplyAlignPage(BaseOutputPage):
         }
 
         self.generate_video_button.setEnabled(False)
+        self._media_output_path = output_path
         self.output_widget.append_text(
             i18n.t(f"{I18N_Simply_Align_Prefix}.notice_video_generate_start")
         )
 
         try:
-            run_res = MediaPipeline.run_now(raw_data)
-            if not run_res.is_ok:
+            result = MediaPipeline.submit_task(raw_data, f"simply_align {target_path.name}")
+            if not result.is_ok:
                 show_notify_dialog(
                     i18n.t(f"{I18N_Simply_Align_Prefix}.dialog_title"),
                     i18n.t(
                         f"{I18N_Simply_Align_Prefix}.warning_video_generate_failed",
-                        error=print_op_result(run_res),
+                        error=print_op_result(result),
                     ),
                 )
                 self.output_widget.append_text(
@@ -335,11 +367,13 @@ class SimplyAlignPage(BaseOutputPage):
                 )
                 return
 
-            self.output_widget.append_text(
-                i18n.t(
-                    f"{I18N_Simply_Align_Prefix}.notice_video_generate_success",
-                    output_path=str(output_path),
-                )
-            )
+            runner_id = result.value[0]
+            self._active_media_runner_id = runner_id
+            self.output_widget.bind_current_runner_id(runner_id)
+
+            message = i18n.t("app.media_subpages.run_ffmpeg.notice_task_submit_success", task_id=runner_id)
+            create_floating_notification(message, self.window())
+
         finally:
-            self.generate_video_button.setEnabled(True)
+            if not self._active_media_runner_id:
+                self.generate_video_button.setEnabled(True)
