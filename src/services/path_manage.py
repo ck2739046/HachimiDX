@@ -37,6 +37,7 @@ class PathManage:
     CLS_BREAK_PT_PATH: Path = MODELS_DIR / "cls-break.pt"
     CLS_EX_PT_PATH: Path = MODELS_DIR / "cls-ex.pt"
     TOUCH_HOLD_PT_PATH: Path = MODELS_DIR / "detect-touch-hold.pt"
+    REID_PT_PATH: Path = MODELS_DIR / "re_id.pt"
 
     # worker 脚本
 
@@ -95,7 +96,7 @@ class PathManage:
                           cls.MajdataView_EXE_PATH, cls.MajdataEdit_EXE_PATH,
                           cls.DETECT_PT_PATH, cls.OBB_PT_PATH,
                           cls.CLS_BREAK_PT_PATH, cls.CLS_EX_PT_PATH,
-                          cls.TOUCH_HOLD_PT_PATH]:
+                          cls.TOUCH_HOLD_PT_PATH, cls.REID_PT_PATH]:
             if not file_path.is_file():
                 error_msg = f"Critical Error: Required file not found: {file_path}"
                 return err(error_msg)

@@ -9,6 +9,7 @@ from ultralytics.engine.results import OBB
 from pathlib import Path
 
 from ...schemas.op_result import OpResult, ok, err
+from ....services.path_manage import PathManage
 from .note_definition import *
 from .detect import _load_detect_results
 from .oc_sort import OCSort
@@ -24,7 +25,7 @@ TRACKER_NOTE_TYPES = [
 
 
 
-def _build_botsort_tracker(fps: float) -> BOTSORT:
+def _build_botsort_tracker(fps: float, with_reid: bool = False) -> BOTSORT:
     tracker_args = SimpleNamespace(
         tracker_type='botsort',
 
@@ -58,17 +59,16 @@ def _build_botsort_tracker(fps: float) -> BOTSORT:
         gmc_method='none',
 
         # 是否启用 ReID
-        # 不想传入视频帧，所以不开
-        with_reid=False,
-        model='HachimiDX',
+        with_reid=with_reid,
+        model=str(PathManage.REID_PT_PATH) if with_reid else 'HachimiDX',
         # 开启 reid 的最小 iou 阈值
-        # 只有两个框的 iou ≥ reid_iou_thresh 时，才会启用 reid 特征进行匹配
+        # 只有两个框的 iou ≥ proximity_thresh 时，才会启用 reid 特征进行匹配
         # 值越高，越不容易启用 reid
         # 值越低，越容易启用 reid，越不容易视为新 id
-        proximity_thresh=273,
+        proximity_thresh=0.4 if with_reid else 273,
         # 外观相似度
         # 值越低，外观就不需要那么相似也能匹配上，越不容易视为新 id
-        appearance_thresh=478,
+        appearance_thresh=0.8 if with_reid else 478,
     )
     return BOTSORT(tracker_args, frame_rate=fps)
 
@@ -183,11 +183,10 @@ def main(std_video_path: Path,
         # 读取检测结果
         detect_results = _load_detect_results(std_video_path.parent)
 
-        # 获取视频信息
+        # 获取视频信息（保持打开，后续逐帧读取用于 ReID）
         cap = cv2.VideoCapture(std_video_path)
         fps = cap.get(cv2.CAP_PROP_FPS)
         video_size = round(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        cap.release()
 
         # 初始化5个独立tracker: 每个note_type一个实例
         # slide -> oc-sort
@@ -196,8 +195,10 @@ def main(std_video_path: Path,
         for note_type in TRACKER_NOTE_TYPES:
             if note_type == NoteType.SLIDE:
                 trackers_by_type[note_type] = _build_ocsort_tracker(fps)
+            elif note_type == NoteType.TAP:
+                trackers_by_type[note_type] = _build_botsort_tracker(fps, with_reid=True)
             else:
-                trackers_by_type[note_type] = _build_botsort_tracker(fps)
+                trackers_by_type[note_type] = _build_botsort_tracker(fps, with_reid=False)
 
         # 按帧号重新组织detect_results
         detections_by_frame = defaultdict(list)
@@ -224,6 +225,11 @@ def main(std_video_path: Path,
         # 遍历每一帧
         for frame_number in range(total_frames):
 
+            # 读取当前视频帧（用于 ReID 特征提取）
+            ret, frame = cap.read()
+            if not ret:
+                frame = None
+
             # 获取当前帧的检测结果
             single_frame_detections = detections_by_frame.get(frame_number, [])
 
@@ -238,10 +244,10 @@ def main(std_video_path: Path,
                 # 就算没有检测框，也要传个空对象给tracker以更新时间
                 if note_type == NoteType.SLIDE:
                     tracker_input = _convert_detections_to_ocsort_format(type_detections)
+                    track_result = trackers_by_type[note_type].update(tracker_input)
                 else:
                     tracker_input = _convert_detections_to_botsort_format(type_detections, frame_shape)
-                # 交给tracker追踪
-                track_result = trackers_by_type[note_type].update(tracker_input)
+                    track_result = trackers_by_type[note_type].update(tracker_input, img=frame)
                 if track_result is None or len(track_result) == 0:
                     continue
                 # 解析追踪结果
@@ -317,6 +323,7 @@ def main(std_video_path: Path,
             print(f"反向追踪: 为 {reverse_count} 条 slide track 补充了首帧")
 
         # 保存到文件
+        cap.release()
         _save_track_results(final_tracked_results, std_video_path.parent, call_fn="track")
         return ok()
 
