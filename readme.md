@@ -3,6 +3,8 @@
 🔗 [**Project URL**](https://github.com/ck2739046/HachimiDX-Convert)
 &nbsp;•&nbsp;
 📖 [**中文 README**](readme_zh_cn.md)
+&nbsp;•&nbsp;
+🎥 [**Demo Video**](https://www.bilibili.com/video/BV1VND1B5EfQ)
 
 
 
