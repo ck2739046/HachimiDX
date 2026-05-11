@@ -227,6 +227,11 @@ def is_straight(note_path: list, start_A_zone_id: int, end_A_zone_id: int) -> tu
         # 必须激活 B 区
         required.append(f'B{start_A_zone_id}')
         required.append(f'B{end_A_zone_id}')
+        # 可选起点/终点附近的 E 区
+        optional.append(f'E{_prev_DE_zone_id(start_A_zone_id)}')
+        optional.append(f'E{_next_DE_zone_id(start_A_zone_id)}')
+        optional.append(f'E{_prev_DE_zone_id(end_A_zone_id)}')
+        optional.append(f'E{_next_DE_zone_id(end_A_zone_id)}')
 
     # 检查
     if _ckeck_zones(positions, required, optional, banned):
