@@ -190,7 +190,6 @@ class OCSort:
         max_size_increase_ratio: float = 0.10,
         min_track_hits_for_shared: int = 10,
         max_consecutive_shared: int = 3,
-        inertia_gain_threshold: float = 0.8,
     ):
         self.max_age = int(max_age)
         self.min_hits = int(min_hits)
@@ -206,7 +205,6 @@ class OCSort:
         self.max_size_increase_ratio = float(max_size_increase_ratio)
         self.min_track_hits_for_shared = int(min_track_hits_for_shared)
         self.max_consecutive_shared = int(max_consecutive_shared)
-        self.inertia_gain_threshold = float(inertia_gain_threshold)
 
         _KalmanBoxTracker.count = 0
 
@@ -285,8 +283,6 @@ class OCSort:
             tracker_objects=self.trackers,
             min_track_hits_for_shared=self.min_track_hits_for_shared,
             max_consecutive_shared=self.max_consecutive_shared,
-            delta_t=self.delta_t,
-            inertia_gain_threshold=self.inertia_gain_threshold,
             trk_last_boxes=last_boxes,
             max_ratio=self.max_ratio,
             trk_avg_sizes=trk_avg_sizes,
@@ -310,8 +306,6 @@ class OCSort:
                 tracker_objects=u_tracker_objs,
                 min_track_hits_for_shared=self.min_track_hits_for_shared,
                 max_consecutive_shared=self.max_consecutive_shared,
-                delta_t=self.delta_t,
-                inertia_gain_threshold=self.inertia_gain_threshold,
                 trk_last_boxes=last_boxes[u_indices],
                 max_ratio=self.max_ratio,
                 trk_avg_sizes=trk_avg_sizes[u_indices],
@@ -345,8 +339,6 @@ class OCSort:
                 tracker_objects=u_tracker_objs,
                 min_track_hits_for_shared=self.min_track_hits_for_shared,
                 max_consecutive_shared=self.max_consecutive_shared,
-                delta_t=self.delta_t,
-                inertia_gain_threshold=self.inertia_gain_threshold,
                 trk_last_boxes=last_boxes[u_indices],
                 max_ratio=self.max_ratio,
                 trk_avg_sizes=trk_avg_sizes[u_indices],

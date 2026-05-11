@@ -90,8 +90,7 @@ def _build_ocsort_tracker(fps: float) -> OCSort:
         # 设置为 1，表示新轨迹一出现就输出，不需要等待稳定，适合追踪短命的 note
         min_hits=max(2, round(fps * 0.05)), # 0.05s，at least 2
 
-        # 速度方向估计窗口：用于 OCR/VDC 角度代价中的历史观测回看步长
-        delta_t=3, # 3帧
+
 
         # 方向一致性代价权重：越大越偏好“运动方向一致”的匹配
         # slide 运动比较规律，调高权重
@@ -123,7 +122,7 @@ def _build_ocsort_tracker(fps: float) -> OCSort:
         # 值越大越宽松，越小越限制轨迹连续"蹭"别人的框
         max_consecutive_shared=max(2, round(fps * 0.05)), # 0.05s, at least 2
 
-        inertia_gain_threshold=0.7,
+
     )
 
 

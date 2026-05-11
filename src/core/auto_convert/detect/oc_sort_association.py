@@ -79,12 +79,11 @@ def diou_batch(bboxes1: np.ndarray, bboxes2: np.ndarray) -> np.ndarray:
     return (diou + 1.0) / 2.0  # rescale [-1, 1] → [0, 1]
 
 
-def speed_direction_batch(dets: np.ndarray, tracks: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """计算检测框到轨迹历史框的单位方向向量和原始位移模长。
+def speed_direction_batch(dets: np.ndarray, tracks: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """计算检测框到轨迹历史框的单位方向向量。
 
     Returns:
         (dy, dx): (T, D) 单位方向向量
-        raw_norm: (T,) 原始位移的像素模长（归一化前），用于静止抑制
     """
     tracks = tracks[..., np.newaxis]
     cx1 = (dets[:, 0] + dets[:, 2]) / 2.0
@@ -98,10 +97,7 @@ def speed_direction_batch(dets: np.ndarray, tracks: np.ndarray) -> tuple[np.ndar
 
     dx = dx / norm
     dy = dy / norm
-
-    # 取每条轨迹在 delta_t 窗口内的平均原始位移模长（对检测框求均值）
-    raw_norm = norm.mean(axis=1)  # (T,)
-    return dy, dx, raw_norm
+    return dy, dx
 
 
 def linear_assignment(cost_matrix: np.ndarray) -> np.ndarray:
@@ -252,7 +248,7 @@ def associate(
     if len(detections) == 0:
         return np.empty((0, 2), dtype=int), np.empty((0,), dtype=int), np.arange(len(trackers))
 
-    y_speed, x_speed, _raw_disp = speed_direction_batch(detections, previous_obs)
+    y_speed, x_speed = speed_direction_batch(detections, previous_obs)
 
     inertia_y = velocities[:, 0][:, np.newaxis]
     inertia_x = velocities[:, 1][:, np.newaxis]
@@ -374,8 +370,7 @@ def _greedy_match_many_to_one(
     tracker_objects: list,
     min_track_hits_for_shared: int,
     max_consecutive_shared: int,
-    delta_t: int = 3,
-    inertia_gain_threshold: float = 0.8,
+    vdc_disable_threshold: float = 0.7,
     trk_last_boxes: np.ndarray | None = None,
     max_ratio: float = 2.0,
     trk_avg_sizes: np.ndarray | None = None,
@@ -423,7 +418,7 @@ def _greedy_match_many_to_one(
         )
 
     # --- 代价计算 ---
-    y_speed, x_speed, raw_disp = speed_direction_batch(detections, previous_obs)
+    y_speed, x_speed = speed_direction_batch(detections, previous_obs)
 
     inertia_y = velocities[:, 0][:, np.newaxis]
     inertia_x = velocities[:, 1][:, np.newaxis]
@@ -436,26 +431,15 @@ def _greedy_match_many_to_one(
     valid_mask = np.ones(previous_obs.shape[0])
     valid_mask[previous_obs[:, 4] < 0] = 0
 
-    # --- 静止抑制增益 ---
-    # 相对位移 = delta_t 窗口内累计像素位移 / 轨迹 box 历史平均尺寸
-    # gain = clamp(rel_disp / (inertia_gain_threshold × delta_t), 0, 1)，线性映射
-    # delta_t 补偿窗口累积效应：单帧阈值 × 窗口帧数 = 累计阈值
-    # 单帧位移 ≥ threshold×box_size → gain=1.0，位移=0 → gain=0
-    if trk_avg_sizes is not None and delta_t > 0:
-        trk_avg = np.asarray(trk_avg_sizes, dtype=np.float64)
-        rel_disp = np.divide(raw_disp, np.maximum(trk_avg, 1.0))
-        effective_threshold = max(inertia_gain_threshold * delta_t, 0.01)
-        gain = np.clip(rel_disp / effective_threshold, 0.0, 1.0)  # (T,)
-    else:
-        gain = np.ones_like(raw_disp)
-
     diou_matrix = diou_batch(detections, trackers)
     scores = detections[:, -1][:, np.newaxis]
     valid_mask = valid_mask[:, np.newaxis]
 
     angle_diff_cost = (valid_mask * diff_angle) * vdc_weight
     angle_diff_cost = angle_diff_cost.T  # (D, T)
-    angle_diff_cost = angle_diff_cost * gain[np.newaxis, :] * scores  # (1,T) * (D,1) 广播到 (D,T)
+    angle_diff_cost = angle_diff_cost * scores  # (D,T)
+
+
 
     cost_matrix = -(diou_matrix + angle_diff_cost)  # 负号：cost 越小越好
 
