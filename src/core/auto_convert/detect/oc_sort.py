@@ -113,15 +113,7 @@ class _KalmanBoxTracker:
         obs = np.array([bbox[0], bbox[1], bbox[2], bbox[3], bbox[4]], dtype=np.float64)
 
         if self.last_observation.sum() >= 0:
-            previous_box = None
-            for i in range(self.delta_t):
-                dt = self.delta_t - i
-                if self.age - dt in self.observations:
-                    previous_box = self.observations[self.age - dt]
-                    break
-            if previous_box is None:
-                previous_box = self.last_observation
-            self.velocity = _speed_direction(previous_box, obs)
+            self.velocity = _speed_direction(self.last_observation, obs)
 
         self.last_observation = obs
         self.observations[self.age] = obs
@@ -271,9 +263,6 @@ class OCSort:
             zero_vel = np.array((0.0, 0.0), dtype=np.float64)
             velocities = np.array([trk.velocity if trk.velocity is not None else zero_vel for trk in self.trackers])
             last_boxes = np.array([trk.last_observation for trk in self.trackers])
-            k_observations = np.array([
-                _k_previous_obs(trk.observations, trk.age, self.delta_t) for trk in self.trackers
-            ])
             trk_avg_sizes = np.array([trk.avg_max_side for trk in self.trackers], dtype=np.float64)
             trk_last_max_sides = np.array([
                 max(trk.last_observation[2] - trk.last_observation[0],
@@ -284,7 +273,6 @@ class OCSort:
         else:
             velocities = np.empty((0, 2), dtype=np.float64)
             last_boxes = np.empty((0, 5), dtype=np.float64)
-            k_observations = np.empty((0, 5), dtype=np.float64)
             trk_avg_sizes = np.empty((0,), dtype=np.float64)
             trk_last_max_sides = np.empty((0,), dtype=np.float64)
 
@@ -293,7 +281,7 @@ class OCSort:
             trks,
             self.inertia,
             velocities,
-            k_observations,
+            last_boxes,
             tracker_objects=self.trackers,
             min_track_hits_for_shared=self.min_track_hits_for_shared,
             max_consecutive_shared=self.max_consecutive_shared,
@@ -318,7 +306,7 @@ class OCSort:
                 trks[u_indices],
                 self.inertia,
                 velocities[u_indices],
-                k_observations[u_indices],
+                last_boxes[u_indices],
                 tracker_objects=u_tracker_objs,
                 min_track_hits_for_shared=self.min_track_hits_for_shared,
                 max_consecutive_shared=self.max_consecutive_shared,
@@ -353,7 +341,7 @@ class OCSort:
                 last_boxes[u_indices],
                 self.inertia,
                 velocities[u_indices],
-                k_observations[u_indices],
+                last_boxes[u_indices],
                 tracker_objects=u_tracker_objs,
                 min_track_hits_for_shared=self.min_track_hits_for_shared,
                 max_consecutive_shared=self.max_consecutive_shared,
