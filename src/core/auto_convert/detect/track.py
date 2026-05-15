@@ -83,6 +83,7 @@ def _build_ocsort_tracker(fps: float) -> OCSort:
         iou_threshold=0,
         delta_t=1,
         inertia=0.7,
+        warmup_frames=max(2, round(fps * 0.1)),  # 0.1s 暖机，前 N 帧不用 Kalman 预测
     )
 
 

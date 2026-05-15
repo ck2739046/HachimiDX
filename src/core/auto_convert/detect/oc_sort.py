@@ -8,35 +8,13 @@ from filterpy.kalman import KalmanFilter
 # 辅助函数 — 参考原版 OC-SORT (https://github.com/noahcao/OC_SORT)
 # ============================================================================
 
-def convert_bbox_to_z(bbox: np.ndarray) -> np.ndarray:
-    """Takes a bounding box in the form [x1,y1,x2,y2] and returns z in the form
-    [x,y,s,r] where x,y is the centre, s is scale/area and r is aspect ratio."""
+def convert_bbox_centre(bbox: np.ndarray) -> tuple[float, float, float, float]:
+    """从 [x1,y1,x2,y2] 提取 (cx,cy,w,h)."""
     w = bbox[2] - bbox[0]
     h = bbox[3] - bbox[1]
-    x = bbox[0] + w / 2.0
-    y = bbox[1] + h / 2.0
-    s = w * h
-    r = w / float(h + 1e-6)
-    return np.array([x, y, s, r], dtype=np.float64).reshape((4, 1))
-
-
-def convert_x_to_bbox(x: np.ndarray) -> np.ndarray:
-    """Takes a state [x,y,s,r] and returns [x1,y1,x2,y2].
-
-    10 维 CA Kalman 在极端情况下 s 和 r 可能漂移为负数（如 vs 过大），
-    此时 s×r 为负，sqrt 产生 NaN。这里 clamp 到极小正数以保证数值稳定。
-
-    x 是 filterpy 的列向量 (dim_x, 1) → 用 .item() 提标量。
-    """
-    s = float(np.maximum(x[2].item(), 1e-12))
-    r = float(np.maximum(x[3].item(), 1e-12))
-    w = float(np.sqrt(s * r))
-    h = s / (w + 1e-12)
-    return np.array(
-        [x[0].item() - w / 2.0, x[1].item() - h / 2.0,
-         x[0].item() + w / 2.0, x[1].item() + h / 2.0],
-        dtype=np.float64,
-    ).reshape((1, 4))
+    cx = bbox[0] + w / 2.0
+    cy = bbox[1] + h / 2.0
+    return cx, cy, w, h
 
 
 def k_previous_obs(
@@ -65,74 +43,70 @@ def speed_direction(bbox1: np.ndarray, bbox2: np.ndarray) -> np.ndarray:
 
 
 # ============================================================================
-# 10 维恒加速 (CA) KalmanBoxTracker10D
+# 6 维恒加速 (CA) KalmanBoxTracker6D
+#
+# SLIDE 音符框始终是 1:1 正方形 → s/r 无需 Kalman 估计。
+# 状态: [cx,cy, vx,vy, ax,ay] — 仅位置+速度+加速度。
+# w/h 直接从最近一次检测框读取，predict 时用最近尺寸构造 xyxy。
 # ============================================================================
 
-class KalmanBoxTracker10D:
-    """10 维恒加速 Kalman: [cx,cy,s,r, vx,vy,vs, ax,ay,as].
-    观测: [cx,cy,s,r] (4 维)."""
+class KalmanBoxTracker6D:
+    """6 维恒加速 Kalman: [cx,cy, vx,vy, ax,ay].
+    观测: [cx,cy] (2 维).
+
+    框的尺寸 w/h 直接从检测框获取，不做 Kalman 估计（SLIDE 总是 ~108×108 px）。"""
 
     count = 0
 
-    # 状态转移矩阵 F (10×10, dt=1)
-    _F = np.eye(10, dtype=np.float64)
-    # pos += velocity
-    _F[0, 4] = 1.0  # cx += vx
-    _F[1, 5] = 1.0  # cy += vy
-    _F[2, 6] = 1.0  # s  += vs
-    # pos += 0.5 * acceleration
-    _F[0, 7] = 0.5  # cx += 0.5*ax
-    _F[1, 8] = 0.5  # cy += 0.5*ay
-    _F[2, 9] = 0.5  # s  += 0.5*as
-    # velocity += acceleration
-    _F[4, 7] = 1.0  # vx += ax
-    _F[5, 8] = 1.0  # vy += ay
-    _F[6, 9] = 1.0  # vs += as
+    # 状态转移矩阵 F (6×6, dt=1)
+    _F = np.eye(6, dtype=np.float64)
+    _F[0, 2] = 1.0   # cx += vx
+    _F[1, 3] = 1.0   # cy += vy
+    _F[0, 4] = 0.5   # cx += 0.5*ax
+    _F[1, 5] = 0.5   # cy += 0.5*ay
+    _F[2, 4] = 1.0   # vx += ax
+    _F[3, 5] = 1.0   # vy += ay
 
-    # 观测矩阵 H (4×10): 直读前 4 维
-    _H = np.hstack([np.eye(4, dtype=np.float64), np.zeros((4, 6), dtype=np.float64)])
+    # 观测矩阵 H (2×6): 直读前 2 维
+    _H = np.hstack([np.eye(2, dtype=np.float64), np.zeros((2, 4), dtype=np.float64)])
 
     def __init__(self, bbox: np.ndarray, delta_t: int = 3):
-        self.kf = KalmanFilter(dim_x=10, dim_z=4)
-        self.kf.F = KalmanBoxTracker10D._F.copy()
-        self.kf.H = KalmanBoxTracker10D._H.copy()
+        cx, cy, w, h = convert_bbox_centre(bbox[:4])
 
-        # 观测噪声 R
-        # 调参结果 (139 SLIDE tracks)：位置高置信，尺寸/纵横比噪声大
-        self.kf.R[0, 0] = 1.0     # cx 噪声
-        self.kf.R[1, 1] = 1.0     # cy 噪声
-        self.kf.R[2, 2] = 10.0    # s  噪声（框尺寸波动大）
-        self.kf.R[3, 3] = 10.0    # r  噪声（宽高比波动大）
+        self.kf = KalmanFilter(dim_x=6, dim_z=2)
+        self.kf.F = KalmanBoxTracker6D._F.copy()
+        self.kf.H = KalmanBoxTracker6D._H.copy()
 
-        # 初始状态协方差 P
-        # 速度完全未知
-        self.kf.P[4:7, 4:7] *= 1000.0
-        # 加速度中等不确定
-        self.kf.P[7:10, 7:10] *= 100.0
-        self.kf.P *= 10.0
+        # 观测噪声 R — 位置噪声低（检测较准）
+        self.kf.R[0, 0] = 1.0
+        self.kf.R[1, 1] = 1.0
 
-        # 过程噪声 Q — tuned on 139 SLIDE tracks (5x5x5 grid, dt=1)
-        #   MPE=8.48 px, P50=0.21 px, 转弯段 5.67 px, 直线段 10.73 px
-        #   q_pos=0.01  → 模型预测可信，位置几乎不从观测修正
-        #   q_vel=100.0  → 速度高度灵活，可快速响应转弯
-        #   q_acc=0.01  → 加速度极稳定（CA 假设强约束）
-        #   r_pos=1.0   → 保持默认（观测噪声无需调）
-        self.kf.Q[0, 0] = 0.01     # cx 过程噪声
+        # 初始状态协方差 P — 速度/加速度从零开始，中等不确定
+        self.kf.P[0, 0] = 10.0     # cx
+        self.kf.P[1, 1] = 10.0     # cy
+        self.kf.P[2, 2] = 1000.0   # vx 完全未知
+        self.kf.P[3, 3] = 1000.0   # vy
+        self.kf.P[4, 4] = 100.0    # ax 中等不确定
+        self.kf.P[5, 5] = 100.0    # ay
+
+        # 过程噪声 Q
+        self.kf.Q[0, 0] = 0.01     # cx 信任模型
         self.kf.Q[1, 1] = 0.01     # cy
-        self.kf.Q[2, 2] = 0.01     # s
-        self.kf.Q[3, 3] = 0.01     # r
-        self.kf.Q[4, 4] = 1.0      # vx 过程噪声（大 → 转弯灵敏）
-        self.kf.Q[5, 5] = 1.0      # vy
-        self.kf.Q[6, 6] = 0.01     # vs（面积变化率保守）
-        self.kf.Q[7, 7] = 0.00001  # ax 过程噪声（极小 → 加速度恒定）
-        self.kf.Q[8, 8] = 0.00001  # ay
-        self.kf.Q[9, 9] = 0.00001  # as
+        self.kf.Q[2, 2] = 1.0      # vx 灵活（转弯时快速转向）
+        self.kf.Q[3, 3] = 1.0      # vy
+        self.kf.Q[4, 4] = 0.00001  # ax 极稳定（CA 强约束）
+        self.kf.Q[5, 5] = 0.00001  # ay
 
-        self.kf.x[:4] = convert_bbox_to_z(bbox[:4])
+        self.kf.x[0] = cx
+        self.kf.x[1] = cy
+
+        # 框尺寸（直接从检测读取，不参与 Kalman）
+        self._last_w = max(w, 1.0)
+        self._last_h = max(h, 1.0)
 
         self.time_since_update = 0
-        self.id = KalmanBoxTracker10D.count
-        KalmanBoxTracker10D.count += 1
+        self.id = KalmanBoxTracker6D.count
+        KalmanBoxTracker6D.count += 1
 
         self.hit_streak = 0
         self.age = 0
@@ -147,10 +121,10 @@ class KalmanBoxTracker10D:
 
         # --- freeze/unfreeze 状态机（原版 OC-SORT 在线平滑） ---
         self._history_obs_z: list[np.ndarray | None] = [
-            convert_bbox_to_z(bbox[:4])
+            np.array([[cx], [cy]], dtype=np.float64)
         ]  # z-format 观测历史（含 None 表示缺失帧）
-        self._observed: bool = True  # 是否有有效观测
-        self._frozen_state: dict | None = None  # freeze 时保存的 KF 快照
+        self._observed: bool = True
+        self._frozen_state: dict | None = None
 
         self.score = float(bbox[4]) if len(bbox) > 4 else 0.0
         self.cls = int(bbox[5]) if len(bbox) > 5 else 0
@@ -160,23 +134,26 @@ class KalmanBoxTracker10D:
         self.history_indices: list[int] = [self.idx]
 
     def update(self, bbox: np.ndarray | None) -> None:
-        # ====== 记录 z-format 观测（原版 KalmanFilterNew.history_obs） ======
+        # ====== 记录 z-format 观测 ======
         if bbox is not None:
-            self._history_obs_z.append(convert_bbox_to_z(bbox[:4]))
+            cx, cy, w, h = convert_bbox_centre(bbox[:4])
+            self._history_obs_z.append(
+                np.array([[cx], [cy]], dtype=np.float64)
+            )
+            self._last_w = max(w, 1.0)
+            self._last_h = max(h, 1.0)
         else:
             self._history_obs_z.append(None)
 
-        # ====== freeze / unfreeze 状态机（原版 OC-SORT 在线平滑） ======
+        # ====== freeze / unfreeze ======
         if bbox is None:
             if self._observed:
                 self._freeze_kf()
             self._observed = False
             return
 
-        # bbox is not None
         if not self._observed:
             self._unfreeze_kf()
-        # unfreeze 内部已将 _observed 置 True
 
         # ====== 正常 tracker 级更新 ======
         bbox = np.asarray(bbox, dtype=np.float64)
@@ -202,7 +179,8 @@ class KalmanBoxTracker10D:
         self.time_since_update = 0
         self.hit_streak += 1
 
-        self.kf.update(convert_bbox_to_z(obs[:4]))
+        cx, cy = (obs[0] + obs[2]) / 2.0, (obs[1] + obs[3]) / 2.0
+        self.kf.update(np.array([[cx], [cy]], dtype=np.float64))
 
         self.score = float(bbox[4]) if len(bbox) > 4 else self.score
         self.cls = int(bbox[5]) if len(bbox) > 5 else self.cls
@@ -212,12 +190,10 @@ class KalmanBoxTracker10D:
         self.history_indices.append(self.idx)
 
     # ========================================================================
-    # freeze / unfreeze — 原版 OC-SORT 在线平滑 (Observation-Centric Re-Update)
-    # 适配标准 filterpy.kalman.KalmanFilter
+    # freeze / unfreeze — 原版 OC-SORT 在线平滑
     # ========================================================================
 
     def _freeze_kf(self) -> None:
-        """第一个 update(None) 时保存全部 KF 状态以备后续恢复。"""
         self._frozen_state = {
             'x': self.kf.x.copy(),
             'P': self.kf.P.copy(),
@@ -227,15 +203,11 @@ class KalmanBoxTracker10D:
         }
 
     def _unfreeze_kf(self) -> None:
-        """gap 后第一个真实观测到来时：恢复冻结状态 + 虚拟轨迹填充 gap。"""
         if self._frozen_state is None:
             self._observed = True
             return
 
-        # 1. 快照当前 history（含刚 append 的 z_real）
         new_history = list(self._history_obs_z)
-
-        # 2. 恢复冻结时的 KF 内部状态
         fs = self._frozen_state
         self.kf.x = fs['x'].copy()
         self.kf.P = fs['P'].copy()
@@ -243,59 +215,40 @@ class KalmanBoxTracker10D:
         self.kf._alpha_sq = fs['_alpha_sq']
         self._frozen_state = None
 
-        # 3. 恢复冻结时的 history，并去掉最后一项（该帧观测已在原版 update(None) 时不写入 KF）
         self._history_obs_z = list(fs['_history_obs_z'])
         self._history_obs_z = self._history_obs_z[:-1]
 
-        # 4. 找 new_history 最后两个非 None 项用于线性插值
         non_none_indices = [
             i for i, z in enumerate(new_history) if z is not None
         ]
         if len(non_none_indices) < 2:
             self._observed = True
-            return  # 不够两个非 None → 无法插值
+            return
 
         i1, i2 = non_none_indices[-2], non_none_indices[-1]
         gap = i2 - i1
         if gap <= 1:
             self._observed = True
-            return  # 无 gap
+            return
 
-        # 5. 线性插值 + predict-update 循环填充 gap（原版恒速假设）
-        box1 = new_history[i1].flatten()  # [cx,cy,s,r]
-        box2 = new_history[i2].flatten()
-        x1, y1, s1, r1 = box1
-        w1 = np.sqrt(max(s1 * r1, 1e-12))
-        h1 = s1 / (w1 + 1e-6)
-        x2, y2, s2, r2 = box2
-        w2 = np.sqrt(max(s2 * r2, 1e-12))
-        h2 = s2 / (w2 + 1e-6)
+        # 线性插值 cx,cy
+        x1, y1 = new_history[i1].flatten()
+        x2, y2 = new_history[i2].flatten()
         dx = (x2 - x1) / gap
         dy = (y2 - y1) / gap
-        dw = (w2 - w1) / gap
-        dh = (h2 - h1) / gap
 
-        for j in range(1, gap):  # gap-1 个虚拟帧
+        for j in range(1, gap):
             x = x1 + j * dx
             y = y1 + j * dy
-            w = w1 + j * dw
-            h = h1 + j * dh
-            s = w * h
-            r = w / float(h + 1e-6)
-            z_virtual = np.array([x, y, s, r], dtype=np.float64).reshape((4, 1))
+            z_virtual = np.array([[x], [y]], dtype=np.float64)
             self._history_obs_z.append(z_virtual)
             self.kf.update(z_virtual)
             self.kf.predict()
 
-        # 追加真实观测（恢复 frozen 状态时被覆盖了）
         self._history_obs_z.append(new_history[i2])
-
         self._observed = True
 
     def predict(self) -> np.ndarray:
-        if (self.kf.x[6] + self.kf.x[2]) <= 0:
-            self.kf.x[6] *= 0.0
-
         self.kf.predict()
         self.age += 1
 
@@ -303,14 +256,26 @@ class KalmanBoxTracker10D:
             self.hit_streak = 0
         self.time_since_update += 1
 
-        return convert_x_to_bbox(self.kf.x)
+        cx = float(self.kf.x[0].item())
+        cy = float(self.kf.x[1].item())
+        w, h = self._last_w, self._last_h
+        return np.array(
+            [[cx - w / 2.0, cy - h / 2.0, cx + w / 2.0, cy + h / 2.0]],
+            dtype=np.float64,
+        )
 
     def get_state(self) -> np.ndarray:
-        return convert_x_to_bbox(self.kf.x)
+        cx = float(self.kf.x[0].item())
+        cy = float(self.kf.x[1].item())
+        w, h = self._last_w, self._last_h
+        return np.array(
+            [[cx - w / 2.0, cy - h / 2.0, cx + w / 2.0, cy + h / 2.0]],
+            dtype=np.float64,
+        )
 
 
-# 导出别名，兼容 export_track_video.py
-_KalmanBoxTracker = KalmanBoxTracker10D
+# 导出别名
+_KalmanBoxTracker = KalmanBoxTracker6D
 
 
 # ============================================================================
@@ -326,7 +291,6 @@ def diou_batch(bboxes1: np.ndarray, bboxes2: np.ndarray) -> np.ndarray:
     bboxes2 = np.expand_dims(bboxes2, 0)
     bboxes1 = np.expand_dims(bboxes1, 1)
 
-    # intersection
     xx1 = np.maximum(bboxes1[..., 0], bboxes2[..., 0])
     yy1 = np.maximum(bboxes1[..., 1], bboxes2[..., 1])
     xx2 = np.minimum(bboxes1[..., 2], bboxes2[..., 2])
@@ -339,14 +303,12 @@ def diou_batch(bboxes1: np.ndarray, bboxes2: np.ndarray) -> np.ndarray:
     union = area1 + area2 - wh
     iou = wh / union
 
-    # center distance
     centerx1 = (bboxes1[..., 0] + bboxes1[..., 2]) / 2.0
     centery1 = (bboxes1[..., 1] + bboxes1[..., 3]) / 2.0
     centerx2 = (bboxes2[..., 0] + bboxes2[..., 2]) / 2.0
     centery2 = (bboxes2[..., 1] + bboxes2[..., 3]) / 2.0
     inner_diag = (centerx1 - centerx2) ** 2 + (centery1 - centery2) ** 2
 
-    # enclosing box diagonal
     xxc1 = np.minimum(bboxes1[..., 0], bboxes2[..., 0])
     yyc1 = np.minimum(bboxes1[..., 1], bboxes2[..., 1])
     xxc2 = np.maximum(bboxes1[..., 2], bboxes2[..., 2])
@@ -354,14 +316,14 @@ def diou_batch(bboxes1: np.ndarray, bboxes2: np.ndarray) -> np.ndarray:
     outer_diag = (xxc2 - xxc1) ** 2 + (yyc2 - yyc1) ** 2
 
     diou = iou - inner_diag / (outer_diag + 1e-6)
-    return (diou + 1.0) / 2.0  # rescale from (-1,1) to (0,1)
+    return (diou + 1.0) / 2.0
 
 
 def speed_direction_batch(
     dets: np.ndarray, tracks: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]:
     """Batch speed direction: dets (N,4) vs tracks (M,5) → (dy, dx) of shape (M,N)."""
-    tracks = tracks[..., np.newaxis]  # (M,5,1)
+    tracks = tracks[..., np.newaxis]
     cx1 = (dets[:, 0] + dets[:, 2]) / 2.0
     cy1 = (dets[:, 1] + dets[:, 3]) / 2.0
     cx2 = (tracks[:, 0, :] + tracks[:, 2, :]) / 2.0
@@ -371,19 +333,17 @@ def speed_direction_batch(
     norm = np.sqrt(dx ** 2 + dy ** 2) + 1e-6
     dx = dx / norm
     dy = dy / norm
-    return dy, dx  # (M,N) each
+    return dy, dx
 
 
 def linear_assignment(cost_matrix: np.ndarray) -> np.ndarray:
     """Hungarian algorithm on cost_matrix; prefers `lap` if available."""
     try:
         import lap  # type: ignore
-
         _, x, y = lap.lapjv(cost_matrix, extend_cost=True)
         return np.array([[y[i], i] for i in x if i >= 0])
     except ImportError:
         from scipy.optimize import linear_sum_assignment
-
         x, y = linear_sum_assignment(cost_matrix)
         return np.array(list(zip(x, y)))
 
@@ -396,21 +356,7 @@ def associate(
     previous_obs: np.ndarray,
     vdc_weight: float,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Stage 1: VDC + DIoU joint association.
-
-    Args:
-        detections: (N,5) [x1,y1,x2,y2,score]
-        trackers: (M,5) predicted bboxes
-        iou_threshold: minimum DIoU for a valid match
-        velocities: (M,2) tracker velocity (dy,dx)
-        previous_obs: (M,5) k_previous_obs for each tracker
-        vdc_weight: inertia weight for velocity direction consistency
-
-    Returns:
-        matches: (K,2) [det_idx, trk_idx]
-        unmatched_detections: (U,) indices
-        unmatched_trackers: (V,) indices
-    """
+    """Stage 1: VDC + DIoU joint association."""
     if len(trackers) == 0:
         return (
             np.empty((0, 2), dtype=int),
@@ -418,27 +364,25 @@ def associate(
             np.empty((0, 5), dtype=int),
         )
 
-    # 速度方向一致性代价
-    Y, X = speed_direction_batch(detections, previous_obs)  # (M,N)
-    inertia_Y, inertia_X = velocities[:, 0], velocities[:, 1]  # (M,)
+    Y, X = speed_direction_batch(detections, previous_obs)
+    inertia_Y, inertia_X = velocities[:, 0], velocities[:, 1]
     inertia_Y = inertia_Y[:, np.newaxis]
     inertia_X = inertia_X[:, np.newaxis]
     diff_angle_cos = inertia_X * X + inertia_Y * Y
     diff_angle_cos = np.clip(diff_angle_cos, a_min=-1, a_max=1)
     diff_angle = np.arccos(diff_angle_cos)
-    diff_angle = (np.pi / 2.0 - np.abs(diff_angle)) / np.pi  # ∈ [-0.5, 0.5]
+    diff_angle = (np.pi / 2.0 - np.abs(diff_angle)) / np.pi
 
     valid_mask = np.ones(previous_obs.shape[0])
-    valid_mask[previous_obs[:, 4] < 0] = 0  # 轨迹无有效观测 → 跳过 VDC
+    valid_mask[previous_obs[:, 4] < 0] = 0
 
     diou_matrix = diou_batch(detections, trackers)
-    scores = detections[:, -1][:, np.newaxis]        # (N,1)
-    valid_mask = valid_mask[:, np.newaxis]            # (M,1)
+    scores = detections[:, -1][:, np.newaxis]
+    valid_mask = valid_mask[:, np.newaxis]
 
-    angle_diff_cost = (valid_mask * diff_angle) * vdc_weight  # (M,N)
-    angle_diff_cost = angle_diff_cost.T * scores               # (N,M)
+    angle_diff_cost = (valid_mask * diff_angle) * vdc_weight
+    angle_diff_cost = angle_diff_cost.T * scores
 
-    # 一次性匹配
     if min(diou_matrix.shape) > 0:
         a = (diou_matrix > iou_threshold).astype(np.int32)
         if a.sum(1).max() == 1 and a.sum(0).max() == 1:
@@ -448,7 +392,6 @@ def associate(
     else:
         matched_indices = np.empty(shape=(0, 2))
 
-    # 过滤低 DIoU 匹配
     if matched_indices.shape[0] > 0:
         unmatched_detections = np.setdiff1d(
             np.arange(len(detections)), matched_indices[:, 0]
@@ -486,16 +429,19 @@ class OCSort:
         iou_threshold: float = 0.3,
         delta_t: int = 3,
         inertia: float = 0.2,
+        warmup_frames: int = 3,
     ):
+        """warmup_frames: 新建轨迹前 N 帧不输出 Kalman 预测，直接用检测框位置。"""
         self.max_age = int(max_age)
         self.min_hits = int(min_hits)
         self.iou_threshold = float(iou_threshold)
-        self.trackers: list[KalmanBoxTracker10D] = []
+        self.trackers: list[KalmanBoxTracker6D] = []
         self.frame_count = 0
         self.det_thresh = float(det_thresh)
         self.delta_t = int(delta_t)
         self.inertia = float(inertia)
-        KalmanBoxTracker10D.count = 0
+        self.warmup_frames = int(warmup_frames)
+        KalmanBoxTracker6D.count = 0
 
     @staticmethod
     def _to_obb_track_row(
@@ -521,13 +467,12 @@ class OCSort:
         """Stage-1-only update.
 
         Args:
-            dets_all: (N,7) or (N,6) [x1,y1,x2,y2,score,cls,idx?]
+            dets_all: (N,7) [x1,y1,x2,y2,score,cls,idx]
         Returns:
             (M,10) [cx,cy,w,h,r,track_id,score,cls,idx,frame_offset]
         """
         if dets_all is None:
             dets_all = np.empty((0, 7), dtype=np.float64)
-
         if len(dets_all) == 0:
             dets_all = np.empty((0, 7), dtype=np.float64)
         else:
@@ -535,7 +480,6 @@ class OCSort:
 
         self.frame_count += 1
 
-        # 高分框筛选
         scores = dets_all[:, 4] if len(dets_all) else np.empty((0,), dtype=np.float64)
         remain_inds = scores > self.det_thresh
         dets = dets_all[remain_inds]
@@ -567,7 +511,7 @@ class OCSort:
             ]
         )
 
-        # ====== Stage 1: VDC + IoU ======
+        # ====== Stage 1: VDC + DIoU ======
         if len(dets) > 0 and len(trks) > 0:
             matched, unmatched_dets, unmatched_trks = associate(
                 dets[:, :5],
@@ -590,20 +534,26 @@ class OCSort:
         for trk_idx in unmatched_trks:
             self.trackers[trk_idx].update(None)
 
-        # 新建轨迹
         for det_idx in unmatched_dets:
             self.trackers.append(
-                KalmanBoxTracker10D(dets[det_idx], delta_t=self.delta_t)
+                KalmanBoxTracker6D(dets[det_idx], delta_t=self.delta_t)
             )
 
         # ====== 输出 ======
         ret = []
         i = len(self.trackers)
         for trk in reversed(self.trackers):
-            if trk.last_observation.sum() < 0:
-                d = trk.get_state()[0]
+            # --- 暖机期间：直接输出检测框位置，不用 Kalman 预测 ---
+            if trk.hit_streak < self.warmup_frames:
+                if trk.last_observation.sum() >= 0:
+                    d = trk.last_observation[:4]
+                else:
+                    d = trk.get_state()[0]
             else:
-                d = trk.last_observation[:4]
+                if trk.last_observation.sum() < 0:
+                    d = trk.get_state()[0]
+                else:
+                    d = trk.last_observation[:4]
 
             if (trk.time_since_update < 1) and (
                 trk.hit_streak >= self.min_hits or self.frame_count <= self.min_hits
@@ -614,7 +564,6 @@ class OCSort:
                     )
                 )
 
-                # Head Padding: 轨迹首次达标时补回初始化阶段的历史观测
                 if trk.hit_streak == self.min_hits:
                     pad_cnt = min(
                         self.min_hits - 1, len(trk.history_observations) - 1
