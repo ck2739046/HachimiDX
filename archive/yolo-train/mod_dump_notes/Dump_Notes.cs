@@ -75,6 +75,9 @@ namespace default_namespace {
     // 注: 使用 GetKeyDown 进行边沿触发，不再需要上一帧状态
         private static List<string> _currentMusicInfo = new List<string> { "Unknown" };
         private static bool _gameStartDetected = false; // 乐曲开始标志
+        private static bool _isSlideOnlyDumpEnabled = false;
+        private static int _nextUniqueId = 0;
+        private static readonly Dictionary<(int, bool), int> _noteIdMap = new Dictionary<(int, bool), int>();
 
         private class NoteReflectionAccessors
         {
@@ -124,6 +127,7 @@ namespace default_namespace {
             public float StarAlpha { get; set; }                // 星星透明度（第二段）
             public float StarLaunchMsec { get; set; }           // 星星发射时间（第二段）
             public float StarArriveMsec { get; set; }           // 星星到达时间（第二段）
+            public int UniqueNoteId { get; set; } = -1;         // 全局唯一ID（从0递增）
         }
 
         public override void OnInitializeMelon()
@@ -131,7 +135,8 @@ namespace default_namespace {
             HarmonyInstance.PatchAll(typeof(Dump_notes));
             EnsureVideoCaptureLoopStarted();
             MelonLogger.Msg($"Load success.");
-            MelonLogger.Msg($"  I键: 切换音符数据导出 (默认关闭)");
+            MelonLogger.Msg($"  I键: 切换全量导出 (默认关闭)");
+            MelonLogger.Msg($"  O键: 切换仅Slide导出 (默认关闭, 仅txt)");
         }
 
         static void InitializeFields()
@@ -156,9 +161,11 @@ namespace default_namespace {
                 // 获取乐曲信息
                 _currentMusicInfo = GetCurrentMusicInfo();
                 _gameStartDetected = true;
+                _nextUniqueId = 0;
+                _noteIdMap.Clear();
                 MelonLogger.Msg($"track start: {string.Join(" - ", _currentMusicInfo)}");
 
-                if (_isDumpEnabled)
+                if (_isDumpEnabled || _isSlideOnlyDumpEnabled)
                 {
                     StartExportSession("track-start");
                 }
@@ -223,7 +230,7 @@ namespace default_namespace {
         {
             try
             {
-                if (!_isDumpEnabled || !_gameStartDetected) return;
+                if ((!_isDumpEnabled && !_isSlideOnlyDumpEnabled) || !_gameStartDetected) return;
                 if (__instance == null || __instance.MonitorIndex != DumpMonitorIndex) return;
 
                 if (!_isExportSessionActive)
@@ -261,7 +268,11 @@ namespace default_namespace {
                     {
                         var noteInfo = GetNoteInfo(note, currentTime, userNoteSize);
                         if (noteInfo != null)
+                        {
+                            if (_isSlideOnlyDumpEnabled && noteInfo.Category != NoteCategory.Star)
+                                continue;
                             allNotes.Add(noteInfo);
+                        }
                     }
                 }
             }
@@ -386,7 +397,13 @@ namespace default_namespace {
                     StarLocalScale = starLocalScale,
                     UserNoteSize = userNoteSize
                 };
-                
+
+                // 为Star音符（第一段Slide）分配Unique ID
+                if (noteCategory == NoteCategory.Star)
+                {
+                    noteInfo.UniqueNoteId = GetOrAssignUniqueNoteId(noteInfo.NoteIndex, isSecondStage: false);
+                }
+
                 return noteInfo;
             }
             catch (Exception e)
@@ -511,7 +528,7 @@ namespace default_namespace {
             float starLaunchMsec,
             float starArriveMsec)
         {
-            return new NoteInfo
+            var info = new NoteInfo
             {
                 NoteType = typeName,
                 NoteIndex = noteIndex,
@@ -529,6 +546,8 @@ namespace default_namespace {
                 StarArriveMsec = starArriveMsec,
                 UserNoteSize = 1f // SlideRoot的星星尺寸已经包含在localScale中
             };
+            info.UniqueNoteId = GetOrAssignUniqueNoteId(noteIndex, isSecondStage: true);
+            return info;
         }
 
         private static NoteReflectionAccessors GetNoteReflectionAccessors(System.Type type)
@@ -663,6 +682,17 @@ namespace default_namespace {
             return defaultValue;
         }
 
+        private static int GetOrAssignUniqueNoteId(int noteIndex, bool isSecondStage)
+        {
+            var key = (noteIndex, isSecondStage);
+            if (!_noteIdMap.TryGetValue(key, out int id))
+            {
+                id = _nextUniqueId++;
+                _noteIdMap[key] = id;
+            }
+            return id;
+        }
+
         private static void PrintNoteFrame(float currentTime, List<NoteInfo> notes)
         {
             try
@@ -691,7 +721,7 @@ namespace default_namespace {
                     _lineBuilder.AppendFormat("{0:F4}, {1:F4}", note.LocalPosition.x, note.LocalPosition.y).Append(" | ");
                     _lineBuilder.Append(note.Status).Append(" | ");
                     _lineBuilder.AppendFormat("{0:F4}", note.AppearMsec).Append(" | ");
-                    _lineBuilder.Append("EX:").Append(note.IsExNote ? "Y" : "N");
+                    _lineBuilder.Append("EX:").Append(note.IsExNote ? "Y" : "N").Append(" | UniqueId:").Append(note.UniqueNoteId);
                     
                     // Touch/Touch-Hold音符
                     if (note.Category == NoteCategory.Touch || note.Category == NoteCategory.TouchHold)
@@ -744,7 +774,10 @@ namespace default_namespace {
                     _framesSinceLastFlush = 0;
                 }
 
-                RequestVideoFrameCapture();
+                if (!_isSlideOnlyDumpEnabled)
+                {
+                    RequestVideoFrameCapture();
+                }
             }
             catch (Exception e)
             {
@@ -757,13 +790,13 @@ namespace default_namespace {
             if (_isExportSessionActive)
                 return;
 
-            if (!_isDumpEnabled || !_gameStartDetected)
+            if ((!_isDumpEnabled && !_isSlideOnlyDumpEnabled) || !_gameStartDetected)
                 return;
 
             BuildSessionOutputPaths();
 
             bool textReady = EnsureOutputWriter();
-            bool videoReady = EnsureVideoWriter();
+            bool videoReady = _isSlideOnlyDumpEnabled ? false : EnsureVideoWriter();
             _isExportSessionActive = textReady;
             _pendingVideoFrameCaptureRequests = 0;
             _capturedVideoFrameCount = 0;
@@ -865,7 +898,7 @@ namespace default_namespace {
                 _outputWriter.WriteLine($"Note Dump Started at {startedAt}");
                 _outputWriter.WriteLine($"Music Info: {string.Join(" - ", _currentMusicInfo)}");
                 _outputWriter.WriteLine($"Video File: {_outputVideoPath}");
-                _outputWriter.WriteLine("Format: Type-Index | PosX, PosY | LocalX, LocalY | Status | AppearMsec | IsEX | (Details...)");
+                _outputWriter.WriteLine("Format: Type-Index | PosX, PosY | LocalX, LocalY | Status | AppearMsec | IsEX | UniqueId | (Details...)");
                 _outputWriter.WriteLine("  Touch: TouchDecor+Alpha(+TouchHoldProgress) | Hold: HoldScale+HoldSize | Tap/Break: TapScale");
                 _outputWriter.WriteLine("  Star(1st): StarScale+UserNoteSize | Star-Move(2nd): StarScale+Alpha+LaunchMsec+ArriveMsec");
                 _outputWriter.WriteLine("=".PadRight(30, '='));
@@ -1129,19 +1162,25 @@ namespace default_namespace {
         [HarmonyPatch(typeof(GameMainObject), "Update")]
         public static void OnGameMainObjectUpdate()
         {
-            // 边沿触发：按下一次 I 键，切换导出开关
+            // 边沿触发：按下一次 I 键，切换全量导出
             if (Input.GetKeyDown(KeyCode.I))
             {
                 if (_isDumpEnabled)
                 {
-                    // 关闭
+                    // 关闭全量
                     _isDumpEnabled = false;
                     StopExportSession("hotkey-off");
                     MelonLogger.Msg("stop dump notes.");
                 }
                 else
                 {
-                    // 开启
+                    // 开启全量，关闭Slide-Only
+                    if (_isSlideOnlyDumpEnabled)
+                    {
+                        _isSlideOnlyDumpEnabled = false;
+                        StopExportSession("hotkey-off-slide-only");
+                        MelonLogger.Msg("slide-only dump disabled (switched to full dump).");
+                    }
                     _isDumpEnabled = true;
                     if (_gameStartDetected)
                     {
@@ -1151,6 +1190,38 @@ namespace default_namespace {
                     else
                     {
                         MelonLogger.Msg("dump notes armed. wait track start.");
+                    }
+                }
+            }
+
+            // 边沿触发：按下一次 O 键，切换Slide-Only导出
+            if (Input.GetKeyDown(KeyCode.O))
+            {
+                if (_isSlideOnlyDumpEnabled)
+                {
+                    // 关闭Slide-Only
+                    _isSlideOnlyDumpEnabled = false;
+                    StopExportSession("hotkey-off-slide-only");
+                    MelonLogger.Msg("stop slide-only dump.");
+                }
+                else
+                {
+                    // 开启Slide-Only，关闭全量
+                    if (_isDumpEnabled)
+                    {
+                        _isDumpEnabled = false;
+                        StopExportSession("hotkey-off");
+                        MelonLogger.Msg("full dump disabled (switched to slide-only).");
+                    }
+                    _isSlideOnlyDumpEnabled = true;
+                    if (_gameStartDetected)
+                    {
+                        StartExportSession("hotkey-on-slide-only");
+                        MelonLogger.Msg("start slide-only dump.");
+                    }
+                    else
+                    {
+                        MelonLogger.Msg("slide-only dump armed. wait track start.");
                     }
                 }
             }
