@@ -95,11 +95,11 @@ def _build_ocsort_tracker(fps: float) -> OCSort:
         # 轨迹第 delta_t 帧之前的框到候选框的向量
         # 轨迹第 delta_t 帧之前的框到轨迹最新框的向量
         # 两者的角度差就是 angle_diff
-        delta_t=1,
+        delta_t=max(1, round(fps/30)),  # 1/30s, at least 1
 
         # vdc 的权重
         # vdc = angle_diff * inertia * score(置信度)
-        inertia=1,
+        inertia=0.7,
 
         # 暖机，前 N 帧不用 Kalman 预测
         # 卡尔曼一开始不稳定，预测结果会乱飘，前几帧需要屏蔽
@@ -108,7 +108,7 @@ def _build_ocsort_tracker(fps: float) -> OCSort:
         # DIoU 高于此值时禁用 VDC
         # 因为框已经够重合了，有时候 vdc 反而会误导
         # 尤其是 slide_head 刚出现时容易被 vdc 弄成 id switch
-        vdc_disable_diou_thresh=0.85,  
+        vdc_disable_diou_thresh=0.9,  
     )
 
 

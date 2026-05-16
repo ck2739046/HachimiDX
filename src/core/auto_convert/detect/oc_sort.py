@@ -91,13 +91,13 @@ class KalmanBoxTracker6D:
 
         # 过程噪声 Q
         #   q_pos=1.0   → 位置过程噪声中等 → 适度信任模型外推
-        #   q_vel=30   → 速度过程噪声大 → 转弯灵敏
+        #   q_vel=1     → 速度过程噪声不小 → 转弯灵敏
         #   q_acc=1e-7  → 加速度极稳定 → 强 CA 约束
         #   r_pos=1.0   → 保持默认
         self.kf.Q[0, 0] = 1.0       # cx（信任观测，反正检测框尺寸稳定）
         self.kf.Q[1, 1] = 1.0       # cy
-        self.kf.Q[2, 2] = 30.0     # vx（高度灵活，转弯时快速转向）
-        self.kf.Q[3, 3] = 30.0     # vy
+        self.kf.Q[2, 2] = 1.0       # vx（灵活，转弯时快速转向）
+        self.kf.Q[3, 3] = 1.0       # vy
         self.kf.Q[4, 4] = 1e-7      # ax（几乎恒定，强 CA 约束）
         self.kf.Q[5, 5] = 1e-7      # ay
 
