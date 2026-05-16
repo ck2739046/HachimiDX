@@ -1,6 +1,7 @@
 import os
 import cv2
 import time
+import math
 import numpy as np
 from collections import defaultdict
 import subprocess
@@ -10,6 +11,7 @@ from ...schemas.op_result import OpResult, ok, err
 from .note_definition import *
 from .track import _load_track_results
 from ..analyze.tool import catmull_rom_spline
+from .oc_sort import _KalmanBoxTracker
 
 
 
@@ -25,6 +27,58 @@ def main(std_video_path: Path,
     try:
         # 读取追踪结果
         track_results = _load_track_results(std_video_path.parent)
+
+        # === Kalman 预测预计算：对每条 SLIDE 轨迹逐帧重跑 Kalman 滤波器 ===
+        # kalman_predictions: frame -> [{track_id, note_variant, x1,y1,x2,y2}, ...]
+        kalman_predictions: dict[int, list[dict]] = defaultdict(list)
+        for (track_id, note_type), geo_list in track_results.items():
+            if note_type != NoteType.SLIDE:
+                continue
+            if len(geo_list) == 0:
+                continue
+            geo_list_sorted = sorted(geo_list, key=lambda g: g.frame)
+            frame_to_geo = {g.frame: g for g in geo_list_sorted}
+            first_f = geo_list_sorted[0].frame
+            last_f = geo_list_sorted[-1].frame
+            note_variant = geo_list_sorted[0].note_variant
+            first_geo = geo_list_sorted[0]
+            init_bbox = np.array([
+                first_geo.x1, first_geo.y1,
+                first_geo.x3, first_geo.y3,
+                first_geo.conf,
+                float(map_note_type_to_class_id(note_type)),
+                0.0,
+            ], dtype=np.float64)
+            tracker = _KalmanBoxTracker(init_bbox)
+            # 首帧：predict 后写入预测结果，若有检测框则 update
+            pred = tracker.predict()[0]
+            kalman_predictions[first_f].append({
+                'track_id': track_id,
+                'note_variant': note_variant,
+                'x1': float(pred[0]), 'y1': float(pred[1]),
+                'x2': float(pred[2]), 'y2': float(pred[3]),
+            })
+            tracker.update(init_bbox)
+            for f in range(first_f + 1, last_f + 1):
+                pred = tracker.predict()[0]
+                kalman_predictions[f].append({
+                    'track_id': track_id,
+                    'note_variant': note_variant,
+                    'x1': float(pred[0]), 'y1': float(pred[1]),
+                    'x2': float(pred[2]), 'y2': float(pred[3]),
+                })
+                geo = frame_to_geo.get(f)
+                if geo is not None:
+                    obs = np.array([
+                        geo.x1, geo.y1,
+                        geo.x3, geo.y3,
+                        geo.conf,
+                        float(map_note_type_to_class_id(note_type)),
+                        0.0,
+                    ], dtype=np.float64)
+                    tracker.update(obs)
+                else:
+                    tracker.update(None)
 
         # 获取视频信息
         cap = cv2.VideoCapture(std_video_path)
@@ -133,18 +187,56 @@ def main(std_video_path: Path,
             
             # 更新当前帧中存在的轨迹
             current_track_ids = set()
-            
+
+            # --- SLIDE 候选框 many-to-one 去重 ---
+            # 同帧内坐标完全一致的 SLIDE 框合并为一个绘制单元，
+            # 用 "/" 连接多个 track_id 显示。
+            _box_key_precision = 2 # 如果坐标精确到2位小数相同，视为同一个框
+
+            def _slide_box_key(t):
+                """用全部 8 个坐标值生成去重键。"""
+                return (
+                    round(t['x1'], _box_key_precision), round(t['y1'], _box_key_precision),
+                    round(t['x2'], _box_key_precision), round(t['y2'], _box_key_precision),
+                    round(t['x3'], _box_key_precision), round(t['y3'], _box_key_precision),
+                    round(t['x4'], _box_key_precision), round(t['y4'], _box_key_precision),
+                )
+
+            slide_tracks = [t for t in current_tracks if t['note_type'] == NoteType.SLIDE]
+            other_tracks = [t for t in current_tracks if t['note_type'] != NoteType.SLIDE]
+
+            slide_groups: dict[tuple, list] = {}
+            for t in slide_tracks:
+                slide_groups.setdefault(_slide_box_key(t), []).append(t)
+
+            dedup_items: list = []
+            for group_tracks in slide_groups.values():
+                merged_ids = '/'.join(str(t['track_id']) for t in group_tracks)
+                rep = dict(group_tracks[0])
+                rep['_display_track_id'] = merged_ids
+                rep['_group_track_ids'] = [t['track_id'] for t in group_tracks]
+                # 使用第一个 track_id 作为颜色代表
+                rep['_color_track_id'] = group_tracks[0]['track_id']
+                dedup_items.append(rep)
+
+            for t in other_tracks:
+                t['_display_track_id'] = str(t['track_id'])
+                t['_group_track_ids'] = [t['track_id']]
+                t['_color_track_id'] = t['track_id']
+                dedup_items.append(t)
+
             # 绘制当前帧的音符
-            for track in current_tracks:
-                track_id = track['track_id']
+            for track in dedup_items:
+                track_id_display = track['_display_track_id']
                 note_type = track['note_type']
                 note_variant = track['note_variant']
                 is_obb_note = is_obb(note_type)
-                color = get_color_for_id(track_id)
-                
+                color = get_color_for_id(track['_color_track_id'])
+
                 # 记录当前帧中存在的轨迹
-                current_track_ids.add(track_id)
-                
+                for tid in track['_group_track_ids']:
+                    current_track_ids.add(tid)
+
                 # 根据note_type绘制不同类型的音符
                 if is_obb_note:
                     points = np.array([
@@ -157,12 +249,12 @@ def main(std_video_path: Path,
                 else:
                     x1, y1, x2, y2 = int(track['x1']), int(track['y1']), int(track['x3']), int(track['y3'])
                     cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-                
-                # 绘制标签
-                label = f'{note_type.name}.{note_variant.name} ID:{track_id}'
+
+                # 绘制标签（SLIDE 去重后 track_id 用 "/" 连接）
+                label = f'{note_type.name}.{note_variant.name} ID:{track_id_display}'
                 label_size = label_size_cache.get(label)
                 if label_size is None:
-                    label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)[0]
+                    label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)[0]
                     label_size_cache[label] = label_size
                 
                 if is_obb_note:
@@ -193,13 +285,32 @@ def main(std_video_path: Path,
                     center_x = int(round((track['x1'] + track['x3']) / 2.0))
                     center_y = int(round((track['y1'] + track['y3']) / 2.0))
 
-                history_points = track_history[track_id]
-                history_points.append((center_x, center_y))
-                track_last_seen[track_id] = frame_number
-                track_note_type[track_id] = note_type
+                for tid in track['_group_track_ids']:
+                    history_points = track_history[tid]
+                    history_points.append((center_x, center_y))
+                    track_last_seen[tid] = frame_number
+                    track_note_type[tid] = note_type
 
-                if len(history_points) > max_track_history_len:
-                    del history_points[:-max_track_history_len]
+                    if len(history_points) > max_track_history_len:
+                        del history_points[:-max_track_history_len]
+
+            # 绘制 Kalman 预测框（灰色，仅 SLIDE）
+            kalman_grey = (160, 160, 160)
+            for kp in kalman_predictions.get(frame_number, []):
+                if math.isnan(kp['x1']) or math.isnan(kp['y1']):
+                    continue
+                kp_x1, kp_y1 = int(kp['x1']), int(kp['y1'])
+                kp_x2, kp_y2 = int(kp['x2']), int(kp['y2'])
+                cv2.rectangle(frame, (kp_x1, kp_y1), (kp_x2, kp_y2), kalman_grey, 1)
+                kp_label = f'{NoteType.SLIDE.name}.{kp["note_variant"].name} ID:{kp["track_id"]}'
+                kp_label_size = label_size_cache.get(kp_label)
+                if kp_label_size is None:
+                    kp_label_size = cv2.getTextSize(kp_label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)[0]
+                    label_size_cache[kp_label] = kp_label_size
+                cv2.rectangle(frame, (kp_x1, kp_y1 - kp_label_size[1] - 10),
+                            (kp_x1 + kp_label_size[0], kp_y1), kalman_grey, -1)
+                cv2.putText(frame, kp_label, (kp_x1, kp_y1 - 5),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
             
             # 清理过期的轨迹（超过0.5秒未出现）
             tracks_to_remove = []

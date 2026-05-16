@@ -77,73 +77,75 @@ def _build_ocsort_tracker(fps: float) -> OCSort:
 
     # 仅用于 SLIDE；参数按 OC-SORT 原生语义硬编码
     return OCSort(
-        # 第一阶段高分框阈值：score > det_thresh 才进入主匹配
-        # 与 bot-sort 的 track_high_thresh 差不多
-        # 值越大，越严格，越容易视为新 id
+
+        # 置信度低于此值的候选框会被丢弃
         det_thresh=0.5,
 
-        # 轨迹最大失配帧数：超过后删除该轨迹
-        # 与 bot-sort 的 track_buffer 类似
-        # 0.15s
-        max_age=round(fps * 0.15),
+        # 轨迹在 x 帧没有新的匹配时被删除
+        max_age=max(2, round(fps * 0.05)),   # 0.05s, at least 2
 
-        # 轨迹最小命中次数：达到后才稳定输出（前 min_hits 帧会放宽）
-        # 设置为 1，表示新轨迹一出现就输出，不需要等待稳定，适合追踪短命的 note
-        # 0.05s，至少2帧
-        min_hits=max(2, round(fps * 0.05)), 
+        # 轨迹至少需要 x 个匹配到的点才被保留
+        min_hits=max(2, round(fps * 0.05)),  # 0.05s, at least 2
 
-        # IoU 匹配阈值：主匹配/补匹配都使用该阈值过滤低质量关联
-        # 值越大，越严格，越容易视为新 id
-        # 值越小，越宽松，允许较大位移 (低iou) 也匹配上，越不容易视为新 id
-        iou_threshold=0.1,
+        # 候选框与卡尔曼预测的框的 diou 大于此值时，才会被匹配上
+        # 1倍尺寸=0.4, 2倍尺寸=0.3, 3倍=0.235, 4倍=0.192
+        iou_threshold=0.35,
 
-        # 速度方向估计窗口：用于 OCR/VDC 角度代价中的历史观测回看步长
-        delta_t=3, # 3帧 
+        # 用于 vdc 的 angle_diff 计算
+        # 向量 A (轨迹速度): ref_obs → 轨迹最新框
+        # 向量 B (VDC 方向): ref_obs 的下一帧 → 候选框
+        # ref_obs 为历史中首个中心距离 > pct*框尺寸 的观测（找不到时回退到最旧）
+        delta_dist_pct=0.5,  # 有效位移阈值 = 50% 框尺寸
 
-        # 方向一致性代价权重：越大越偏好“运动方向一致”的匹配
-        # slide 运动比较规律，调高权重
+        # vdc 的权重
+        # vdc = angle_diff * inertia * score(置信度)
         inertia=0.7,
 
-        # 启用 BYTE 二阶段低分框补匹配（0.1 < score < det_thresh）
-        use_byte=True,
+        # 暖机，前 N 帧不用 Kalman 预测
+        # 卡尔曼一开始不稳定，预测结果会乱飘，前几帧需要屏蔽
+        warmup_frames=round(fps * 0.1),  # 0.1s
 
-        # 中心距离硬门控：候选框中心距离 ≤ max_ratio * 轨迹最后观测框的 max(w,h)
-        # 如 20x21 框 max=21，max_ratio=2 → 允许中心距≤42
+        # DIoU 高于此值时禁用 VDC
+        # 因为框已经够重合了，有时候 vdc 反而会误导
+        # 尤其是 slide_head 刚出现时容易被 vdc 弄成 id switch
+        vdc_disable_diou_thresh=0.85,
+
+        # 尺寸变大门控：候选框 max(w,h) ≤ 轨迹最后一帧 × (1+ratio)
+        # 如最后一帧 max=30，ratio=0.15 → 候选框 max 须 ≤ 34.5
         # 值越大越宽松，越小越严格
-        max_ratio=1.7,
-
-        # 尺寸变小门控：候选框 max(w,h) ≥ 轨迹历史 avg_max_side * size_ratio
-        # 如轨迹历史平均 max_side=30，size_ratio=0.85 → 候选框 max_side 须 ≥ 25.5
-        # 值越小越宽松（容忍更大尺寸波动），越大越严格
-        size_ratio=0.85,
-
-        # 尺寸变大门控：候选框 max(w,h) ≤ 轨迹最后一个框 max(w,h) * (1 + ratio)
-        # 如最后一个框 max=30，ratio=0.10 → 候选框 max_side 须 ≤ 33
-        # 值越大越宽松，越小越严格；设为极大值可实质关闭此门控
         max_size_increase_ratio=0.15,
+
+        # 尺寸变小门控：候选框 max(w,h) ≥ 轨迹最后一帧 × (1-ratio)
+        # 如最后一帧 max=30，ratio=0.15 → 候选框 max 须 ≥ 25.5
+        # 值越大越严格，越小越宽松
+        max_size_decrease_ratio=0.15,
     )
 
 
 
 
 
-def _reverse_track_slide(track_geos, check_frame, unmatched_dets, fps):
-    """反向追踪：将slide轨道反转后重新走OC-SORT，检查首帧前一帧是否有可匹配的 SLIDE 检测框。
+def _reverse_track_slide(track_geos, fps, detections_by_frame):
+    """反向追踪：将slide轨道反转后重新走OC-SORT，逐帧向前搜索可匹配的 SLIDE 检测框。
 
-    将整个track按帧降序喂入全新的OCSort实例，重建Kalman运动状态，
-    然后将check_frame的未匹配 SLIDE 检测框作为候选输入，判断是否能关联上。
+    将整个track按帧降序喂入全新的OCSort实例（参数与正向追踪完全一致），重建Kalman运动状态，
+    然后从首帧前一帧开始逐帧向前搜索，最多向前添加 max_reverse_frames 个点。
+    同个候选框可被多条轨迹同时选中（many-to-one）。
 
     Args:
         track_geos: 正向追踪的slide轨道 Note_Geometry 列表（帧升序）
-        check_frame: 待检查的帧号（= track首帧 - 1）
-        unmatched_dets: check_frame 中未被任何track匹配的检测框列表（含所有类型）
         fps: 视频帧率
+        detections_by_frame: {frame: [Note_Geometry, ...]} 所有帧的全部检测结果
 
     Returns:
-        匹配到的 Note_Geometry，或 None
+        匹配到的 Note_Geometry 列表（帧升序，从最早到最晚），可能为空
     """
-    if not track_geos or not unmatched_dets:
-        return None
+
+    # 向前添加的最大帧数/点数
+    max_reverse_frames = 1 if fps < 70 else 2
+
+    if not track_geos or max_reverse_frames <= 0:
+        return []
 
     tracker = _build_ocsort_tracker(fps)
 
@@ -153,26 +155,47 @@ def _reverse_track_slide(track_geos, check_frame, unmatched_dets, fps):
         ocsort_input = _convert_detections_to_ocsort_format([geo])
         tracker.update(ocsort_input)
 
-    # 候选框必须与当前 track 同类型（仅 SLIDE），避免跨类型误匹配
-    slide_candidates = [d for d in unmatched_dets if d.note_type == NoteType.SLIDE]
-    if not slide_candidates:
-        return None
+    first_frame = track_geos[0].frame
+    matched_geos: list = []  # 帧降序收集
 
-    candidate_input = _convert_detections_to_ocsort_format(slide_candidates)
-    result = tracker.update(candidate_input)
+    for offset in range(1, max_reverse_frames + 1):
+        check_frame = first_frame - offset
+        if check_frame < 0:
+            break
 
-    if result is None or len(result) == 0:
-        return None
+        all_dets = detections_by_frame.get(check_frame, [])
+        # 候选框必须与当前 track 同类型（仅 SLIDE），避免跨类型误匹配
+        # 因为允许多个轨迹选同一个框 (many-to-one)
+        # 所以不需要排除已被匹配的框, 直接传入所有
+        slide_candidates = [d for d in all_dets if d.note_type == NoteType.SLIDE]
+        if not slide_candidates:
+            break
 
-    for row in result:
-        if len(row) < 9:
-            continue
-        frame_offset = int(row[9]) if len(row) >= 10 else 0
-        idx = int(row[8])
-        if frame_offset == 0 and 0 <= idx < len(slide_candidates):
-            return slide_candidates[idx]
+        candidate_input = _convert_detections_to_ocsort_format(slide_candidates)
+        result = tracker.update(candidate_input)
 
-    return None
+        if result is None or len(result) == 0:
+            break
+
+        # 在当前帧找到匹配的候选框
+        found = None
+        for row in result:
+            if len(row) < 9:
+                continue
+            frame_offset = int(row[9]) if len(row) >= 10 else 0
+            idx = int(row[8])
+            if frame_offset == 0 and 0 <= idx < len(slide_candidates):
+                found = slide_candidates[idx]
+                break
+
+        if found is None:
+            break
+
+        matched_geos.append(found)
+
+    # 转为帧升序返回
+    matched_geos.reverse()
+    return matched_geos
 
 
 
@@ -284,13 +307,6 @@ def main(std_video_path: Path,
         print(f"追踪模块完成, 耗时{finish_time - start_time:.1f}s, 平均{total_frames / (finish_time - start_time):.1f}fps          ")
 
         # === 反向追踪 slide tracks ===
-        # 构建每帧未匹配检测框的映射（所有未被任何track匹配的框）
-        unmatched_by_frame = defaultdict(list)
-        for frame_num, dets in detections_by_frame.items():
-            for det in dets:
-                if id(det) not in matched_note_ids:
-                    unmatched_by_frame[frame_num].append(det)
-
         # 对每条 slide track 尝试反向追踪
         reverse_count = 0
         for key, track_geos in final_tracked_results.items():
@@ -300,30 +316,17 @@ def main(std_video_path: Path,
 
             # 按帧排序（防御性，通常已有序）
             track_geos.sort(key=lambda x: x.frame)
-            first_frame = track_geos[0].frame
-            check_frame = first_frame - 1
 
-            if check_frame < 0:
-                continue
-
-            unmatched_at_check = unmatched_by_frame.get(check_frame, [])
-            if not unmatched_at_check:
-                continue
-
-            matched_geo = _reverse_track_slide(track_geos, check_frame, unmatched_at_check, fps)
-            if matched_geo is not None:
-                track_geos.insert(0, matched_geo)
-                matched_note_ids.add(id(matched_geo))
-                # 从unmatched中移除，防止被后续track重复匹配
-                unmatched_at_check = [d for d in unmatched_at_check if id(d) != id(matched_geo)]
-                if unmatched_at_check:
-                    unmatched_by_frame[check_frame] = unmatched_at_check
-                else:
-                    del unmatched_by_frame[check_frame]
-                reverse_count += 1
+            matched_geos = _reverse_track_slide(track_geos, fps, detections_by_frame)
+            if matched_geos:
+                # matched_geos 已按帧升序，直接逐个插入 track 开头
+                for geo in matched_geos:
+                    track_geos.insert(0, geo)
+                    matched_note_ids.add(id(geo))
+                    reverse_count += 1
 
         if reverse_count > 0:
-            print(f"反向追踪: 为 {reverse_count} 条 slide track 补充了首帧")
+            print(f"反向追踪: 补充了 {reverse_count} 个点")
 
         # 保存到文件
         _save_track_results(final_tracked_results, std_video_path.parent, call_fn="track")

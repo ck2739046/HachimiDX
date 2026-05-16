@@ -3,6 +3,7 @@
 *__pycache__*
 .venv
 *.sln
+*.lscache
 
 src/resources/majdata/
 src/resources/ffmpeg/

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import cv2
+import numpy as np
 
 from ...schemas.op_result import OpResult, err, ok
 from ..analyze.analyze_slide_movement import is_line_pass_a_zone_endpoint
@@ -51,6 +52,13 @@ def main(std_video_path: Path) -> OpResult[None]:
 
 
 
+
+
+
+
+
+
+
 def _build_context(std_video_path: Path) -> _PostTrackContext:
     """参考 analyze 模块的 shared_context 构建"""
 
@@ -83,6 +91,9 @@ def _get_next_track_id(tracks: dict) -> int:
     for track_id, _note_type in tracks.keys():
         max_track_id = max(max_track_id, int(track_id))
     return max_track_id + 1
+
+
+
 
 
 
@@ -179,6 +190,9 @@ def _split_single_touch(note_geometry_list, touch_areas: dict, reverse_growth_th
         segments.append(note_geometry_list[start_idx:])
 
     return [x for x in segments if len(x) > 0]
+
+
+
 
 
 

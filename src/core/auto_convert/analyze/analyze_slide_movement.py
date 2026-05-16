@@ -227,6 +227,11 @@ def is_straight(note_path: list, start_A_zone_id: int, end_A_zone_id: int) -> tu
         # 必须激活 B 区
         required.append(f'B{start_A_zone_id}')
         required.append(f'B{end_A_zone_id}')
+        # 可选起点/终点附近的 E 区
+        optional.append(f'E{_prev_DE_zone_id(start_A_zone_id)}')
+        optional.append(f'E{_next_DE_zone_id(start_A_zone_id)}')
+        optional.append(f'E{_prev_DE_zone_id(end_A_zone_id)}')
+        optional.append(f'E{_next_DE_zone_id(end_A_zone_id)}')
 
     # 检查
     if _ckeck_zones(positions, required, optional, banned):
@@ -528,6 +533,10 @@ def is_zigzag_s(note_path: list, start_A_zone_id: int, end_A_zone_id: int) -> tu
     optional.append(f'E{E_zone_id}')
     E_zone_id = _prev_DE_zone_id(end_A_zone_id)
     optional.append(f'E{E_zone_id}')
+    # 可选起点/终点的 B 区: s
+    # 参考 galaxy blaster 开头的两个 s/z 交叉造成的意外波动
+    optional.append(f'B{start_A_zone_id}')
+    optional.append(f'B{end_A_zone_id}')
 
     # 检查
     if _ckeck_zones(positions, required, optional, banned):
@@ -570,6 +579,10 @@ def is_zigzag_z(note_path: list, start_A_zone_id: int, end_A_zone_id: int) -> tu
     optional.append(f'E{E_zone_id}')
     E_zone_id = _next_DE_zone_id(end_A_zone_id)
     optional.append(f'E{E_zone_id}')
+    # 可选起点/终点的 B 区: z
+    # 参考 galaxy blaster 开头的两个 s/z 交叉造成的意外波动
+    optional.append(f'B{start_A_zone_id}')
+    optional.append(f'B{end_A_zone_id}')
 
     # 检查
     if _ckeck_zones(positions, required, optional, banned):
