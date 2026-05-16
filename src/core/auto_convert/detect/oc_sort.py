@@ -17,20 +17,6 @@ def convert_bbox_centre(bbox: np.ndarray) -> tuple[float, float, float, float]:
     return cx, cy, w, h
 
 
-def k_previous_obs(
-    observations: dict[int, np.ndarray], cur_age: int, k: int
-) -> np.ndarray:
-    """Return the observation from k steps ago, or the oldest if none."""
-    if len(observations) == 0:
-        return np.array([-1.0, -1.0, -1.0, -1.0, -1.0], dtype=np.float64)
-    for i in range(k):
-        dt = k - i
-        if cur_age - dt in observations:
-            return observations[cur_age - dt]
-    max_age = max(observations.keys())
-    return observations[max_age]
-
-
 def speed_direction(bbox1: np.ndarray, bbox2: np.ndarray) -> np.ndarray:
     """Unit speed direction from bbox1 to bbox2, as (dy, dx)."""
     cx1 = (bbox1[0] + bbox1[2]) / 2.0
@@ -70,7 +56,7 @@ class KalmanBoxTracker6D:
     # 观测矩阵 H (2×6): 直读前 2 维
     _H = np.hstack([np.eye(2, dtype=np.float64), np.zeros((2, 4), dtype=np.float64)])
 
-    def __init__(self, bbox: np.ndarray, delta_t: int = 3):
+    def __init__(self, bbox: np.ndarray, delta_dist_pct: float = 0.5):
         cx, cy, w, h = convert_bbox_centre(bbox[:4])
 
         self.kf = KalmanFilter(dim_x=6, dim_z=2)
@@ -121,7 +107,11 @@ class KalmanBoxTracker6D:
         self.observations: dict[int, np.ndarray] = {}
         self.history_observations: list[np.ndarray] = []
         self.velocity: np.ndarray | None = None
-        self.delta_t = delta_t
+        self.delta_dist_pct = float(delta_dist_pct)
+
+        # 动态 delta：基于距离百分比在历史中找参考观测
+        self._ref_obs: np.ndarray | None = None
+        self._ref_next_obs: np.ndarray | None = None
 
         # --- freeze/unfreeze 状态机（原版 OC-SORT 在线平滑） ---
         self._history_obs_z: list[np.ndarray | None] = [
@@ -136,6 +126,34 @@ class KalmanBoxTracker6D:
         self.history_scores: list[float] = [self.score]
         self.history_classes: list[int] = [self.cls]
         self.history_indices: list[int] = [self.idx]
+
+    def _find_ref_obs(self, current_obs: np.ndarray) -> tuple[np.ndarray | None, np.ndarray | None]:
+        """在轨迹历史中回溯，找到第一个与最新框中心距离 > delta_dist_pct*框尺寸 的观测 H。
+        返回 (H, H_next)。找不到则回退到最旧观测；无历史则返回 (None, None)。
+
+        H:   参考观测框（用于计算轨迹速度方向：H → current_obs）
+        H_next: H 的下一帧观测（用于 VDC 匹配：H_next → 候选框）"""
+        if len(self.history_observations) == 0:
+            return (None, None)
+
+        cx_cur = (current_obs[0] + current_obs[2]) / 2.0
+        cy_cur = (current_obs[1] + current_obs[3]) / 2.0
+        threshold = self.delta_dist_pct * max(self._last_w, self._last_h)
+
+        n = len(self.history_observations)
+        for i in range(n - 1, -1, -1):
+            h = self.history_observations[i]
+            cx_h = (h[0] + h[2]) / 2.0
+            cy_h = (h[1] + h[3]) / 2.0
+            dist = np.sqrt((cx_cur - cx_h) ** 2 + (cy_cur - cy_h) ** 2)
+            if dist > threshold:
+                h_next = self.history_observations[i + 1] if i + 1 < n else current_obs
+                return (h, h_next)
+
+        # 回退：所有历史都太近，用最旧观测（至少比单帧稳定）
+        h = self.history_observations[0]
+        h_next = self.history_observations[1] if len(self.history_observations) >= 2 else current_obs
+        return (h, h_next)
 
     def update(self, bbox: np.ndarray | None) -> None:
         # ====== 记录 z-format 观测 ======
@@ -166,15 +184,11 @@ class KalmanBoxTracker6D:
         )
 
         if self.last_observation.sum() >= 0:
-            previous_box = None
-            for i in range(self.delta_t):
-                dt = self.delta_t - i
-                if self.age - dt in self.observations:
-                    previous_box = self.observations[self.age - dt]
-                    break
-            if previous_box is None:
-                previous_box = self.last_observation
-            self.velocity = speed_direction(previous_box, obs)
+            ref_obs, ref_next_obs = self._find_ref_obs(obs)
+            self._ref_obs = ref_obs
+            self._ref_next_obs = ref_next_obs
+            if ref_obs is not None:
+                self.velocity = speed_direction(ref_obs, obs)
 
         self.last_observation = obs
         self.observations[self.age] = obs
@@ -436,12 +450,13 @@ class OCSort:
         max_age: int = 30,
         min_hits: int = 3,
         iou_threshold: float = 0.3,
-        delta_t: int = 3,
+        delta_dist_pct: float = 0.5,
         inertia: float = 0.2,
         warmup_frames: int = 3,
         vdc_disable_diou_thresh: float = 0.5,
     ):
-        """warmup_frames: 新建轨迹前 N 帧不输出 Kalman 预测，直接用检测框位置。
+        """delta_dist_pct: 在历史中找参考观测时，要求中心距离 > pct*框尺寸。
+        warmup_frames: 新建轨迹前 N 帧不输出 Kalman 预测，直接用检测框位置。
         vdc_disable_diou_thresh: DIoU 高于此值时禁用 VDC（几何上已足够匹配）。"""
         self.max_age = int(max_age)
         self.min_hits = int(min_hits)
@@ -449,7 +464,7 @@ class OCSort:
         self.trackers: list[KalmanBoxTracker6D] = []
         self.frame_count = 0
         self.det_thresh = float(det_thresh)
-        self.delta_t = int(delta_t)
+        self.delta_dist_pct = float(delta_dist_pct)
         self.inertia = float(inertia)
         self.warmup_frames = int(warmup_frames)
         self.vdc_disable_diou_thresh = float(vdc_disable_diou_thresh)
@@ -508,7 +523,8 @@ class OCSort:
         for t in reversed(to_del):
             self.trackers.pop(t)
 
-        # ====== 轨迹速度和 k 步前观测 ======
+        # ====== 轨迹速度和 VDC 参考观测 ======
+        _sentinel = np.array([-1.0, -1.0, -1.0, -1.0, -1.0], dtype=np.float64)
         _zero_vel = np.array((0.0, 0.0), dtype=np.float64)
         velocities = np.array(
             [
@@ -516,9 +532,9 @@ class OCSort:
                 for trk in self.trackers
             ]
         )
-        k_observations = np.array(
+        ref_next_obs_list = np.array(
             [
-                k_previous_obs(trk.observations, trk.age, self.delta_t)
+                trk._ref_next_obs if trk._ref_next_obs is not None else _sentinel
                 for trk in self.trackers
             ]
         )
@@ -530,7 +546,7 @@ class OCSort:
                 trks,
                 self.iou_threshold,
                 velocities,
-                k_observations,
+                ref_next_obs_list,
                 self.inertia,
                 self.vdc_disable_diou_thresh,
             )
@@ -549,7 +565,7 @@ class OCSort:
 
         for det_idx in unmatched_dets:
             self.trackers.append(
-                KalmanBoxTracker6D(dets[det_idx], delta_t=self.delta_t)
+                KalmanBoxTracker6D(dets[det_idx], delta_dist_pct=self.delta_dist_pct)
             )
 
         # ====== 输出 ======

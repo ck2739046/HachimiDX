@@ -92,10 +92,10 @@ def _build_ocsort_tracker(fps: float) -> OCSort:
         iou_threshold=0.35,
 
         # 用于 vdc 的 angle_diff 计算
-        # 轨迹第 delta_t 帧之前的框到候选框的向量
-        # 轨迹第 delta_t 帧之前的框到轨迹最新框的向量
-        # 两者的角度差就是 angle_diff
-        delta_t=max(1, round(fps/30)),  # 1/30s, at least 1
+        # 向量 A (轨迹速度): ref_obs → 轨迹最新框
+        # 向量 B (VDC 方向): ref_obs 的下一帧 → 候选框
+        # ref_obs 为历史中首个中心距离 > pct*框尺寸 的观测（找不到时回退到最旧）
+        delta_dist_pct=0.5,  # 有效位移阈值 = 50% 框尺寸
 
         # vdc 的权重
         # vdc = angle_diff * inertia * score(置信度)
