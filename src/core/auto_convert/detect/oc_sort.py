@@ -513,7 +513,7 @@ class OCSort:
         max_size_decrease_ratio: float = 0.15,
     ):
         """delta_dist_pct: 在历史中找参考观测时，要求中心距离 > pct*框尺寸。
-        warmup_frames: 新建轨迹前 N 帧不输出 Kalman 预测，直接用检测框位置；同时禁用 VDC。
+        warmup_frames: 新建轨迹前 N 帧不输出 Kalman 预测，直接用检测框位置。
         vdc_disable_diou_thresh: DIoU 高于此值时禁用 VDC（几何上已足够匹配）。
         max_size_increase_ratio: 尺寸变大门控上限，候选框max(w,h) ≤ 轨迹最后一帧 × (1+ratio)。
         max_size_decrease_ratio: 尺寸变小门控下限，候选框max(w,h) ≥ 轨迹最后一帧 × (1-ratio)。"""
@@ -589,17 +589,13 @@ class OCSort:
         _zero_vel = np.array((0.0, 0.0), dtype=np.float64)
         velocities = np.array(
             [
-                trk.velocity
-                if (trk.velocity is not None and trk.hit_streak >= self.warmup_frames)
-                else _zero_vel
+                trk.velocity if trk.velocity is not None else _zero_vel
                 for trk in self.trackers
             ]
         )
         ref_next_obs_list = np.array(
             [
-                trk._ref_next_obs
-                if (trk._ref_next_obs is not None and trk.hit_streak >= self.warmup_frames)
-                else _sentinel
+                trk._ref_next_obs if trk._ref_next_obs is not None else _sentinel
                 for trk in self.trackers
             ]
         )
