@@ -112,7 +112,7 @@ def _split_touch_notes(tracks: dict, context: _PostTrackContext, next_track_id: 
         track_id, note_type = key
         note_geometry_list = sorted(value, key=lambda x: x.frame)
 
-        if note_type not in (NoteType.TOUCH, NoteType.TOUCH_HOLD):
+        if note_type != NoteType.TOUCH:
             new_tracks[key].extend(note_geometry_list)
             continue
 
