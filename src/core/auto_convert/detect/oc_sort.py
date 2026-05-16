@@ -451,7 +451,7 @@ class OCSort:
         vdc_disable_diou_thresh: float = 0.5,
     ):
         """delta_dist_pct: 在历史中找参考观测时，要求中心距离 > pct*框尺寸。
-        warmup_frames: 新建轨迹前 N 帧不输出 Kalman 预测，直接用检测框位置。
+        warmup_frames: 新建轨迹前 N 帧不输出 Kalman 预测，直接用检测框位置；同时禁用 VDC。
         vdc_disable_diou_thresh: DIoU 高于此值时禁用 VDC（几何上已足够匹配）。"""
         self.max_age = int(max_age)
         self.min_hits = int(min_hits)
@@ -523,13 +523,17 @@ class OCSort:
         _zero_vel = np.array((0.0, 0.0), dtype=np.float64)
         velocities = np.array(
             [
-                trk.velocity if trk.velocity is not None else _zero_vel
+                trk.velocity
+                if (trk.velocity is not None and trk.hit_streak >= self.warmup_frames)
+                else _zero_vel
                 for trk in self.trackers
             ]
         )
         ref_next_obs_list = np.array(
             [
-                trk._ref_next_obs if trk._ref_next_obs is not None else _sentinel
+                trk._ref_next_obs
+                if (trk._ref_next_obs is not None and trk.hit_streak >= self.warmup_frames)
+                else _sentinel
                 for trk in self.trackers
             ]
         )
