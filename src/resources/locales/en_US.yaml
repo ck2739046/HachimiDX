@@ -240,31 +240,29 @@ en_US:
           100% = original volume.
 
         # ---- Common Settings ----
-        ui_pad_start_sec_label: "Pad Start: "
-        ui_pad_start_sec_help: |
-          Insert a silent/black segment of specified duration at the beginning of the file.
+        ui_adjust_start_label: "Start Offset: "
+        ui_adjust_start_help: |
+          Controls the starting position of the output file.
 
-          Unit: seconds (up to 3 decimal places)
-          Zero: No insertion
-          Positive: Insert segment of specified duration
-        ui_start_end_label: "Trim Range: "
-        ui_start_end_help: |
-          Start Time ~ End Time, only output the content in between.
-          
-          Start Time (Left): Content before this time will be discarded.
-          - Unit: seconds (up to 3 decimal places)
-          - Zero: Keep from the beginning (no start trim)
-          - Positive: Time point from the start
-          
-          End Time (Right): Content after this time will be discarded.
-          - Unit: seconds (up to 3 decimal places)
-          - Zero: Keep until the end (no end trim)
-          - Positive: Time point from the start
-          - Negative: Time point from the end
+          Unit:     Seconds (up to 3 decimal places, e.g. 1.5)
+          Empty(0): No adjustment.
+          Positive: Prepend a silent/black segment, shifting the content later.
+          Negative: Trim away the given duration from the beginning.
 
-          Example: If the total duration is 60s,
-          Start Time = 10, End Time = 50 (or -10),
-          It will output the content between 10s and 50s (40s total).
+          Example: 1.5 → Adds 1.5s of silence or black frames at the start.
+                  -2.0 → Cuts off the first 2 seconds.
+        ui_trim_end_label: "End Time: "
+        ui_trim_end_help: |
+          Controls the ending position of the output file.
+
+          Unit:     Seconds (up to 3 decimal places, e.g. 50.5)
+          Empty(0): Keep everything to the end.
+          Positive: Discard content beyond this time (measured from the start).
+          Negative: Discard content beyond this time (measured from the end).
+
+          Example: For a 60-second file,
+                   50 → Keeps the first 50 seconds only.
+                  -10 → Keeps everything except the last 10 seconds (first 50 seconds).
 
         ui_clear_metadata_label: "Clear Metadata: "
         ui_clear_metadata_help: Whether to clear all metadata (e.g., title, author) in the output file

@@ -42,8 +42,7 @@ class RunFFmpegPage(BaseOutputPage):
         self.audio_volume_line_edit = None
         self.audio_overlay = None
         # common widgets
-        self.common_pad_start_line_edit = None
-        self.common_start_line_edit = None
+        self.common_adjust_start_line_edit = None
         self.common_end_line_edit = None
         self.common_clear_metadata_check_box = None
 
@@ -134,17 +133,16 @@ class RunFFmpegPage(BaseOutputPage):
         common_divider = create_divider(i18n.t("app.media_subpages.run_ffmpeg.ui_common_divider"))
         self.content_layout.addWidget(common_divider)
         # labels
-        pad_start_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_pad_start_sec_label"))
-        start_end_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_start_end_label"))
-        start_end_label_between = create_label("→")  # between start and end
+        adjust_start_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_adjust_start_label"))
+        trim_end_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_trim_end_label"))
         clear_metadata_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_clear_metadata_label"))
         # help icons
-        pad_start_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_pad_start_sec_help"))
-        start_end_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_start_end_help"))
+        adjust_start_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_adjust_start_help"))
+        trim_end_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_trim_end_help"))
         clear_metadata_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_clear_metadata_help"))
         # create rows
-        self.create_row(pad_start_label, self.common_pad_start_line_edit, pad_start_help,
-                        start_end_label, self.common_start_line_edit, start_end_label_between, self.common_end_line_edit, start_end_help,
+        self.create_row(adjust_start_label, self.common_adjust_start_line_edit, adjust_start_help,
+                        trim_end_label, self.common_end_line_edit, trim_end_help,
                         clear_metadata_label, self.common_clear_metadata_check_box, clear_metadata_help,
                         add_stretch=True)
 
@@ -298,11 +296,8 @@ class RunFFmpegPage(BaseOutputPage):
             default_text=str(default), placeholder=f"{min}~{max}", length=60, validator='int')
 
 
-        # common pad_start line edit
-        self.common_pad_start_line_edit = create_line_edit(
-            length=70, validator='float')
-        # common start line edit
-        self.common_start_line_edit = create_line_edit(
+        # common adjust_start line edit (正数=pad_start, 负数=trim_start)
+        self.common_adjust_start_line_edit = create_line_edit(
             length=70, validator='float')
         # common end line edit
         self.common_end_line_edit = create_line_edit(
@@ -454,6 +449,23 @@ class RunFFmpegPage(BaseOutputPage):
 
 
 
+    def _resolve_adjust_start_pad(self) -> float | None:
+        """正数 → pad_start, 其他 → None"""
+        v = self.common_adjust_start_line_edit.text().strip()
+        try:
+            f = float(v)
+            return round(f, 3) if f > 0 else None
+        except Exception:
+            return None
+
+    def _resolve_adjust_start_trim(self) -> float | None:
+        """负数 → start (绝对值), 其他 → None"""
+        v = self.common_adjust_start_line_edit.text().strip()
+        try:
+            f = float(v)
+            return round(abs(f), 3) if f < 0 else None
+        except Exception:
+            return None
 
     def on_submit_clicked(self) -> None:
         """
@@ -498,8 +510,8 @@ class RunFFmpegPage(BaseOutputPage):
                 # common
                 M_Defs.clear_metadata.key: self.common_clear_metadata_check_box.isChecked(),
                 M_Defs.duration.key: try_float(self.media_input.selected_file_duration),
-                M_Defs.pad_start.key: try_float(self.common_pad_start_line_edit.text().strip()),
-                M_Defs.start.key: try_float(self.common_start_line_edit.text().strip()),
+                M_Defs.pad_start.key: self._resolve_adjust_start_pad(),
+                M_Defs.start.key: self._resolve_adjust_start_trim(),
                 M_Defs.end.key: try_float(self.common_end_line_edit.text().strip()),
             }
 
