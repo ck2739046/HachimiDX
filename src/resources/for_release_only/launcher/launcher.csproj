@@ -19,7 +19,7 @@
     <!-- Windows 文件属性 → 产品名称 -->
     <Product>Launcher for HachimiDX</Product>
     <!-- Windows 文件属性 → 版权 -->
-    <Copyright>©Simon273 $([System.DateTime]::Now.ToString("yyyy.MM.dd_HH:mm:ss zzz"))</Copyright>
+    <Copyright>©Simon273 $([System.DateTime]::Now.ToString("yyyy.MM.dd_HH:mm:ss_UTCzzz"))</Copyright>
   
   </PropertyGroup>
 
