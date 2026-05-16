@@ -434,6 +434,66 @@ def associate(
     return matches, unmatched_detections.astype(int), unmatched_trackers.astype(int)
 
 
+def _size_increase_gate(
+    matched_indices: np.ndarray,
+    det_boxes: np.ndarray,
+    trk_last_max_sides: np.ndarray,
+    max_size_increase_ratio: float = 0.15,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """尺寸变大门控：候选框 max(w,h) 不应明显大于轨迹最后一帧的 max(w,h)。
+
+    过滤候选框 max(w,h) > trk_last_max * (1 + ratio) 的匹配。
+    trk_last_max == 0 表示新轨迹无有效历史，不设限。
+    返回 (good_matches, rejected_det_indices, rejected_trk_indices)。
+    """
+    if matched_indices.shape[0] == 0 or max_size_increase_ratio < 0:
+        return matched_indices, np.array([], dtype=int), np.array([], dtype=int)
+
+    det_idx = matched_indices[:, 0]
+    trk_idx = matched_indices[:, 1]
+
+    det_w = det_boxes[det_idx, 2] - det_boxes[det_idx, 0]
+    det_h = det_boxes[det_idx, 3] - det_boxes[det_idx, 1]
+    det_max_side = np.maximum(det_w, det_h)
+
+    trk_last_max = np.asarray(trk_last_max_sides, dtype=np.float64)[trk_idx]
+    threshold = trk_last_max * (1.0 + max_size_increase_ratio)
+
+    # trk_last_max == 0 表示轨迹无历史，通过所有匹配
+    ok = (trk_last_max == 0.0) | (det_max_side <= threshold)
+    return matched_indices[ok], matched_indices[~ok, 0], matched_indices[~ok, 1]
+
+
+def _size_decrease_gate(
+    matched_indices: np.ndarray,
+    det_boxes: np.ndarray,
+    trk_last_max_sides: np.ndarray,
+    max_size_decrease_ratio: float = 0.15,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """尺寸变小门控：候选框 max(w,h) 不应明显小于轨迹最后一帧的 max(w,h)。
+
+    过滤候选框 max(w,h) < trk_last_max * (1 - ratio) 的匹配。
+    trk_last_max == 0 表示新轨迹无有效历史，不设限。
+    返回 (good_matches, rejected_det_indices, rejected_trk_indices)。
+    """
+    if matched_indices.shape[0] == 0 or max_size_decrease_ratio < 0:
+        return matched_indices, np.array([], dtype=int), np.array([], dtype=int)
+
+    det_idx = matched_indices[:, 0]
+    trk_idx = matched_indices[:, 1]
+
+    det_w = det_boxes[det_idx, 2] - det_boxes[det_idx, 0]
+    det_h = det_boxes[det_idx, 3] - det_boxes[det_idx, 1]
+    det_max_side = np.maximum(det_w, det_h)
+
+    trk_last_max = np.asarray(trk_last_max_sides, dtype=np.float64)[trk_idx]
+    threshold = trk_last_max * (1.0 - max_size_decrease_ratio)
+
+    # trk_last_max == 0 表示轨迹无历史，通过所有匹配
+    ok = (trk_last_max == 0.0) | (det_max_side >= threshold)
+    return matched_indices[ok], matched_indices[~ok, 0], matched_indices[~ok, 1]
+
+
 # ============================================================================
 # 精简 OCSort — 仅 Stage 1 (VDC + DIoU)
 # ============================================================================
@@ -449,10 +509,14 @@ class OCSort:
         inertia: float = 0.2,
         warmup_frames: int = 3,
         vdc_disable_diou_thresh: float = 0.5,
+        max_size_increase_ratio: float = 0.15,
+        max_size_decrease_ratio: float = 0.15,
     ):
         """delta_dist_pct: 在历史中找参考观测时，要求中心距离 > pct*框尺寸。
         warmup_frames: 新建轨迹前 N 帧不输出 Kalman 预测，直接用检测框位置；同时禁用 VDC。
-        vdc_disable_diou_thresh: DIoU 高于此值时禁用 VDC（几何上已足够匹配）。"""
+        vdc_disable_diou_thresh: DIoU 高于此值时禁用 VDC（几何上已足够匹配）。
+        max_size_increase_ratio: 尺寸变大门控上限，候选框max(w,h) ≤ 轨迹最后一帧 × (1+ratio)。
+        max_size_decrease_ratio: 尺寸变小门控下限，候选框max(w,h) ≥ 轨迹最后一帧 × (1-ratio)。"""
         self.max_age = int(max_age)
         self.min_hits = int(min_hits)
         self.iou_threshold = float(iou_threshold)
@@ -463,6 +527,8 @@ class OCSort:
         self.inertia = float(inertia)
         self.warmup_frames = int(warmup_frames)
         self.vdc_disable_diou_thresh = float(vdc_disable_diou_thresh)
+        self.max_size_increase_ratio = float(max_size_increase_ratio)
+        self.max_size_decrease_ratio = float(max_size_decrease_ratio)
         self._next_track_id = 0
 
     @staticmethod
@@ -553,6 +619,34 @@ class OCSort:
             matched = np.empty((0, 2), dtype=int)
             unmatched_dets = np.arange(len(dets))
             unmatched_trks = np.arange(len(self.trackers))
+
+        # ====== 尺寸门控：基于轨迹最后一帧尺寸过滤不合理匹配 ======
+        if matched.shape[0] > 0 and (self.max_size_increase_ratio > 0 or self.max_size_decrease_ratio > 0):
+            trk_last_max_sides = np.array([
+                max(trk._last_w, trk._last_h)
+                if trk.last_observation.sum() >= 0 else 0.0
+                for trk in self.trackers
+            ], dtype=np.float64)
+
+            if self.max_size_increase_ratio > 0:
+                matched, rej_dets, rej_trks = _size_increase_gate(
+                    matched, dets[:, :5], trk_last_max_sides,
+                    max_size_increase_ratio=self.max_size_increase_ratio,
+                )
+                if rej_dets.size:
+                    unmatched_dets = np.concatenate([unmatched_dets, rej_dets])
+                if rej_trks.size:
+                    unmatched_trks = np.concatenate([unmatched_trks, rej_trks])
+
+            if matched.shape[0] > 0 and self.max_size_decrease_ratio > 0:
+                matched, rej_dets, rej_trks = _size_decrease_gate(
+                    matched, dets[:, :5], trk_last_max_sides,
+                    max_size_decrease_ratio=self.max_size_decrease_ratio,
+                )
+                if rej_dets.size:
+                    unmatched_dets = np.concatenate([unmatched_dets, rej_dets])
+                if rej_trks.size:
+                    unmatched_trks = np.concatenate([unmatched_trks, rej_trks])
 
         # ====== 更新 ======
         for m in matched:

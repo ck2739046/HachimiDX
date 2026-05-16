@@ -108,7 +108,17 @@ def _build_ocsort_tracker(fps: float) -> OCSort:
         # DIoU 高于此值时禁用 VDC
         # 因为框已经够重合了，有时候 vdc 反而会误导
         # 尤其是 slide_head 刚出现时容易被 vdc 弄成 id switch
-        vdc_disable_diou_thresh=0.9,  
+        vdc_disable_diou_thresh=0.85,
+
+        # 尺寸变大门控：候选框 max(w,h) ≤ 轨迹最后一帧 × (1+ratio)
+        # 如最后一帧 max=30，ratio=0.15 → 候选框 max 须 ≤ 34.5
+        # 值越大越宽松，越小越严格
+        max_size_increase_ratio=0.15,
+
+        # 尺寸变小门控：候选框 max(w,h) ≥ 轨迹最后一帧 × (1-ratio)
+        # 如最后一帧 max=30，ratio=0.15 → 候选框 max 须 ≥ 25.5
+        # 值越大越严格，越小越宽松
+        max_size_decrease_ratio=0.15,
     )
 
 
