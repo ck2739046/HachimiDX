@@ -140,8 +140,8 @@ class SettingsConfig_Definitions:
 
     # window
 
-    main_app_init_size = SettingsConfig_Definition(
-        key="main_app_init_size",
+    main_app_default_size = SettingsConfig_Definition(
+        key="main_app_default_size",
         type="tuple_int2",
         group="window",
         default=(1300, 900),

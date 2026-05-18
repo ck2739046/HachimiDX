@@ -378,7 +378,7 @@ zh_CN:
         程序解析音符时值的时间分辨率
         例如 32 代表单位时间为 1/32 小节，在 simai 语法中写作 "[32:x],"
         程序会将音符时值对齐到单位时间。
-        
+
         单位时间计算: 240000 / bpm / 分辨率 (ms)
         建议单位时间 ≥30ms，如果 BPM 较高，需要适当降低分辨率以保证准确性。
         
@@ -440,8 +440,8 @@ zh_CN:
       ui_general_divider: "通用设置"
       ui_language_label: "语言: "
 
-      ui_window_divider: "窗口尺寸"
-      ui_init_size_label: "初始窗口尺寸 (W x H): "
+      ui_window_divider: "窗口设置"
+      ui_default_size_label: "默认窗口尺寸 (W x H): "
       ui_min_size_label: "最小窗口尺寸 (W x H): "
 
       ui_actions_divider: "操作"

@@ -382,7 +382,7 @@ en_US:
         Time resolution used to parse note durations.
         For example, 32 means one unit is 1/32 beat, written as "[32:x]," in simai syntax.
         The program aligns note durations to this time unit.
-        
+
         Unit time calculation: 240000 / bpm / denominator (ms)
         Recommended unit time is >=30ms. If BPM is high, lower the denominator for better accuracy.
 
@@ -444,8 +444,8 @@ en_US:
       ui_general_divider: "General"
       ui_language_label: "Language: "
 
-      ui_window_divider: "Window Size"
-      ui_init_size_label: "Initial Window Size (W x H): "
+      ui_window_divider: "Window"
+      ui_default_size_label: "Default Window Size (W x H): "
       ui_min_size_label: "Minimum Window Size (W x H): "
 
       ui_actions_divider: "Actions"

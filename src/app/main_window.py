@@ -37,7 +37,7 @@ class LeftPanel(QWidget):
     """
     左侧面板 - 包含两个正方形占位符
     """
-    _init_size = None # 频繁调用，所以缓存
+    _default_size = None # 频繁调用，所以缓存
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -63,15 +63,15 @@ class LeftPanel(QWidget):
 
     def sizeHint(self):
 
-        if self._init_size is None:
-            result = SettingsManage.get("main_app_init_size")
+        if self._default_size is None:
+            result = SettingsManage.get("main_app_default_size")
             if result.is_ok:
-                self._init_size = QSize(*result.value)
+                self._default_size = QSize(*result.value)
             else:
-                print("--Warning: MainWindow.sizeHint: " + i18n.t("general.error_SettingsManage_get_failed", keyy="main_app_init_size"))
-                self._init_size = super().sizeHint() # 默认行为
+                print("--Warning: MainWindow.sizeHint: " + i18n.t("general.error_SettingsManage_get_failed", keyy="main_app_default_size"))
+                self._default_size = super().sizeHint() # 默认行为
                 
-        return QSize(self._init_size)
+        return QSize(self._default_size)
 
 
     def resizeEvent(self, event):
@@ -218,12 +218,12 @@ class MainWindow(QMainWindow):
         else:
             print("--Warning: MainWindow.setup_ui: " + i18n.t("general.error_SettingsManage_get_failed", keyy="main_app_min_size"))
 
-        result = SettingsManage.get("main_app_init_size")
+        result = SettingsManage.get("main_app_default_size")
         if not result.is_ok:
-            print("--Warning: MainWindow.setup_ui: " + i18n.t("general.error_SettingsManage_get_failed", keyy="main_app_init_size"))
+            print("--Warning: MainWindow.setup_ui: " + i18n.t("general.error_SettingsManage_get_failed", keyy="main_app_default_size"))
         else:
-            init_size = result.value
-            self.resize(*init_size)
+            default_size = result.value
+            self.resize(*default_size)
 
         # 设置背景色
         self.setStyleSheet(f"background-color: {UI_Style.COLORS['bg']};")

@@ -53,8 +53,8 @@ class SettingsPage(BaseOutputPage):
 
         self.language_combo_box = None
 
-        self.init_width_line_edit = None
-        self.init_height_line_edit = None
+        self.default_width_line_edit = None
+        self.default_height_line_edit = None
         self.min_width_line_edit = None
         self.min_height_line_edit = None
 
@@ -65,7 +65,7 @@ class SettingsPage(BaseOutputPage):
             S_Defs.model_backend.key,
             S_Defs.ffmpeg_hw_encoder.key,
             S_Defs.language.key,
-            S_Defs.main_app_init_size.key,
+            S_Defs.main_app_default_size.key,
             S_Defs.main_app_min_size.key,
         ]
 
@@ -156,19 +156,19 @@ class SettingsPage(BaseOutputPage):
     def _build_window_section(self) -> None:
         self.content_layout.addWidget(create_divider(i18n.t(f"{I18N_Prefix}.ui_window_divider")))
 
-        init_label = create_label(i18n.t(f"{I18N_Prefix}.ui_init_size_label"))
-        self.init_width_line_edit = create_line_edit(length=60, validator="int")
-        self.init_height_line_edit = create_line_edit(length=60, validator="int")
+        default_label = create_label(i18n.t(f"{I18N_Prefix}.ui_default_size_label"))
+        self.default_width_line_edit = create_line_edit(length=60, validator="int")
+        self.default_height_line_edit = create_line_edit(length=60, validator="int")
 
         min_label = create_label(i18n.t(f"{I18N_Prefix}.ui_min_size_label"))
         self.min_width_line_edit = create_line_edit(length=60, validator="int")
         self.min_height_line_edit = create_line_edit(length=60, validator="int")
 
         self.create_row(
-            init_label,
-            self.init_width_line_edit,
+            default_label,
+            self.default_width_line_edit,
             create_label("x"),
-            self.init_height_line_edit,
+            self.default_height_line_edit,
             add_stretch=True,
         )
         self.create_row(
@@ -270,11 +270,11 @@ class SettingsPage(BaseOutputPage):
         self._set_combo_value(self.ffmpeg_hw_encoder_combo_box, settings[S_Defs.ffmpeg_hw_encoder.key])
         self._set_combo_value(self.language_combo_box, settings[S_Defs.language.key])
 
-        init_size = settings[S_Defs.main_app_init_size.key]
+        default_size = settings[S_Defs.main_app_default_size.key]
         min_size = settings[S_Defs.main_app_min_size.key]
 
-        self.init_width_line_edit.setText(str(init_size[0]))
-        self.init_height_line_edit.setText(str(init_size[1]))
+        self.default_width_line_edit.setText(str(default_size[0]))
+        self.default_height_line_edit.setText(str(default_size[1]))
         self.min_width_line_edit.setText(str(min_size[0]))
         self.min_height_line_edit.setText(str(min_size[1]))
         self._sync_ui_state()
@@ -288,9 +288,9 @@ class SettingsPage(BaseOutputPage):
             S_Defs.model_backend.key: self.model_backend_combo_box.currentText().strip(),
             S_Defs.ffmpeg_hw_encoder.key: self.ffmpeg_hw_encoder_combo_box.currentText().strip(),
             S_Defs.language.key: self.language_combo_box.currentText().strip(),
-            S_Defs.main_app_init_size.key: (
-                self.init_width_line_edit.text().strip(),
-                self.init_height_line_edit.text().strip(),
+            S_Defs.main_app_default_size.key: (
+                self.default_width_line_edit.text().strip(),
+                self.default_height_line_edit.text().strip(),
             ),
             S_Defs.main_app_min_size.key: (
                 self.min_width_line_edit.text().strip(),
