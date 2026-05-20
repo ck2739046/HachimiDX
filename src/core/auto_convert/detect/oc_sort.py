@@ -295,24 +295,6 @@ class KalmanBoxTracker:
         if (self.kf.x[6].item() + self.kf.x[2].item()) <= 0:
             self.kf.x[6] *= 0.0
 
-        # 线性插值 cx,cy
-        x1, y1 = new_history[i1].flatten()
-        x2, y2 = new_history[i2].flatten()
-        dx = (x2 - x1) / gap
-        dy = (y2 - y1) / gap
-
-        for j in range(1, gap):
-            x = x1 + j * dx
-            y = y1 + j * dy
-            z_virtual = np.array([[x], [y]], dtype=np.float64)
-            self._history_obs_z.append(z_virtual)
-            self.kf.update(z_virtual)
-            self.kf.predict()
-
-        self._history_obs_z.append(new_history[i2])
-        self._observed = True
-
-    def predict(self) -> np.ndarray:
         self.kf.predict()
         self.age += 1
 
