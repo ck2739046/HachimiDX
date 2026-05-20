@@ -1,4 +1,5 @@
-# 导入实例
+import os
+
 from src.core.schemas.op_result import OpResult, ok, err
 
 from .path_manage import PathManage
@@ -32,6 +33,10 @@ class AllServices:
             print("SettingsManage initialization completed.")
         else:
             return err("Failed to initialize SettingsManager.", inner=result)
+        # 应用 UI 缩放（必须在 QApplication 创建之前设置环境变量，100 = 不做处理）
+        scale_result = SettingsManage.get("main_app_ui_scale")
+        if scale_result.is_ok and scale_result.value != 100:
+            os.environ["QT_SCALE_FACTOR"] = str(scale_result.value / 100)
         
         result = I18nManage.init()
         if result.is_ok:

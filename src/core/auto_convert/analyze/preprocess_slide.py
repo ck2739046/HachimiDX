@@ -90,7 +90,7 @@ def _classify_segment(shared_context: SharedContext, note_geometry_list) -> str 
     if _is_close_to_A_zone_endpoint(shared_context.a_zone_endpoint, shared_context.std_video_size, start_cx, start_cy, start_A_zone):
         return 'tail'
 
-    return None
+    return 'head' # fallback 星星头
 
 
 

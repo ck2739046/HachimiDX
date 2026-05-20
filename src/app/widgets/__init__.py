@@ -18,6 +18,7 @@ from .button import create_stated_button, create_button
 from .floating_notification import create_floating_notification
 from .overlay_widget import OverlayWidget
 from .range_visualizer import RangeVisualizer
+from .slider import create_slider
 
 __all__ = [
 	'SquareWidget',
@@ -36,4 +37,5 @@ __all__ = [
 	'create_floating_notification',
     'OverlayWidget',
     'RangeVisualizer',
+	'create_slider',
 ]

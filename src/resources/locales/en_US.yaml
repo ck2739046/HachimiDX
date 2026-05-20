@@ -240,31 +240,29 @@ en_US:
           100% = original volume.
 
         # ---- Common Settings ----
-        ui_pad_start_sec_label: "Pad Start: "
-        ui_pad_start_sec_help: |
-          Insert a silent/black segment of specified duration at the beginning of the file.
+        ui_adjust_start_label: "Start Offset: "
+        ui_adjust_start_help: |
+          Controls the starting position of the output file.
 
-          Unit: seconds (up to 3 decimal places)
-          Zero: No insertion
-          Positive: Insert segment of specified duration
-        ui_start_end_label: "Trim Range: "
-        ui_start_end_help: |
-          Start Time ~ End Time, only output the content in between.
-          
-          Start Time (Left): Content before this time will be discarded.
-          - Unit: seconds (up to 3 decimal places)
-          - Zero: Keep from the beginning (no start trim)
-          - Positive: Time point from the start
-          
-          End Time (Right): Content after this time will be discarded.
-          - Unit: seconds (up to 3 decimal places)
-          - Zero: Keep until the end (no end trim)
-          - Positive: Time point from the start
-          - Negative: Time point from the end
+          Unit:     Seconds (up to 3 decimal places, e.g. 1.5)
+          Empty(0): No adjustment.
+          Positive: Prepend a silent/black segment, shifting the content later.
+          Negative: Trim away the given duration from the beginning.
 
-          Example: If the total duration is 60s,
-          Start Time = 10, End Time = 50 (or -10),
-          It will output the content between 10s and 50s (40s total).
+          Example: 1.5 → Adds 1.5s of silence or black frames at the start.
+                  -2.0 → Cuts off the first 2 seconds.
+        ui_trim_end_label: "End Time: "
+        ui_trim_end_help: |
+          Controls the ending position of the output file.
+
+          Unit:     Seconds (up to 3 decimal places, e.g. 50.5)
+          Empty(0): Keep everything to the end.
+          Positive: Discard content beyond this time (measured from the start).
+          Negative: Discard content beyond this time (measured from the end).
+
+          Example: For a 60-second file,
+                   50 → Keeps the first 50 seconds only.
+                  -10 → Keeps everything except the last 10 seconds (first 50 seconds).
 
         ui_clear_metadata_label: "Clear Metadata: "
         ui_clear_metadata_help: Whether to clear all metadata (e.g., title, author) in the output file
@@ -338,6 +336,16 @@ en_US:
 
         If your input is already properly aligned, leave this option unchecked.
 
+      ui_start_sec_label: "Start Time: "
+      ui_start_sec_help: |
+        Controls the starting position of the output file.
+
+        Unit:     Seconds (up to 3 decimal places, e.g. 2.5)
+        Empty(0): Start from the beginning.
+        Positive: Trim away the given duration from the beginning.
+
+        Example: 2.5 → Cuts off the first 2.5 seconds.
+
       ui_skip_detect_label: "Skip Detect: "
       ui_skip_detect_help: "Skip frame-by-frame note detection and directly read the existing detection result (detect_result.txt)."
       ui_skip_cls_label: "Skip Classify: "
@@ -362,8 +370,9 @@ en_US:
       ui_base_denominator_label: "Base Denominator: "
       ui_base_denominator_help: |
         Time resolution used to parse note intervals.
-        Default is 16, meaning one unit is 1/16 beat, written as "{16}," in simai syntax.
+        For example, 32 means one unit is 1/32 beat, written as "{32}," in simai syntax.
         The program aligns note intervals to this time unit.
+
         Unit time calculation: 240000 / bpm / denominator (ms)
         Recommended unit time is >=30ms. If BPM is high, lower the denominator for better accuracy.
 
@@ -371,8 +380,9 @@ en_US:
       ui_duration_denominator_label: "Duration Denominator: "
       ui_duration_denominator_help: |
         Time resolution used to parse note durations.
-        Default is 8, meaning one unit is 1/8 beat, written as "[8:x]," in simai syntax.
+        For example, 32 means one unit is 1/32 beat, written as "[32:x]," in simai syntax.
         The program aligns note durations to this time unit.
+
         Unit time calculation: 240000 / bpm / denominator (ms)
         Recommended unit time is >=30ms. If BPM is high, lower the denominator for better accuracy.
 
@@ -434,9 +444,10 @@ en_US:
       ui_general_divider: "General"
       ui_language_label: "Language: "
 
-      ui_window_divider: "Window Size"
-      ui_init_size_label: "Initial Window Size (W x H): "
+      ui_window_divider: "Window"
+      ui_default_size_label: "Default Window Size (W x H): "
       ui_min_size_label: "Minimum Window Size (W x H): "
+      ui_ui_scale_label: "UI Scale: "
 
       ui_actions_divider: "Actions"
       ui_save_button: "Save"

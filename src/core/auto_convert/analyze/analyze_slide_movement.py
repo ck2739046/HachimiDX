@@ -216,10 +216,12 @@ def is_straight(note_path: list, start_A_zone_id: int, end_A_zone_id: int) -> tu
         between_AB_zones_id = _get_between_AB_zones(start_A_zone_id, end_A_zone_id)
         for id in between_AB_zones_id:
             required.append(f'B{id}')
-        # 可选激活之间的 E 区 (排除中间)
+        # 可选激活之间的 DE 区 (排除中间)
         between_DE_zones_id = _get_between_DE_zones(start_A_zone_id, end_A_zone_id)
         optional.append(f'E{between_DE_zones_id[0]}')
         optional.append(f'E{between_DE_zones_id[-1]}')
+        optional.append(f'D{between_DE_zones_id[0]}')
+        optional.append(f'D{between_DE_zones_id[-1]}')
         
     if pos_diff == 4:
         # 必须激活 C 区

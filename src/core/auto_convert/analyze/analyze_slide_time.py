@@ -76,7 +76,8 @@ def analyze_slide_tail_start_end_time(shared_context, note_path, start_position,
 
     # 定义A区中心半径
     # 这个值应该比 analyze_slide_movement.is_line_pass_a_zone_endpoint() 的阈值要大一点
-    a_zone_radius = (shared_context.note_travel_dist) * 0.15
+    # 也要比上面的 min_dist 大一点
+    a_zone_radius = (shared_context.note_travel_dist) * 0.2
 
     # 找到第一个离开起始A区的点
     start_move_frame = None

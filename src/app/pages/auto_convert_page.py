@@ -126,12 +126,11 @@ class AutoConvertPage(BaseOutputPage):
             on_button_clicked_handler=lambda path: self._sync_taskname_from_name(Path(path).name)
         )
         # 此处手动创建是要保存 row 引用，以便后续控制 显示/隐藏
-        self.select_output_dir_row = _create_row(
+        self.select_output_dir_row = self.create_row(
             select_output_dir_button,
             select_output_dir_help,
             self.selected_output_dir_display
         )
-        self.content_layout.addWidget(self.select_output_dir_row)
 
         # 连接信号
         self.chart_confirm_video_input.media_loaded.connect(self.on_std_input_selected)
@@ -203,18 +202,24 @@ class AutoConvertPage(BaseOutputPage):
         layout.addWidget(row)
 
         # Row 3
-        start_end_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_start_end_label"))
-        start_end_label_between = create_label("→")  # between start and end
+        start_sec_label = create_label(i18n.t(f"{I18N_Prefix}.ui_start_sec_label"))
         self.start_sec_line_edit = create_line_edit(length=60, validator='float')
+        start_sec_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_start_sec_help"))
+
+        trim_end_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_trim_end_label"))
         self.end_sec_line_edit = create_line_edit(length=60, validator='float')
-        start_end_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_start_end_help"))
+        trim_end_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_trim_end_help"))
+
         self.video_range_visualizer = RangeVisualizer()
 
-        row = _create_row(start_end_label,
+        row = _create_row(start_sec_label,
                           self.start_sec_line_edit,
-                          start_end_label_between,
+                          start_sec_help,
+
+                          trim_end_label,
                           self.end_sec_line_edit,
-                          start_end_help,
+                          trim_end_help,
+                          
                           self.video_range_visualizer,
                           add_stretch=True)
         layout.addWidget(row)
@@ -385,13 +390,12 @@ class AutoConvertPage(BaseOutputPage):
         enable_analyze_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_enable_analyze_help"))
 
         # 此处手动创建是要保存 row 引用，以便后续控制 显示/隐藏
-        self.enable_modules_row = _create_row(
+        self.enable_modules_row = self.create_row(
             enable_standardize_label, self.enable_standardize_check_box, enable_standardize_help,
             enable_detect_label, self.enable_detect_check_box, enable_detect_help,
             enable_analyze_label, self.enable_analyze_check_box, enable_analyze_help,
             add_stretch=True
         )
-        self.content_layout.addWidget(self.enable_modules_row)
 
         # Row 2: Submit Button + Task Name Input
         self.content_layout.addSpacing(UI_Style.widget_spacing)

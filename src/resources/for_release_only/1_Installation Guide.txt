@@ -7,7 +7,7 @@ Step 1: Install Dependencies (One-time Setup)
 
 1. Open the "install" folder
 2. Double-click to run install.bat
-3. Wait for the installation to complete
+3. Follow the on-screen prompts to complete the installation
 4. Close the window when installation is finished
 
 Note: Installation only needs to be done once, no need to run it again
@@ -24,7 +24,23 @@ Step 2: Launch the Application
 
 --------------------------------------------------------------------------------
 
-Step 3: Model Configuration (One-time Setup)
+Step 3: Set Language (One-time Setup)
+
+
+It is recommended to set the interface language first:
+
+1. Go to the "Settings" page
+2. In the "General" section, find the "Language" option
+3. Select your preferred language (English / 简体中文)
+4. Click the "Save" button at the bottom of the page
+5. Restart HachimiDX for the language change to take effect
+
+Note: You must restart the application after saving for the new language to appear.
+
+
+--------------------------------------------------------------------------------
+
+Step 4: Model Configuration (One-time Setup)
 
 
 First-time setup requires configuring the model inference backend:
@@ -47,7 +63,7 @@ conversion, you can use the software normally.
 
 --------------------------------------------------------------------------------
 
-Step 4: FFmpeg Hardware Acceleration Configuration (One-time Setup)
+Step 5: FFmpeg Hardware Acceleration Configuration (One-time Setup)
 
 
 First-time setup requires configuring the FFmpeg Hardware Acceleration。

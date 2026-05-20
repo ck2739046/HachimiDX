@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from PyQt6.QtWidgets import QVBoxLayout, QMessageBox
 import i18n
 
-from .base_output_page import BaseOutputPage, _create_row
+from .base_output_page import BaseOutputPage
 from ..widgets import *
 from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
 from src.core.schemas.op_result import print_op_result, ok, err
@@ -53,10 +53,12 @@ class SettingsPage(BaseOutputPage):
 
         self.language_combo_box = None
 
-        self.init_width_line_edit = None
-        self.init_height_line_edit = None
+        self.default_width_line_edit = None
+        self.default_height_line_edit = None
         self.min_width_line_edit = None
         self.min_height_line_edit = None
+        self.ui_scale_slider = None
+        self.ui_scale_display = None
 
         self.save_button = None
         self.reset_button = None
@@ -65,8 +67,9 @@ class SettingsPage(BaseOutputPage):
             S_Defs.model_backend.key,
             S_Defs.ffmpeg_hw_encoder.key,
             S_Defs.language.key,
-            S_Defs.main_app_init_size.key,
+            S_Defs.main_app_default_size.key,
             S_Defs.main_app_min_size.key,
+            S_Defs.main_app_ui_scale.key,
         ]
 
         self._build_model_section()
@@ -97,7 +100,7 @@ class SettingsPage(BaseOutputPage):
         self.convert_model_button.setVisible(False)        # 默认隐藏
         self.cancel_convert_model_button.setVisible(False) # 默认隐藏
 
-        row = _create_row(
+        self.create_row(
             backend_label,
             self.model_backend_combo_box,
             backend_help,
@@ -106,7 +109,6 @@ class SettingsPage(BaseOutputPage):
             self.cancel_convert_model_button,
             add_stretch=True,
         )
-        self.content_layout.addWidget(row)
 
         self.check_model_button.clicked.connect(self.on_check_model_clicked)
         self.convert_model_button.clicked.connect(self.on_convert_model_clicked)
@@ -125,7 +127,7 @@ class SettingsPage(BaseOutputPage):
         self.check_ffmpeg_hw_accel_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_auto_detect_hw_button"))
         self.check_ffmpeg_hw_accel_button.clicked.connect(self.on_check_ffmpeg_hw_accel_clicked)
 
-        row = _create_row(
+        self.create_row(
             encoder_label,
             self.ffmpeg_hw_encoder_combo_box,
             encoder_help,
@@ -133,7 +135,6 @@ class SettingsPage(BaseOutputPage):
             self.check_ffmpeg_hw_accel_button,
             add_stretch=True,
         )
-        self.content_layout.addWidget(row)
 
         
 
@@ -146,12 +147,11 @@ class SettingsPage(BaseOutputPage):
         language_label = create_label(i18n.t(f"{I18N_Prefix}.ui_language_label"))
         self.language_combo_box = self._create_combo_from_definition(S_Defs.language, length=80)
 
-        row = _create_row(
+        self.create_row(
             language_label,
             self.language_combo_box,
             add_stretch=True,
         )
-        self.content_layout.addWidget(row)
 
 
 
@@ -159,27 +159,45 @@ class SettingsPage(BaseOutputPage):
     def _build_window_section(self) -> None:
         self.content_layout.addWidget(create_divider(i18n.t(f"{I18N_Prefix}.ui_window_divider")))
 
-        init_label = create_label(i18n.t(f"{I18N_Prefix}.ui_init_size_label"))
-        self.init_width_line_edit = create_line_edit(length=60, validator="int")
-        self.init_height_line_edit = create_line_edit(length=60, validator="int")
+        default_label = create_label(i18n.t(f"{I18N_Prefix}.ui_default_size_label"))
+        self.default_width_line_edit = create_line_edit(length=60, validator="int")
+        self.default_height_line_edit = create_line_edit(length=60, validator="int")
 
         min_label = create_label(i18n.t(f"{I18N_Prefix}.ui_min_size_label"))
         self.min_width_line_edit = create_line_edit(length=60, validator="int")
         self.min_height_line_edit = create_line_edit(length=60, validator="int")
 
-        row = _create_row(
-            init_label,
-            self.init_width_line_edit,
+        self.create_row(
+            default_label,
+            self.default_width_line_edit,
             create_label("x"),
-            self.init_height_line_edit,
+            self.default_height_line_edit,
+            add_stretch=True,
+        )
+        self.create_row(
             min_label,
             self.min_width_line_edit,
             create_label("x"),
             self.min_height_line_edit,
             add_stretch=True,
         )
-        self.content_layout.addWidget(row)
 
+        ui_scale_label = create_label(i18n.t(f"{I18N_Prefix}.ui_ui_scale_label"))
+        self.ui_scale_slider, self.ui_scale_display = create_slider(
+            min_val=S_Defs.main_app_ui_scale.constraints["ge"],
+            max_val=S_Defs.main_app_ui_scale.constraints["le"],
+            step=5,
+            default_value=S_Defs.main_app_ui_scale.default,
+            slider_length=250,
+            text_transform=lambda v: f" {v}%",
+        )
+
+        self.create_row(
+            ui_scale_label,
+            self.ui_scale_slider,
+            self.ui_scale_display,
+            add_stretch=True,
+        )
 
 
 
@@ -189,8 +207,7 @@ class SettingsPage(BaseOutputPage):
         self.save_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_save_button"), isbig=True)
         self.reset_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_reset_button"), isbig=True)
 
-        row = _create_row(self.save_button, self.reset_button, add_stretch=True)
-        self.content_layout.addWidget(row)
+        self.create_row(self.save_button, self.reset_button, add_stretch=True)
 
         self.save_button.clicked.connect(self.on_save_clicked)
         self.reset_button.clicked.connect(self.on_reset_clicked)
@@ -272,13 +289,14 @@ class SettingsPage(BaseOutputPage):
         self._set_combo_value(self.ffmpeg_hw_encoder_combo_box, settings[S_Defs.ffmpeg_hw_encoder.key])
         self._set_combo_value(self.language_combo_box, settings[S_Defs.language.key])
 
-        init_size = settings[S_Defs.main_app_init_size.key]
+        default_size = settings[S_Defs.main_app_default_size.key]
         min_size = settings[S_Defs.main_app_min_size.key]
 
-        self.init_width_line_edit.setText(str(init_size[0]))
-        self.init_height_line_edit.setText(str(init_size[1]))
+        self.default_width_line_edit.setText(str(default_size[0]))
+        self.default_height_line_edit.setText(str(default_size[1]))
         self.min_width_line_edit.setText(str(min_size[0]))
         self.min_height_line_edit.setText(str(min_size[1]))
+        self.ui_scale_slider.setValue(int(settings[S_Defs.main_app_ui_scale.key]))
         self._sync_ui_state()
 
 
@@ -290,14 +308,15 @@ class SettingsPage(BaseOutputPage):
             S_Defs.model_backend.key: self.model_backend_combo_box.currentText().strip(),
             S_Defs.ffmpeg_hw_encoder.key: self.ffmpeg_hw_encoder_combo_box.currentText().strip(),
             S_Defs.language.key: self.language_combo_box.currentText().strip(),
-            S_Defs.main_app_init_size.key: (
-                self.init_width_line_edit.text().strip(),
-                self.init_height_line_edit.text().strip(),
+            S_Defs.main_app_default_size.key: (
+                self.default_width_line_edit.text().strip(),
+                self.default_height_line_edit.text().strip(),
             ),
             S_Defs.main_app_min_size.key: (
                 self.min_width_line_edit.text().strip(),
                 self.min_height_line_edit.text().strip(),
             ),
+            S_Defs.main_app_ui_scale.key: str(self.ui_scale_slider.value()),
         }
 
 

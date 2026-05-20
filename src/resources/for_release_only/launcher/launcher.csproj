@@ -1,17 +1,26 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType>WinExe</OutputType>
     <TargetFramework>net472</TargetFramework>
-    
+
+    <!-- 图标 -->
     <ApplicationIcon>..\..\icon.ico</ApplicationIcon>
+    <!-- 输出文件名 -->
     <AssemblyName>HachimiDX</AssemblyName>
-    <AssemblyTitle>HachimiDX</AssemblyTitle>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
-    <Product>HachimiDX</Product>
-    <Company>HachimiDX</Company>
-    <Copyright>ck2739046</Copyright>
+
+    <!-- Version 会自动填充 AssemblyVersion(产品版本) 和 FileVersion(文件版本) -->
+    <Version>1.0.1</Version>
+    <!-- 禁用 SourceLink 避免 commit hash 附加到产品版本 -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+
+    <!-- Windows 文件属性 → 文件说明 -->
+    <AssemblyTitle>Launcher for HachimiDX</AssemblyTitle>
+    <!-- Windows 文件属性 → 产品名称 -->
+    <Product>Launcher for HachimiDX</Product>
+    <!-- Windows 文件属性 → 版权 -->
+    <Copyright>©Simon273 $([System.DateTime]::Now.ToString("yyyy.MM.dd_HH:mm:ss_UTCzzz"))</Copyright>
+  
   </PropertyGroup>
 
 </Project>

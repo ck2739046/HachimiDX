@@ -112,7 +112,7 @@ def _split_touch_notes(tracks: dict, context: _PostTrackContext, next_track_id: 
         track_id, note_type = key
         note_geometry_list = sorted(value, key=lambda x: x.frame)
 
-        if note_type not in (NoteType.TOUCH, NoteType.TOUCH_HOLD):
+        if note_type != NoteType.TOUCH:
             new_tracks[key].extend(note_geometry_list)
             continue
 
@@ -299,10 +299,10 @@ def _classify_segment(context: _PostTrackContext, note_geometry_list, track_id, 
 
 
     # 是否已分段
-    # yes: 已分段, 还不满足条件, 说明数据异常, 丢弃, return
+    # yes: 已分段, 还不满足条件, 说明数据异常, fallback 星星头
     # no:  还未分段, 继续尝试分段
     if is_segmented is True:
-        return None, None, False
+        return note_geometry_list, None, False
 
     # 是否到达A区
     # yes: 按第一个A区分割, 第一段视为星星头, 第二段视为星星尾, 递归
@@ -332,4 +332,5 @@ def _classify_segment(context: _PostTrackContext, note_geometry_list, track_id, 
         _, tail_result, _ = _classify_segment(context, tail_segment, track_id, is_segmented=True)
         return head_result, tail_result, True
 
-    return None, None, False
+    # fallback 星星头
+    return note_geometry_list, None, False

@@ -129,7 +129,7 @@ class MajdataSession(QObject):
         )
 
         if self._majdataview_proc:
-            data = self._majdataview_proc.readAllStandardOutput().data().decode('utf-8', errors='replace')
+            data = self._decode_stdout(self._majdataview_proc.readAllStandardOutput().data())
             if not data: return
             new_lines = []
             for line in data.splitlines():
@@ -150,7 +150,7 @@ class MajdataSession(QObject):
         )
         
         if self._majdataedit_proc:
-            data = self._majdataedit_proc.readAllStandardOutput().data().decode('utf-8', errors='replace')
+            data = self._decode_stdout(self._majdataedit_proc.readAllStandardOutput().data())
             if not data: return
             new_lines = []
             for line in data.splitlines():
@@ -160,6 +160,17 @@ class MajdataSession(QObject):
                 new_lines.append("[MajdataEdit STDOUT] " + line.rstrip())
             if new_lines:
                 print("\n".join(new_lines))
+
+
+    @staticmethod
+    def _decode_stdout(raw: bytes) -> str:
+        for encoding in ('utf-8', 'gbk'):
+            try:
+                return raw.decode(encoding)
+            except (UnicodeDecodeError, LookupError):
+                continue
+        # 全部失败，用 replace 兜底
+        return raw.decode('utf-8', errors='replace')
 
 
 
@@ -188,7 +199,10 @@ class MajdataSession(QObject):
 
         if self._majdataview_hwnd is not None and self._majdataedit_hwnd is not None:
             self._poll_timer.stop()
-            self.ready.emit(int(self._majdataview_hwnd), int(self._majdataedit_hwnd))
+            # 延迟 10ms 发出 ready 确保窗口完全就绪
+            QTimer.singleShot(
+                10, lambda: self.ready.emit(int(self._majdataview_hwnd), int(self._majdataedit_hwnd))
+            )
 
 
 

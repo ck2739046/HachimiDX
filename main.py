@@ -9,11 +9,39 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from PyQt6.QtCore import QSharedMemory
-from PyQt6.QtWidgets import QApplication, QMessageBox, QStyleFactory
+from PyQt6.QtWidgets import QApplication, QStyleFactory
 from PyQt6.QtGui import QFont
 from src.core.schemas.op_result import print_op_result
 from src.app import MainWindow
 from src.services import AllServices
+
+
+# Exit-code:
+# 0. normal exit
+# 1. general error
+# 2. app already running
+# 3. initialization error
+
+
+
+
+
+# generate by https://patorjk.com/software/taag using font "Terrace"
+logo = """
+
+    ░██     ░██                       ░██        ░██                ░██     ░███████   ░██    ░██ 
+    ░██     ░██                       ░██                                   ░██   ░██   ░██  ░██  
+    ░██     ░██  ░██████    ░███████  ░████████  ░██░█████████████  ░██     ░██    ░██   ░██░██   
+    ░██████████       ░██  ░██    ░██ ░██    ░██ ░██░██   ░██   ░██ ░██     ░██    ░██    ░███    
+    ░██     ░██  ░███████  ░██        ░██    ░██ ░██░██   ░██   ░██ ░██     ░██    ░██   ░██░██   
+    ░██     ░██ ░██   ░██  ░██    ░██ ░██    ░██ ░██░██   ░██   ░██ ░██     ░██   ░██   ░██  ░██  
+    ░██     ░██  ░█████░██  ░███████  ░██    ░██ ░██░██   ░██   ░██ ░██     ░███████   ░██    ░██ 
+
+"""
+
+
+
+
 
 
 def setup_font(app: QApplication) -> None:
@@ -50,6 +78,8 @@ def exception_handler(exctype, value, traceback):
 def main() -> int:
     """程序主入口，返回退出码"""
 
+    print(logo)
+
     # 设置全局异常处理器
     sys.excepthook = exception_handler
 
@@ -58,10 +88,10 @@ def main() -> int:
     if shared_memory.attach(QSharedMemory.AccessMode.ReadOnly):
         shared_memory.detach()
         print("程序已在运行中。\nApp is already running.")
-        return 0
+        return 2
     if not shared_memory.create(1, QSharedMemory.AccessMode.ReadWrite):
         print("程序已在运行中。\nApp is already running.")
-        return 0
+        return 2
     
     # 启动 watchdog (清理 Majdata 进程)
     watchdog_path = project_root / "src" / "services" / "watchdog.py"
@@ -69,6 +99,14 @@ def main() -> int:
         [sys.executable, str(watchdog_path), str(os.getpid())],
         creationflags=subprocess.CREATE_NO_WINDOW,
     )
+
+    # 初始化
+    result = AllServices.initialize_all()
+    if not result.is_ok:
+        print(build_str("Initialization Error:"))
+        print(print_op_result(result))
+        print(build_str("End of Initialization Error."))
+        return 3
 
     # 创建应用
     app = QApplication(sys.argv)
@@ -85,14 +123,6 @@ def main() -> int:
 
     # 设置全局字体
     setup_font(app)
-
-    # 初始化
-    result = AllServices.initialize_all()
-    if not result.is_ok:
-        print(build_str("Initialization Error:"))
-        print(print_op_result(result))
-        print(build_str("End of Initialization Error."))
-        return 1
 
     # 启动主窗口
     window = MainWindow()

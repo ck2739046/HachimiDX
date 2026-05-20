@@ -140,8 +140,8 @@ class SettingsConfig_Definitions:
 
     # window
 
-    main_app_init_size = SettingsConfig_Definition(
-        key="main_app_init_size",
+    main_app_default_size = SettingsConfig_Definition(
+        key="main_app_default_size",
         type="tuple_int2",
         group="window",
         default=(1300, 900),
@@ -154,4 +154,12 @@ class SettingsConfig_Definitions:
         group="window",
         default=(800, 600),
         constraints={"item_ge": 500, "item_le": 5000},
+    )
+
+    main_app_ui_scale = SettingsConfig_Definition(
+        key="main_app_ui_scale",
+        type="int",
+        group="window",
+        default=100,
+        constraints={"ge": 50, "le": 200},
     )
