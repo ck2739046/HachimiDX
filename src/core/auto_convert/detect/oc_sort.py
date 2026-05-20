@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import numpy as np
 from filterpy.kalman import KalmanFilter
 
@@ -40,11 +41,14 @@ def convert_bbox_to_z(bbox: np.ndarray) -> np.ndarray:
 
 
 def convert_x_to_bbox(x: np.ndarray) -> np.ndarray:
-    """Kalman state [x,y,s,r,...] → xyxy as (1,4)."""
-    w = np.sqrt(x[2] * x[3])
-    h = x[2] / w if w > 0 else 1.0
+    """Kalman state [x,y,s,r,...] → xyxy as (1,4). 兼容 (7,) 和 (7,1) 形状."""
+    x = np.atleast_1d(np.squeeze(x))
+    x0, y0 = float(x[0]), float(x[1])
+    s, r = float(x[2]), float(x[3])
+    w = math.sqrt(s * r) if (s * r) > 0 else 1.0
+    h = s / w if w > 0 else 1.0
     return np.array(
-        [[x[0] - w / 2.0, x[1] - h / 2.0, x[0] + w / 2.0, x[1] + h / 2.0]],
+        [[x0 - w / 2.0, y0 - h / 2.0, x0 + w / 2.0, y0 + h / 2.0]],
         dtype=np.float64,
     )
 
@@ -264,7 +268,7 @@ class KalmanBoxTracker:
             self._observed = True
             return
 
-        # 线性插值 cx,cy
+        # 线性插值 cx,cy，s/r 从当前 Kalman 状态取
         x1, y1 = new_history[i1].flatten()
         x2, y2 = new_history[i2].flatten()
         dx = (x2 - x1) / gap
@@ -273,9 +277,14 @@ class KalmanBoxTracker:
         for j in range(1, gap):
             x = x1 + j * dx
             y = y1 + j * dy
-            z_virtual = np.array([[x], [y]], dtype=np.float64)
-            self._history_obs_z.append(z_virtual)
-            self.kf.update(z_virtual)
+            # _history_obs_z 保持 2D 格式 ([cx,cy])，与 update() 一致
+            # Kalman 更新需要用 4D 观测 [x,y,s,r]
+            z_2d = np.array([[x], [y]], dtype=np.float64)
+            s_val = float(self.kf.x[2].item())
+            r_val = float(self.kf.x[3].item())
+            z_4d = np.array([[x], [y], [s_val], [r_val]], dtype=np.float64)
+            self._history_obs_z.append(z_2d)
+            self.kf.update(z_4d)
             self.kf.predict()
 
         self._history_obs_z.append(new_history[i2])
@@ -283,7 +292,7 @@ class KalmanBoxTracker:
 
     def predict(self) -> np.ndarray:
         # 原版 OC-SORT: 若 (vs + s) <= 0，将 vs 置零防止面积坍缩
-        if (self.kf.x[6] + self.kf.x[2]) <= 0:
+        if (self.kf.x[6].item() + self.kf.x[2].item()) <= 0:
             self.kf.x[6] *= 0.0
 
         self.kf.predict()
