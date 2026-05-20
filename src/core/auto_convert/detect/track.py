@@ -95,15 +95,11 @@ def _build_ocsort_tracker(fps: float) -> OCSort:
         # 向量 A (轨迹速度): ref_obs → 轨迹最新框
         # 向量 B (VDC 方向): ref_obs 的下一帧 → 候选框
         # ref_obs 为历史中首个中心距离 > pct*框尺寸 的观测（找不到时回退到最旧）
-        delta_dist_pct=0.5,  # 有效位移阈值 = 50% 框尺寸
+        delta_dist_pct=0.7,  # 有效位移阈值 = 70% 框尺寸
 
         # vdc 的权重
         # vdc = angle_diff * inertia * score(置信度)
         inertia=0.7,
-
-        # 暖机，前 N 帧不用 Kalman 预测
-        # 卡尔曼一开始不稳定，预测结果会乱飘，前几帧需要屏蔽
-        warmup_frames=round(fps * 0.1),  # 0.1s
 
         # DIoU 高于此值时禁用 VDC
         # 因为框已经够重合了，有时候 vdc 反而会误导
