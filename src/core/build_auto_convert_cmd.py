@@ -2,8 +2,7 @@ import sys
 from pathlib import Path
 import cv2
 
-from src.services.path_manage import PathManage
-from src.services.settings_manage import SettingsManage
+from src.services import PathManage, SettingsManage
 
 from .schemas.auto_convert_model import AutoConvertModel
 from .schemas.auto_convert_config import AutoConvertConfig_Definitions as AC_Defs

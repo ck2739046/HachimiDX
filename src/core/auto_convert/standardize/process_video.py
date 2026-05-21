@@ -6,7 +6,7 @@ import shutil
 from ...schemas.op_result import OpResult, ok, err, print_op_result
 from ...schemas.media_config import MediaType
 from ...schemas.media_config import MediaConfig_Definitions as M_Defs
-from src.services.pipeline import MediaPipeline
+from src.services import MediaPipeline
 
 
 

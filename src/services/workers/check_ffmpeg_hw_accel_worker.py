@@ -16,7 +16,7 @@ root = str(Path(sys.argv[1]).resolve())
 if root not in sys.path:
     sys.path.insert(0, root)
 
-from src.services.path_manage import PathManage
+from src.services import PathManage
 
 
 

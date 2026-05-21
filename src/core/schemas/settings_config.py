@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Literal
 
-from src.services.path_manage import PathManage
+from src.services import PathManage
 from .op_result import OpResult, ok, err
 
 

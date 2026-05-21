@@ -13,9 +13,7 @@ from src.core.schemas.op_result import OpResult, ok, err, print_op_result
 from src.core.schemas.media_config import MediaType
 from src.core.schemas.media_config import MediaConfig_Definitions as M_Defs
 from src.core.tools import show_notify_dialog
-from src.services import process_manager_api
-from src.services.pipeline import MediaPipeline
-from src.services.path_manage import PathManage
+from src.services import MediaPipeline, PathManage, process_manager_api
 import i18n
 
 

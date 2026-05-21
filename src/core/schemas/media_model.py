@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field, FilePath, field_validator, model_validato
 from .media_config import MediaType
 from .media_config import MediaConfig_Definitions as M_Defs
 from ..tools.popup_dialog import show_confirm_dialog
-from src.services.settings_manage import SettingsManage
+from src.services import SettingsManage
 from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
 
 

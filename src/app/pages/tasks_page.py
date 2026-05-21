@@ -15,8 +15,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.services.task_scheduler import TaskInfo, TaskStatus
-from src.services import task_scheduler_api
+from src.services import TaskInfo, TaskStatus, task_scheduler_api
 
 from .base_output_page import BaseOutputPage
 from ..ui_style import UI_Style

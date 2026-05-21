@@ -4,7 +4,7 @@ import numpy as np
 import warnings
 from contextlib import contextmanager
 
-from src.services.path_manage import PathManage
+from src.services import PathManage
 from ..schemas.op_result import OpResult, ok, err
 
 MATCH_DURATION_SEC = 10

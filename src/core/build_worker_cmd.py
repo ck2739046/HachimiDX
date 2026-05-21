@@ -1,6 +1,6 @@
 import sys
 
-from src.services.path_manage import PathManage
+from src.services import PathManage
 
 
 def build_cmd_head_module(module_path) -> list[str]:

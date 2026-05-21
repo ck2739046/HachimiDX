@@ -6,8 +6,7 @@ from PyQt6.QtWidgets import QVBoxLayout, QWidget
 from .base_output_page import BaseOutputPage, _create_row
 from ..ui_style import UI_Style
 from ..widgets import *
-from src.services import process_manager_api
-from src.services.pipeline import AutoConvertPipeline
+from src.services import AutoConvertPipeline, process_manager_api
 from src.core.tools import show_confirm_dialog, show_notify_dialog
 from src.core.schemas.op_result import OpResult, ok, err, print_op_result
 from src.core.schemas.auto_convert_config import AutoConvertConfig_Definitions as AC_Defs

@@ -6,14 +6,12 @@ from ..base_output_page import BaseOutputPage, _create_row
 from ...ui_style import UI_Style
 from ...widgets import *
 
-from src.services import process_manager_api
-from src.services.pipeline import MediaPipeline
+from src.services import MediaPipeline, SettingsManage, process_manager_api
 from src.core.tools import show_notify_dialog
 from src.core.schemas.op_result import OpResult, ok, err, print_op_result
 from src.core.schemas.media_config import MediaType, MediaConfig_Definition
 from src.core.schemas.media_config import MediaConfig_Definitions as M_Defs
 from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
-from src.services.settings_manage import SettingsManage
 import i18n
 
 

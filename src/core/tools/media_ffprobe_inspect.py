@@ -21,7 +21,7 @@ from typing import Any, Dict
 import i18n
 
 from ..schemas.op_result import OpResult, ok, err
-from src.services.path_manage import PathManage
+from src.services import PathManage
 from ..schemas.media_config import MediaType
 
 

@@ -9,8 +9,7 @@ from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Def
 from src.core.schemas.op_result import print_op_result, ok, err
 from src.core.tools import show_notify_dialog
 from src.core.build_worker_cmd import build_cmd_head_python_exe
-from src.services import SettingsManage, process_manager_api
-from src.services.path_manage import PathManage
+from src.services import PathManage, SettingsManage, process_manager_api
 
 I18N_Prefix = "app.settings_page"
 

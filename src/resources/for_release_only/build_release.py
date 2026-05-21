@@ -8,7 +8,7 @@ root = Path(__file__).parents[3].resolve()
 if root not in sys.path:
     sys.path.insert(0, str(root))
 
-from src.services.path_manage import PathManage
+from src.services import PathManage
 
 
 RELEASE_DIR = PathManage.ROOT_DIR / "HachimiDX"

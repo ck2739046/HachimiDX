@@ -5,7 +5,8 @@ from src.core.schemas.op_result import OpResult, ok, err
 from .path_manage import PathManage
 from .settings_manage import SettingsManage
 from .i18n_manage import I18nManage
-from .pipeline import AutoConvertPipeline, MediaPipeline
+from .pipeline.auto_convert_pipeline import AutoConvertPipeline
+from .pipeline.media_pipeline import MediaPipeline
 from .majdata_sync_server import VideoSyncServer
 import i18n
 

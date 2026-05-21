@@ -8,9 +8,7 @@ from ...ui_style import UI_Style
 from src.core.build_worker_cmd import build_cmd_head_python_exe
 from src.core.schemas.op_result import OpResult, ok, err, print_op_result
 from src.core.tools import show_confirm_dialog, show_notify_dialog
-from src.services import process_manager_api
-from src.services.path_manage import PathManage
-from src.services.pipeline import MediaPipeline
+from src.services import MediaPipeline, PathManage, process_manager_api
 import i18n
 
 from src.core.schemas.media_config import MediaType
