@@ -232,7 +232,13 @@ class ProcessManager(QObject):
         proc = self._procs.get(runner_id)
         if proc is None:
             return
-        if proc.state() == QProcess.ProcessState.NotRunning:
+        try:
+            is_not_running = proc.state() == QProcess.ProcessState.NotRunning
+        except RuntimeError:
+            # QProcess 的 C++ 对象已被 deleteLater() 销毁
+            # _on_finished 先于本槽执行，此时无需重复清理
+            return
+        if is_not_running:
             self._flush_one_buffer(runner_id)
             ended = RunnerEnded(
                 runner_id=runner_id,
@@ -251,7 +257,11 @@ class ProcessManager(QObject):
         proc = self._procs.get(runner_id)
         if proc is None:
             return
-        if proc.state() == QProcess.ProcessState.NotRunning:
+        try:
+            if proc.state() == QProcess.ProcessState.NotRunning:
+                return
+        except RuntimeError:
+            # QProcess 的 C++ 对象已被销毁
             return
         
         pid = int(proc.processId())
