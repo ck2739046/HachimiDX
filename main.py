@@ -100,17 +100,25 @@ def main() -> int:
         creationflags=subprocess.CREATE_NO_WINDOW,
     )
 
-    # 初始化
-    result = AllServices.initialize_all()
+    # 阶段1: 前初始化 在创建 QApplication 之前执行
+    result = AllServices.pre_initialize()
     if not result.is_ok:
-        print(build_str("Initialization Error:"))
+        print(build_str("Pre-Initialization Error:"))
         print(print_op_result(result))
-        print(build_str("End of Initialization Error."))
+        print(build_str("End of Pre-Initialization Error."))
         return 3
 
     # 创建应用
     app = QApplication(sys.argv)
     app.aboutToQuit.connect(AllServices.shutdown_all)
+
+    # 阶段2: 后初始化 在创建 QApplication 之后执行
+    result = AllServices.post_initialize()
+    if not result.is_ok:
+        print(build_str("Post-Initialization Error:"))
+        print(print_op_result(result))
+        print(build_str("End of Post-Initialization Error."))
+        return 3
 
     app._single_instance_lock = shared_memory # 保持引用
 

@@ -13,22 +13,29 @@ import i18n
 
 class AllServices:
 
-    _is_initialized = False
+    _is_pre_initialized = False
+    _is_post_initialized = False
 
     @classmethod
-    def initialize_all(cls) -> OpResult[None]:
-        if cls._is_initialized:
+    def pre_initialize(cls) -> OpResult[None]:
+        """阶段1: 前初始化（在 QApplication 创建之前调用）"""
+
+        if cls._is_pre_initialized:
             return ok()
         
         print("Initializing all services...") # 此时i18n尚未初始化，只能英语
 
 
+        # PathManage
+        # 后续其他组件都依赖它提供的路径，因此必须最先初始化
         result = PathManage.init()
         if result.is_ok:
             print("PathManage initialization completed.")
         else:
             return err("Failed to initialize PathManage.", inner=result)
 
+
+        # SettingsManage
         result = SettingsManage.init()
         if result.is_ok:
             print("SettingsManage initialization completed.")
@@ -39,15 +46,41 @@ class AllServices:
         if scale_result.is_ok and scale_result.value != 100:
             os.environ["QT_SCALE_FACTOR"] = str(scale_result.value / 100)
         
+
+        # I18nManage
+        # 依赖 SettingsManage 获取语言设置，因此必须在 SettingsManage 之后初始化
         result = I18nManage.init()
         if result.is_ok:
             print("I18nManage initialization completed.")
         else:
             return err("Failed to initialize I18nManage.", inner=result)
+        
+
+        # Majdata sync server (global singleton)
+        try:
+            VideoSyncServer.get_instance()
+            print("Majdata sync server initialization completed.")
+        except Exception as e:
+            return err(f"Failed to initialize Majdata sync server: {e}")
 
 
-        # pipeline
+        cls._is_pre_initialized = True
+        return ok()
 
+
+
+
+
+    @classmethod
+    def post_initialize(cls) -> OpResult[None]:
+        """阶段2: 后初始化（在 QApplication 创建之后调用）"""
+
+        if cls._is_post_initialized:
+            return ok()
+
+
+        # pipeline 必须在创建 QApplication 之后初始化
+        # 因为内部用到了 QTimer, 依赖于 QApplication 的事件调度器
         result = MediaPipeline.init()
         if result.is_ok:
             print("MediaPipeline initialization completed.")
@@ -61,25 +94,20 @@ class AllServices:
             return err("Failed to initialize AutoConvertPipeline.", inner=result)
 
 
-        # Majdata sync server (global singleton)
-        try:
-            VideoSyncServer.get_instance()
-            print("Majdata sync server initialization completed.")
-        except Exception as e:
-            return err(f"Failed to initialize Majdata sync server: {e}")
-        
-
         print(i18n.t("all_services.notice_all_initialized"))
-        cls._is_initialized = True
+        cls._is_post_initialized = True
         return ok()
+
+
 
 
 
     @classmethod
     def shutdown_all(cls) -> None:
-        if not cls._is_initialized:
+
+        if not cls._is_post_initialized:
             return
-        
+
         print(i18n.t("all_services.notice_shutting_down_all"))
 
         # 关闭顺序要反着来
@@ -91,4 +119,5 @@ class AllServices:
             pass
 
         print(i18n.t("all_services.notice_all_shutdown"))
-        cls._is_initialized = False
+        cls._is_post_initialized = False
+        cls._is_pre_initialized = False
