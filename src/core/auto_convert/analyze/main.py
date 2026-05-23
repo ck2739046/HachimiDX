@@ -86,6 +86,10 @@ def main(std_video_path: Path,
 
         # merge/sort/save preprocess info
         final_note_info = merge_preprocess_info(std_video_path, tap_info, slide_info, touch_info, hold_info, touch_hold_info)
+        # 如果没有检测到任何音符，提前返回
+        if not final_note_info:
+            print("No notes detected, skipping maidata.txt generation")
+            return ok()
 
         # generate maidata
         generate_maidata(shared_context, bpm, chart_lv,
