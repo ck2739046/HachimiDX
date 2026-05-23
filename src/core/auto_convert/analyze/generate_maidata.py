@@ -202,14 +202,17 @@ def generate_maidata(shared_context: SharedContext, bpm, chart_lv,
     with open(txt_path, 'a', encoding='utf-8') as f:
         f.write(f'{last_position},\n' + '{1},,,E\n') # 结尾默认 3 拍延迟
 
-    # 打印offset统计信息
-    length = len(time_deviations)
-    mean = np.mean(time_deviations)
-    min = np.min(time_deviations)
-    max = np.max(time_deviations)
-    median = np.median(time_deviations)
-    std_dev = np.std(time_deviations)
-    print(f"\nTime deviations of {length} notes: Median {median:.3f}, Min {min:.3f}, Max {max:.3f}, Mean {mean:.3f}, Std Dev {std_dev:.3f}")
+    # 打印offset统计信息（至少需要多个音符才有偏差数据）
+    if len(time_deviations) > 10:
+        length = len(time_deviations)
+        mean = np.mean(time_deviations)
+        min = np.min(time_deviations)
+        max = np.max(time_deviations)
+        median = np.median(time_deviations)
+        std_dev = np.std(time_deviations)
+        print(f"\nTime deviations of {length} notes: Median {median:.3f}, Min {min:.3f}, Max {max:.3f}, Mean {mean:.3f}, Std Dev {std_dev:.3f}")
+    else:
+        print(f"\nNot enough notes detected, no time deviation statistics available.")
 
     # 打印生成的 maidata.txt 路径
     print(f"\nmaidata.txt: {txt_path}")
