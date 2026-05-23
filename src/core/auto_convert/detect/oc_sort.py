@@ -143,9 +143,9 @@ class KalmanBoxTracker:
         self.score = float(bbox[4]) if len(bbox) > 4 else 0.0
         self.cls = int(bbox[5]) if len(bbox) > 5 else 0
         self.idx = int(bbox[6]) if len(bbox) > 6 else -1
-        self.history_scores: list[float] = [self.score]
-        self.history_classes: list[int] = [self.cls]
-        self.history_indices: list[int] = [self.idx]
+        self.history_scores: list[float] = []
+        self.history_classes: list[int] = []
+        self.history_indices: list[int] = []
 
     def _find_ref_obs(self, current_obs: np.ndarray) -> np.ndarray | None:
         """在轨迹历史中回溯，找到第一个与最新框中心距离 > delta_dist_pct*框尺寸 的观测 H。
