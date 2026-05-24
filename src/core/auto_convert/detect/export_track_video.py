@@ -14,6 +14,10 @@ from ..analyze.tool import catmull_rom_spline
 from .oc_sort import _KalmanBoxTracker
 
 
+# 是否绘制 Kalman 预测框（灰色，仅 SLIDE）
+_DRAW_KALMAN_PREDICTION = False
+
+
 
 
 def main(std_video_path: Path,
@@ -28,57 +32,11 @@ def main(std_video_path: Path,
         # 读取追踪结果
         track_results = _load_track_results(std_video_path.parent)
 
-        # === Kalman 预测预计算：对每条 SLIDE 轨迹逐帧重跑 Kalman 滤波器 ===
-        # kalman_predictions: frame -> [{track_id, note_variant, x1,y1,x2,y2}, ...]
-        kalman_predictions: dict[int, list[dict]] = defaultdict(list)
-        for (track_id, note_type), geo_list in track_results.items():
-            if note_type != NoteType.SLIDE:
-                continue
-            if len(geo_list) == 0:
-                continue
-            geo_list_sorted = sorted(geo_list, key=lambda g: g.frame)
-            frame_to_geo = {g.frame: g for g in geo_list_sorted}
-            first_f = geo_list_sorted[0].frame
-            last_f = geo_list_sorted[-1].frame
-            note_variant = geo_list_sorted[0].note_variant
-            first_geo = geo_list_sorted[0]
-            init_bbox = np.array([
-                first_geo.x1, first_geo.y1,
-                first_geo.x3, first_geo.y3,
-                first_geo.conf,
-                float(map_note_type_to_class_id(note_type)),
-                0.0,
-            ], dtype=np.float64)
-            tracker = _KalmanBoxTracker(init_bbox)
-            # 首帧：predict 后写入预测结果，若有检测框则 update
-            pred = tracker.predict()[0]
-            kalman_predictions[first_f].append({
-                'track_id': track_id,
-                'note_variant': note_variant,
-                'x1': float(pred[0]), 'y1': float(pred[1]),
-                'x2': float(pred[2]), 'y2': float(pred[3]),
-            })
-            tracker.update(init_bbox)
-            for f in range(first_f + 1, last_f + 1):
-                pred = tracker.predict()[0]
-                kalman_predictions[f].append({
-                    'track_id': track_id,
-                    'note_variant': note_variant,
-                    'x1': float(pred[0]), 'y1': float(pred[1]),
-                    'x2': float(pred[2]), 'y2': float(pred[3]),
-                })
-                geo = frame_to_geo.get(f)
-                if geo is not None:
-                    obs = np.array([
-                        geo.x1, geo.y1,
-                        geo.x3, geo.y3,
-                        geo.conf,
-                        float(map_note_type_to_class_id(note_type)),
-                        0.0,
-                    ], dtype=np.float64)
-                    tracker.update(obs)
-                else:
-                    tracker.update(None)
+        # 预计算全部 Kalman 预测
+        if _DRAW_KALMAN_PREDICTION:
+            kalman_predictions = _compute_kalman_predictions(track_results)
+        else:
+            kalman_predictions: dict[int, list[dict]] = {}
 
         # 获取视频信息
         cap = cv2.VideoCapture(std_video_path)
@@ -295,23 +253,9 @@ def main(std_video_path: Path,
                         del history_points[:-max_track_history_len]
 
             # 绘制 Kalman 预测框（灰色，仅 SLIDE）
-            kalman_grey = (160, 160, 160)
-            for kp in kalman_predictions.get(frame_number, []):
-                if math.isnan(kp['x1']) or math.isnan(kp['y1']):
-                    continue
-                kp_x1, kp_y1 = int(kp['x1']), int(kp['y1'])
-                kp_x2, kp_y2 = int(kp['x2']), int(kp['y2'])
-                cv2.rectangle(frame, (kp_x1, kp_y1), (kp_x2, kp_y2), kalman_grey, 1)
-                kp_label = f'{NoteType.SLIDE.name}.{kp["note_variant"].name} ID:{kp["track_id"]}'
-                kp_label_size = label_size_cache.get(kp_label)
-                if kp_label_size is None:
-                    kp_label_size = cv2.getTextSize(kp_label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)[0]
-                    label_size_cache[kp_label] = kp_label_size
-                cv2.rectangle(frame, (kp_x1, kp_y1 - kp_label_size[1] - 10),
-                            (kp_x1 + kp_label_size[0], kp_y1), kalman_grey, -1)
-                cv2.putText(frame, kp_label, (kp_x1, kp_y1 - 5),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
-            
+            if _DRAW_KALMAN_PREDICTION:
+                _draw_kalman_predictions(frame, kalman_predictions, frame_number, label_size_cache)
+
             # 清理过期的轨迹（超过0.5秒未出现）
             tracks_to_remove = []
             for track_id in list(track_history.keys()):
@@ -407,3 +351,84 @@ def main(std_video_path: Path,
                     pass
 
         return err("Unexcepted error in auto_convert > detect > export_track_video", e)
+
+
+
+
+
+
+
+
+def _compute_kalman_predictions(track_results) -> dict[int, list[dict]]:
+    """对每条 SLIDE 轨迹逐帧重跑 Kalman 滤波器，返回 {frame: [pred_dict, ...]}"""
+    kalman_predictions: dict[int, list[dict]] = defaultdict(list)
+    for (track_id, note_type), geo_list in track_results.items():
+        if note_type != NoteType.SLIDE:
+            continue
+        if len(geo_list) == 0:
+            continue
+        geo_list_sorted = sorted(geo_list, key=lambda g: g.frame)
+        frame_to_geo = {g.frame: g for g in geo_list_sorted}
+        first_f = geo_list_sorted[0].frame
+        last_f = geo_list_sorted[-1].frame
+        note_variant = geo_list_sorted[0].note_variant
+        first_geo = geo_list_sorted[0]
+        init_bbox = np.array([
+            first_geo.x1, first_geo.y1,
+            first_geo.x3, first_geo.y3,
+            first_geo.conf,
+            float(map_note_type_to_class_id(note_type)),
+            0.0,
+        ], dtype=np.float64)
+        tracker = _KalmanBoxTracker(init_bbox)
+        # 首帧：predict 后写入预测结果，若有检测框则 update
+        pred = tracker.predict()[0]
+        kalman_predictions[first_f].append({
+            'track_id': track_id,
+            'note_variant': note_variant,
+            'x1': float(pred[0]), 'y1': float(pred[1]),
+            'x2': float(pred[2]), 'y2': float(pred[3]),
+        })
+        tracker.update(init_bbox)
+        for f in range(first_f + 1, last_f + 1):
+            pred = tracker.predict()[0]
+            kalman_predictions[f].append({
+                'track_id': track_id,
+                'note_variant': note_variant,
+                'x1': float(pred[0]), 'y1': float(pred[1]),
+                'x2': float(pred[2]), 'y2': float(pred[3]),
+            })
+            geo = frame_to_geo.get(f)
+            if geo is not None:
+                obs = np.array([
+                    geo.x1, geo.y1,
+                    geo.x3, geo.y3,
+                    geo.conf,
+                    float(map_note_type_to_class_id(note_type)),
+                    0.0,
+                ], dtype=np.float64)
+                tracker.update(obs)
+            else:
+                tracker.update(None)
+    return kalman_predictions
+
+
+
+def _draw_kalman_predictions(frame, kalman_predictions, frame_number, label_size_cache):
+    """在当前帧上绘制 Kalman 预测框（灰色，仅 SLIDE）"""
+    kalman_grey = (160, 160, 160)
+    for kp in kalman_predictions.get(frame_number, []):
+        if math.isnan(kp['x1']) or math.isnan(kp['y1']):
+            continue
+        kp_x1, kp_y1 = int(kp['x1']), int(kp['y1'])
+        kp_x2, kp_y2 = int(kp['x2']), int(kp['y2'])
+        cv2.rectangle(frame, (kp_x1, kp_y1), (kp_x2, kp_y2), kalman_grey, 1)
+        kp_label = f'{NoteType.SLIDE.name}.{kp["note_variant"].name} ID:{kp["track_id"]}'
+        kp_label_size = label_size_cache.get(kp_label)
+        if kp_label_size is None:
+            kp_label_size = cv2.getTextSize(kp_label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)[0]
+            label_size_cache[kp_label] = kp_label_size
+        cv2.rectangle(frame, (kp_x1, kp_y1 - kp_label_size[1] - 10),
+                    (kp_x1 + kp_label_size[0], kp_y1), kalman_grey, -1)
+        cv2.putText(frame, kp_label, (kp_x1, kp_y1 - 5),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
