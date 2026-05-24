@@ -405,6 +405,7 @@ en_US:
         Enabled: analyze note detection results and generate the final chart
         Disabled: skip this step
 
+      ui_clear_output_button: "Clear Output"
       ui_advanced_mode_label: "Advanced Mode: "
 
       ui_low_fps_warning_title: "Warning: FPS too low"

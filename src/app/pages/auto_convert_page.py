@@ -69,7 +69,8 @@ class AutoConvertPage(BaseOutputPage):
         self.taskname_line_edit = None
         self.submit_button = None
 
-        # advance mode
+        # bottom panel
+        self.clear_output_button = None
         self.advanced_mode_check_box = None
 
 
@@ -81,7 +82,7 @@ class AutoConvertPage(BaseOutputPage):
         self._build_detect_panel()
         self._build_analyze_panel()
         self._build_common_panel()
-        self._build_advanced_mode_panel()
+        self._build_bottom_panel()
 
 
         # ------------------- 业务事件绑定 -------------------
@@ -440,15 +441,23 @@ class AutoConvertPage(BaseOutputPage):
 
 
 
-    def _build_advanced_mode_panel(self):
+    def _build_bottom_panel(self):
         # 先 add stretch 让本模块始终在最底部
         self.content_layout.addStretch()
 
+        # 高级模式开关
         advanced_label = create_label(i18n.t(f"{I18N_Prefix}.ui_advanced_mode_label"))
         self.advanced_mode_check_box = create_check_box(False)
+
+        # 清空输出按钮
+        self.clear_output_button = create_button(i18n.t(f"{I18N_Prefix}.ui_clear_output_button"))
+
         row = _create_row(advanced_label, self.advanced_mode_check_box)
+        row.layout().addSpacing(10)
+        row.layout().addWidget(self.clear_output_button)
         self.content_layout.addWidget(row, alignment=Qt.AlignmentFlag.AlignRight)
 
+        self.clear_output_button.clicked.connect(self.output_widget.clear)
         self.advanced_mode_check_box.stateChanged.connect(self.swtich_advanced_mode)
 
 

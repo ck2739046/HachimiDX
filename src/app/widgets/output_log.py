@@ -10,9 +10,9 @@ class OutputLogWidget(QWidget):
     """通用日志输出组件。
 
     Supports two usage patterns:
-    1) Manual: call append_text(text)
-    2) QProcess streaming (raw): connect QProcess.readyReadStandardOutput
-       to handle_raw_output (recommended with MergedChannels).
+    1) Manual: call append_text(text) / clear output with clear()
+    2) Runner streaming: bind to a runner_id via bind_current_runner_id(),
+       then connect to ProcessManager signals (handle_process_output, handle_process_ended).
 
     Notes:
     - Handles carriage-return (\r) progress updates by replacing the last line.
@@ -183,6 +183,13 @@ class OutputLogWidget(QWidget):
         self._append_output(text, replace_last=False)
 
 
+    def clear(self) -> None:
+        """清空输出区域."""
+        self.text_edit.clear()
+        self._text_buffer = ""
+        self._is_last_line_replaceable = False
+
+
     # ===== Process runner_output handling (runner_id + bytes) =====
 
     def bind_current_runner_id(self, runner_id: str | None, clear: bool = False) -> None:
@@ -233,29 +240,6 @@ class OutputLogWidget(QWidget):
         text = self._decode_output(payload)
         self._process_text_buffer(text)
 
-
-
-
-    # ===== QProcess raw output handling =====
-
-    def handle_raw_output(self):
-        """
-        处理来自 QProcess 的原始输出（槽函数）
-        直接连接到 QProcess.readyReadStandardOutput 信号
-        """
-        # 获取发送者（QProcess）
-        process = self.sender()
-        if not process:
-            return
-        
-        # 读取原始字节
-        output = process.readAllStandardOutput()
-        
-        # 解码
-        text = self._decode_output(output)
-        
-        # 处理 \r 和 \n
-        self._process_text_buffer(text)
 
 
 
