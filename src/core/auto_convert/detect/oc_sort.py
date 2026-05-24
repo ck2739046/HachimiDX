@@ -395,7 +395,8 @@ def linear_assignment(cost_matrix: np.ndarray) -> np.ndarray:
 def associate(
     detections: np.ndarray,
     trackers: np.ndarray,
-    s1_diou_thresh: float,
+    diou_matrix: np.ndarray,
+    validity_sub: np.ndarray,
     velocities: np.ndarray,
     previous_obs: np.ndarray,
     vdc_weight: float,
@@ -403,7 +404,14 @@ def associate(
     debug_frame_number: int = 0,
     debug_track_ids: list[int] | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Stage 1: VDC + DIoU joint association."""
+    """Stage 1: VDC + DIoU joint association on pre-filtered subset.
+
+    diou_matrix and validity_sub are (N,M) for the subset.
+    Invalid pairs are penalized in cost so Hungarian avoids them.
+    All output pairs are accepted as-is (no DIoU threshold post-filtering).
+    """
+    LARGE_PENALTY = 1e6
+
     if len(trackers) == 0:
         return (
             np.empty((0, 2), dtype=int),
@@ -423,7 +431,6 @@ def associate(
     valid_mask = np.ones(previous_obs.shape[0])
     valid_mask[previous_obs[:, 4] < 0] = 0
 
-    diou_matrix = diou_batch(detections, trackers)
     scores = detections[:, -1][:, np.newaxis]
     valid_mask = valid_mask[:, np.newaxis]
 
@@ -443,12 +450,12 @@ def associate(
                     f"VDC_cost={angle_diff_cost[i, j]:.4f}"
                 )
 
+    # Cost = -(DIoU + VDC), penalize invalid pairs heavily
+    cost = -(diou_matrix + angle_diff_cost)
+    cost[~validity_sub] += LARGE_PENALTY
+
     if min(diou_matrix.shape) > 0:
-        a = (diou_matrix > s1_diou_thresh).astype(np.int32)
-        if a.sum(1).max() == 1 and a.sum(0).max() == 1:
-            matched_indices = np.stack(np.where(a), axis=1)
-        else:
-            matched_indices = linear_assignment(-(diou_matrix + angle_diff_cost))
+        matched_indices = linear_assignment(cost)
     else:
         matched_indices = np.empty(shape=(0, 2))
 
@@ -459,15 +466,7 @@ def associate(
         unmatched_trackers = np.setdiff1d(
             np.arange(len(trackers)), matched_indices[:, 1]
         )
-        diou_vals = diou_matrix[matched_indices[:, 0], matched_indices[:, 1]]
-        low_diou_mask = diou_vals < s1_diou_thresh
-        unmatched_detections = np.concatenate(
-            [unmatched_detections, matched_indices[low_diou_mask, 0]]
-        )
-        unmatched_trackers = np.concatenate(
-            [unmatched_trackers, matched_indices[low_diou_mask, 1]]
-        )
-        matches = matched_indices[~low_diou_mask]
+        matches = matched_indices
     else:
         unmatched_detections = np.arange(len(detections))
         unmatched_trackers = np.arange(len(trackers))
@@ -476,72 +475,89 @@ def associate(
     return matches, unmatched_detections.astype(int), unmatched_trackers.astype(int)
 
 
-def _size_increase_gate(
-    matched_indices: np.ndarray,
-    det_boxes: np.ndarray,
+def _build_size_gate_mask(
+    det_max_side: np.ndarray,
     trk_last_max_sides: np.ndarray,
     max_size_increase_ratio: float = 0.15,
-    det_max_side: np.ndarray | None = None,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """尺寸变大门控：候选框 max(w,h) 不应明显大于轨迹最后一帧的 max(w,h)。
-
-    过滤候选框 max(w,h) > trk_last_max * (1 + ratio) 的匹配。
-    trk_last_max == 0 表示新轨迹无有效历史，不设限。
-    返回 (good_matches, rejected_det_indices, rejected_trk_indices)。
-    """
-    if matched_indices.shape[0] == 0 or max_size_increase_ratio < 0:
-        return matched_indices, np.array([], dtype=int), np.array([], dtype=int)
-
-    det_idx = matched_indices[:, 0]
-    trk_idx = matched_indices[:, 1]
-
-    if det_max_side is None:
-        det_w = det_boxes[det_idx, 2] - det_boxes[det_idx, 0]
-        det_h = det_boxes[det_idx, 3] - det_boxes[det_idx, 1]
-        matched_det_max = np.maximum(det_w, det_h)
-    else:
-        matched_det_max = det_max_side[det_idx]
-
-    trk_last_max = np.asarray(trk_last_max_sides, dtype=np.float64)[trk_idx]
-    threshold = trk_last_max * (1.0 + max_size_increase_ratio)
-
-    # trk_last_max == 0 表示轨迹无历史，通过所有匹配
-    ok = (trk_last_max == 0.0) | (matched_det_max <= threshold)
-    return matched_indices[ok], matched_indices[~ok, 0], matched_indices[~ok, 1]
-
-
-def _size_decrease_gate(
-    matched_indices: np.ndarray,
-    det_boxes: np.ndarray,
-    trk_last_max_sides: np.ndarray,
     max_size_decrease_ratio: float = 0.15,
-    det_max_side: np.ndarray | None = None,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """尺寸变小门控：候选框 max(w,h) 不应明显小于轨迹最后一帧的 max(w,h)。
+) -> np.ndarray:
+    """Build (N,M) bool mask: True = size compatible between det_i and trk_j.
 
-    过滤候选框 max(w,h) < trk_last_max * (1 - ratio) 的匹配。
-    trk_last_max == 0 表示新轨迹无有效历史，不设限。
-    返回 (good_matches, rejected_det_indices, rejected_trk_indices)。
+    trk_last_max == 0 (new track, no history) → always compatible.
     """
-    if matched_indices.shape[0] == 0 or max_size_decrease_ratio < 0:
-        return matched_indices, np.array([], dtype=int), np.array([], dtype=int)
+    N = len(det_max_side)
+    M = len(trk_last_max_sides)
+    if N == 0 or M == 0:
+        return np.empty((N, M), dtype=bool)
 
-    det_idx = matched_indices[:, 0]
-    trk_idx = matched_indices[:, 1]
+    det_max = det_max_side[:, None]            # (N, 1)
+    trk_max = trk_last_max_sides[None, :]      # (1, M)
 
-    if det_max_side is None:
-        det_w = det_boxes[det_idx, 2] - det_boxes[det_idx, 0]
-        det_h = det_boxes[det_idx, 3] - det_boxes[det_idx, 1]
-        matched_det_max = np.maximum(det_w, det_h)
-    else:
-        matched_det_max = det_max_side[det_idx]
+    ok = np.ones((N, M), dtype=bool)
 
-    trk_last_max = np.asarray(trk_last_max_sides, dtype=np.float64)[trk_idx]
-    threshold = trk_last_max * (1.0 - max_size_decrease_ratio)
+    if max_size_increase_ratio > 0:
+        inc_thresh = trk_max * (1.0 + max_size_increase_ratio)
+        ok &= (trk_max == 0.0) | (det_max <= inc_thresh)
 
-    # trk_last_max == 0 表示轨迹无历史，通过所有匹配
-    ok = (trk_last_max == 0.0) | (matched_det_max >= threshold)
-    return matched_indices[ok], matched_indices[~ok, 0], matched_indices[~ok, 1]
+    if max_size_decrease_ratio > 0:
+        dec_thresh = trk_max * (1.0 - max_size_decrease_ratio)
+        ok &= (trk_max == 0.0) | (det_max >= dec_thresh)
+
+    return ok
+
+
+def _pre_filter(
+    validity_mask: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Split det/trk indices by whether they have ≥1 legal connection.
+
+    Returns: (valid_dets, valid_trks, orphan_dets, orphan_trks)
+    """
+    has_det = validity_mask.any(axis=1)
+    has_trk = validity_mask.any(axis=0)
+    return (
+        np.where(has_det)[0],
+        np.where(has_trk)[0],
+        np.where(~has_det)[0],
+        np.where(~has_trk)[0],
+    )
+
+
+def _post_check(
+    matched_indices: np.ndarray,
+    validity_sub: np.ndarray,
+    valid_det_map: np.ndarray,
+    valid_trk_map: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Check Hungarian output pairs against validity mask.
+
+    Returns: (good_matches, bad_det_indices, bad_trk_indices)
+    All returned indices are mapped back to original (full) indexing.
+    """
+    if matched_indices.shape[0] == 0:
+        return (
+            np.empty((0, 2), dtype=int),
+            np.array([], dtype=int),
+            np.array([], dtype=int),
+        )
+
+    det_pos = matched_indices[:, 0]
+    trk_pos = matched_indices[:, 1]
+    valid = validity_sub[det_pos, trk_pos]
+
+    good = (
+        np.column_stack([
+            valid_det_map[det_pos[valid]],
+            valid_trk_map[trk_pos[valid]],
+        ]).astype(int)
+        if valid.any()
+        else np.empty((0, 2), dtype=int)
+    )
+
+    bad_dets = valid_det_map[det_pos[~valid]].astype(int)
+    bad_trks = valid_trk_map[trk_pos[~valid]].astype(int)
+
+    return good, bad_dets, bad_trks
 
 
 # ============================================================================
@@ -669,25 +685,7 @@ class OCSort:
                     f"score={trk.score:.4f}"
                 )
 
-        # ====== Stage 1: VDC + DIoU ======
-        if len(dets) > 0 and len(trks) > 0:
-            matched, unmatched_dets, unmatched_trks = associate(
-                dets[:, :5],
-                trks,
-                self.s1_diou_thresh,
-                velocities,
-                ref_obs_list,
-                self.inertia,
-                debug_enabled=self.debug,
-                debug_frame_number=frame_number,
-                debug_track_ids=debug_track_ids,
-            )
-        else:
-            matched = np.empty((0, 2), dtype=int)
-            unmatched_dets = np.arange(len(dets))
-            unmatched_trks = np.arange(len(self.trackers))
-
-        # ====== 尺寸门控：基于轨迹最后一帧尺寸过滤不合理匹配 ======
+        # ====== 轨迹最后一帧尺寸（提前计算，Stage 1 / Stage 3 共用） ======
         if self.trackers:
             trk_last_max_sides = np.array([
                 max(trk._last_w, trk._last_h)
@@ -697,68 +695,97 @@ class OCSort:
         else:
             trk_last_max_sides = np.empty((0,), dtype=np.float64)
 
-        if matched.shape[0] > 0 and (self.max_size_increase_ratio > 0 or self.max_size_decrease_ratio > 0):
-            if self.max_size_increase_ratio > 0:
-                matched, rej_dets, rej_trks = _size_increase_gate(
-                    matched, dets[:, :5], trk_last_max_sides,
-                    max_size_increase_ratio=self.max_size_increase_ratio,
-                    det_max_side=det_max_side,
-                )
-                if rej_dets.size:
-                    unmatched_dets = np.concatenate([unmatched_dets, rej_dets])
-                if rej_trks.size:
-                    unmatched_trks = np.concatenate([unmatched_trks, rej_trks])
+        # ====== Stage 1: VDC + DIoU（前置过滤 + 惩罚成本 + 后置兜底） ======
+        if len(dets) > 0 and len(trks) > 0:
+            full_diou = diou_batch(dets[:, :5], trks)
+            size_mask = _build_size_gate_mask(
+                det_max_side, trk_last_max_sides,
+                self.max_size_increase_ratio, self.max_size_decrease_ratio,
+            )
+            validity = (full_diou >= self.s1_diou_thresh) & size_mask
 
-            if matched.shape[0] > 0 and self.max_size_decrease_ratio > 0:
-                matched, rej_dets, rej_trks = _size_decrease_gate(
-                    matched, dets[:, :5], trk_last_max_sides,
-                    max_size_decrease_ratio=self.max_size_decrease_ratio,
-                    det_max_side=det_max_side,
-                )
-                if rej_dets.size:
-                    unmatched_dets = np.concatenate([unmatched_dets, rej_dets])
-                if rej_trks.size:
-                    unmatched_trks = np.concatenate([unmatched_trks, rej_trks])
+            valid_dets, valid_trks, orphan_dets, orphan_trks = _pre_filter(validity)
 
-        # ====== Stage 3: DIoU 回收 — 剩余高分检测 ↔ 未匹配轨迹的最后观测 ======
+            if len(valid_dets) > 0 and len(valid_trks) > 0:
+                diou_sub = full_diou[valid_dets][:, valid_trks]
+                validity_sub = validity[valid_dets][:, valid_trks]
+
+                dets_sub = dets[valid_dets, :5]
+                trks_sub = trks[valid_trks]
+                vel_sub = velocities[valid_trks]
+                ref_sub = ref_obs_list[valid_trks]
+
+                debug_ids_sub = None
+                if self.debug and debug_track_ids is not None:
+                    debug_ids_sub = [debug_track_ids[i] for i in valid_trks]
+
+                matched_sub, unmapped_dets_sub, unmapped_trks_sub = associate(
+                    dets_sub, trks_sub,
+                    diou_sub, validity_sub,
+                    vel_sub, ref_sub, self.inertia,
+                    debug_enabled=self.debug,
+                    debug_frame_number=frame_number,
+                    debug_track_ids=debug_ids_sub,
+                )
+
+                good, bad_dets, bad_trks = _post_check(
+                    matched_sub, validity_sub, valid_dets, valid_trks,
+                )
+                unmapped_dets = valid_dets[unmapped_dets_sub]
+                unmapped_trks = valid_trks[unmapped_trks_sub]
+
+                matched = good
+                unmatched_dets = np.concatenate([
+                    orphan_dets, unmapped_dets, bad_dets,
+                ]).astype(int)
+                unmatched_trks = np.concatenate([
+                    orphan_trks, unmapped_trks, bad_trks,
+                ]).astype(int)
+            else:
+                matched = np.empty((0, 2), dtype=int)
+                unmatched_dets = np.arange(len(dets))
+                unmatched_trks = np.arange(len(self.trackers))
+        else:
+            matched = np.empty((0, 2), dtype=int)
+            unmatched_dets = np.arange(len(dets))
+            unmatched_trks = np.arange(len(self.trackers))
+
+        # ====== Stage 3: DIoU 回收（前置过滤 + 惩罚成本 + 后置兜底） ======
         if unmatched_dets.size > 0 and unmatched_trks.size > 0:
             left_dets = dets[unmatched_dets, :5]
             last_obs_list = np.array(
                 [trk.last_observation for trk in self.trackers], dtype=np.float64
             )
             left_trks = last_obs_list[unmatched_trks]
+            left_det_max_side = det_max_side[unmatched_dets]
+            left_trk_max_sides = trk_last_max_sides[unmatched_trks]
 
             diou_left = diou_batch(left_dets, left_trks)
-            if diou_left.size > 0 and diou_left.max() > self.s3_diou_thresh:
-                raw_indices = linear_assignment(-diou_left)
+            size_mask_left = _build_size_gate_mask(
+                left_det_max_side, left_trk_max_sides,
+                self.max_size_increase_ratio, self.max_size_decrease_ratio,
+            )
+            validity_left = (diou_left >= self.s3_diou_thresh) & size_mask_left
 
-                # 按 s3_diou_thresh 硬过滤
-                stage3_matched = raw_indices
-                if stage3_matched.shape[0] > 0:
-                    diou_vals_s3 = diou_left[stage3_matched[:, 0], stage3_matched[:, 1]]
-                    ok_s3 = diou_vals_s3 >= self.s3_diou_thresh
-                    stage3_matched = stage3_matched[ok_s3]
+            s3_valid_dets, s3_valid_trks, _, _ = _pre_filter(validity_left)
 
-                # 尺寸增大 + 尺寸减小门控（复用 Stage 1 门控函数）
-                left_dets_max_side = det_max_side[unmatched_dets]
-                if stage3_matched.shape[0] > 0 and self.max_size_increase_ratio > 0:
-                    stage3_matched, _, _ = _size_increase_gate(
-                        stage3_matched, left_dets,
-                        trk_last_max_sides[unmatched_trks],
-                        max_size_increase_ratio=self.max_size_increase_ratio,
-                        det_max_side=left_dets_max_side,
-                    )
-                if stage3_matched.shape[0] > 0 and self.max_size_decrease_ratio > 0:
-                    stage3_matched, _, _ = _size_decrease_gate(
-                        stage3_matched, left_dets,
-                        trk_last_max_sides[unmatched_trks],
-                        max_size_decrease_ratio=self.max_size_decrease_ratio,
-                        det_max_side=left_dets_max_side,
-                    )
+            if len(s3_valid_dets) > 0 and len(s3_valid_trks) > 0:
+                diou_sub = diou_left[s3_valid_dets][:, s3_valid_trks]
+                validity_sub = validity_left[s3_valid_dets][:, s3_valid_trks]
 
+                cost = -diou_sub
+                cost[~validity_sub] += 1e6
+                raw_indices = linear_assignment(cost)
+
+                good, bad_dets, bad_trks = _post_check(
+                    raw_indices, validity_sub,
+                    s3_valid_dets, s3_valid_trks,
+                )
+
+                # good pairs → update tracker with detection
                 to_remove_det = []
                 to_remove_trk = []
-                for det_pos, trk_pos in stage3_matched:
+                for det_pos, trk_pos in good:
                     det_idx = unmatched_dets[det_pos]
                     trk_idx = unmatched_trks[trk_pos]
                     self.trackers[trk_idx].update(dets[det_idx], frame_number)
