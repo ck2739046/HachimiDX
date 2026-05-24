@@ -399,6 +399,9 @@ def associate(
     velocities: np.ndarray,
     previous_obs: np.ndarray,
     vdc_weight: float,
+    debug_enabled: bool = False,
+    debug_frame_number: int = 0,
+    debug_track_ids: list[int] | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Stage 1: VDC + DIoU joint association."""
     if len(trackers) == 0:
@@ -426,6 +429,19 @@ def associate(
 
     angle_diff_cost = (valid_mask * diff_angle) * vdc_weight
     angle_diff_cost = angle_diff_cost.T * scores
+
+    # ====== debug: 打印每条轨迹对每个候选框的 DIoU 和 VDC 代价 ======
+    if debug_enabled and debug_track_ids is not None and len(detections) > 0:
+        num_trks = len(debug_track_ids)
+        num_dets = len(detections)
+        for j in range(num_trks):
+            for i in range(num_dets):
+                print(
+                    f"[OC-SORT DEBUG] frame={debug_frame_number} | "
+                    f"track_id={debug_track_ids[j]} det#{i} | "
+                    f"DIoU={diou_matrix[i, j]:.4f} | "
+                    f"VDC_cost={angle_diff_cost[i, j]:.4f}"
+                )
 
     if min(diou_matrix.shape) > 0:
         a = (diou_matrix > s1_diou_thresh).astype(np.int32)
@@ -544,6 +560,7 @@ class OCSort:
         max_size_increase_ratio: float = 0.15,
         max_size_decrease_ratio: float = 0.15,
         s3_diou_thresh: float = 0.3,
+        debug: bool = False,
     ):
         """delta_dist_pct: 在历史中找参考观测时，要求中心距离 > pct*框尺寸。
         max_size_increase_ratio: 尺寸变大门控上限，候选框max(w,h) ≤ 轨迹最后一帧 × (1+ratio)。
@@ -560,6 +577,7 @@ class OCSort:
         self.max_size_increase_ratio = float(max_size_increase_ratio)
         self.max_size_decrease_ratio = float(max_size_decrease_ratio)
         self.s3_diou_thresh = float(s3_diou_thresh)
+        self.debug = bool(debug)
         self._next_track_id = 0
 
     @staticmethod
@@ -636,6 +654,21 @@ class OCSort:
             ]
         )
 
+        # ====== debug: 打印轨迹状态 ======
+        debug_track_ids = None
+        if self.debug and len(dets) > 0:
+            debug_track_ids = [trk.id + 1 for trk in self.trackers]
+            for trk in self.trackers:
+                print(
+                    f"[OC-SORT DEBUG] frame={frame_number} | "
+                    f"track_id={trk.id + 1} | "
+                    f"hit_streak={trk.hit_streak} | "
+                    f"time_since_update={trk.time_since_update} | "
+                    f"time_since_output={trk.time_since_output} | "
+                    f"age={trk.age} | "
+                    f"score={trk.score:.4f}"
+                )
+
         # ====== Stage 1: VDC + DIoU ======
         if len(dets) > 0 and len(trks) > 0:
             matched, unmatched_dets, unmatched_trks = associate(
@@ -645,6 +678,9 @@ class OCSort:
                 velocities,
                 ref_obs_list,
                 self.inertia,
+                debug_enabled=self.debug,
+                debug_frame_number=frame_number,
+                debug_track_ids=debug_track_ids,
             )
         else:
             matched = np.empty((0, 2), dtype=int)

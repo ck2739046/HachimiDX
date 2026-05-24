@@ -24,6 +24,8 @@ TRACKER_NOTE_TYPES = [
 ]
 
 
+DEBUG = False
+
 
 def _build_botsort_tracker(fps: float, with_reid: bool = False) -> BOTSORT:
     tracker_args = SimpleNamespace(
@@ -73,7 +75,7 @@ def _build_botsort_tracker(fps: float, with_reid: bool = False) -> BOTSORT:
     return BOTSORT(tracker_args, frame_rate=fps)
 
 
-def _build_ocsort_tracker(fps: float) -> OCSort:
+def _build_ocsort_tracker(fps: float, debug: bool = False) -> OCSort:
 
     # 仅用于 SLIDE；参数按 OC-SORT 原生语义硬编码
     return OCSort(
@@ -110,6 +112,8 @@ def _build_ocsort_tracker(fps: float) -> OCSort:
         # 如最后一帧 max=30，ratio=0.15 → 候选框 max 须 ≥ 25.5
         # 值越大越严格，越小越宽松
         max_size_decrease_ratio=0.15,
+
+        debug=debug,
     )
 
 
@@ -209,7 +213,7 @@ def main(std_video_path: Path,
         trackers_by_type = {}
         for note_type in TRACKER_NOTE_TYPES:
             if note_type == NoteType.SLIDE:
-                trackers_by_type[note_type] = _build_ocsort_tracker(fps)
+                trackers_by_type[note_type] = _build_ocsort_tracker(fps, debug=DEBUG)
             elif note_type == NoteType.HOLD:
                 trackers_by_type[note_type] = _build_botsort_tracker(fps, with_reid=enable_reid)
             else:
@@ -285,6 +289,9 @@ def main(std_video_path: Path,
                     value = original_note_geometry
                     final_tracked_results[key].append(value)
                     matched_note_ids.add(id(original_note_geometry))
+
+                    if DEBUG and note_type == NoteType.SLIDE:
+                        print(f"[TRACK] SLIDE local_id={local_track_id} → global_id={global_track_id}")
             
             # 打印进度
             counter += 1
