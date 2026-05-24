@@ -110,7 +110,7 @@ def generate_maidata(shared_context: SharedContext, bpm, chart_lv,
                 last_time = note_time
                 last_position = position
                 # 控制台打印
-                print(f"[{init_time:.3f}] ", end='')
+                print(f"first note appear at {note_time:.1f} ms")
                 continue
 
 
@@ -155,11 +155,6 @@ def generate_maidata(shared_context: SharedContext, bpm, chart_lv,
 
 
             
-            # 打印当前音符信息
-            if one > 0:
-                print(f"{last_position}-{numerator}/{denominator}+{one}, ", end='')
-            else:
-                print(f"{last_position}-{numerator}/{denominator}, ", end='')
 
             # 生成逗号部分
             if numerator == 0 and denominator == 1 and one > 0:
@@ -198,7 +193,6 @@ def generate_maidata(shared_context: SharedContext, bpm, chart_lv,
 
 
     # 添加结尾E
-    print(f'{last_position}-E')
     with open(txt_path, 'a', encoding='utf-8') as f:
         f.write(f'{last_position},\n' + '{1},,,E\n') # 结尾默认 3 拍延迟
 
