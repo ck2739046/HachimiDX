@@ -1,4 +1,5 @@
 from ultralytics import YOLO
+import cv2
 import os
 import time
 from pathlib import Path
@@ -32,6 +33,18 @@ def main(std_video_path: Path,
         final_results = []
         print("Start detection...")
 
+        # 计算 tap/hold 尺寸预过滤的阈值
+        try:
+            cap = cv2.VideoCapture(str(std_video_path))
+            video_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+            cap.release()
+            # 标准尺寸: tap 105px, hold 108px
+            # 这里保守一点取 90px 作为最小尺寸阈值
+            size_thresh = video_width / 1080.0 * 90
+        except Exception as e:
+            print(f"Failed to get video width. Error: {e}")
+            size_thresh = -1 # 不过滤
+
         for model_path, name in [(detect_model_path, 'detect'), (obb_model_path, 'obb')]:
             counter = 0
             last_counter = 0
@@ -56,6 +69,8 @@ def main(std_video_path: Path,
             for result in yolo_results_generator:
                 # 转换数据格式并保存
                 note_geometrys = _parse_detections_to_note_geometrys(result, counter, name)
+                # 预过滤：对 tap/hold 去除宽或高过小的误检框
+                note_geometrys = _prefilter_tap_hold_by_size(note_geometrys, size_thresh)
                 # 按 note_type 分组做 NMS 去重
                 if name == 'detect':
                     note_geometrys = _dedup_detections_by_note_type(note_geometrys, iou_thresh=0.95)
@@ -149,6 +164,36 @@ def _parse_detections_to_note_geometrys(result, frame_number, model_name):
             for i in range(len(obb))
         ]
         return note_geometry_list
+
+
+
+
+
+
+
+
+
+
+def _prefilter_tap_hold_by_size(note_geometrys: list, size_thresh: float) -> list:
+    """预过滤：删除 TAP/HOLD 中宽或高小于阈值的检测框"""
+    if size_thresh <= 0:
+        return note_geometrys
+    if not note_geometrys:
+        return []
+    _TARGET_TYPES = (NoteType.TAP, NoteType.HOLD)
+    return [g for g in note_geometrys
+            if g.note_type not in _TARGET_TYPES              # 如果不是目标类型, 直接保留
+            or (g.w >= size_thresh and g.h >= size_thresh)]  # 如果是类型，应用尺寸过滤
+
+
+
+
+
+
+
+
+
+
 
 
 
