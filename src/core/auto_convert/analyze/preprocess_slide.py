@@ -1,4 +1,4 @@
-﻿import numpy as np
+import numpy as np
 
 from ..detect.note_definition import *
 from .tool import *
