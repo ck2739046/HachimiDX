@@ -127,7 +127,6 @@ class ArcadeTimingPage(BaseOutputPage):
 
 
     def _build_preview_section(self) -> None:
-        self.content_layout.addWidget(create_divider(i18n.t(f"{I18N_Prefix}.ui_preview_divider")))
 
         self.waveform_label = QLabel()
         self.waveform_label.setAlignment(Qt.AlignmentFlag.AlignCenter)

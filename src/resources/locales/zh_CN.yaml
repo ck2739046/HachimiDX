@@ -124,7 +124,6 @@ zh_CN:
 
         ui_select_file_divider: "文件选择"
         ui_params_divider: "参数设置"
-        ui_preview_divider: "波形预览"
 
         ui_reference_file_button: "选择基准文件"
         ui_reference_file_help: "包含启动拍的音频或视频文件。"

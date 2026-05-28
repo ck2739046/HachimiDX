@@ -124,7 +124,6 @@ en_US:
 
         ui_select_file_divider: "File Selection"
         ui_params_divider: "Parameters"
-        ui_preview_divider: "Wave Preview"
 
         ui_reference_file_button: "Select Reference"
         ui_reference_file_help: "Audio or video file that contains the startup click sequence."
