@@ -5,6 +5,13 @@ from src.services import PathManage
 from .op_result import OpResult, ok, err
 
 
+# 窗口尺寸硬性边界常量（不写入 settings.json，不在设置页配置）
+MAIN_APP_W_MIN = 1240
+MAIN_APP_W_MAX = 5000
+MAIN_APP_H_MIN = 900
+MAIN_APP_H_MAX = 4000
+
+
 @dataclass(slots=True)
 class SettingsConfig_Definition:
     """
@@ -12,14 +19,14 @@ class SettingsConfig_Definition:
 
     Attributes:
         key: str
-        type: Literal["str", "int", "tuple_int2"]
+        type: Literal["str", "int"]
         group: Literal["model", "ffmpeg", "general", "window"]
         default: any
         constraints: dict | None
     """
 
     key: str
-    type: Literal["str", "int", "tuple_int2"]
+    type: Literal["str", "int"]
     group: Literal["model", "ffmpeg", "general", "window"]
     default: any = None
     constraints: dict | None = None
@@ -140,20 +147,20 @@ class SettingsConfig_Definitions:
 
     # window
 
-    main_app_default_size = SettingsConfig_Definition(
-        key="main_app_default_size",
-        type="tuple_int2",
+    main_app_w_default = SettingsConfig_Definition(
+        key="main_app_w_default",
+        type="int",
         group="window",
-        default=(1300, 900),
-        constraints={"item_ge": 500, "item_le": 5000},
+        default=1320,
+        constraints={"ge": MAIN_APP_W_MIN, "le": MAIN_APP_W_MAX},
     )
 
-    main_app_min_size = SettingsConfig_Definition(
-        key="main_app_min_size",
-        type="tuple_int2",
+    main_app_h_default = SettingsConfig_Definition(
+        key="main_app_h_default",
+        type="int",
         group="window",
-        default=(800, 600),
-        constraints={"item_ge": 500, "item_le": 5000},
+        default=930,
+        constraints={"ge": MAIN_APP_H_MIN, "le": MAIN_APP_H_MAX},
     )
 
     main_app_ui_scale = SettingsConfig_Definition(

@@ -19,14 +19,8 @@ class SettingsModel(BaseModel):
     # 应用通用设置
     language: str = Field(default=S_Defs.language.default)
     # 窗口大小
-    main_app_default_size: tuple[
-        Annotated[int, Field(ge=S_Defs.main_app_default_size.constraints["item_ge"], le=S_Defs.main_app_default_size.constraints["item_le"])],
-        Annotated[int, Field(ge=S_Defs.main_app_default_size.constraints["item_ge"], le=S_Defs.main_app_default_size.constraints["item_le"])],
-    ] = S_Defs.main_app_default_size.default
-    main_app_min_size: tuple[
-        Annotated[int, Field(ge=S_Defs.main_app_min_size.constraints["item_ge"], le=S_Defs.main_app_min_size.constraints["item_le"])],
-        Annotated[int, Field(ge=S_Defs.main_app_min_size.constraints["item_ge"], le=S_Defs.main_app_min_size.constraints["item_le"])],
-    ] = S_Defs.main_app_min_size.default
+    main_app_w_default: Annotated[int, Field(ge=S_Defs.main_app_w_default.constraints["ge"], le=S_Defs.main_app_w_default.constraints["le"])] = S_Defs.main_app_w_default.default
+    main_app_h_default: Annotated[int, Field(ge=S_Defs.main_app_h_default.constraints["ge"], le=S_Defs.main_app_h_default.constraints["le"])] = S_Defs.main_app_h_default.default
     # 界面缩放
     main_app_ui_scale: Annotated[int, Field(ge=S_Defs.main_app_ui_scale.constraints["ge"], le=S_Defs.main_app_ui_scale.constraints["le"])] = S_Defs.main_app_ui_scale.default
 

@@ -21,6 +21,8 @@ from .pages.auto_convert_page import AutoConvertPage
 from .pages.settings_page import SettingsPage
 
 import i18n
+from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
+from src.core.schemas.settings_config import MAIN_APP_W_MIN, MAIN_APP_W_MAX, MAIN_APP_H_MIN, MAIN_APP_H_MAX
 from src.services import SettingsManage, PathManage, MajdataSession, VideoSyncServer
 
 
@@ -64,11 +66,14 @@ class LeftPanel(QWidget):
     def sizeHint(self):
 
         if self._default_size is None:
-            result = SettingsManage.get("main_app_default_size")
-            if result.is_ok:
-                self._default_size = QSize(*result.value)
+            result_w = SettingsManage.get(S_Defs.main_app_w_default.key)
+            result_h = SettingsManage.get(S_Defs.main_app_h_default.key)
+            if result_w.is_ok and result_h.is_ok:
+                self._default_size = QSize(result_w.value, result_h.value)
             else:
-                print("--Warning: MainWindow.sizeHint: " + i18n.t("general.error_SettingsManage_get_failed", keyy="main_app_default_size"))
+                print("--Warning: MainWindow.sizeHint: " + \
+                      i18n.t("general.error_SettingsManage_get_failed",
+                             keyy=f"{S_Defs.main_app_w_default.key} / {S_Defs.main_app_h_default.key}"))
                 self._default_size = super().sizeHint() # 默认行为
                 
         return QSize(self._default_size)
@@ -210,20 +215,19 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Hachimi DX")
         self.setWindowIcon(QIcon(str(PathManage.APP_ICON_PATH)))
 
-        # 获取窗口尺寸配置
-        result = SettingsManage.get("main_app_min_size")
-        if result.is_ok:
-            min_size = result.value
-            self.setMinimumSize(*min_size)
-        else:
-            print("--Warning: MainWindow.setup_ui: " + i18n.t("general.error_SettingsManage_get_failed", keyy="main_app_min_size"))
+        # 设置窗口硬性边界
+        self.setMinimumSize(MAIN_APP_W_MIN, MAIN_APP_H_MIN)
+        self.setMaximumSize(MAIN_APP_W_MAX, MAIN_APP_H_MAX)
 
-        result = SettingsManage.get("main_app_default_size")
-        if not result.is_ok:
-            print("--Warning: MainWindow.setup_ui: " + i18n.t("general.error_SettingsManage_get_failed", keyy="main_app_default_size"))
+        # 获取窗口默认尺寸配置
+        result_w = SettingsManage.get(S_Defs.main_app_w_default.key)
+        result_h = SettingsManage.get(S_Defs.main_app_h_default.key)
+        if not result_w.is_ok or not result_h.is_ok:
+            print("--Warning: MainWindow.setup_ui: " + \
+                  i18n.t("general.error_SettingsManage_get_failed",
+                         keyy=f"{S_Defs.main_app_w_default.key} / {S_Defs.main_app_h_default.key}"))
         else:
-            default_size = result.value
-            self.resize(*default_size)
+            self.resize(result_w.value, result_h.value)
 
         # 设置背景色
         self.setStyleSheet(f"background-color: {UI_Style.COLORS['bg']};")

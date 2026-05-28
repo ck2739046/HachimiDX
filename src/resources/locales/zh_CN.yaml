@@ -444,7 +444,6 @@ zh_CN:
 
       ui_window_divider: "窗口设置"
       ui_default_size_label: "默认窗口尺寸 (W x H): "
-      ui_min_size_label: "最小窗口尺寸 (W x H): "
       ui_ui_scale_label: "界面缩放: "
 
       ui_actions_divider: "操作"

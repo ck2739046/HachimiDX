@@ -66,8 +66,8 @@ class SettingsPage(BaseOutputPage):
             S_Defs.model_backend.key,
             S_Defs.ffmpeg_hw_encoder.key,
             S_Defs.language.key,
-            S_Defs.main_app_default_size.key,
-            S_Defs.main_app_min_size.key,
+            S_Defs.main_app_w_default.key,
+            S_Defs.main_app_h_default.key,
             S_Defs.main_app_ui_scale.key,
         ]
 
@@ -162,22 +162,11 @@ class SettingsPage(BaseOutputPage):
         self.default_width_line_edit = create_line_edit(length=60, validator="int")
         self.default_height_line_edit = create_line_edit(length=60, validator="int")
 
-        min_label = create_label(i18n.t(f"{I18N_Prefix}.ui_min_size_label"))
-        self.min_width_line_edit = create_line_edit(length=60, validator="int")
-        self.min_height_line_edit = create_line_edit(length=60, validator="int")
-
         self.create_row(
             default_label,
             self.default_width_line_edit,
             create_label("x"),
             self.default_height_line_edit,
-            add_stretch=True,
-        )
-        self.create_row(
-            min_label,
-            self.min_width_line_edit,
-            create_label("x"),
-            self.min_height_line_edit,
             add_stretch=True,
         )
 
@@ -288,13 +277,8 @@ class SettingsPage(BaseOutputPage):
         self._set_combo_value(self.ffmpeg_hw_encoder_combo_box, settings[S_Defs.ffmpeg_hw_encoder.key])
         self._set_combo_value(self.language_combo_box, settings[S_Defs.language.key])
 
-        default_size = settings[S_Defs.main_app_default_size.key]
-        min_size = settings[S_Defs.main_app_min_size.key]
-
-        self.default_width_line_edit.setText(str(default_size[0]))
-        self.default_height_line_edit.setText(str(default_size[1]))
-        self.min_width_line_edit.setText(str(min_size[0]))
-        self.min_height_line_edit.setText(str(min_size[1]))
+        self.default_width_line_edit.setText(str(settings[S_Defs.main_app_w_default.key]))
+        self.default_height_line_edit.setText(str(settings[S_Defs.main_app_h_default.key]))
         self.ui_scale_slider.setValue(int(settings[S_Defs.main_app_ui_scale.key]))
         self._sync_ui_state()
 
@@ -307,14 +291,8 @@ class SettingsPage(BaseOutputPage):
             S_Defs.model_backend.key: self.model_backend_combo_box.currentText().strip(),
             S_Defs.ffmpeg_hw_encoder.key: self.ffmpeg_hw_encoder_combo_box.currentText().strip(),
             S_Defs.language.key: self.language_combo_box.currentText().strip(),
-            S_Defs.main_app_default_size.key: (
-                self.default_width_line_edit.text().strip(),
-                self.default_height_line_edit.text().strip(),
-            ),
-            S_Defs.main_app_min_size.key: (
-                self.min_width_line_edit.text().strip(),
-                self.min_height_line_edit.text().strip(),
-            ),
+            S_Defs.main_app_w_default.key: self.default_width_line_edit.text().strip(),
+            S_Defs.main_app_h_default.key: self.default_height_line_edit.text().strip(),
             S_Defs.main_app_ui_scale.key: str(self.ui_scale_slider.value()),
         }
 

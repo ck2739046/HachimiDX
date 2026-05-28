@@ -448,7 +448,6 @@ en_US:
 
       ui_window_divider: "Window"
       ui_default_size_label: "Default Window Size (W x H): "
-      ui_min_size_label: "Minimum Window Size (W x H): "
       ui_ui_scale_label: "UI Scale: "
 
       ui_actions_divider: "Actions"
