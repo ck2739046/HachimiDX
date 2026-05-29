@@ -109,7 +109,7 @@
 
 ### 2. 解压资源文件
 
-- 将 [`models/`](src/resources/for_release_only/models/) 下的所有 `.zip` 解压到 `src/resources/models/`。
+- 将 [`models/`](src/resources/for_release_only/models/) 下的所有 `.zip` 解压到 `data/models/`。
 - 将 [`ffmpeg`](src/resources/for_release_only/ffmpeg-8.0.1-essentials_build.7z) 解压到 `src/resources/ffmpeg/`。
 - （可选）自行编译 [`启动器`](src/resources/for_release_only/launcher) 并放到项目根目录。
 

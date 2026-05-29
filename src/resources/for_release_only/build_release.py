@@ -50,7 +50,7 @@ def copy_app_resources():
     # 解压 models
     models_dir = PathManage.RESOURCES_DIR / "for_release_only" / "models"
     for model_zip in models_dir.glob("*.zip"):
-        target_dir = RELEASE_DIR / "src" / "resources" / "models"
+        target_dir = RELEASE_DIR / "data" / "models"
         extract_with_bandizip(model_zip, target_dir, mode='file')
 
     # 解压 python 到目录

@@ -107,7 +107,7 @@ Code lives in `src/`, organized in three layers:
 
 ### 2. Extract resource files
 
-- Extract all `.zip` files from [`models/`](src/resources/for_release_only/models/) into `src/resources/models/`.
+- Extract all `.zip` files from [`models/`](src/resources/for_release_only/models/) into `data/models/`.
 - Extract [`ffmpeg`](src/resources/for_release_only/ffmpeg-8.0.1-essentials_build.7z) into `src/resources/ffmpeg/`.
 - (Optional) Compile the [`launcher`](src/resources/for_release_only/launcher) and place it in the project root.
 

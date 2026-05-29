@@ -31,7 +31,7 @@ class PathManage:
     MajdataView_EXE_PATH: Path = RESOURCES_DIR / "majdata" / "MajdataView.exe"
     MajdataEdit_EXE_PATH: Path = RESOURCES_DIR / "majdata" / "MajdataEdit.exe"
 
-    MODELS_DIR: Path = RESOURCES_DIR / "models"
+    MODELS_DIR: Path = DATA_DIR / "models"
     DETECT_PT_PATH: Path = MODELS_DIR / "detect.pt"
     OBB_PT_PATH: Path = MODELS_DIR / "obb.pt"
     CLS_BREAK_PT_PATH: Path = MODELS_DIR / "cls-break.pt"
