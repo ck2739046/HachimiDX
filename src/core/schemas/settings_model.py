@@ -18,6 +18,7 @@ class SettingsModel(BaseModel):
     ffmpeg_hw_encoder: str = Field(default=S_Defs.ffmpeg_hw_encoder.default)
     # 应用通用设置
     language: str = Field(default=S_Defs.language.default)
+    check_update_on_startup: bool = Field(default=S_Defs.check_update_on_startup.default)
     # 窗口大小
     main_app_w_default: Annotated[int, Field(ge=S_Defs.main_app_w_default.constraints["ge"], le=S_Defs.main_app_w_default.constraints["le"])] = S_Defs.main_app_w_default.default
     main_app_h_default: Annotated[int, Field(ge=S_Defs.main_app_h_default.constraints["ge"], le=S_Defs.main_app_h_default.constraints["le"])] = S_Defs.main_app_h_default.default

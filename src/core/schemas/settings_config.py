@@ -26,7 +26,7 @@ class SettingsConfig_Definition:
     """
 
     key: str
-    type: Literal["str", "int"]
+    type: Literal["str", "int", "bool"]
     group: Literal["model", "ffmpeg", "general", "window"]
     default: any = None
     constraints: dict | None = None
@@ -143,6 +143,13 @@ class SettingsConfig_Definitions:
         group="general",
         default="en_US",
         constraints={"options": ["zh_CN", "en_US"]},
+    )
+
+    check_update_on_startup = SettingsConfig_Definition(
+        key="check_update_on_startup",
+        type="bool",
+        group="general",
+        default=True,
     )
 
     # window
