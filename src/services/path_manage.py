@@ -12,7 +12,7 @@ class PathManage:
     # 初始化时必须存在的路径
 
     ROOT_DIR: Path = Path(__file__).resolve().parents[2] # 往上三级目录
-    DATA_DIR: Path = ROOT_DIR / "data" # 如果为空自动创建
+    DATA_DIR: Path = ROOT_DIR / "data"
     TEMP_DIR: Path = DATA_DIR / "temp" # 如果为空自动创建
     RESOURCES_DIR: Path = ROOT_DIR / "src" / "resources"
     LOCALES_DIR: Path = RESOURCES_DIR / "locales"
@@ -79,13 +79,13 @@ class PathManage:
         """初始化检查一些必须存在的路径"""
         
         # 检查必须存在的目录
-        for dir_path in [cls.RESOURCES_DIR, cls.MODELS_DIR, cls.LOCALES_DIR, cls.WORKERS_DIR]:
+        for dir_path in [cls.RESOURCES_DIR, cls.MODELS_DIR, cls.LOCALES_DIR, cls.WORKERS_DIR, cls.DATA_DIR]:
             if not dir_path.is_dir():
                 error_msg = f"Critical Error: Required directory not found: {dir_path}"
                 return err(error_msg)
         
         # 创建可自动创建的目录
-        for dir_path in [cls.DATA_DIR, cls.TEMP_DIR]:
+        for dir_path in [cls.TEMP_DIR]:
             if not dir_path.is_dir():
                 dir_path.mkdir(parents=True, exist_ok=True)
         
