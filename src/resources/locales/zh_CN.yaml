@@ -458,7 +458,6 @@ zh_CN:
       ui_default_size_label: "默认窗口尺寸 (W x H): "
       ui_ui_scale_label: "界面缩放: "
 
-      ui_actions_divider: "操作"
       ui_save_button: "保存"
       ui_reset_button: "重置"
 

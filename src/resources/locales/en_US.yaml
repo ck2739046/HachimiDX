@@ -462,7 +462,6 @@ en_US:
       ui_default_size_label: "Default Window Size (W x H): "
       ui_ui_scale_label: "UI Scale: "
 
-      ui_actions_divider: "Actions"
       ui_save_button: "Save"
       ui_reset_button: "Reset"
 

@@ -194,8 +194,7 @@ class SettingsPage(BaseOutputPage):
 
 
     def _build_actions(self) -> None:
-        self.content_layout.addWidget(create_divider(i18n.t(f"{I18N_Prefix}.ui_actions_divider")))
-
+        self.content_layout.addSpacing(UI_Style.widget_spacing)
         self.save_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_save_button"), isbig=True)
         self.reset_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_reset_button"), isbig=True)
 
