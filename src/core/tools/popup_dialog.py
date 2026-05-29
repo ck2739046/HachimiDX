@@ -6,7 +6,7 @@ import threading
 
 import i18n
 from PyQt6.QtCore import QEventLoop, QTimer, Qt
-from PyQt6.QtGui import QCloseEvent, QGuiApplication, QTextOption
+from PyQt6.QtGui import QCloseEvent, QFont, QGuiApplication, QTextOption
 from PyQt6.QtWidgets import QApplication, QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QSizePolicy
 
 
@@ -70,6 +70,10 @@ class _PopupConfirmDialog(QDialog):
         # Text area: QLabel (User Req 1, 2, 5)
         self._text_label = QLabel(self._display_text)
         self._text_label.setWordWrap(True)
+        _mono_font = QFont()
+        _mono_font.setFamilies(['Consolas', 'Microsoft YaHei UI'])
+        _mono_font.setStyleHint(QFont.StyleHint.Monospace)
+        self._text_label.setFont(_mono_font)
         self._text_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self._text_label.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
