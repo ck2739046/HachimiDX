@@ -62,6 +62,7 @@ class AutoRechartPage(BaseOutputPage):
         self.duration_denominator_combo_box = None
 
         # common panel
+        self.common_divider = None # adv
         self.enable_modules_row = None # adv 包含以下三个勾选框
         self.enable_standardize_check_box = None # adv 由row控制
         self.enable_detect_check_box = None # adv 由row控制
@@ -385,8 +386,8 @@ class AutoRechartPage(BaseOutputPage):
     def _build_common_panel(self):
 
         # divider
-        common_divider = create_divider(i18n.t(f"{I18N_Prefix}.ui_common_divider"))
-        self.content_layout.addWidget(common_divider)
+        self.common_divider = create_divider(i18n.t(f"{I18N_Prefix}.ui_common_divider"))
+        self.content_layout.addWidget(self.common_divider)
 
         # Row 1: Enable Modules
         enable_standardize_label = create_label(i18n.t(f"{I18N_Prefix}.ui_enable_standardize_label"))
@@ -465,7 +466,7 @@ class AutoRechartPage(BaseOutputPage):
         self.clear_output_button = create_button(i18n.t(f"{I18N_Prefix}.ui_clear_output_button"))
 
         row = _create_row(advanced_label, self.advanced_mode_check_box)
-        row.layout().addSpacing(10)
+        row.layout().addSpacing(UI_Style.widget_spacing)
         row.layout().addWidget(self.clear_output_button)
         self.content_layout.addWidget(row, alignment=Qt.AlignmentFlag.AlignRight)
 
@@ -489,7 +490,8 @@ class AutoRechartPage(BaseOutputPage):
         self.skip_export_label.setVisible(is_advanced_mode)
         self.skip_export_tracked_check_box.setVisible(is_advanced_mode)
         self.skip_export_help.setVisible(is_advanced_mode)
-        # general
+        # common
+        self.common_divider.setVisible(is_advanced_mode)
         self.enable_modules_row.setVisible(is_advanced_mode)
 
         # reset checkbox
