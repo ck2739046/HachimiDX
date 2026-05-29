@@ -23,7 +23,7 @@ import torch
 from ultralytics import YOLO
 
 from src.services import PathManage
-from src.core.auto_convert.detect.note_definition import get_imgsz
+from src.core.auto_rechart.detect.note_definition import get_imgsz
 
 
 

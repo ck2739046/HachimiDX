@@ -302,9 +302,9 @@ en_US:
 
 
 
-    # ---- auto convert 页面 ----
+    # ---- auto rechart 页面 ----
 
-    auto_convert_page:
+    auto_rechart_page:
       ui_select_file_divider: "File Selection"
       ui_standardize_divider: "Standardize Video"
       ui_detect_divider: "Note Detection"

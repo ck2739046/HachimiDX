@@ -19,7 +19,7 @@ _LAZY_MAP: dict[str, str] = {
     "AllServices":      ".all_services",
 
     # pipeline
-    "AutoConvertPipeline": ".pipeline.auto_convert_pipeline",
+    "AutoRechartPipeline": ".pipeline.auto_rechart_pipeline",
     "MediaPipeline":       ".pipeline.media_pipeline",
 
     # 调度器数据模型
@@ -48,7 +48,7 @@ __all__ = [
     "I18nManage",
     "MajdataSession", "stop_majdata",
     "VideoSyncServer",
-    "AutoConvertPipeline",
+    "AutoRechartPipeline",
     "MediaPipeline",
     "TaskInfo", "TaskStatus",
     "process_manager_api",

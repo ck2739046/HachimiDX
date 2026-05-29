@@ -14,7 +14,7 @@ from . import process_manager_api
 
 class TaskType(str, Enum):
     MEDIA = "media"
-    AUTO_CONVERT = "auto_convert"
+    AUTO_RECHART = "auto_rechart"
 
 
 class TaskStatus(str, Enum):

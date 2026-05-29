@@ -233,7 +233,7 @@ def show_confirm_dialog(title: str, prompt_text: str) -> bool:
             try:
                 # Provide an independent taskbar icon group for this process.
                 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
-                    "hachimidx.converter.tools.popup_dialog"
+                    "hachimidx.tools.popup_dialog"
                 )
             except Exception:
                 pass
@@ -283,7 +283,7 @@ def show_notify_dialog(title: str, prompt_text: str) -> bool:
         if os.name == "nt":
             try:
                 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
-                    "hachimidx.converter.tools.popup_dialog"
+                    "hachimidx.tools.popup_dialog"
                 )
             except Exception:
                 pass

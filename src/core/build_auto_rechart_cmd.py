@@ -4,9 +4,9 @@ import cv2
 
 from src.services import PathManage, SettingsManage
 
-from .schemas.auto_convert_model import AutoConvertModel
-from .schemas.auto_convert_config import AutoConvertConfig_Definitions as AC_Defs
-from .schemas.auto_convert_config import AutoConvertConfig_Definition
+from .schemas.auto_rechart_model import AutoRechartModel
+from .schemas.auto_rechart_config import AutoRechartConfig_Definitions as AC_Defs
+from .schemas.auto_rechart_config import AutoRechartConfig_Definition
 from .schemas.op_result import OpResult, ok, err
 from .schemas.settings_config import SettingsConfig_Definitions as SC_Defs
 from .tools.media_ffprobe_inspect import FFprobeInspect
@@ -27,19 +27,19 @@ def _try_unload_majdata_video_if_matches(target_path: Path) -> None:
         return
 
 
-def build_auto_convert_cmd(data: AutoConvertModel) -> OpResult[list[str]]:
+def build_auto_rechart_cmd(data: AutoRechartModel) -> OpResult[list[str]]:
     """
-    主入口: 构建 AutoConvert 命令行参数列表
+    主入口: 构建 AutoRechart 命令行参数列表
 
     输入:
-        data (AutoConvertModel)
+        data (AutoRechartModel)
 
     输出:
-        OpResult[list[str]]: AutoConvert 命令行参数列表
+        OpResult[list[str]]: AutoRechart 命令行参数列表
     """
 
     try:
-        cmd = build_cmd_head_python_exe(PathManage.AUTO_CONVERT_WORKER_PATH)
+        cmd = build_cmd_head_python_exe(PathManage.AUTO_RECHART_WORKER_PATH)
 
         std_video_path = None
 
@@ -108,20 +108,20 @@ def build_auto_convert_cmd(data: AutoConvertModel) -> OpResult[list[str]]:
         return ok(cmd)
     
     except Exception as e:
-        return err("Unexpected error in build_auto_convert_cmd", e)
+        return err("Unexpected error in build_auto_rechart_cmd", e)
 
 
 
 
 
-def _parse_fields(data: AutoConvertModel, group: str) -> list[str]:
+def _parse_fields(data: AutoRechartModel, group: str) -> list[str]:
     """
     通用字段解析函数，根据字段定义自动构建命令行参数列表
     """
     args = []
 
     for definition in vars(AC_Defs).values():
-        if not isinstance(definition, AutoConvertConfig_Definition):
+        if not isinstance(definition, AutoRechartConfig_Definition):
             continue
 
         if definition.group != group:
@@ -153,7 +153,7 @@ def _parse_fields(data: AutoConvertModel, group: str) -> list[str]:
 
 
 
-def _build_standardize_output_path(data: AutoConvertModel) -> OpResult[tuple[bool, list]]:
+def _build_standardize_output_path(data: AutoRechartModel) -> OpResult[tuple[bool, list]]:
 
     """构建并检查标准化模块的输出路径参数，返回 OpResult: (是否启用标准化模块, temp_output, final_output)"""
 
@@ -191,7 +191,7 @@ def _use_existing_standardized_video(file_path, data) -> bool:
     if _is_video_already_standardized(file_path, data):
         # 询问用户是否删除
         is_delete = show_confirm_dialog(
-            title="Auto Convert",
+            title="Auto Rechart",
             prompt_text=f"Standardized video already exists:\n\n{file_path}\n\nDo you want to delete it and generate a new one?"
         )
         if is_delete:
@@ -222,7 +222,7 @@ def _use_existing_standardized_video(file_path, data) -> bool:
 
 
 
-def _is_video_already_standardized(video_path: Path, data: AutoConvertModel) -> bool:
+def _is_video_already_standardized(video_path: Path, data: AutoRechartModel) -> bool:
 
     if not video_path.exists() or not video_path.is_file(): return False
 

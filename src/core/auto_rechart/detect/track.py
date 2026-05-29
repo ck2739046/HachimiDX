@@ -335,7 +335,7 @@ def main(std_video_path: Path,
         return ok()
 
     except Exception as e:
-        return err("Unexcepted error in auto_convert > detect > track", e)
+        return err("Unexcepted error in auto_rechart > detect > track", e)
 
 
 

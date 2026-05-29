@@ -25,9 +25,9 @@ from ..widgets import *
 
 class TasksPage(BaseOutputPage):
     def __init__(self, parent: Optional[QWidget] = None):
-        self._auto_convert_scroll: Optional[QScrollArea] = None
+        self._auto_rechart_scroll: Optional[QScrollArea] = None
         self._media_scroll: Optional[QScrollArea] = None
-        self._auto_convert_list_layout: Optional[QVBoxLayout] = None
+        self._auto_rechart_list_layout: Optional[QVBoxLayout] = None
         self._media_list_layout: Optional[QVBoxLayout] = None
         self._last_by_id: Dict[str, Tuple[Any, ...]] = {}
 
@@ -48,15 +48,15 @@ class TasksPage(BaseOutputPage):
         self.content_layout.setSpacing(UI_Style.widget_spacing)
 
         # 需要用到的公共变量
-        self._auto_convert_scroll = None
-        self._auto_convert_list_layout = None
+        self._auto_rechart_scroll = None
+        self._auto_rechart_list_layout = None
         self._media_scroll = None
         self._media_list_layout = None
 
-        auto_convert_panel, self._auto_convert_scroll, self._auto_convert_list_layout = self._create_queue_panel("Auto Convert")
+        auto_rechart_panel, self._auto_rechart_scroll, self._auto_rechart_list_layout = self._create_queue_panel("Auto Rechart")
         media_panel, self._media_scroll, self._media_list_layout = self._create_queue_panel("Media")
 
-        self.content_layout.addWidget(auto_convert_panel)
+        self.content_layout.addWidget(auto_rechart_panel)
         self.content_layout.addWidget(media_panel)
 
 
@@ -225,32 +225,32 @@ class TasksPage(BaseOutputPage):
         if not isinstance(snapshot, dict):
             return
 
-        auto_convert_tasks = snapshot.get("auto_convert") or []
+        auto_rechart_tasks = snapshot.get("auto_rechart") or []
         media_tasks = snapshot.get("media") or []
 
-        if not isinstance(auto_convert_tasks, list):
-            auto_convert_tasks = []
+        if not isinstance(auto_rechart_tasks, list):
+            auto_rechart_tasks = []
         if not isinstance(media_tasks, list):
             media_tasks = []
 
-        self._log_task_list_diff(auto_convert_tasks, media_tasks)
-        self._render_columns(auto_convert_tasks, media_tasks)
+        self._log_task_list_diff(auto_rechart_tasks, media_tasks)
+        self._render_columns(auto_rechart_tasks, media_tasks)
 
 
 
-    def _render_columns(self, auto_convert_tasks: list[TaskInfo], media_tasks: list[TaskInfo]) -> None:
-        if self._auto_convert_scroll is None or self._media_scroll is None:
+    def _render_columns(self, auto_rechart_tasks: list[TaskInfo], media_tasks: list[TaskInfo]) -> None:
+        if self._auto_rechart_scroll is None or self._media_scroll is None:
             return
-        if self._auto_convert_list_layout is None or self._media_list_layout is None:
+        if self._auto_rechart_list_layout is None or self._media_list_layout is None:
             return
 
-        auto_convert_scroll_value = self._auto_convert_scroll.verticalScrollBar().value()
+        auto_rechart_scroll_value = self._auto_rechart_scroll.verticalScrollBar().value()
         media_scroll_value = self._media_scroll.verticalScrollBar().value()
 
-        self._rebuild_list(self._auto_convert_list_layout, auto_convert_tasks)
+        self._rebuild_list(self._auto_rechart_list_layout, auto_rechart_tasks)
         self._rebuild_list(self._media_list_layout, media_tasks)
 
-        self._auto_convert_scroll.verticalScrollBar().setValue(auto_convert_scroll_value)
+        self._auto_rechart_scroll.verticalScrollBar().setValue(auto_rechart_scroll_value)
         self._media_scroll.verticalScrollBar().setValue(media_scroll_value)
 
 
@@ -308,9 +308,9 @@ class TasksPage(BaseOutputPage):
 
 
 
-    def _log_task_list_diff(self, auto_convert_tasks: list[TaskInfo], media_tasks: list[TaskInfo]) -> None:
+    def _log_task_list_diff(self, auto_rechart_tasks: list[TaskInfo], media_tasks: list[TaskInfo]) -> None:
         new_by_id: Dict[str, Tuple[Any, ...]] = {}
-        for task in list(auto_convert_tasks) + list(media_tasks):
+        for task in list(auto_rechart_tasks) + list(media_tasks):
             try:
                 new_by_id[str(task.runner_id)] = self._task_fingerprint(task)
             except Exception:

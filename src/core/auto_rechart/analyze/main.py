@@ -102,7 +102,7 @@ def main(std_video_path: Path,
         return ok()
     
     except Exception as e:
-        return err(f"Unexpected error in auto_convert > analyze > main", e)
+        return err(f"Unexpected error in auto_rechart > analyze > main", e)
 
 
 

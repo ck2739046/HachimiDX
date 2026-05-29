@@ -109,7 +109,7 @@ def main(std_video_path: Path,
         return ok()
         
     except Exception as e:
-        return err("Unexcepted error in auto_convert > detect > classify", e)
+        return err("Unexcepted error in auto_rechart > detect > classify", e)
     
     finally:
         cap.release()

@@ -17,7 +17,7 @@ from .ui_style import UI_Style
 from .pages.majdata_page import MajdataPage
 from .pages.media_tools_page import MediaToolsPage
 from .pages.tasks_page import TasksPage
-from .pages.auto_convert_page import AutoConvertPage
+from .pages.auto_rechart_page import AutoRechartPage
 from .pages.settings_page import SettingsPage
 
 import i18n
@@ -151,12 +151,11 @@ class RightPanel(QWidget):
         # 0: Majdata
         self.majdata_page = MajdataPage()
         self.stack.addWidget(self.majdata_page)
-        # 1: Auto Convert (Placeholder)
-        self.stack.addWidget(AutoConvertPage())
-        #self.stack.addWidget(self.create_placeholder("Auto Convert Page"))
+        # 1: Auto Rechart
+        self.stack.addWidget(AutoRechartPage())
         # 2: Media Tools
         self.stack.addWidget(MediaToolsPage())
-        # 3: Tasks (Placeholder)
+        # 3: Tasks
         self.stack.addWidget(TasksPage())
         # 4: Settings
         self.stack.addWidget(SettingsPage())
@@ -172,13 +171,6 @@ class RightPanel(QWidget):
     def set_majdata_page_video_player(self, media_player) -> None:
         self.majdata_page._media_player = media_player
 
-
-    # 临时的，后续会删掉
-    def create_placeholder(self, text):
-        label = QLabel(text)
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        label.setStyleSheet(f"color: {UI_Style.COLORS['text_primary']}; font-size: 24px; background-color: {UI_Style.COLORS['surface']};")
-        return label
 
 
 

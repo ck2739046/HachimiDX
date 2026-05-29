@@ -28,9 +28,9 @@ import torch
 
 
 
-from src.core.auto_convert.standardize.main import main as standardize_main
-from src.core.auto_convert.detect.main import main as detect_main
-from src.core.auto_convert.analyze.main import main as analyze_main
+from src.core.auto_rechart.standardize.main import main as standardize_main
+from src.core.auto_rechart.detect.main import main as detect_main
+from src.core.auto_rechart.analyze.main import main as analyze_main
 from src.core.schemas.media_config import MediaType
 from src.core.schemas.op_result import print_op_result
 
@@ -47,7 +47,7 @@ def _as_bool(raw: str) -> bool:
 
 
 def _fail(message: str) -> bool:
-    print(f"[AUTO_CONVERT_WORKER][ERROR] {message}")
+    print(f"[AUTO_RECHART_WORKER][ERROR] {message}")
     return False
 
 

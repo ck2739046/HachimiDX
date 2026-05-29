@@ -302,9 +302,9 @@ zh_CN:
 
 
 
-    # ---- auto convert 页面 ----
+    # ---- auto rechart 页面 ----
 
-    auto_convert_page:
+    auto_rechart_page:
       ui_select_file_divider: "文件选择"
       ui_standardize_divider: "视频标准化"
       ui_detect_divider: "音符识别"

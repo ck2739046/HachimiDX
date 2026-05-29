@@ -350,7 +350,7 @@ def main(std_video_path: Path,
                 except Exception:
                     pass
 
-        return err("Unexcepted error in auto_convert > detect > export_track_video", e)
+        return err("Unexcepted error in auto_rechart > detect > export_track_video", e)
 
 
 

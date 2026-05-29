@@ -5,7 +5,7 @@ from src.core.schemas.op_result import OpResult, ok, err
 from .path_manage import PathManage
 from .settings_manage import SettingsManage
 from .i18n_manage import I18nManage
-from .pipeline.auto_convert_pipeline import AutoConvertPipeline
+from .pipeline.auto_rechart_pipeline import AutoRechartPipeline
 from .pipeline.media_pipeline import MediaPipeline
 from .majdata_sync_server import VideoSyncServer
 import i18n
@@ -87,11 +87,11 @@ class AllServices:
         else:
             return err("Failed to initialize MediaPipeline.", inner=result)
 
-        result = AutoConvertPipeline.init()
+        result = AutoRechartPipeline.init()
         if result.is_ok:
-            print("AutoConvertPipeline initialization completed.")
+            print("AutoRechartPipeline initialization completed.")
         else:
-            return err("Failed to initialize AutoConvertPipeline.", inner=result)
+            return err("Failed to initialize AutoRechartPipeline.", inner=result)
 
 
         print(i18n.t("all_services.notice_all_initialized"))

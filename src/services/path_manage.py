@@ -41,7 +41,7 @@ class PathManage:
 
     # worker 脚本
 
-    AUTO_CONVERT_WORKER_PATH: Path = WORKERS_DIR / "auto_convert_worker.py"
+    AUTO_RECHART_WORKER_PATH: Path = WORKERS_DIR / "auto_rechart_worker.py"
     CHECK_DEVICE_WORKER_PATH: Path = WORKERS_DIR / "check_device_worker.py"
     MODEL_CONVERT_WORKER_PATH: Path = WORKERS_DIR / "model_convert_worker.py"
     AUDIO_ALIGN_WORKER_PATH: Path = WORKERS_DIR / "audio_align_worker.py"
@@ -102,7 +102,7 @@ class PathManage:
                 return err(error_msg)
             
         # 检查 worker 是否存在
-        for file_path in [cls.AUTO_CONVERT_WORKER_PATH,
+        for file_path in [cls.AUTO_RECHART_WORKER_PATH,
                           cls.CHECK_DEVICE_WORKER_PATH,
                           cls.MODEL_CONVERT_WORKER_PATH,
                           cls.CHECK_FFMPEG_HW_ACCEL_WORKER_PATH]:

@@ -6,16 +6,16 @@ from PyQt6.QtWidgets import QVBoxLayout, QWidget
 from .base_output_page import BaseOutputPage, _create_row
 from ..ui_style import UI_Style
 from ..widgets import *
-from src.services import AutoConvertPipeline, process_manager_api
+from src.services import AutoRechartPipeline, process_manager_api
 from src.core.tools import show_confirm_dialog, show_notify_dialog
 from src.core.schemas.op_result import OpResult, ok, err, print_op_result
-from src.core.schemas.auto_convert_config import AutoConvertConfig_Definitions as AC_Defs
+from src.core.schemas.auto_rechart_config import AutoRechartConfig_Definitions as AC_Defs
 import i18n
 
-I18N_Prefix = "app.auto_convert_page"
+I18N_Prefix = "app.auto_rechart_page"
 
 
-class AutoConvertPage(BaseOutputPage):
+class AutoRechartPage(BaseOutputPage):
 
     def setup_content(self):
 
@@ -140,7 +140,7 @@ class AutoConvertPage(BaseOutputPage):
     def on_std_input_selected(self, error_msg: str) -> None:
         # Show error in popup window
         if len(error_msg) > 0:
-            show_notify_dialog("app.auto_convert", error_msg)
+            show_notify_dialog("app.auto_rechart", error_msg)
             return
         # 更新 Song Name
         self.song_name_line_edit.setText(Path(self.chart_confirm_video_input.get_path()).stem)
@@ -573,7 +573,7 @@ class AutoConvertPage(BaseOutputPage):
                                 return
 
             task_name = self.taskname_line_edit.text().strip()
-            result = AutoConvertPipeline.submit_task(raw_data, task_name)
+            result = AutoRechartPipeline.submit_task(raw_data, task_name)
             if not result.is_ok:
                 reason = print_op_result(result) # 保底
                 # 尝试直接访问普通 pydantic 错误
@@ -596,7 +596,7 @@ class AutoConvertPage(BaseOutputPage):
             create_floating_notification(message, self.window())
 
         except Exception as e:
-            show_notify_dialog("app.auto_convert_page",
+            show_notify_dialog("app.auto_rechart_page",
                 i18n.t("app.media_subpages.run_ffmpeg.warning_unexpected_submit_error", error=traceback.format_exc()))
         finally:
             self.submit_button.setEnabled(True)

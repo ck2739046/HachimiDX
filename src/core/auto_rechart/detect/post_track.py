@@ -46,7 +46,7 @@ def main(std_video_path: Path) -> OpResult[None]:
         return ok()
 
     except Exception as e:
-        return err("Unexpected error in auto_convert > detect > post_track", e)
+        return err("Unexpected error in auto_rechart > detect > post_track", e)
 
 
 

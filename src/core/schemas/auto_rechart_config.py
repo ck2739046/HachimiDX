@@ -10,9 +10,9 @@ from .media_config import MediaType
 
 
 @dataclass(slots=True)
-class AutoConvertConfig_Definition:
+class AutoRechartConfig_Definition:
     """
-    Definition for AutoConvertConfig
+    Definition for AutoRechartConfig
 
     Attributes:
         key: str
@@ -48,27 +48,27 @@ class AutoConvertConfig_Definition:
 
 
 @dataclass(slots=True)
-class AutoConvertConfig_Definitions:
+class AutoRechartConfig_Definitions:
       
 
 
     # common
     
-    is_standardize_enabled = AutoConvertConfig_Definition(
+    is_standardize_enabled = AutoRechartConfig_Definition(
         key="is_standardize_enabled",
         type="bool",
         group="common",
         default=True
     )
       
-    is_detect_enabled = AutoConvertConfig_Definition(
+    is_detect_enabled = AutoRechartConfig_Definition(
         key="is_detect_enabled",
         type="bool",
         group="common",
         default=True
     )
       
-    is_analyze_enabled = AutoConvertConfig_Definition(
+    is_analyze_enabled = AutoRechartConfig_Definition(
         key="is_analyze_enabled",
         type="bool",
         group="common",
@@ -80,7 +80,7 @@ class AutoConvertConfig_Definitions:
 
     # standardize
       
-    standardize_input_video_path = AutoConvertConfig_Definition(
+    standardize_input_video_path = AutoRechartConfig_Definition(
         key="standardize_input_video_path",
         type="path",
         group="standardize",
@@ -88,7 +88,7 @@ class AutoConvertConfig_Definitions:
         constraints={"must_exist": True} # 输入视频必须存在
     )
 
-    video_mode = AutoConvertConfig_Definition(
+    video_mode = AutoRechartConfig_Definition(
         key="video_mode",
         type="str",
         group="standardize",
@@ -96,7 +96,7 @@ class AutoConvertConfig_Definitions:
         constraints={"options":["source video", "camera footage"]}
     )
       
-    media_type = AutoConvertConfig_Definition(
+    media_type = AutoRechartConfig_Definition(
         key="media_type",
         type="enum",
         group="standardize",
@@ -104,7 +104,7 @@ class AutoConvertConfig_Definitions:
         constraints={"options": [MediaType.VIDEO_WITH_AUDIO, MediaType.VIDEO_WITHOUT_AUDIO]}
     )
 
-    duration = AutoConvertConfig_Definition(
+    duration = AutoRechartConfig_Definition(
         key="duration",
         type="float",
         group="standardize",
@@ -112,7 +112,7 @@ class AutoConvertConfig_Definitions:
         constraints={"gt": 0}
     )
 
-    start_sec = AutoConvertConfig_Definition(
+    start_sec = AutoRechartConfig_Definition(
         key="start_sec",
         type="float",
         group="standardize",
@@ -120,21 +120,21 @@ class AutoConvertConfig_Definitions:
         constraints={"ge": 0.0}
     )
 
-    end_sec = AutoConvertConfig_Definition(
+    end_sec = AutoRechartConfig_Definition(
         key="end_sec",
         type="float",
         group="standardize",
         default=None
     )
 
-    need_screen_rectification = AutoConvertConfig_Definition(
+    need_screen_rectification = AutoRechartConfig_Definition(
         key="need_screen_rectification",
         type="bool",
         group="standardize",
         default=False
     )
 
-    target_res = AutoConvertConfig_Definition(
+    target_res = AutoRechartConfig_Definition(
         key="target_res",
         type="int",
         group="standardize",
@@ -146,28 +146,28 @@ class AutoConvertConfig_Definitions:
 
     # detect
 
-    skip_detect = AutoConvertConfig_Definition(
+    skip_detect = AutoRechartConfig_Definition(
         key="skip_detect",
         type="bool",
         group="detect",
         default=False
     )
 
-    skip_cls = AutoConvertConfig_Definition(
+    skip_cls = AutoRechartConfig_Definition(
         key="skip_cls",
         type="bool",
         group="detect",
         default=False
     )
 
-    skip_export_tracked_video = AutoConvertConfig_Definition(
+    skip_export_tracked_video = AutoRechartConfig_Definition(
         key="skip_export_tracked_video",
         type="bool",
         group="detect",
         default=False
     )
 
-    enable_reid = AutoConvertConfig_Definition(
+    enable_reid = AutoRechartConfig_Definition(
         key="enable_reid",
         type="bool",
         group="detect",
@@ -179,7 +179,7 @@ class AutoConvertConfig_Definitions:
 
     # analyze
 
-    bpm = AutoConvertConfig_Definition(
+    bpm = AutoRechartConfig_Definition(
         key="bpm",
         type="float",
         group="analyze",
@@ -187,14 +187,14 @@ class AutoConvertConfig_Definitions:
         constraints={"gt": 0}
     )
       
-    is_big_touch = AutoConvertConfig_Definition(
+    is_big_touch = AutoRechartConfig_Definition(
         key="is_big_touch",
         type="bool",
         group="analyze",
         default=False
     )
 
-    chart_lv = AutoConvertConfig_Definition(
+    chart_lv = AutoRechartConfig_Definition(
         key="chart_lv",
         type="int",
         group="analyze",
@@ -202,7 +202,7 @@ class AutoConvertConfig_Definitions:
         constraints={"options": [1, 2, 3, 4, 5, 6, 7]}
     )
 
-    base_denominator = AutoConvertConfig_Definition(
+    base_denominator = AutoRechartConfig_Definition(
         key="base_denominator",
         type="int",
         group="analyze",
@@ -210,7 +210,7 @@ class AutoConvertConfig_Definitions:
         constraints={"options": [4, 8, 16, 32, 64]}
     )
 
-    duration_denominator = AutoConvertConfig_Definition(
+    duration_denominator = AutoRechartConfig_Definition(
         key="duration_denominator",
         type="int",
         group="analyze",
@@ -236,14 +236,14 @@ class AutoConvertConfig_Definitions:
     
     # ui 提供后会转变为其他参数，不是最终需要的
       
-    song_name = AutoConvertConfig_Definition(
+    song_name = AutoRechartConfig_Definition(
         key="song_name",
         type="str",
         group="other",
         optional=False, # 必选没有默认值
     )
       
-    selected_folder = AutoConvertConfig_Definition(
+    selected_folder = AutoRechartConfig_Definition(
         key="selected_folder",
         type="path",
         group="other",
@@ -253,13 +253,13 @@ class AutoConvertConfig_Definitions:
       
     # 不由 ui 提供，但是方便统一 key
       
-    std_video_path = AutoConvertConfig_Definition(
+    std_video_path = AutoRechartConfig_Definition(
         key="std_video_path",
         type="path",
         group="other",
     )
 
-    standardize_temp_output_path = AutoConvertConfig_Definition(
+    standardize_temp_output_path = AutoRechartConfig_Definition(
         key="standardize_temp_output_path",
         type="path",
         group="other",

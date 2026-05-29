@@ -3,16 +3,16 @@ import os
 from pathlib import Path
 from pydantic import BaseModel, Field, FilePath, model_validator
 
-from .auto_convert_config import AutoConvertConfig_Definitions as AC_Defs
+from .auto_rechart_config import AutoRechartConfig_Definitions as AC_Defs
 from src.core.tools.validate_windows_filename import validate_windows_filename
 from .media_config import MediaType
 
 
 
-class AutoConvertModel(BaseModel):
+class AutoRechartModel(BaseModel):
     """
-    AutoConvert configuration model for validation and processing.
-    All fields have defaults as defined in auto_convert_config.py.
+    AutoRechart configuration model for validation and processing.
+    All fields have defaults as defined in auto_rechart_config.py.
     """
 
 
