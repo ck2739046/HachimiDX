@@ -4,7 +4,7 @@
 &nbsp;•&nbsp;
 📖 [**中文 README**](readme_zh_cn.md)
 &nbsp;•&nbsp;
-🎥 [**Demo Video**](https://www.bilibili.com/video/BV1VND1B5EfQ)
+🎥 [**Demo Video**](https://www.bilibili.com/video/BV1Rz5c6vEQH)
 
 
 
