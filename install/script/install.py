@@ -308,14 +308,11 @@ def install_pytorch(torch_version) -> bool:
     # cuda 11.8 使用旧版 2.7.1
     if torch_version == "cu118":
         packages = ["torch==2.7.1", "torchvision==0.22.1"]
-        index_target = f"{base_url}/cu118"
     # 其他版本使用新版 2.10.0
-    elif torch_version == "cpu":
-        packages = ["torch==2.10.0", "torchvision==0.25.0"]
-        index_target = f"{base_url}/cpu"
     else:
         packages = ["torch==2.10.0", "torchvision==0.25.0"]
-        index_target = f"{base_url}/{torch_version}"
+
+    index_target = f"{base_url}/{torch_version}"
 
     cmd = [sys.executable, "-m", "pip", "install", *packages, *index_args, index_target, "--no-warn-script-location"]
     
