@@ -9,7 +9,7 @@ import shutil
 LANGUAGE = ""
 USE_PyPI_Mirror = ""
 
-QingHua_PyPI_Mirror = "-i https://pypi.tuna.tsinghua.edu.cn/simple"
+QingHua_PyPI_Mirror = ["-i", "https://pypi.tuna.tsinghua.edu.cn/simple"]
 
 ROOT = Path(__file__).resolve().parents[2] # 往上三级目录
 
@@ -129,14 +129,14 @@ def install():
         "nanoid==2.0.0",
         "filterpy==1.4.5",
     ]
-    cmd = f"{sys.executable} -m pip install {' '.join(dependencies)} --no-warn-script-location"
+    cmd = [sys.executable, "-m", "pip", "install", *dependencies, "--no-warn-script-location"]
     if USE_PyPI_Mirror:
-        cmd += f" {QingHua_PyPI_Mirror}"
+        cmd += QingHua_PyPI_Mirror
     is_success = general_pip_install("Other dependencies", cmd)
     if not is_success: sys.exit(1)
 
     # 解决 pywin32 导入错误
-    cmd = [sys.executable, f"{ROOT}/python/Scripts/pywin32_postinstall.py", "-install"]
+    cmd = [sys.executable, str(ROOT / "python" / "Scripts" / "pywin32_postinstall.py"), "-install"]
     subprocess.run(cmd, capture_output=True) # 隐藏输出
     
 
@@ -299,20 +299,22 @@ def install_pytorch(torch_version) -> bool:
     # 阿里源仅有 pytorch cuda 本体，但没有其他的包
     # 两者结合使用
     if USE_PyPI_Mirror:
-        url = f"{QingHua_PyPI_Mirror} --find-links https://mirrors.aliyun.com/pytorch-wheels"
+        index_args = [*QingHua_PyPI_Mirror, "--find-links"]
+        base_url = "https://mirrors.aliyun.com/pytorch-wheels"
     else:
-        url = "--index-url https://download.pytorch.org/whl"
+        index_args = ["--index-url"]
+        base_url = "https://download.pytorch.org/whl"
 
     # cuda 11.8 使用旧版 2.7.1
     if torch_version == "cu118":
-        torch_cmd = f"torch==2.7.1 torchvision==0.22.1 {url}/cu118"
+        packages = ["torch==2.7.1", "torchvision==0.22.1"]
     # 其他版本使用新版 2.10.0
-    elif torch_version == "cpu":
-        torch_cmd = f"torch==2.10.0 torchvision==0.25.0 {url}/cpu"
     else:
-        torch_cmd = f"torch==2.10.0 torchvision==0.25.0 {url}/{torch_version}"
+        packages = ["torch==2.10.0", "torchvision==0.25.0"]
 
-    cmd = f"{sys.executable} -m pip install {torch_cmd} --no-warn-script-location"
+    index_target = f"{base_url}/{torch_version}"
+
+    cmd = [sys.executable, "-m", "pip", "install", *packages, *index_args, index_target, "--no-warn-script-location"]
     
     return general_pip_install(f"PyTorch ({torch_version})", cmd)
 
@@ -322,29 +324,29 @@ def install_pytorch(torch_version) -> bool:
 def install_ultralytics_onnx(has_nvidia_gpu) -> bool:
 
     # 安装 onnxruntime
-    libs = "onnx==1.20.1 onnxslim==0.1.90"
+    libs = ["onnx==1.20.1", "onnxslim==0.1.90"]
     if has_nvidia_gpu:
-        libs += " onnxruntime-gpu==1.24.4"
-    cmd = f"{sys.executable} -m pip install {libs} --no-warn-script-location"
+        libs += ["onnxruntime-gpu==1.24.4"]
+    cmd = [sys.executable, "-m", "pip", "install", *libs, "--no-warn-script-location"]
     if USE_PyPI_Mirror:
-        cmd += f" {QingHua_PyPI_Mirror}"
+        cmd += QingHua_PyPI_Mirror
     is_success = general_pip_install("ONNX Runtime", cmd)
     if not is_success:
         return False
         
     # 安装 ultralytics
-    cmd = f"{sys.executable} -m pip install ultralytics==8.4.24 --no-warn-script-location"
+    cmd = [sys.executable, "-m", "pip", "install", "ultralytics==8.4.24", "--no-warn-script-location"]
     if USE_PyPI_Mirror:
-        cmd += f" {QingHua_PyPI_Mirror}"
+        cmd += QingHua_PyPI_Mirror
     is_success = general_pip_install("Ultralytics 8.4.24", cmd)
     if not is_success:
         return False
     
     # 安装其他依赖
-    libs = "lap==0.5.13 numpy==2.4.3"
-    cmd = f"{sys.executable} -m pip install {libs} --no-warn-script-location"
+    libs = ["lap==0.5.13", "numpy==2.4.3"]
+    cmd = [sys.executable, "-m", "pip", "install", *libs, "--no-warn-script-location"]
     if USE_PyPI_Mirror:
-        cmd += f" {QingHua_PyPI_Mirror}"
+        cmd += QingHua_PyPI_Mirror
     is_success = general_pip_install("lap, numpy", cmd)
     if not is_success:
         return False
@@ -363,17 +365,17 @@ def install_tensorrt(torch_version) -> bool:
         tensorrt_version = "10.15.1.29" # default
 
     # 先安装 wheel-stub
-    cmd = f"{sys.executable} -m pip install wheel-stub==0.4.2 --no-warn-script-location"
+    cmd = [sys.executable, "-m", "pip", "install", "wheel-stub==0.4.2", "--no-warn-script-location"]
     if USE_PyPI_Mirror:
-        cmd += f" {QingHua_PyPI_Mirror}"
+        cmd += QingHua_PyPI_Mirror
     is_success = general_pip_install("wheel-stub 0.4.2", cmd)
     if not is_success:
         return False
 
     # 再安装 TensorRT
-    cmd = f"{sys.executable} -m pip install tensorrt=={tensorrt_version} --no-warn-script-location"
+    cmd = [sys.executable, "-m", "pip", "install", f"tensorrt=={tensorrt_version}", "--no-warn-script-location"]
     if USE_PyPI_Mirror:
-        cmd += f" {QingHua_PyPI_Mirror}"
+        cmd += QingHua_PyPI_Mirror
     is_success = general_pip_install(f"NVIDIA TensorRT {tensorrt_version}", cmd)
     if not is_success:
         return False
@@ -431,9 +433,9 @@ In other cases, please choose "No".
 
 def install_directml_onnx() -> bool:
 
-    cmd = f"{sys.executable} -m pip install onnxruntime-directml==1.24.4 --no-warn-script-location"
+    cmd = [sys.executable, "-m", "pip", "install", "onnxruntime-directml==1.24.4", "--no-warn-script-location"]
     if USE_PyPI_Mirror:
-        cmd += f" {QingHua_PyPI_Mirror}"
+        cmd += QingHua_PyPI_Mirror
     is_success = general_pip_install("ONNX Runtime DirectML", cmd)
     if not is_success:
         return False
@@ -492,17 +494,18 @@ def modify_ultralytics_for_dml(recover = False) -> bool:
 
 
 
-def general_pip_install(package_name, cmd) -> bool:
+def general_pip_install(package_name, cmd: list[str]) -> bool:
     
     # 执行安装命令
     print("\n-----\n")
-    info_en = f"Installing {package_name}...\n\n{cmd}"
-    info_zh = f"正在安装 {package_name}...\n\n{cmd}"
+    cmd_text = subprocess.list2cmdline(cmd)
+    info_en = f"Installing {package_name}...\n\n{cmd_text}"
+    info_zh = f"正在安装 {package_name}...\n\n{cmd_text}"
     print(f"{info_en if LANGUAGE == 'en' else info_zh}")
     print("\n-----\n")
 
     try:
-        subprocess.run(cmd, shell=True, check=True)
+        subprocess.run(cmd, check=True)
         print("\n-----\n")
         info_en = f"{package_name} installation completed successfully."
         info_zh = f"{package_name} 安装成功完成。"

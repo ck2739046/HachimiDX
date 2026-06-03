@@ -99,7 +99,7 @@ def extract_with_bandizip(archive_path: Path, extract_path: Path, mode: str):
     if mode == 'dir':
         # 因为会在目标文件夹内新建一个压缩包同名文件夹，所以解压地址要使用 extract_path.parent
         cmd = ["bandizip", "bx", f"-o:{extract_path.parent}", "-target:auto", str(archive_path)]
-        result = subprocess.run(cmd, capture_output=True, text=True, shell=True)
+        result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             raise RuntimeError(f"Bandizip 解压失败: {result.stderr}")
         # 重命名文件夹
@@ -108,7 +108,7 @@ def extract_with_bandizip(archive_path: Path, extract_path: Path, mode: str):
     elif mode == 'file':
         # 解压到目标路径时不创建压缩包同名文件夹
         cmd = ["bandizip", "x", f"-o:{extract_path}", str(archive_path)]
-        result = subprocess.run(cmd, capture_output=True, text=True, shell=True)
+        result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             raise RuntimeError(f"Bandizip 解压失败: {result.stderr}")
     else:
