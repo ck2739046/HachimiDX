@@ -71,7 +71,7 @@ class ComboItemDelegate(QStyledItemDelegate):
 
 
 class ComboListView(QListView):
-    """下拉列表视图：共享 QComboBox 的 model，连接 selected 信号"""
+    """下拉列表视图：共享 QComboBox 的 model"""
 
     def __init__(self, combo: QComboBox):
         super().__init__()
@@ -79,29 +79,21 @@ class ComboListView(QListView):
         self.setItemDelegate(ComboItemDelegate(self))
         self.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
         self.setMouseTracking(True)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
-        self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.setUniformItemSizes(True)
-        self.setIconSize(QSize(0, 0))
-        self.setMinimumHeight(0)
 
         self.setStyleSheet(f"""
             QListView {{
                 background-color: {c['grey']};
                 border: 1px solid {c['grey_hover']};
                 border-radius: {BORDER_R}px;
-                outline: none;
             }}
         """)
 
-    def minimumSizeHint(self):
-        rows = self.model().rowCount() if self.model() else 0
-        h = max(rows * UI_Style.element_height, 0) + 2
-        return QSize(0, h)
 
-    def sizeHint(self):
-        return self.minimumSizeHint()
+
+
+
+
 
 
 
