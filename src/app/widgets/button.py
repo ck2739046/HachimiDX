@@ -5,6 +5,20 @@ from PyQt6.QtGui import QCursor
 from ..ui_style import UI_Style
 
 
+c = UI_Style.COLORS
+def button_qss_base(color):
+    return (
+        f"QPushButton:hover {{ background-color: {c[color+'_hover']}; }}"
+        f"QPushButton:disabled {{ background-color: {c['grey']}; }}"
+         "QPushButton {"
+        f"  border: 1px solid {c[color+'_hover']};"
+        f"  border-radius: 6px;"
+        f"  color: {c['text_primary']};"
+        f"  background-color: {c[color]};"
+        f"  padding: 2px 12px;"  # 内边距，让按钮根据文本长度自适应宽度
+    )
+
+
 class StatedButton(QPushButton):
     """A primary button.
 
@@ -30,36 +44,16 @@ class StatedButton(QPushButton):
 
 
     def _apply_style(self, isbig: bool) -> None:
-        colors = UI_Style.COLORS
 
         if not isbig:
-            self.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: {colors['accent']};
-                }}
-                QPushButton:hover {{
-                    background-color: {colors['accent_hover']};
-                }}
-                QPushButton:disabled {{
-                    background-color: {colors['grey']};
-                }}
-                """
-            )
+            self.setStyleSheet(button_qss_base('accent') + "}")
 
         if isbig:
-            self.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: {colors['accent']};
-                    font-size: 16px;
-                    font-weight: bold;
-                }}
-                QPushButton:hover {{
-                    background-color: {colors['accent_hover']};
-                }}
-                QPushButton:disabled {{
-                    background-color: {colors['grey']};
-                }}
-                """
+            self.setStyleSheet(
+                button_qss_base('accent')
+                + "  font-size: 16px;"
+                + "  font-weight: bold;"
+                + "}"
             )
             
 
@@ -124,13 +118,14 @@ def create_stated_button(text: str, isbig: bool = False, width: int = None) -> S
 
 
 
-def create_button(text: str, width: int = None) -> QPushButton:
+def create_button(text: str, width: int = None, color = 'accent') -> QPushButton:
     """
     创建普通按钮
 
     Args:
         text (str): 按钮文本
         width (int, 可选): 按钮宽度. 默认 None，根据文本自适应宽度
+        color (str, 可选): 按钮颜色. 默认 accent
 
     Returns:
         QPushButton: 按钮实例
@@ -140,13 +135,5 @@ def create_button(text: str, width: int = None) -> QPushButton:
     button.setFixedHeight(UI_Style.element_height)
     if width is not None:
         button.setFixedWidth(width)
-    colors = UI_Style.COLORS
-    button.setStyleSheet(f'''
-        QPushButton {{
-            background-color: {colors['accent']};
-        }}
-        QPushButton:hover {{
-            background-color: {colors['accent_hover']};
-        }}
-    ''')
+    button.setStyleSheet(button_qss_base(color) + '}')
     return button

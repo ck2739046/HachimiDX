@@ -125,14 +125,6 @@ class MajdataPage(QWidget):
         layout.addWidget(play_video_help)
         # Load button
         load_btn = create_button("Load", 60)
-        load_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {UI_Style.COLORS['grey']};
-            }}
-            QPushButton:hover {{
-                background-color: {UI_Style.COLORS['grey_hover']};
-            }}
-        """)
         layout.addWidget(load_btn)
 
         # connect
