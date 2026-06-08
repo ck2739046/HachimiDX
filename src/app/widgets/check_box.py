@@ -12,7 +12,7 @@ class StyledCheckBox(QCheckBox):
         self.checked_hover_color = QColor(colors['accent_hover'])
         self.unchecked_color = QColor(colors['grey'])
         self.unchecked_hover_color = QColor(colors['grey_hover'])
-        self.border_color = QColor(colors['text_secondary'])
+        self.border_color = QColor(colors['light_grey'])
 
         self.size = size
         self.border_width = border_width

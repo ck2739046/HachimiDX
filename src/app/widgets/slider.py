@@ -67,7 +67,7 @@ def _apply_style(slider):
         
         /* 滑条右侧 */
         QSlider::groove:horizontal {{
-            background: {c['grey']};
+            background: {c['light_grey']};
             height: 3px;
         }}
 

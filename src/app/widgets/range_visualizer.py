@@ -1,6 +1,8 @@
 from PyQt6.QtWidgets import QWidget
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPainter, QPen
+from PyQt6.QtGui import QPainter, QPen, QColor
+
+from ..ui_style import UI_Style
 
 
 
@@ -68,7 +70,7 @@ class RangeVisualizer(QWidget):
         line_end_x = self.fixed_width - line_margin
         line_length = line_end_x - line_start_x
         
-        pen = QPen(Qt.GlobalColor.gray)
+        pen = QPen(QColor(UI_Style.COLORS['light_grey']))
         pen.setWidth(2)
         painter.setPen(pen)
         painter.drawLine(line_start_x, line_y, line_end_x, line_y)
@@ -97,5 +99,3 @@ class RangeVisualizer(QWidget):
                 pen.setWidth(2)
                 painter.setPen(pen)
                 painter.drawLine(end_x, line_y - self.indicator_height // 2, end_x, line_y + self.indicator_height // 2)
-        
-        painter.end()

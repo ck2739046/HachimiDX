@@ -11,6 +11,7 @@ class UI_Style:
         'text_primary': "#E8E8E8",
         'text_secondary': "#8D99AE",
 
+        'light_grey': "#707070",
         'grey': "#454545",
         'grey_hover': "#505050",
 
