@@ -292,9 +292,15 @@ class StyledComboBox(QComboBox):
         painter.drawLine(int(cx + w), int(cy - half_h), int(cx), int(cy + half_h))
 
 
-# ---------------------------------------------------------------------------
-# Phase 5: ToolTipComboBox 适配
-# ---------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
 
 class ToolTipComboBox(StyledComboBox):
     """StyledComboBox with immediate hover tooltip for dropdown items."""
@@ -306,29 +312,46 @@ class ToolTipComboBox(StyledComboBox):
         self._event_filter_installed = False
         self._tooltip = get_shared_tooltip()
 
+
+
     def showPopup(self):
         super().showPopup()
-        self._disconnect_view()
-        if self._popup is None:
-            return
 
-        # 连接 aboutToHide：popup 自行关闭时（点击外部 / ESC）触发清理
+        # 清理 view 旧连接
+        self._disconnect_view()
+
+        # 连接 _ComboPopup.aboutToHide 信号
+        # 当 popup 自行关闭时（点击外部 / ESC）触发清理
+        if self._popup is None: return
         self._popup.aboutToHide.connect(self._on_popup_about_to_hide)
 
+        # 安装事件过滤器（避免重复安装）
         view = self._popup.view
         if not view or not view.viewport():
             return
         if not self._event_filter_installed:
             view.viewport().installEventFilter(self)
+            self._popup.installEventFilter(self) # 监听 popup 本身的 Leave
             self._event_filter_installed = True
-        # 额外监听 popup 窗口本身的 Leave，作为补充保险
-        self._popup.installEventFilter(self)
+
+        # 连接新的 view
         try:
             view.entered.connect(self._on_view_entered)
             self._connected_view = view
         except (RuntimeError, TypeError):
             pass
+
         self._is_popup_shown = True
+
+
+
+    def hidePopup(self):
+        self._is_popup_shown = False
+        self._cleanup_view()
+        self._tooltip.hide()
+        super().hidePopup()
+
+
 
     def _on_popup_about_to_hide(self):
         """popup 自行关闭时（点击外部 / ESC）清理 tooltip 状态"""
@@ -336,31 +359,35 @@ class ToolTipComboBox(StyledComboBox):
         self._cleanup_view()
         self._tooltip.hide()
 
+
+
     def _cleanup_view(self):
-        """清理 eventFilter 和信号连接（复用于 hidePopup / _on_popup_about_to_hide）"""
+        """清理 eventFilter 和信号连接"""
         if self._popup is not None:
+            # 信号断连
             try:
                 self._popup.aboutToHide.disconnect(self._on_popup_about_to_hide)
             except (RuntimeError, TypeError):
                 pass
+            # 移除事件过滤器
             try:
                 self._popup.removeEventFilter(self)
             except (RuntimeError, AttributeError):
                 pass
+            # 移除事件过滤器
             view = self._popup.view
             if view and view.viewport() and self._event_filter_installed:
                 try:
                     view.viewport().removeEventFilter(self)
                 except (RuntimeError, AttributeError):
                     pass
+                # reset flag
                 self._event_filter_installed = False
+
+        # 断连 view
         self._disconnect_view()
 
-    def hidePopup(self):
-        self._is_popup_shown = False
-        self._cleanup_view()
-        self._tooltip.hide()
-        super().hidePopup()
+
 
     def _disconnect_view(self):
         if self._connected_view:
@@ -370,37 +397,53 @@ class ToolTipComboBox(StyledComboBox):
                 pass
             self._connected_view = None
 
+
+
     def _on_view_entered(self, index):
+
+        # 检查弹窗状态和索引有效性
         if not self._is_popup_shown or not index.isValid():
             self._tooltip.hide()
             return
+        
+        # 检查 view 和 viewport 是否存在
         if self._popup is None:
             return
         view = self._popup.view
         if not view or not view.viewport():
             return
         viewport = view.viewport()
+
+        # 获取选项文本
         text = index.data()
-        if not text:
+        if not text:  # 忽略空文本
             self._tooltip.hide()
             return
         text = str(text)
+
+        # 计算 tooltip 显示位置（选项右侧）
         viewport_right = viewport.mapToGlobal(QPoint(viewport.width(), 0))
         item_rect = view.visualRect(index)
         item_center_y = item_rect.center().y()
         item_center_global = viewport.mapToGlobal(QPoint(0, item_center_y))
-        tooltip_pos = QPoint(viewport_right.x() - 5, item_center_global.y() - 28)
+
+        # 显示 tooltip
+        tooltip_pos = QPoint(viewport_right.x() - 5, item_center_global.y() - 29)
+                                            # 此处是向左 5px，向上 29px
         self._tooltip.show_text(text, tooltip_pos)
+
+
 
     def eventFilter(self, obj, event):
         if not self._is_popup_shown:
             return super().eventFilter(obj, event)
         if event.type() == QEvent.Type.Leave:
-            if (self._popup
-                    and (obj == self._popup.view.viewport()
-                         or obj == self._popup)):
-                self._tooltip.hide()
+            if self._popup:
+                if (obj == self._popup.view.viewport() or obj == self._popup):
+                    self._tooltip.hide()
         return super().eventFilter(obj, event)
+
+
 
     def __del__(self):
         try:
@@ -413,9 +456,16 @@ class ToolTipComboBox(StyledComboBox):
             pass
 
 
-# ---------------------------------------------------------------------------
-# 工厂函数
-# ---------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
 
 def create_combo_box(length, items=None, default_index=0, show_tooltip=False):
     """
@@ -445,4 +495,3 @@ def create_combo_box(length, items=None, default_index=0, show_tooltip=False):
             combo.setCurrentIndex(default_index)
 
     return combo
-
