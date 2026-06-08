@@ -216,12 +216,17 @@ class _ComboPopup(QFrame):
 
 
 
-# ---------------------------------------------------------------------------
-# Phase 3: 修改 StyledComboBox
-# ---------------------------------------------------------------------------
+
+
+
 
 class StyledComboBox(QComboBox):
-    """自定义 ComboBox：QSS 主体 + paintEvent 自绘 V 形箭头 + 自定义下拉弹窗"""
+    """
+    自定义 ComboBox
+    - QSS 主体
+    - 自绘 V 形下拉箭头
+    - 自定义下拉弹窗
+    """
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -233,19 +238,19 @@ class StyledComboBox(QComboBox):
             f"  border: 1px solid {c['grey_hover']};"
             f"  border-radius: {BORDER_R}px;"
             f"  padding-left: 8px;"
-            f"  padding-right: 20px;"
+            f"  padding-right: 22px;"  # 让文字避让下拉箭头
             f"  color: {c['text_primary']};"
             f"}}"
             f"QComboBox:hover {{"
             f"  background-color: {c['grey_hover']};"
             f"}}"
-            f"QComboBox::drop-down {{"
+            f"QComboBox::drop-down {{"  # 隐藏自带的下拉箭头
             f"  width: 0px;"
             f"  border: none;"
             f"}}"
         )
 
-    # ---- popup 生命周期 ----
+    # ---- popup 生命周期管理 ----
 
     def showPopup(self):
         if self._popup is not None:
@@ -269,7 +274,7 @@ class StyledComboBox(QComboBox):
         self.hidePopup()
         self.activated.emit(index.row())
 
-    # ---- 自绘 V 形箭头 ----
+    # ---- 自绘 V 形下拉箭头 ----
 
     def paintEvent(self, e):
         super().paintEvent(e)
