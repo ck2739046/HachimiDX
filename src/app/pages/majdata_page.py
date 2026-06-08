@@ -95,10 +95,10 @@ class MajdataPage(QWidget):
 
         bar = QWidget()
         bar.setFixedHeight(50)
-        bar.setStyleSheet(f"background-color: {UI_Style.COLORS['grey_hover']};")
+        bar.setStyleSheet(f"background-color: #3A3A3A;")
         layout = QHBoxLayout(bar)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        layout.setContentsMargins(10, 0, 10, 0)
+        layout.setSpacing(10)
 
         # Directory selection button (only button, no path display)
         self._select_song_button, _, _song_button_help = create_directory_selection_row(
@@ -109,15 +109,15 @@ class MajdataPage(QWidget):
         )
         layout.addWidget(self._select_song_button)
         layout.addWidget(_song_button_help)
-        # Maidata choose
-        self._maidata_combo = create_combo_box(120, show_tooltip = True)
-        layout.addWidget(self._maidata_combo)
-        # Track choose
-        self._track_combo = create_combo_box(200, show_tooltip = True)
-        layout.addWidget(self._track_combo)
-        # Video choose
-        self._video_combo = create_combo_box(230, show_tooltip = True)
-        layout.addWidget(self._video_combo)
+        # Maidata choose (stretch 14)
+        self._maidata_combo = create_combo_box(show_tooltip = True)
+        layout.addWidget(self._maidata_combo, 14)
+        # Track choose (stretch 20)
+        self._track_combo = create_combo_box(show_tooltip = True)
+        layout.addWidget(self._track_combo, 20)
+        # Video choose (stretch 20)
+        self._video_combo = create_combo_box(show_tooltip = True)
+        layout.addWidget(self._video_combo, 20)
         # CheckBox: play video in MajdataView
         self._play_video_checkbox = create_check_box(True)
         layout.addWidget(self._play_video_checkbox)

@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (
     QComboBox, QStyledItemDelegate, QListView, QFrame, QVBoxLayout,
-    QStyle, QAbstractItemView, QApplication,
+    QStyle, QAbstractItemView, QApplication, QSizePolicy,
 )
 from PyQt6.QtCore import (
     QPoint, QEvent, Qt, QPropertyAnimation, QRect, QRectF,
@@ -484,12 +484,12 @@ class ToolTipComboBox(StyledComboBox):
 
 
 
-def create_combo_box(length, items=None, default_index=0, show_tooltip=False):
+def create_combo_box(length=None, items=None, default_index=0, show_tooltip=False):
     """
     创建带悬停提示的下拉选择框
 
     Args:
-        length: int，宽度（像素）
+        length: int/None，宽度，可选，默认None，代表自适应父布局的 stretch
         items: list，选项列表，可选，默认None
         default_index: int，默认选中的索引，可选，默认0
         show_tooltip: bool，是否显示悬停提示，可选，默认False
@@ -503,7 +503,12 @@ def create_combo_box(length, items=None, default_index=0, show_tooltip=False):
         combo = StyledComboBox()
 
     combo.setEditable(False)
-    combo.setFixedSize(length, UI_Style.element_height)
+    combo.setFixedHeight(UI_Style.element_height)
+
+    if length is None:
+        combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+    else:
+        combo.setFixedWidth(length)
 
     if items:
         str_items = [str(item) for item in items]
