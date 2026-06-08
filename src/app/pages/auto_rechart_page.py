@@ -189,7 +189,7 @@ class AutoRechartPage(BaseOutputPage):
         
         # Row 1
         song_name_label = create_label(i18n.t(f"{I18N_Prefix}.ui_song_name_label"))
-        self.song_name_line_edit = create_line_edit()
+        self.song_name_line_edit = create_line_edit(clear_button=True)
 
         row = _create_row(song_name_label, self.song_name_line_edit)
         layout.addWidget(row)
@@ -413,7 +413,8 @@ class AutoRechartPage(BaseOutputPage):
         # Row 2: Submit Button + Task Name Input
         self.content_layout.addSpacing(UI_Style.widget_spacing)
         self.taskname_line_edit = create_line_edit(
-            length=200, placeholder=i18n.t("app.media_subpages.run_ffmpeg.ui_taskname_placeholder"))
+            length=200, clear_button=True,
+            placeholder=i18n.t("app.media_subpages.run_ffmpeg.ui_taskname_placeholder"))
         self.submit_button = create_stated_button(i18n.t("app.media_subpages.run_ffmpeg.ui_submit_button"), isbig=True)
         self.create_row(self.submit_button, self.taskname_line_edit, add_stretch=True)
 
