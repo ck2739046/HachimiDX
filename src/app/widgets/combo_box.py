@@ -13,14 +13,18 @@ from .popup_tooltip import get_shared_tooltip
 
 c = UI_Style.COLORS
 BORDER_R = 5
+BORDER_R_Sub = 3  # 下拉菜单内部子项的矩形圆角
 
 
-# ---------------------------------------------------------------------------
-# Phase 1: 自定义 Delegate + ListView
-# ---------------------------------------------------------------------------
+
 
 class ComboItemDelegate(QStyledItemDelegate):
-    """自绘下拉菜单项：grey 背景、accent 悬停高亮、底部分隔线"""
+    """
+    自绘下拉菜单项：
+        选中的选项 accent 高亮
+        绘制选项间的分隔线
+        绘制选项文字
+    """
 
     def sizeHint(self, option, index):
         return QSize(0, UI_Style.element_height)
@@ -28,32 +32,41 @@ class ComboItemDelegate(QStyledItemDelegate):
     def paint(self, painter, option, index):
         painter.save()
 
+        # 选项高亮
         is_highlight = bool(option.state & QStyle.StateFlag.State_MouseOver)
         if is_highlight:
-            bg = c['accent']
             painter.setPen(Qt.PenStyle.NoPen)
-            r = option.rect.adjusted(2, 1, -2, -1)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            r = option.rect.adjusted(2, 2, -2, -2)  # 内部收缩 2px
             path = QPainterPath()
-            path.addRoundedRect(QRectF(r), 3, 3)
-            painter.fillPath(path, QColor(bg))
-        else:
-            painter.fillRect(option.rect, QColor(c['grey']))
+            path.addRoundedRect(QRectF(r), BORDER_R_Sub, BORDER_R_Sub)
+            painter.fillPath(path, QColor(c['accent']))
 
-        # 文字
+        # 选项文字
         text = index.data(Qt.ItemDataRole.DisplayRole)
         if text is not None:
             painter.setPen(QColor(c['text_primary']))
             text_rect = option.rect.adjusted(8, 0, -8, 0)
             painter.drawText(text_rect, Qt.AlignmentFlag.AlignVCenter, str(text))
 
-        # 分隔线（最后一项不画）
+        # 选项之间的分隔线
         model = index.model()
+        # 在每一项的底部绘制分隔线，并跳过最后一项
         if model and index.row() < model.rowCount() - 1:
-            painter.setPen(QPen(QColor(c['grey_hover']), 1))
-            y = option.rect.bottom()
+            painter.setPen(QPen(QColor(c['grey_hover']), 0.8))
+            y = option.rect.bottom() + 1
             painter.drawLine(option.rect.left() + 8, y, option.rect.right() - 8, y)
 
         painter.restore()
+
+
+
+
+
+
+
+
+
 
 
 class ComboListView(QListView):
