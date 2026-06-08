@@ -132,9 +132,7 @@ def main() -> int:
     # 设置界面风格
     # print(f"Available styles: {QStyleFactory.keys()}")
     # print(f"Current style: {app.style().objectName()}")
-    available_styles = QStyleFactory.keys()
-    if "windows11" in available_styles:
-        app.setStyle("windows11")
+    app.setStyle("fusion")
 
     # 设置全局字体
     setup_font(app)
