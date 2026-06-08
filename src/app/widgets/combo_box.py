@@ -13,7 +13,8 @@ from .popup_tooltip import get_shared_tooltip
 
 c = UI_Style.COLORS
 BORDER_R = 5
-BORDER_R_Sub = 3  # 下拉菜单内部子项的矩形圆角
+BORDER_R_Sub = 3   # 下拉菜单内部子项的矩形圆角
+POPUP_MAX_H = 300  # 下拉菜单最大高度，超出则显示滚动条
 
 
 
@@ -55,7 +56,7 @@ class ComboItemDelegate(QStyledItemDelegate):
         if model and index.row() < model.rowCount() - 1:
             painter.setPen(QPen(QColor(c['grey_hover']), 0.8))
             y = option.rect.bottom() + 1
-            painter.drawLine(option.rect.left() + 8, y, option.rect.right() - 8, y)
+            painter.drawLine(option.rect.left() + 4, y, option.rect.right() - 4, y)
 
         painter.restore()
 
@@ -103,24 +104,23 @@ class ComboListView(QListView):
         return self.minimumSizeHint()
 
 
-# ---------------------------------------------------------------------------
-# Phase 2: 自定义弹出窗口 + mask 展开动画
-# ---------------------------------------------------------------------------
+
+
 
 class _ComboPopup(QFrame):
-    """ComboBox 的自定义下拉弹窗。严格对齐 PFW DropDownMenuAnimationManager：animate pos + mask 从上到下展开"""
+    """下拉菜单的弹窗容器，有展开的动画"""
 
     aboutToHide = pyqtSignal()
 
     def __init__(self, combo: QComboBox):
         super().__init__(None)
         self.setWindowFlags(
-            Qt.WindowType.Popup
-            | Qt.WindowType.FramelessWindowHint
-            | Qt.WindowType.NoDropShadowWindowHint
+            Qt.WindowType.Popup  # 点击其他地方自动关闭
+            | Qt.WindowType.FramelessWindowHint  # 无边框
+            | Qt.WindowType.NoDropShadowWindowHint  # 无阴影
         )
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setMinimumSize(0, 0)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)  # 透明背景
+
         self._combo = combo
         self._ani: QPropertyAnimation | None = None
         self._end_y: int = 0
@@ -128,18 +128,18 @@ class _ComboPopup(QFrame):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
+
         self.view = ComboListView(combo)
         layout.addWidget(self.view)
 
-    def paintEvent(self, e):
-        pass  # 对齐 PFW RoundMenu：父窗口本身不绘制任何内容
+
 
     def show_animated(self, pos: QPoint, width: int):
-        """在 pos 处以展开动画弹出（对齐 PFW DropDownMenuAnimationManager）
-
+        """
+        在 pos 处以展开动画弹出
         - 动画属性: b'pos'（Qt 原生属性，start() 会同步设置起始值）
         - mask: 从 end_y - current_y 计算，逐步揭示内容
-        - 方向: 默认向下展开; 若下方屏幕空间不足则改为向上展开
+        - 方向: 超出最大高度或屏幕空间不足时启用滚动条
         """
         rows = self.view.model().rowCount() if self.view.model() else 0
         if rows == 0:
@@ -147,64 +147,81 @@ class _ComboPopup(QFrame):
 
         content_h = rows * UI_Style.element_height + 2
 
+        # 如果下拉菜单超出最大高度，或屏幕下方空间不够放下整个下拉菜单，启用滚动条
         screen = QApplication.screenAt(pos)
         if screen:
             avail_geo = screen.availableGeometry()
             space_below = avail_geo.bottom() - pos.y() - 10
-            space_above = pos.y() - avail_geo.top() - 10
         else:
-            space_below = 300
-            space_above = 300
+            space_below = 99999
 
-        downward = space_below >= content_h or space_below >= space_above
-
-        if downward:
-            full_h = min(content_h, space_below)
-        else:
-            full_h = min(content_h, space_above)
-            pos = QPoint(pos.x(), pos.y() - full_h)
+        full_h = min(content_h, space_below, POPUP_MAX_H)
+        self.view.setFixedSize(width, full_h) # 显示设置 view 尺寸
 
         if full_h < content_h:
+            # 显示滚动条
             self.view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+            self.view.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
         else:
+            # 隐藏滚动条
             self.view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
-        # ① 设置最终 geometry
+
+
+
+
+        # 设置最终 geometry
         self.setGeometry(QRect(pos.x(), pos.y(), width, full_h))
         self._end_y = pos.y()
-
         start_pos = QPoint(pos.x(), pos.y() - full_h)
 
-        # ② 手动设起始位置 + 初始 mask（必须在 show 之前，否则首帧会无 mask 全量渲染）
+        # 设置起始位置 + 初始 mask
         self.move(start_pos)
         self.setMask(QRegion(0, full_h, width, full_h))
 
-        # ③ 创建并启动动画
+        # 创建并启动动画
         self._ani = QPropertyAnimation(self, b'pos', self)
         self._ani.setStartValue(start_pos)
         self._ani.setEndValue(pos)
         self._ani.setDuration(200)
         self._ani.setEasingCurve(QEasingCurve.Type.OutQuad)
         self._ani.valueChanged.connect(self._on_ani_step)
+        self._ani.finished.connect(self._on_ani_finished)
         self._ani.start()
 
-        # ④ show（此时 widget 已在 start_pos 且 mask 已生效，首帧为全裁剪）
+        # 最后再显示下拉菜单，避免闪烁
         self.show()
 
+
+
     def _on_ani_step(self):
-        """动画每帧更新 mask（对齐 PFW DropDownMenuAnimationManager._onValueChanged）"""
+        """动画每帧更新 mask"""
         y = self._end_y - self.y()
         self.setMask(QRegion(0, y, self.width(), self.height()))
 
+    def _on_ani_finished(self):
+        """动画结束，清除 mask"""
+        self.setMask(QRegion())
+
     def hideEvent(self, event):
+        # 发送停止信号
         self.aboutToHide.emit()
+        # 停止动画
         if self._ani and self._ani.state() == QPropertyAnimation.State.Running:
             self._ani.stop()
             self._ani = None
+        # 清除遮罩
         self.setMask(QRegion())
+        # cleanup
         if self._combo and self._combo._popup is self:
             self._combo._popup = None
+
         super().hideEvent(event)
+
+
+
+
+
 
 
 # ---------------------------------------------------------------------------
