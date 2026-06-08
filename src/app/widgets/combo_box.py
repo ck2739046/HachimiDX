@@ -22,10 +22,15 @@ POPUP_MAX_H = 300  # 下拉菜单最大高度，超出则显示滚动条
 class ComboItemDelegate(QStyledItemDelegate):
     """
     自绘下拉菜单项：
-        选中的选项 accent 高亮
+        对已选中的选项，文字左侧添加箭头并加粗
+        对悬停的选项 accent 高亮
         绘制选项间的分隔线
         绘制选项文字
     """
+
+    def __init__(self, parent, combo: QComboBox):
+        super().__init__(parent)
+        self._combo = combo
 
     def sizeHint(self, option, index):
         return QSize(0, UI_Style.element_height)
@@ -47,8 +52,20 @@ class ComboItemDelegate(QStyledItemDelegate):
         text = index.data(Qt.ItemDataRole.DisplayRole)
         if text is not None:
             painter.setPen(QColor(c['text_primary']))
+            is_selected = index.row() == self._combo.currentIndex()
+            if is_selected:
+                font = painter.font()
+                font.setBold(True)
+                painter.setFont(font)
+                # → ↠ ↣ ↪ ↬ ⇀ ⇁ ⇉ ⇒ ⇛ ➡
+                # ⇝ ⇢ ⇥ ⇨ ⇰ ⇴ ⇶ ⇸ ⇻ ⇾
+                # 👉 ➡️ ⏭️ ⏩ » > ＞
+                # ▶ ► ▸ ▹ ► ▻
+                display_text = f"👉 {text}"
+            else:
+                display_text = str(text)
             text_rect = option.rect.adjusted(8, 0, -8, 0)
-            painter.drawText(text_rect, Qt.AlignmentFlag.AlignVCenter, str(text))
+            painter.drawText(text_rect, Qt.AlignmentFlag.AlignVCenter, display_text)
 
         # 选项之间的分隔线
         model = index.model()
@@ -76,7 +93,7 @@ class ComboListView(QListView):
     def __init__(self, combo: QComboBox):
         super().__init__()
         self.setModel(combo.model())
-        self.setItemDelegate(ComboItemDelegate(self))
+        self.setItemDelegate(ComboItemDelegate(self, combo))
         self.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
         self.setMouseTracking(True)
         self.setUniformItemSizes(True)

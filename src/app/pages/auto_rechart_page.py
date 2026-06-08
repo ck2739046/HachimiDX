@@ -196,7 +196,7 @@ class AutoRechartPage(BaseOutputPage):
 
         # Row 2
         video_mode_label = create_label(i18n.t(f"{I18N_Prefix}.ui_video_mode_label"))
-        self.video_mode_combo_box = self._create_combobox_with_options(AC_Defs.video_mode, length=125)
+        self.video_mode_combo_box = self._create_combobox_with_options(AC_Defs.video_mode, length=135)
         video_mode_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_video_mode_help"))
 
         need_screen_rectification_label = create_label(i18n.t(f"{I18N_Prefix}.ui_need_screen_rectification_label"))
@@ -349,15 +349,15 @@ class AutoRechartPage(BaseOutputPage):
 
         # Row 2
         chart_lv_label = create_label(i18n.t(f"{I18N_Prefix}.ui_chart_lv_label"))
-        self.chart_lv_combo_box = self._create_combobox_with_options(AC_Defs.chart_lv, length=45)
+        self.chart_lv_combo_box = self._create_combobox_with_options(AC_Defs.chart_lv, length=46)
         chart_lv_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_chart_lv_help"))
 
         bd_label = create_label(i18n.t(f"{I18N_Prefix}.ui_base_denominator_label"))
-        self.base_denominator_combo_box = self._create_combobox_with_options(AC_Defs.base_denominator, length=75, transfer_fn=self._transfer_base_denominator)
+        self.base_denominator_combo_box = self._create_combobox_with_options(AC_Defs.base_denominator, length=80, transfer_fn=self._transfer_base_denominator)
         bd_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_base_denominator_help"))
 
         dd_label = create_label(i18n.t(f"{I18N_Prefix}.ui_duration_denominator_label"))
-        self.duration_denominator_combo_box = self._create_combobox_with_options(AC_Defs.duration_denominator, length=45)
+        self.duration_denominator_combo_box = self._create_combobox_with_options(AC_Defs.duration_denominator, length=55)
         dd_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_duration_denominator_help"))
 
         row = _create_row(chart_lv_label, self.chart_lv_combo_box, chart_lv_help,

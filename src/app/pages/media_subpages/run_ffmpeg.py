@@ -259,14 +259,14 @@ class RunFFmpegPage(BaseOutputPage):
         options = M_Defs.video_quality.constraints["options"]
         default_index = options.index(default_quality)
         self.video_quality_combo_box = create_combo_box(
-            length=50, items=options, default_index=default_index)
+            length=55, items=options, default_index=default_index)
 
         # video resolution combo box
         self.video_resolution_combo_box = self._create_ffmpeg_widget(
-            widget_type="combo_box", param=M_Defs.video_side_resolution, length=102, transfer_fn=self.transfer_res)
+            widget_type="combo_box", param=M_Defs.video_side_resolution, length=110, transfer_fn=self.transfer_res)
         # video fps combo box
         self.video_fps_combo_box = self._create_ffmpeg_widget(
-            widget_type="combo_box", param=M_Defs.video_fps, length=80, transfer_fn=self.transfer_fps)
+            widget_type="combo_box", param=M_Defs.video_fps, length=90, transfer_fn=self.transfer_fps)
         # gop_optimize check box
         self.video_gop_optimize_check_box = self._create_ffmpeg_widget(
             widget_type="check_box", param=M_Defs.video_gop_optimize)
@@ -279,11 +279,11 @@ class RunFFmpegPage(BaseOutputPage):
         self.audio_format_combo_box = create_combo_box(length=62)
 
         # audio bitrate combo box
-        self.audio_bitrate_combo_box = create_combo_box(length=105)
+        self.audio_bitrate_combo_box = create_combo_box(length=110)
 
         # audio sample_rate combo box
         self.audio_sample_rate_combo_box = self._create_ffmpeg_widget(
-            widget_type="combo_box", param=M_Defs.audio_sample_rate, length=72)
+            widget_type="combo_box", param=M_Defs.audio_sample_rate, length=80)
         
         # audio volume line edit
         min, max, default = (
