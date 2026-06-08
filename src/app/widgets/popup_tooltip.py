@@ -31,7 +31,7 @@ class PopupToolTip(QWidget):
         self._label = QLabel(self._bubble)
         self._label.setTextFormat(Qt.TextFormat.PlainText)
         self._label.setWordWrap(False)
-        self._label.setStyleSheet("background: transparent;")
+        self._label.setStyleSheet(f"background: transparent; color: {UI_Style.COLORS['text_primary']};")
         bubble_layout.addWidget(self._label)
 
         # 阴影效果

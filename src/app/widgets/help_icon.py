@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import QLabel
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QCursor
 from ..ui_style import UI_Style
+from .label import create_label
 from .popup_tooltip import install_tooltip
 
 def create_help_icon(text):
@@ -14,8 +15,7 @@ def create_help_icon(text):
     Returns:
         QLabel: 配置好的帮助图标widget
     """
-    help_label = QLabel("ⓘ")
-    help_label.setStyleSheet(f"font-size: {UI_Style.default_text_size}px;")
+    help_label = create_label("ⓘ")
     help_label.setFixedSize(20, 20)
     help_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
     help_label.setCursor(QCursor(Qt.CursorShape.WhatsThisCursor))
