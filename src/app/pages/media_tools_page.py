@@ -47,10 +47,20 @@ class MediaToolsPage(QWidget):
         layout.addWidget(self.stack)
 
         # 添加子页面
-        self.stack.addWidget(ArcadeTimingPage())
-        self.stack.addWidget(SimplyAlignPage())
+        self.arcade_timing_page = ArcadeTimingPage()
+        self.simply_align_page = SimplyAlignPage()
+        self.stack.addWidget(self.arcade_timing_page)
+        self.stack.addWidget(self.simply_align_page)
         self.stack.addWidget(RunFFmpegPage())
         self.stack.addWidget(OthersPage())
 
+        # 连接信号：Arcade Timing → Simply Align 一键跳转
+        self.arcade_timing_page.request_simply_align.connect(self._on_request_simply_align)
+
         # 连接信号
         self.nav_bar.currentChanged.connect(self.stack.setCurrentIndex)
+
+    def _on_request_simply_align(self, reference_path: str, target_path: str) -> None:
+        """处理 Arcade Timing 的一键对齐视频请求"""
+        self.simply_align_page.set_files_and_auto_run(reference_path, target_path)
+        self.nav_bar.setCurrentIndex(1)

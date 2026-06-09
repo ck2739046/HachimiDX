@@ -168,4 +168,11 @@ class MediaInputProbeWidget(QWidget):
 
     def get_path(self) -> str:
         return str(self.input_file_path_display_line_edit.text()).strip()
+
+
+    def set_path(self, path: str) -> None:
+        """编程方式设置文件路径并自动触发 ffprobe 检测"""
+        self.input_file_path_display_line_edit.setText(path)
+        if path:
+            self._on_input_file_selected(path)
     

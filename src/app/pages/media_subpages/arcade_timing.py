@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QLabel, QVBoxLayout
 
@@ -22,6 +22,8 @@ I18N_Prefix = "app.media_subpages.arcade_timing"
 
 class ArcadeTimingPage(BaseOutputPage):
 
+    request_simply_align = pyqtSignal(str, str)
+
     def setup_content(self):
         self.content_layout = QVBoxLayout(self.content_area)
         self.content_layout.setContentsMargins(10, 10, 10, 10)
@@ -37,6 +39,7 @@ class ArcadeTimingPage(BaseOutputPage):
         self.run_button = None
         self.offset_label = None
         self.edit_audio_button = None
+        self.video_align_button = None
 
         self.waveform_label = None
         self._offset_action = None
@@ -107,6 +110,7 @@ class ArcadeTimingPage(BaseOutputPage):
         self._offset_value_ms = None
         self.offset_label.setText("")
         self.offset_label.hide()
+        self.video_align_button.hide()
         self.edit_audio_button.hide()
         self.waveform_label.hide()
         self.waveform_label.clear()
@@ -153,9 +157,14 @@ class ArcadeTimingPage(BaseOutputPage):
         self.edit_audio_button.clicked.connect(self.on_edit_audio_clicked)
         self.edit_audio_button.hide()
 
+        self.video_align_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_video_align_button"), width=100)
+        self.video_align_button.clicked.connect(self.on_video_align_clicked)
+        self.video_align_button.hide()
+
         self.create_row(self.run_button,
                         self.offset_label,
                         self.edit_audio_button,
+                        self.video_align_button,
                         add_stretch=True)
 
 
@@ -302,12 +311,14 @@ class ArcadeTimingPage(BaseOutputPage):
 
             if failed:
                 self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.warning_edit_audio_failed_log"))
+                self.video_align_button.hide()
                 return
 
             output_path_str = str(self._media_output_path) if self._media_output_path else "?"
             self.output_widget.append_text(
                 i18n.t(f"{I18N_Prefix}.notice_edit_audio_success", output_path=output_path_str)
             )
+            self.video_align_button.show()
             return
 
 
@@ -460,6 +471,7 @@ class ArcadeTimingPage(BaseOutputPage):
         }
 
         self.edit_audio_button.setEnabled(False)
+        self.video_align_button.hide()
         self._media_output_path = output_path
         self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_edit_audio_start"))
         
@@ -483,3 +495,23 @@ class ArcadeTimingPage(BaseOutputPage):
         finally:
             if not self._active_media_runner_id:
                 self.edit_audio_button.setEnabled(True)
+
+
+    def on_video_align_clicked(self) -> None:
+        """一键对齐视频：跳转到 Simply Align 页面，自动填充文件并开始分析"""
+        if not self._media_output_path or not self._media_output_path.is_file():
+            show_notify_dialog(
+                i18n.t(f"{I18N_Prefix}.dialog_title"),
+                i18n.t(f"{I18N_Prefix}.warning_offset_not_ready"),
+            )
+            return
+
+        reference_path = self.reference_path_display.text().strip()
+        if not reference_path:
+            show_notify_dialog(
+                i18n.t(f"{I18N_Prefix}.dialog_title"),
+                i18n.t(f"{I18N_Prefix}.warning_reference_file_required"),
+            )
+            return
+
+        self.request_simply_align.emit(str(self._media_output_path), reference_path)

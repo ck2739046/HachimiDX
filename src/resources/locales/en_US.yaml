@@ -173,6 +173,7 @@ en_US:
 
         ui_run_button: "Analyze"
         ui_edit_audio_button: "Modify Audio"
+        ui_video_align_button: "Align Video"
 
         warning_reference_file_required: "Please select a reference file first."
         warning_target_file_required: "Please select a target file first."

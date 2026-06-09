@@ -135,6 +135,13 @@ class SimplyAlignPage(BaseOutputPage):
             self._reference_media_type = MediaType.UNKNOWN
 
 
+    def set_files_and_auto_run(self, reference_path: str, target_path: str) -> None:
+        """编程方式设置基准文件和目标文件，并自动开始分析"""
+        self.reference_path_display.setText(reference_path)
+        self._on_reference_file_changed(reference_path)
+        self.target_media_input.set_path(target_path)
+        self.on_run_clicked()
+
 
     def _parse_inputs(self) -> OpResult[dict]:
         reference_file = self.reference_path_display.text().strip()

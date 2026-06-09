@@ -75,6 +75,11 @@ class SegmentedNavBar(QWidget):
             self.button_group.buttons()[0].setChecked(True)
 
 
+    def setCurrentIndex(self, index: int) -> None:
+        """编程方式切换选中项，触发 currentChanged 信号"""
+        buttons = self.button_group.buttons()
+        if 0 <= index < len(buttons):
+            buttons[index].click()
 
 
     # ── 集中管理 hover 状态 ────────────────────────────────
