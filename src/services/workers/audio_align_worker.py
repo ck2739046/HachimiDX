@@ -20,6 +20,15 @@ if root not in sys.path:
     sys.path.insert(0, root)
 
 
+# 显式指定 audioread ffmpeg 的绝对路径，并刷新后端缓存
+from src.services import PathManage
+import audioread
+_ffmpeg_exe = str(PathManage.FFMPEG_EXE_PATH)
+if _ffmpeg_exe not in audioread.ffdec.COMMANDS:
+    audioread.ffdec.COMMANDS = (_ffmpeg_exe,) + audioread.ffdec.COMMANDS
+audioread.available_backends(flush_cache=True)
+
+
 from src.core.audio.detect_click_start import main as detect_click_start_main
 from src.core.audio.align_audio import main as align_audio_main
 from src.core.audio.draw_audio_wave import main as draw_audio_wave_main
