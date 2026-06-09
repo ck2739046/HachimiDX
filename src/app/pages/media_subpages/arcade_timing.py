@@ -76,6 +76,7 @@ class ArcadeTimingPage(BaseOutputPage):
 
     
     def on_target_input_selected(self, error_msg: str) -> None:
+        self._on_file_changed()
         if len(error_msg) > 0:
             show_notify_dialog(i18n.t(f"{I18N_Prefix}.dialog_title"), error_msg)
 
@@ -84,12 +85,31 @@ class ArcadeTimingPage(BaseOutputPage):
         path = text.strip()
         if not path:
             self._reference_media_type = MediaType.UNKNOWN
+            self._on_file_changed()
             return
         result = FFprobeInspect.inspect_media(path)
         if result.is_ok:
             self._reference_media_type = result.value.media_type
         else:
             self._reference_media_type = MediaType.UNKNOWN
+        self._on_file_changed()
+
+
+    def _on_file_changed(self) -> None:
+        """当基准文件或目标文件变更时，清除旧的分析/编辑结果"""
+        self._media_output_path = None
+        self._reset_result_state()
+
+
+    def _reset_result_state(self) -> None:
+        """重置分析结果相关 UI 状态（不涉及输入控件）"""
+        self._offset_action = None
+        self._offset_value_ms = None
+        self.offset_label.setText("")
+        self.offset_label.hide()
+        self.edit_audio_button.hide()
+        self.waveform_label.hide()
+        self.waveform_label.clear()
 
 
 
@@ -203,13 +223,7 @@ class ArcadeTimingPage(BaseOutputPage):
             return
 
         self.run_button.setEnabled(False)
-        self.offset_label.setText("")
-        self.offset_label.hide()
-        self._offset_action = None
-        self._offset_value_ms = None
-        self.edit_audio_button.hide()
-        self.waveform_label.hide()
-        self.waveform_label.clear()
+        self._reset_result_state()
 
         try:
             res = self._parse_inputs()
