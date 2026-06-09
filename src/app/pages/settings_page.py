@@ -668,6 +668,10 @@ class SettingsPage(BaseOutputPage):
 
         if failed:
             self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.warning_convert_failed", backend=backend))
+            recent_output = self.output_widget.get_recent_lines(15)
+            driver_error = 'Error Code 6: API Usage Error (CUDA initialization failure with error: 35. Please check your CUDA installation'
+            if driver_error in recent_output:
+                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.warning_cuda_driver_outdated"))
             self._sync_ui_state()
             return
 

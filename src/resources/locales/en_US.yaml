@@ -497,6 +497,10 @@ en_US:
       warning_model_missing: "2. Models check failed: %{backend}\n%{error}"
       warning_cpu_model_missing: "CPU model files are missing and cannot be converted.\n%{error}"
       warning_convert_failed: "Model conversion failed: %{backend}"
+      warning_cuda_driver_outdated: |
+        CUDA initialization failure detected (error code 35).
+        This is usually caused by an outdated graphics driver that doesn't support the current CUDA version.
+        Please update your NVIDIA graphics driver and try again.
       warning_convert_incomplete: "Post-conversion validation failed: %{backend}\n%{error}"
       warning_worker_start_failed: "Failed to start process\n%{error}"
       warning_cancel_failed: "Failed to cancel task\n%{error}"

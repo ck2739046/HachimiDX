@@ -14,6 +14,18 @@ QingHua_PyPI_Mirror = ["-i", "https://pypi.tuna.tsinghua.edu.cn/simple"]
 ROOT = Path(__file__).resolve().parents[2] # 往上三级目录
 
 
+# CUDA 版本对应的最低驱动版本要求
+# 格式为 (CUDA 版本, 驱动主版本号)
+# 从低到高排列
+CUDA_DRIVER_REQUIREMENTS = [
+    (11.8, 453),
+    (12.4, 552),
+    (12.6, 561),
+    # (12.8, 572),
+    # (13.0, 580),
+]
+
+
 
 
 def main():
@@ -95,9 +107,9 @@ def install():
     torch_version = "cpu" # default
     install_trt = ask_install_trt()
     if install_trt:
-        torch_cuda_version = detect_cuda_version_for_torch()
-        if torch_cuda_version:
-            torch_version = torch_cuda_version
+        new_torch_version = detect_cuda_version_for_torch()
+        if new_torch_version:
+            torch_version = new_torch_version
 
     # install pytorch
     is_success = install_pytorch(torch_version)
@@ -248,47 +260,128 @@ In other cases, please choose "No".
     else:
         print("Defaulting to Yes.")
         return True
-    
 
 
 
-def detect_cuda_version_for_torch() -> str | None:
-    print("")
-    # 通过 cmd 运行 nvidia-smi 命令来检测 CUDA 版本
+
+def _get_installed_nvidia_gpu_name() -> str | None:
     try:
-        result = subprocess.run(["nvidia-smi"], capture_output=True, text=True)
-        output = result.stdout
-        # 使用正则表达式提取 CUDA 版本
-        match = re.search(r"CUDA Version:\s+(\d+\.\d+)", output)
-        if match:
-            cuda_version = match.group(1).strip()
-            cuda_version_10x = round(float(cuda_version) * 10)
+        result = subprocess.run(
+            ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+            capture_output=True, text=True
+        )
+        gpu_name = result.stdout.strip()
+        if gpu_name:
+            info_en = f"Detected GPU: {gpu_name}"
+            info_zh = f"检测到显卡: {gpu_name}"
+            print(f"{info_en if LANGUAGE == 'en' else info_zh}")
+            return gpu_name
         else:
-            info_en = "Could not detect CUDA version from nvidia-smi output."
-            info_zh = "无法从 nvidia-smi 输出中检测到 CUDA 版本。"
+            info_en = "No NVIDIA GPU detected."
+            info_zh = "未检测到 NVIDIA 显卡。"
             print(f"{info_en if LANGUAGE == 'en' else info_zh}")
             return None
     except Exception as e:
         print(f"Error running nvidia-smi: {e}")
         return None
-    
-    info_en = f"Detected CUDA version: {cuda_version}"
-    info_zh = f"检测到 CUDA 版本: {cuda_version}"
-    print(f"{info_en if LANGUAGE == 'en' else info_zh}")
 
-    if cuda_version_10x >= 130:
-        return "cu130"
-    elif cuda_version_10x >= 128:
-        return "cu128"
-    elif cuda_version_10x >= 126:
-        return "cu126"
-    elif cuda_version_10x >= 118:
-        return "cu118"
+
+
+
+def _get_cuda_and_driver_version() -> tuple[str, str]:
+    try:
+        result = subprocess.run(["nvidia-smi"], capture_output=True, text=True)
+        output = result.stdout
+
+        # 使用正则表达式提取 CUDA 版本
+        match_cuda = re.search(r"CUDA Version:\s+(\d+\.\d+)", output)
+        if not match_cuda:
+            info_en = "Could not detect CUDA version from nvidia-smi output."
+            info_zh = "无法从 nvidia-smi 输出中检测到 CUDA 版本。"
+            print(f"{info_en if LANGUAGE == 'en' else info_zh}")
+            return (None, None)
+
+        cuda_version = match_cuda.group(1).strip()
+        info_en = f"CUDA version: {cuda_version}"
+        info_zh = f"CUDA 版本: {cuda_version}"
+        print(f"{info_en if LANGUAGE == 'en' else info_zh}")
+
+        # 使用正则表达式提取驱动版本
+        match_driver = re.search(r"Driver Version:\s+(\d+)\.(\d+)", output)
+        if not match_driver:
+            info_en = "Could not detect Driver Version from nvidia-smi output."
+            info_zh = "无法从 nvidia-smi 输出中检测到显卡驱动版本。"
+            print(f"{info_en if LANGUAGE == 'en' else info_zh}")
+            return (None, None)
+
+        driver_full = f"{match_driver.group(1)}.{match_driver.group(2)}"
+        info_en = f"Driver version: {driver_full}"
+        info_zh = f"显卡驱动版本: {driver_full}"
+        print(f"{info_en if LANGUAGE == 'en' else info_zh}")
+
+    except Exception as e:
+        print(f"Error running nvidia-smi: {e}")
+        return (None, None)
     
-    info_en = "This CUDA version is outdated. Minimum requirement is CUDA 11.8+"
-    info_zh = "此 CUDA 版本已过时，最低要求为 CUDA 11.8+"
-    print(f"{info_en if LANGUAGE == 'en' else info_zh}")
-    return None
+    return (cuda_version, driver_full)
+
+
+
+
+def _find_compatible_cuda(input_cuda: str, input_driver: str) -> str | None:
+    """
+    根据 CUDA 版本和驱动主版本号，查找兼容的最高 CUDA 版本。
+    返回 cuXXX 字符串，若全部不满足则返回 None。
+    """
+    input_cuda_10x = round(float(input_cuda) * 10)
+    input_driver_major = int(input_driver.split(".")[0])
+
+    highest_cuda_1 = -1
+    highest_cuda_2 = -1
+    for candidate_cuda, candidate_driver_major in CUDA_DRIVER_REQUIREMENTS:
+        candidate_cuda_10x = round(float(candidate_cuda) * 10)
+        # 检查 cuda 版本
+        if input_cuda_10x >= candidate_cuda_10x: # valid
+            if candidate_cuda_10x > highest_cuda_1:
+                highest_cuda_1 = candidate_cuda_10x # update highest 1
+        # 检查驱动版本
+        if input_driver_major >= candidate_driver_major: # valid
+            if candidate_cuda_10x > highest_cuda_2:
+                highest_cuda_2 = candidate_cuda_10x # update highest 2
+
+    final_cuda = min(highest_cuda_1, highest_cuda_2)
+    final_cuda = f"cu{final_cuda}" if final_cuda > 0 else None
+    print('')
+
+    if final_cuda:
+        info_en = f"-> Compatible PyTorch CUDA version found: {final_cuda}"
+        info_zh = f"-> 找到兼容的 PyTorch CUDA 版本: {final_cuda}"
+        print(f"{info_en if LANGUAGE == 'en' else info_zh}")
+    else:
+        min_cuda, min_driver = CUDA_DRIVER_REQUIREMENTS[0]
+        info_en = f"-> No compatible PyTorch CUDA version found.\n" + \
+                  f"   Minimum supported: CUDA >= {min_cuda}, Driver >= {min_driver}.x\n" + \
+                  f"   Falling back to PyTorch CPU version"
+        info_zh = f"-> 未找到兼容的 PyTorch CUDA 版本。\n" + \
+                  f"   最低支持: CUDA >= {min_cuda}，驱动 >= {min_driver}.x\n" + \
+                  f"   回退到 PyTorch CPU 版本。"
+        print(f"{info_en if LANGUAGE == 'en' else info_zh}")
+
+    return final_cuda
+
+
+
+
+def detect_cuda_version_for_torch() -> str | None:
+    print("\n-----\n")
+    gpu_name = _get_installed_nvidia_gpu_name()
+    if gpu_name is None:
+        return None
+    (cuda_version, driver_full) = _get_cuda_and_driver_version()
+    if cuda_version is None or driver_full is None:
+        return None
+    compatible_cuda = _find_compatible_cuda(cuda_version, driver_full)
+    return compatible_cuda
 
 
 

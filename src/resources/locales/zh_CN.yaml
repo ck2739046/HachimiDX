@@ -494,6 +494,10 @@ zh_CN:
       warning_model_missing: "2. 模型检查未通过: %{backend}\n%{error}"
       warning_cpu_model_missing: "CPU 模型文件缺失，无法转换。\n%{error}"
       warning_convert_failed: "模型转换失败: %{backend}"
+      warning_cuda_driver_outdated: |
+        检测到 CUDA 初始化失败（错误码 35）
+        这通常是因为显卡驱动版本过旧，不支持当前 CUDA 版本
+        请更新你的 NVIDIA 显卡驱动后重试
       warning_convert_incomplete: "模型转换后复检失败: %{backend}\n%{error}"
       warning_worker_start_failed: "启动进程失败\n%{error}"
       warning_cancel_failed: "取消任务失败\n%{error}"
