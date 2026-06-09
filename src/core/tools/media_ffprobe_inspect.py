@@ -419,8 +419,9 @@ class FFprobeInspect:
                     print(i18n.t("media_ffprobe_inspect.notice_ignore_invalid_audio_stream_no_duration", stream_info=str(s)))
                     continue  # invalid
                 # 允许 bit_rate 缺失
-                if 'N/A' in [index, codec_name, sample_rate, channels, channel_layout]:
-                    na_fields = ",".join([f for f in [index, codec_name, sample_rate, channels, channel_layout] if f == 'N/A'])
+                # 允许 channel_layout 缺失（PCM WAV 等格式通常不提供 channel_layout）
+                if 'N/A' in [index, codec_name, sample_rate, channels]:
+                    na_fields = ",".join([f for f in [index, codec_name, sample_rate, channels] if f == 'N/A'])
                     print(i18n.t("media_ffprobe_inspect.notice_ignore_invalid_audio_stream", na_fields=na_fields, stream_info=str(s)))
                     continue  # invalid
 
