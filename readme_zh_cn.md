@@ -2,9 +2,11 @@
 
 🔗 [**项目地址**](https://github.com/ck2739046/HachimiDX)
 &nbsp;•&nbsp;
-📖 [**English README**](readme.md)
+📥︎ [**软件下载**](https://github.com/ck2739046/HachimiDX/releases/latest)
+
+📄 [**English README**](readme.md)
 &nbsp;•&nbsp;
-🎥 [**演示视频**](https://www.bilibili.com/video/BV1Rz5c6vEQH)
+▶️ [**演示视频**](https://www.bilibili.com/video/BV1Rz5c6vEQH)
 
 
 

@@ -2,10 +2,11 @@
 
 🔗 [**Project URL**](https://github.com/ck2739046/HachimiDX)
 &nbsp;•&nbsp;
-📖 [**中文 README**](readme_zh_cn.md)
-&nbsp;•&nbsp;
-🎥 [**Demo Video**](https://www.bilibili.com/video/BV1Rz5c6vEQH)
+📥︎ [**Software Download**](https://github.com/ck2739046/HachimiDX/releases/latest)
 
+📄 [**中文 README**](readme_zh_cn.md)
+&nbsp;•&nbsp;
+▶️ [**Demo Video**](https://www.bilibili.com/video/BV1Rz5c6vEQH)
 
 
 A tool built specifically for the rhythm game `maimai`. Give it a chart confirmation video, and it will fully automatically rechart — faithfully reproducing the official maimai chart and outputting it in simai format (`maidata.txt`).
