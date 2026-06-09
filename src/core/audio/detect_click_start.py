@@ -4,6 +4,8 @@ import numpy as np
 import warnings
 from contextlib import contextmanager
 
+from audioread.exceptions import NoBackendError
+
 from src.services import PathManage
 from ..schemas.op_result import OpResult, ok, err
 
@@ -107,6 +109,8 @@ def _load_audio_file(path):
             if data is None or len(data) == 0:
                 raise ValueError(f"Cannot load audio data from: {path}")
             return data, sr
+    except NoBackendError:
+        raise NoBackendError(f"NoBackendError: {str(path)}")
     except Exception as e:
         raise Exception(f"Error loading audio file '{path}': {e}")
 

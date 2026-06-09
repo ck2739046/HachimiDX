@@ -5,6 +5,8 @@ import os
 import warnings
 from contextlib import contextmanager
 
+from audioread.exceptions import NoBackendError
+
 from ..schemas.op_result import OpResult, ok, err
 
 
@@ -82,12 +84,16 @@ def main(file1_path, file2_path) -> OpResult[dict]:
         try:
             with suppress_audio_warnings():
                 y1, sr1 = librosa.load(file1_path, sr=None, mono=True) # 直接加载为 Mono
+        except NoBackendError:
+            return err(f"NoBackendError: {str(file1_path)}")
         except Exception as e:
             return err(f"Error loading audio from file: {file1_path}", error_raw=e)
         
         try:
             with suppress_audio_warnings():
                 y2, sr2 = librosa.load(file2_path, sr=None, mono=True)
+        except NoBackendError:
+            return err(f"NoBackendError: {str(file2_path)}")
         except Exception as e:
             return err(f"Error loading audio from file: {file2_path}", error_raw=e)
 

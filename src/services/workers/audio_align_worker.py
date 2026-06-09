@@ -69,8 +69,12 @@ def main(args: list[str]) -> bool:
         # 1. 调用 align_audio 分析文件对齐
         res = align_audio_main(reference_file, target_file)
         if not res.is_ok:
-            print("[AUDIO_ALIGN_WORKER] [ERROR] Error in align_audio")
-            print(print_op_result(res))
+            # 特例: NoBackendError 仅打印 msg
+            if res.error_msg.startswith("NoBackendError"):
+                print(f"[AUDIO_ALIGN_WORKER] [ERROR] {res.error_msg}")
+            else:
+                print("[AUDIO_ALIGN_WORKER] [ERROR] Error in align_audio")
+                print(print_op_result(res))
             return False
         
         target_match_offset = res.value['offset_ms']
