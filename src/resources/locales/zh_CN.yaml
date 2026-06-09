@@ -177,6 +177,8 @@ zh_CN:
 
         warning_reference_file_required: "请先选择基准文件。"
         warning_target_file_required: "请先选择目标文件。"
+        warning_no_audio_stream_ref: "基准文件: 选择的文件不包含音频流，请选择包含音频的文件。"
+        warning_no_audio_stream_target: "目标文件: 选择的文件不包含音频流，请选择包含音频的文件。"
         warning_target_file_missing: "目标文件不存在，请重新选择。"
         warning_invalid_bpm: "初始 BPM 参数无效，请输入在 10~400 之间的数字。"
         warning_invalid_click_start_time: "起始时间无效，请输入大于等于 0 的数字。"

@@ -176,6 +176,8 @@ en_US:
 
         warning_reference_file_required: "Please select a reference file first."
         warning_target_file_required: "Please select a target file first."
+        warning_no_audio_stream_ref: "Reference file: The selected file does not contain an audio stream. Please select a file with audio."
+        warning_no_audio_stream_target: "Target file: The selected file does not contain an audio stream. Please select a file with audio."
         warning_target_file_missing: "Target file does not exist. Please select it again."
         warning_invalid_bpm: "Invalid initial BPM value. Please input a number between 10 and 400."
         warning_invalid_click_start_time: "Invalid start time. Please input a number >= 0."

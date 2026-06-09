@@ -7,7 +7,7 @@ from ...ui_style import UI_Style
 
 from src.core.build_worker_cmd import build_cmd_head_python_exe
 from src.core.schemas.op_result import OpResult, ok, err, print_op_result
-from src.core.tools import show_confirm_dialog, show_notify_dialog
+from src.core.tools import show_confirm_dialog, show_notify_dialog, FFprobeInspect
 from src.services import MediaPipeline, PathManage, process_manager_api
 import i18n
 
@@ -27,6 +27,7 @@ class SimplyAlignPage(BaseOutputPage):
 
         self.reference_path_display = None
         self.target_media_input = None
+        self._reference_media_type = MediaType.UNKNOWN
 
         self.run_button = None
         self.offset_label = None
@@ -72,6 +73,7 @@ class SimplyAlignPage(BaseOutputPage):
         self.content_layout.addWidget(self.target_media_input)
 
         self.reference_path_display.textChanged.connect(lambda: self._set_quick_export_visible(False))
+        self.reference_path_display.textChanged.connect(self._on_reference_file_changed)
         self.target_media_input.media_loaded.connect(self.on_target_input_selected)
 
 
@@ -121,6 +123,18 @@ class SimplyAlignPage(BaseOutputPage):
             show_notify_dialog(i18n.t(f"{I18N_Simply_Align_Prefix}.dialog_title"), error_msg)
 
 
+    def _on_reference_file_changed(self, text: str) -> None:
+        path = text.strip()
+        if not path:
+            self._reference_media_type = MediaType.UNKNOWN
+            return
+        result = FFprobeInspect.inspect_media(path)
+        if result.is_ok:
+            self._reference_media_type = result.value.media_type
+        else:
+            self._reference_media_type = MediaType.UNKNOWN
+
+
 
     def _parse_inputs(self) -> OpResult[dict]:
         reference_file = self.reference_path_display.text().strip()
@@ -130,6 +144,14 @@ class SimplyAlignPage(BaseOutputPage):
             return err(i18n.t(f"{I18N_Prefix}.warning_reference_file_required"))
         if not target_file:
             return err(i18n.t(f"{I18N_Prefix}.warning_target_file_required"))
+
+        # Check both files contain audio streams
+        if self._reference_media_type not in (MediaType.AUDIO, MediaType.VIDEO_WITH_AUDIO):
+            return err(i18n.t(f"{I18N_Prefix}.warning_no_audio_stream_ref"))
+
+        target_type = self.target_media_input.selected_file_type
+        if target_type not in (MediaType.AUDIO, MediaType.VIDEO_WITH_AUDIO):
+            return err(i18n.t(f"{I18N_Prefix}.warning_no_audio_stream_target"))
 
         return ok({
             "reference_file": reference_file,
