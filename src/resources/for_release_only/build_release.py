@@ -12,6 +12,7 @@ from src.services import PathManage
 
 
 RELEASE_DIR = PathManage.ROOT_DIR / "HachimiDX"
+FOR_RELEASE_ONLY_DIR = PathManage.RESOURCES_DIR / "for_release_only"
 
 
 
@@ -48,31 +49,35 @@ def copy_app_resources():
     copy_to_release(PathManage.TEST_H264_PATH)
 
     # 解压 models
-    models_dir = PathManage.RESOURCES_DIR / "for_release_only" / "models"
+    models_dir = FOR_RELEASE_ONLY_DIR / "models"
     for model_zip in models_dir.glob("*.zip"):
         target_dir = RELEASE_DIR / "data" / "models"
         extract_with_bandizip(model_zip, target_dir, mode='file')
 
     # 解压 python 到目录
-    python_path = PathManage.RESOURCES_DIR / "for_release_only" / "python portable" / "py3.13.11.zip"
+    python_path = FOR_RELEASE_ONLY_DIR / "python portable" / "py3.13.11.zip"
     python_target_path = RELEASE_DIR / "python"
     extract_with_bandizip(python_path, python_target_path, mode='dir')
 
     # 解压 ffmpeg 到目录
-    ffmpeg_path = PathManage.RESOURCES_DIR / "for_release_only" / "ffmpeg-8.0.1-essentials_build.7z"
+    ffmpeg_path = FOR_RELEASE_ONLY_DIR / "ffmpeg-8.0.1-essentials_build.7z"
     ffmpeg_target_path = RELEASE_DIR / "src" / "resources" / "ffmpeg"
     extract_with_bandizip(ffmpeg_path, ffmpeg_target_path, mode='dir')
 
     # 复制 majdata
-    majdata_dir = PathManage.RESOURCES_DIR / "for_release_only" / "majdata"
+    majdata_dir = FOR_RELEASE_ONLY_DIR / "majdata"
     majdata_target_path = RELEASE_DIR / "src" / "resources" / "majdata"
     copy_to_release(majdata_dir, majdata_target_path)
 
-    # 安装指南
-    install_guide_cn = PathManage.RESOURCES_DIR / "for_release_only" / "1_安装指南.txt"
+    # 复制安装指南
+    install_guide_cn = FOR_RELEASE_ONLY_DIR / "1_安装指南.txt"
     copy_to_release(install_guide_cn, RELEASE_DIR / "1_安装指南.txt")
-    install_guide_us = PathManage.RESOURCES_DIR / "for_release_only" / "1_Installation Guide.txt"
+    install_guide_us = FOR_RELEASE_ONLY_DIR / "1_Installation Guide.txt"
     copy_to_release(install_guide_us, RELEASE_DIR / "1_Installation Guide.txt")
+
+    # 复制 launcher
+    launcher = FOR_RELEASE_ONLY_DIR / "Launcher" / "HachimiDX.exe"
+    copy_to_release(launcher, RELEASE_DIR / "HachimiDX.exe")
 
 
 
@@ -86,9 +91,6 @@ def copy_root():
     copy_to_release(PathManage.ROOT_DIR / "README_zh_cn.md")
     # license
     copy_to_release(PathManage.ROOT_DIR / "LICENSE")
-    # launcher
-    copy_to_release(PathManage.ROOT_DIR / "HachimiDX.exe")
-    copy_to_release(PathManage.ROOT_DIR / "src" / "main.py")
 
 
 
