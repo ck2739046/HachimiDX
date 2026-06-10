@@ -266,7 +266,7 @@ zh_CN:
 
           码率越高，质量越高，文件越大
 
-          注意: 括号内的码率仅仅是预估值。
+          注意: 此选项使用 CBR（恒定码率）编码。
         ui_audio_sample_rate_label: "采样率: "
         ui_audio_sample_rate_help: 设置输出音频的采样率
         ui_audio_volume_label: "音量(%): "

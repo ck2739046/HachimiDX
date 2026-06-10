@@ -217,16 +217,11 @@ class MediaModel(BaseModel):
         if self.audio_format not in audio_format_options:
             raise ValueError(f"audio_format must be one of {audio_format_options}, got {self.audio_format}")
 
-        # 获取 audio_bitrate 的默认值和可选项
-        result = M_Defs.get_audio_bitrate_by_audio_format(self.audio_format)
-        if not result.is_ok:
-            raise ValueError(result.error_msg)
-        audio_bitrate_default, audio_bitrate_options = result.value
         # 校验 audio_bitrate
         if not self.audio_bitrate:
-            self.audio_bitrate = audio_bitrate_default
-        if self.audio_bitrate not in audio_bitrate_options:
-            raise ValueError(f"audio_bitrate must be one of {audio_bitrate_options}, got {self.audio_bitrate}")
+            self.audio_bitrate = M_Defs.audio_bitrate.default
+        if self.audio_bitrate not in M_Defs.audio_bitrate.constraints["options"]:
+            raise ValueError(f"audio_bitrate must be one of {M_Defs.audio_bitrate.constraints['options']}, got {self.audio_bitrate}")
 
         return self
     

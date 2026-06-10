@@ -339,13 +339,7 @@ def _build_audio_args(data: MediaModel) -> OpResult[list[str]]:
         return err(f"Unsupported audio format: {data.audio_format}")
     
     # audio_bitrate
-    mode, num = data.audio_bitrate.split(" ")[:2]
-    if mode == "vbr":
-        args.extend(["-q:a", str(num)])
-    elif mode == "cbr":
-        args.extend(["-b:a", str(num)])
-    else:
-        return err(f"Unsupported audio bitrate mode: {mode}")
+    args.extend(["-b:a", data.audio_bitrate])
     
     # sample_rate
     if data.audio_sample_rate:

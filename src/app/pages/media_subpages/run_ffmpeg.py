@@ -170,7 +170,6 @@ class RunFFmpegPage(BaseOutputPage):
 
 
         
-        self.audio_format_combo_box.currentIndexChanged.connect(self.update_audio_bitrate_combo_box)
         self.video_mute_check_box.toggled.connect(self.update_media_panel_state)
 
         self.output_filename_line_edit.textChanged.connect(self.update_output_full_path_display)
@@ -279,7 +278,8 @@ class RunFFmpegPage(BaseOutputPage):
         self.audio_format_combo_box = create_combo_box(length=62)
 
         # audio bitrate combo box
-        self.audio_bitrate_combo_box = create_combo_box(length=110)
+        self.audio_bitrate_combo_box = self._create_ffmpeg_widget(
+            widget_type="combo_box", param=M_Defs.audio_bitrate, length=70)
 
         # audio sample_rate combo box
         self.audio_sample_rate_combo_box = self._create_ffmpeg_widget(
@@ -352,27 +352,7 @@ class RunFFmpegPage(BaseOutputPage):
         default, options = result.value
         self.audio_format_combo_box.addItems(options)
         self.audio_format_combo_box.setCurrentText(default)
-        self.update_audio_bitrate_combo_box() # 手动触发码率更新
         self.audio_format_combo_box.blockSignals(False)
-
-
-    def update_audio_bitrate_combo_box(self) -> None:
-        """根据音频格式，更新音频码率"""
-
-        audio_format = self.audio_format_combo_box.currentText()
-        self.audio_bitrate_combo_box.blockSignals(True)
-        self.audio_bitrate_combo_box.clear()
-
-        result = M_Defs.get_audio_bitrate_by_audio_format(audio_format)
-        if not result.is_ok:
-            show_notify_dialog("app.media_subpages.run_ffmpeg", result.error_msg)
-            self.audio_bitrate_combo_box.blockSignals(False)
-            return
-        
-        default, options = result.value
-        self.audio_bitrate_combo_box.addItems(options)
-        self.audio_bitrate_combo_box.setCurrentText(default)
-        self.audio_bitrate_combo_box.blockSignals(False)
 
 
     def update_output_full_path_display(self, use_empty: bool = False) -> OpResult[str]:

@@ -265,7 +265,7 @@ en_US:
 
           Higher bitrate = higher quality, larger files.
 
-          Note: The bitrate in parentheses is only an estimate.
+          Note: These values use CBR (Constant Bitrate) encoding.
         ui_audio_sample_rate_label: "Sample Rate: "
         ui_audio_sample_rate_help: Sets output audio sampling rate
         ui_audio_volume_label: "Volume(%): "
