@@ -4,6 +4,8 @@
 &nbsp;•&nbsp;
 📥︎ [**软件下载**](https://github.com/ck2739046/HachimiDX/releases/latest)
 
+<img src="src/resources/doc/images/qq_icon.svg" width="20px" style="vertical-align: middle;"> QQ 交流群 **`868888361`**
+
 📄 [**English README**](readme.md)
 &nbsp;•&nbsp;
 ▶️ [**演示视频**](https://www.bilibili.com/video/BV1Rz5c6vEQH)

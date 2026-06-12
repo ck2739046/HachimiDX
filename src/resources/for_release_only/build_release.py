@@ -39,8 +39,10 @@ def main():
 
 def copy_app_resources():
 
-    # /locales
+    # locales folder
     copy_to_release(PathManage.LOCALES_DIR)
+    # doc folder
+    copy_to_release(PathManage.RESOURCES_DIR / "doc")
     # icon
     copy_to_release(PathManage.APP_ICON_PATH)
     # click template

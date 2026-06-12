@@ -4,6 +4,8 @@
 &nbsp;•&nbsp;
 📥︎ [**Software Download**](https://github.com/ck2739046/HachimiDX/releases/latest)
 
+<img src="src/resources/doc/images/qq_icon.svg" width="20px" style="vertical-align: middle;"> QQ Group Chat **`868888361`**
+
 📄 [**中文 README**](readme_zh_cn.md)
 &nbsp;•&nbsp;
 ▶️ [**Demo Video**](https://www.bilibili.com/video/BV1Rz5c6vEQH)
