@@ -31,6 +31,8 @@ class PathManage:
     MajdataView_EXE_PATH: Path = RESOURCES_DIR / "majdata" / "MajdataView.exe"
     MajdataEdit_EXE_PATH: Path = RESOURCES_DIR / "majdata" / "MajdataEdit.exe"
 
+    BPM_MEASURER_EXE_PATH: Path = RESOURCES_DIR / "Bpm Measurer" / "Bpm Measurer.exe"
+
     MODELS_DIR: Path = DATA_DIR / "models"
     DETECT_PT_PATH: Path = MODELS_DIR / "detect.pt"
     OBB_PT_PATH: Path = MODELS_DIR / "obb.pt"
@@ -94,6 +96,7 @@ class PathManage:
                           cls.TEST_H264_PATH,
                           cls.FFMPEG_EXE_PATH, cls.FFPROBE_EXE_PATH,
                           cls.MajdataView_EXE_PATH, cls.MajdataEdit_EXE_PATH,
+                          cls.BPM_MEASURER_EXE_PATH,
                           cls.DETECT_PT_PATH, cls.OBB_PT_PATH,
                           cls.CLS_BREAK_PT_PATH, cls.CLS_EX_PT_PATH,
                           cls.TOUCH_HOLD_PT_PATH, cls.REID_PT_PATH]:

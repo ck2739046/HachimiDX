@@ -7,7 +7,9 @@
 
 src/resources/majdata/
 src/resources/ffmpeg/
+src/resources/Bpm*
 src/resources/for_release_only/majdata/
+src/resources/for_release_only/Bpm*
 
 data/models/
 data/temp
