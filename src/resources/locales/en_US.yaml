@@ -124,6 +124,7 @@ en_US:
       arcade_timing_desc: "Analyze startup audio delay to align with official audio"
       simply_align_desc: "Quick alignment tool to sync audio and video"
       run_ffmpeg_desc: "FFmpeg transcoding tool"
+      measure_bpm_desc: "BPM measurement tool"
       others_desc: "---"
 
     widgets:

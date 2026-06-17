@@ -7,7 +7,7 @@ from ..widgets import SegmentedNavBar
 from .media_subpages.arcade_timing import ArcadeTimingPage
 from .media_subpages.simply_align import SimplyAlignPage
 from .media_subpages.run_ffmpeg import RunFFmpegPage
-from .media_subpages.others import OthersPage
+from .media_subpages.measure_bpm import MeasureBpmPage
 
 class MediaToolsPage(QWidget):
     """
@@ -30,11 +30,12 @@ class MediaToolsPage(QWidget):
         nav_items = ["Arcade Timing",
                      "Simply Align",
                      "Run FFmpeg",
-                     "Others"]
+                     "Measure Bpm"]
         nav_tooltips = [
             i18n.t("app.sub_nav_bar.arcade_timing_desc"),
             i18n.t("app.sub_nav_bar.simply_align_desc"),
             i18n.t("app.sub_nav_bar.run_ffmpeg_desc"),
+            i18n.t("app.sub_nav_bar.measure_bpm_desc"),
             i18n.t("app.sub_nav_bar.others_desc"),
         ]
         self.nav_bar = SegmentedNavBar(nav_items,
@@ -52,7 +53,7 @@ class MediaToolsPage(QWidget):
         self.stack.addWidget(self.arcade_timing_page)
         self.stack.addWidget(self.simply_align_page)
         self.stack.addWidget(RunFFmpegPage())
-        self.stack.addWidget(OthersPage())
+        self.stack.addWidget(MeasureBpmPage())
 
         # 连接信号：Arcade Timing → Simply Align 一键跳转
         self.arcade_timing_page.request_simply_align.connect(self._on_request_simply_align)

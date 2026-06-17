@@ -125,6 +125,7 @@ zh_CN:
       arcade_timing_desc: "分析开头音频延时工具，与官方音频对齐"
       simply_align_desc: "快速对齐工具，同步音频与视频"
       run_ffmpeg_desc: "FFmpeg 转码工具"
+      measure_bpm_desc: "BPM 测量工具"
       others_desc: "---"
 
     widgets:
