@@ -72,7 +72,8 @@ class ArcadeTimingPage(BaseOutputPage):
         self.create_row(reference_button, reference_help, self.reference_path_display)
 
         self.target_media_input = MediaInputProbeWidget(
-            select_file_button_help=i18n.t(f"{I18N_Prefix}.ui_target_file_help")
+            select_file_button_help=i18n.t(f"{I18N_Prefix}.ui_target_file_help"),
+            select_file_button_text=i18n.t(f"{I18N_Prefix}.ui_target_file_button"),
         )
         self.target_media_input.media_loaded.connect(self.on_target_input_selected)
         self.content_layout.addWidget(self.target_media_input)
