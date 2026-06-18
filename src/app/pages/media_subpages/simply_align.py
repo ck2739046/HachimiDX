@@ -68,6 +68,84 @@ def parse_offset_ms(recent_output: str) -> int | None:
 
 
 
+def build_edit_media_raw_data(
+    target_path_str: str,
+    target_media_type: MediaType,
+    target_duration: float,
+    offset_action: str | None,
+    offset_value_ms: int | None,
+    output_suffix: str | None = None
+) -> OpResult[tuple[dict, Path]]:
+    """构建一键编辑媒体的 raw_data 和输出路径，包含完整参数校验。
+
+    Args:
+        target_path_str: 目标文件路径
+        target_media_type: 目标文件的媒体类型
+        target_duration: 目标文件的时长（秒）
+        offset_action: "delay" 或 "trim"
+        offset_value_ms: offset 毫秒绝对值
+        output_suffix: 输出文件名后缀 (可选)
+    Returns:
+        OpResult[(raw_data, output_path)]
+    """
+
+    # 校验目标文件
+    target_path_str = target_path_str.strip()
+    if not target_path_str:
+        return err(i18n.t(f"{I18N_Simply_Align_Prefix}.warning_target_file_required"))
+
+    target_path = Path(target_path_str)
+    if not target_path.is_file():
+        return err(i18n.t(f"{I18N_Simply_Align_Prefix}.warning_target_file_missing"))
+
+    # 校验媒体类型
+    if target_media_type == MediaType.UNKNOWN:
+        return err(i18n.t(f"{I18N_Simply_Align_Prefix}.warning_offset_not_ready"))
+    
+    # 校验 action
+    if offset_action == "aligned" or offset_value_ms == 0:
+        return err(i18n.t(f"{I18N_Simply_Align_Prefix}.notice_skip_zero_offset"))
+    
+    # 校验 offset
+    if offset_action is None or offset_value_ms is None:
+        return err(i18n.t(f"{I18N_Simply_Align_Prefix}.warning_offset_not_ready"))
+
+    # 确定输出 audio_format
+    res = M_Defs.get_audio_format_by_media_type(target_media_type)
+    if not res.is_ok:
+        return err("Failed to determine audio format", inner=res)
+    audio_format_default, _ = res.value
+
+    if target_media_type == MediaType.AUDIO and target_path.suffix.lower() == ".mp3":
+        audio_format = "mp3" # 特殊处理 mp3
+    else:
+        audio_format = audio_format_default
+
+    # 构建输出路径
+    output_filename = f"{target_path.stem}{output_suffix}" if output_suffix else None
+    res = M_Defs.build_full_output_path(str(target_path),
+                                        output_filename,
+                                        audio_format)
+    if not res.is_ok:
+        return err(i18n.t(f"{I18N_Simply_Align_Prefix}.warning_build_output_path_failed",
+                          error=print_op_result(res)))
+    output_path = Path(res.value[0])
+
+    # 组装 raw_data
+    offset_sec = round(offset_value_ms / 1000.0, 3)
+    raw_data = {
+        M_Defs.media_type.key: target_media_type,
+        M_Defs.duration.key: target_duration,
+        M_Defs.input_path.key: str(target_path),
+        M_Defs.output_path.key: str(output_path),
+        M_Defs.pad_start.key: offset_sec if offset_action == "delay" else None,
+        M_Defs.start.key: offset_sec if offset_action == "trim" else None,
+    }
+
+    return ok((raw_data, output_path))
+
+
+
 class SimplyAlignPage(BaseOutputPage):
     def setup_content(self):
 

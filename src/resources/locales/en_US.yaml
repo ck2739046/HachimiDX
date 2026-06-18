@@ -180,7 +180,6 @@ en_US:
         warning_target_file_required: "Please select a target file first."
         warning_no_audio_stream_ref: "Reference file: The selected file does not contain an audio stream. Please select a file with audio."
         warning_no_audio_stream_target: "Target file: The selected file does not contain an audio stream. Please select a file with audio."
-        warning_target_file_missing: "Target file does not exist. Please select it again."
         warning_invalid_bpm: "Invalid initial BPM value. Please input a number between 10 and 400."
         warning_invalid_click_start_time: "Invalid start time. Please input a number >= 0."
         warning_worker_start_failed: "Failed to start worker:\n%{error}"
@@ -188,7 +187,6 @@ en_US:
         warning_wave_not_found: "Wave image file not found."
         warning_wave_load_failed: "Failed to load wave image."
         warning_offset_not_ready: "Offset is not ready yet. Please run Analyze first."
-        warning_build_output_path_failed: "Failed to build output path:\n%{error}"
         warning_edit_audio_failed: "Audio edit failed:\n%{error}"
         warning_edit_audio_failed_log: "Audio edit failed."
 
@@ -196,7 +194,6 @@ en_US:
         notice_run_cancelled: "Analyze cancelled."
         notice_run_success: "Analyze completed."
         notice_edit_audio_start: "Start one-click audio edit..."
-        notice_edit_audio_skip_zero_offset: "Offset is 0 ms, no audio edit is needed."
         notice_edit_audio_success: "Audio edit completed.\nOutput file: %{output_path}"
 
 
@@ -221,6 +218,11 @@ en_US:
           No:  Keep the existing file and generate a new file with a numbered suffix (e.g., sync_1)
         warning_video_generate_failed: "Failed to generate reference video:\n%{error}"
         warning_video_generate_failed_log: "Failed to generate reference video."
+        warning_offset_not_ready: "Offset is not ready yet. Please run Analyze first."
+        notice_skip_zero_offset: "Offset is 0 ms, no editing is needed."
+        warning_target_file_required: "Please select a target file first."
+        warning_target_file_missing: "Target file does not exist. Please select it again."
+        warning_build_output_path_failed: "Failed to build output path:\n%{error}"
 
 
       run_ffmpeg:

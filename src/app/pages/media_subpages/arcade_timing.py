@@ -5,7 +5,7 @@ from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QLabel, QVBoxLayout
 
 from ..base_output_page import BaseOutputPage
-from .simply_align import parse_offset_ms
+from .simply_align import parse_offset_ms, build_edit_media_raw_data
 from ...widgets import *
 from ...ui_style import UI_Style
 
@@ -378,79 +378,26 @@ class ArcadeTimingPage(BaseOutputPage):
 
 
 
-    @staticmethod
-    def _build_non_conflict_output_path(target_path: Path, audio_format: str) -> OpResult[Path]:
-        base_filename = f"{target_path.stem}_arcade_timing"
-
-        for i in range(0, 1000):
-            candidate_name = base_filename if i == 0 else f"{base_filename}_{i}"
-            path_res = M_Defs.build_full_output_path(str(target_path), candidate_name, audio_format)
-            if not path_res.is_ok:
-                return err("Failed to build output path", inner=path_res)
-
-            candidate_path = Path(path_res.value[0])
-            if not candidate_path.exists():
-                return ok(candidate_path)
-
-        return err("Failed to find non-conflicting output path")
-
-
 
     def on_edit_audio_clicked(self) -> None:
         if self._active_runner_id or self._active_media_runner_id:
             return
 
-        if self._offset_action is None or self._offset_value_ms is None:
-            show_notify_dialog(i18n.t(f"{I18N_Prefix}.dialog_title"), i18n.t(f"{I18N_Prefix}.warning_offset_not_ready"))
-            return
-
-        if self._offset_action == "aligned" or self._offset_value_ms == 0:
-            self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_edit_audio_skip_zero_offset"))
-            return
-
         target_file = self.target_media_input.get_path().strip()
-        if not target_file:
-            show_notify_dialog(i18n.t(f"{I18N_Prefix}.dialog_title"), i18n.t(f"{I18N_Prefix}.warning_target_file_required"))
-            return
-
-        target_path = Path(target_file)
-        if not target_path.is_file():
-            show_notify_dialog(i18n.t(f"{I18N_Prefix}.dialog_title"), i18n.t(f"{I18N_Prefix}.warning_target_file_missing"))
-            return
-
         target_media_type = self.target_media_input.selected_file_type
         target_duration = self.target_media_input.selected_file_duration
 
-        if target_media_type == MediaType.UNKNOWN:
-            show_notify_dialog(i18n.t(f"{I18N_Prefix}.dialog_title"), i18n.t(f"{I18N_Prefix}.warning_offset_not_ready"))
-            return
-
-        res = M_Defs.get_audio_format_by_media_type(target_media_type)
-        audio_format, _ = res.value
-        if target_media_type == MediaType.AUDIO and target_path.suffix.lower() == ".mp3":
-            audio_format = "mp3"
-
-        output_res = self._build_non_conflict_output_path(target_path, audio_format)
-        if not output_res.is_ok:
+        data_res = build_edit_media_raw_data(
+            target_file, target_media_type, target_duration,
+            self._offset_action, self._offset_value_ms,
+        )
+        if not data_res.is_ok:
             show_notify_dialog(
                 i18n.t(f"{I18N_Prefix}.dialog_title"),
-                i18n.t(f"{I18N_Prefix}.warning_build_output_path_failed", error=print_op_result(output_res)),
+                data_res.error_msg,
             )
             return
-        output_path = output_res.value
-
-        offset_sec = round(self._offset_value_ms / 1000.0, 3)
-        raw_data = {
-            M_Defs.media_type.key: target_media_type,
-            M_Defs.duration.key: target_duration,
-
-            M_Defs.input_path.key: str(target_path),
-            M_Defs.output_path.key: str(output_path),
-            M_Defs.audio_format.key: audio_format,
-            
-            M_Defs.pad_start.key: offset_sec if self._offset_action == "delay" else None,
-            M_Defs.start.key: offset_sec if self._offset_action == "trim" else None,
-        }
+        raw_data, output_path = data_res.value
 
         self.edit_audio_button.setEnabled(False)
         self.video_align_button.hide()
@@ -458,7 +405,7 @@ class ArcadeTimingPage(BaseOutputPage):
         self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_edit_audio_start"))
         
         try:
-            result = MediaPipeline.submit_task(raw_data, f"arcade_timing {target_path.name}")
+            result = MediaPipeline.submit_task(raw_data, f"arcade_timing {Path(target_file).name}")
             if not result.is_ok:
                 show_notify_dialog(
                     i18n.t(f"{I18N_Prefix}.dialog_title"),

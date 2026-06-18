@@ -181,7 +181,6 @@ zh_CN:
         warning_target_file_required: "请先选择目标文件。"
         warning_no_audio_stream_ref: "基准文件: 选择的文件不包含音频流，请选择包含音频的文件。"
         warning_no_audio_stream_target: "目标文件: 选择的文件不包含音频流，请选择包含音频的文件。"
-        warning_target_file_missing: "目标文件不存在，请重新选择。"
         warning_invalid_bpm: "初始 BPM 参数无效，请输入在 10~400 之间的数字。"
         warning_invalid_click_start_time: "起始时间无效，请输入大于等于 0 的数字。"
         warning_worker_start_failed: "启动任务失败：\n%{error}"
@@ -189,7 +188,6 @@ zh_CN:
         warning_wave_not_found: "未找到波形图文件。"
         warning_wave_load_failed: "波形图读取失败。"
         warning_offset_not_ready: "尚未解析到 offset，请先完成分析。"
-        warning_build_output_path_failed: "构建输出路径失败：\n%{error}"
         warning_edit_audio_failed: "音频编辑失败：\n%{error}"
         warning_edit_audio_failed_log: "音频编辑失败。"
 
@@ -197,7 +195,6 @@ zh_CN:
         notice_run_cancelled: "分析已取消。"
         notice_run_success: "分析完成。"
         notice_edit_audio_start: "开始执行一键音频编辑..."
-        notice_edit_audio_skip_zero_offset: "Offset 为 0 ms，无需编辑音频。"
         notice_edit_audio_success: "音频编辑完成。\n输出文件：%{output_path}"
 
 
@@ -222,6 +219,11 @@ zh_CN:
           否：保留已存在文件，生成新文件，文件名带后缀（例如 sync_1）。
         warning_video_generate_failed: "生成参考视频失败：\n%{error}"
         warning_video_generate_failed_log: "生成参考视频失败。"
+        warning_offset_not_ready: "尚未解析到 offset，请先完成分析。"
+        notice_skip_zero_offset: "Offset 为 0 ms，无需编辑。"
+        warning_target_file_required: "请先选择目标文件。"
+        warning_target_file_missing: "目标文件不存在，请重新选择。"
+        warning_build_output_path_failed: "构建输出路径失败：\n%{error}"
 
 
       run_ffmpeg:
