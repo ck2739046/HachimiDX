@@ -213,7 +213,11 @@ class MediaModel(BaseModel):
         audio_format_default, audio_format_options = result.value
         # 校验 audio_format
         if not self.audio_format:
-            self.audio_format = audio_format_default
+            # 音频文件：如果输入是 .mp3 则默认 mp3，否则按 media_type 默认值
+            if self.media_type == MediaType.AUDIO and self.input_path.suffix.lower() == ".mp3":
+                self.audio_format = "mp3"
+            else:
+                self.audio_format = audio_format_default
         if self.audio_format not in audio_format_options:
             raise ValueError(f"audio_format must be one of {audio_format_options}, got {self.audio_format}")
 
@@ -225,6 +229,27 @@ class MediaModel(BaseModel):
 
         return self
     
+
+
+    @model_validator(mode='after')
+    def validate_output_path_extension(self):
+        """校验输出文件扩展名与 media_type / audio_format 匹配"""
+
+        ext = self.output_path.suffix.lower()
+
+        if self.media_type in (MediaType.VIDEO_WITH_AUDIO, MediaType.VIDEO_WITHOUT_AUDIO):
+            if ext != ".mp4":
+                raise ValueError(
+                    f"Video output must use .mp4 extension, got {ext}"
+                )
+        elif self.media_type == MediaType.AUDIO:
+            expected = f".{self.audio_format}"
+            if ext != expected:
+                raise ValueError(
+                    f"Audio output must use {expected} extension, got {ext}"
+                )
+
+        return self
 
 
     @model_validator(mode='after')
