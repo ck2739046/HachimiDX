@@ -153,6 +153,10 @@ def _build_video_args(data: MediaModel) -> OpResult[list[str]]:
 
     if data.video_fps and data.video_fps > 0:
         args.extend(["-r", str(data.video_fps)])
+    elif data.pad_start or data.start:
+        # tpad/trim 滤镜 和 passthrough 有冲突
+        # 同时设置会报错 Demuxing timebase not available
+        pass
     else:
         # Keep original frame pacing/timestamps when FPS is "original".
         args.extend(["-fps_mode:v", "passthrough"])
