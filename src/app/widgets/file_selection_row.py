@@ -10,7 +10,8 @@ from .button import create_button
 def create_file_selection_row(button_text: str,
                               button_length: int = None,
                               help_text: str = None,
-                              on_button_clicked_handler=None):
+                              on_button_clicked_handler=None,
+                              name_filter: str = None):
     """
     创建文件选择行UI组件
 
@@ -19,6 +20,8 @@ def create_file_selection_row(button_text: str,
         button_length: int，可选，按钮长度，默认 120
         help_text: str，可选，默认None，不创建help_icon
         on_button_clicked_handler: function，可选，按钮点击事件处理函数 (这个函数需要接受"选择的文件路径"作为参数)
+        name_filter: str，可选，自定义文件过滤器（Qt setNameFilter 格式，如 "Text file (*.txt)"），
+                     默认None时使用 video/audio 过滤器
 
     Returns:
         tuple: (button_widget, line_edit_widget, help_label_widget | None)
@@ -42,7 +45,9 @@ def create_file_selection_row(button_text: str,
         """默认处理: 打开文件选择界面，更新 LineEdit 显示所选择的文件路径"""
         file_dialog = QFileDialog()
         file_dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
-        file_dialog.setNameFilter("video/audio (*.mov *.mkv *.mp4 *.webm *.mp3 *.ogg *.wav *.aac *.flac *.m4a)")
+        file_dialog.setNameFilter(
+            name_filter or "video/audio (*.mov *.mkv *.mp4 *.webm *.mp3 *.ogg *.wav *.aac *.flac *.m4a)"
+        )
         file_dialog.setViewMode(QFileDialog.ViewMode.Detail)
         if file_dialog.exec():
             selected_files = file_dialog.selectedFiles()

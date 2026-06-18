@@ -27,7 +27,8 @@ class MediaInputProbeWidget(QWidget):
     def __init__(self, parent=None,
                  select_file_button_help: str = None,
                  select_file_button_text: str = None,
-                 select_file_button_length: int = None):
+                 select_file_button_length: int = None,
+                 select_file_filter: str = None):
 
         super().__init__(parent)
 
@@ -42,7 +43,8 @@ class MediaInputProbeWidget(QWidget):
 
         self._init_ui(select_file_button_help,
                       select_file_button_text,
-                      select_file_button_length)
+                      select_file_button_length,
+                      select_file_filter)
         
 
 
@@ -52,7 +54,8 @@ class MediaInputProbeWidget(QWidget):
     def _init_ui(self,
                  select_file_button_help: str,
                  select_file_button_text: str,
-                 select_file_button_length: int):
+                 select_file_button_length: int,
+                 select_file_filter: str = None):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -65,7 +68,8 @@ class MediaInputProbeWidget(QWidget):
             button_text = select_file_button_text or i18n.t(f"{I18N_Prefix}.ui_select_input_file_button"),
             button_length = select_file_button_length,
             help_text = select_file_button_help,
-            on_button_clicked_handler = self._on_input_file_selected
+            on_button_clicked_handler = self._on_input_file_selected,
+            name_filter = select_file_filter,
         )
 
         row1 = _create_row(select_file_button,
