@@ -328,7 +328,7 @@ zh_CN:
         ui_config_path_label: "配置："
         ui_audio_path_label: "音频："
         ui_select_config_button: "选择 BPM 配置"
-        ui_select_config_help: "Bpm-Measurer 导出的 timing_config.txt 配置文件。"
+        ui_select_config_help: "BPM 测速工具导出的 timing_config.txt 配置文件。"
         ui_select_audio_button: "选择音频"
         ui_select_audio_help: "BPM 测速时所用的音频文件，需与配置来自同一次测量。"
         ui_open_bpm_measurer_button: "打开 BPM 测量工具"
@@ -346,10 +346,10 @@ zh_CN:
 
         ui_update_timing_config_button: "导出最终配置"
 
-        warning_bpm_measurer_start_failed: "启动 Bpm-Measurer 失败：\n%{error}"
-        warning_bpm_measurer_failed: "Bpm-Measurer 异常退出（退出码 %{code}）。"
-        warning_manifest_missing: "未找到 Bpm-Measurer 的导出回执文件，请手动选择配置与音频。"
-        warning_manifest_read_failed: "读取 Bpm-Measurer 导出回执失败：\n%{error}"
+        warning_bpm_measurer_start_failed: "启动 BPM 测速工具失败：\n%{error}"
+        warning_bpm_measurer_failed: "BPM 测速工具异常退出（退出码 %{code}）。"
+        warning_manifest_missing: "未找到 BPM 测速工具的导出回执文件，请手动选择配置与音频。"
+        warning_manifest_read_failed: "读取 BPM 测速工具导出回执失败：\n%{error}"
         warning_align_missing_files: "请先完成第①块（配置与音频），并选择谱面确认视频。"
         warning_align_start_failed: "启动对齐任务失败：\n%{error}"
         warning_align_failed: "对齐失败。"
@@ -360,9 +360,9 @@ zh_CN:
         warning_merge_failed: "合并配置失败：\n%{error}"
         warning_export_failed: "导出最终配置失败：\n%{error}"
 
-        notice_bpm_measurer_start: "已启动 Bpm-Measurer，请在其中测量并导出配置…"
-        notice_bpm_measurer_cancelled: "Bpm-Measurer 未导出即关闭。"
-        notice_bpm_measurer_success: "已从 Bpm-Measurer 自动填入配置与音频。"
+        notice_bpm_measurer_start: "已启动 BPM 测速工具，请在其中测量并导出配置…"
+        notice_bpm_measurer_cancelled: "BPM 测速工具未导出即关闭。"
+        notice_bpm_measurer_success: "已从 BPM 测速工具自动填入配置与音频。"
         notice_no_audio_in_video: "该谱面确认视频没有音频，无法自动对齐。请手动输入 Offset（毫秒）。"
         notice_align_start: "开始对齐…"
         notice_align_success: "对齐完成，offset = %{offset} ms。"
@@ -442,8 +442,11 @@ zh_CN:
         启用此选项，可以提高追踪的稳定性和准确性，但是追踪耗时会显著增加。
         仅推荐在 30/60 帧的视频中启用。
 
-      ui_bpm_label: "BPM: "
-      ui_bpm_help: "仅支持静态 BPM (全程不变速)\n支持整数或最多三位小数"
+      ui_bpm_type_label: "BPM 类型: "
+      ui_bpm_type_static: "静态 BPM"
+      ui_bpm_type_dynamic: "动态 BPM"
+      ui_input_static_bpm_label: " 请输入静态 BPM: "
+      ui_static_bpm_help: "仅支持静态 BPM (全程不变速)\n支持整数或最多三位小数"
       ui_is_big_touch_label: "大尺寸 touch: "
       ui_is_big_touch_help: |
         在 Basic/Advanced 难度中，

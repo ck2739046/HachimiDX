@@ -329,7 +329,9 @@ en_US:
         ui_select_config_button: "Select BPM Config"
         ui_select_config_help: "The timing_config.txt exported by Bpm-Measurer."
         ui_select_audio_button: "Select Audio"
-        ui_select_audio_help: "The audio file used during BPM measurement; must come from the same measurement as the config."
+        ui_select_audio_help: |
+          The audio file used during BPM measurement;
+          must come from the same measurement as the config.
         ui_open_bpm_measurer_button: "Open BPM Measurer"
         ui_manual_mode_hint: " Please select BPM config and audio files below"
 
@@ -384,7 +386,8 @@ en_US:
         select the "---" option in the first dropdown menu on the right,
         then click the "Load" button.
       ui_play_video_help: |
-        checked: The video will play in both the top-left MajdataView and the bottom-left video player.
+        checked: The video will play in both the top-left MajdataView
+                 and the bottom-left video player.
         unchecked: The video will only play in the bottom-left video player.
 
 
@@ -446,8 +449,11 @@ en_US:
         Enabling this option can improve the stability and accuracy of tracking, but it will significantly increase the tracking time.
         Recommended to enable only for videos with 30/60 FPS.
 
-      ui_bpm_label: "BPM: "
-      ui_bpm_help: "Only static BPM is supported (no tempo changes).\nSupports integers or up to 3 decimal places"
+      ui_bpm_type_label: "BPM Type: "
+      ui_bpm_type_static: "Static"
+      ui_bpm_type_dynamic: "Dynamic"
+      ui_input_static_bpm_label: " Input Static BPM: "
+      ui_static_bpm_help: "Only static BPM is supported (no tempo changes).\nSupports integers or up to 3 decimal places"
       ui_is_big_touch_label: "Larger Touch: "
       ui_is_big_touch_help: |
         In Basic/Advanced level,

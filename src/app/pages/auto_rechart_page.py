@@ -55,7 +55,14 @@ class AutoRechartPage(BaseOutputPage):
         self.skip_export_help = None # adv 由row控制
 
         # analyze panel
-        self.bpm_line_edit = None
+        self.bpm_type_combo_box = None
+        self.input_static_bpm_label = None
+        self.static_bpm_line_edit = None
+        self.static_bpm_help = None
+        self.static_bpm_spacer = None
+        self.bpm_config_select_button = None
+        self.bpm_config_path_display = None
+        self.bpm_config_help = None
         self.is_big_touch_check_box = None
         self.chart_lv_combo_box = None
         self.base_denominator_combo_box = None
@@ -95,8 +102,8 @@ class AutoRechartPage(BaseOutputPage):
         self._update_panels_visibility()
         # 默认关闭高级模式，隐藏相关设置
         self.swtich_advanced_mode()
-
-    
+        # Initialize BPM type visibility
+        self._on_bpm_type_changed(0)
 
 
 
@@ -333,14 +340,33 @@ class AutoRechartPage(BaseOutputPage):
         analyze_divider = create_divider(i18n.t(f"{I18N_Prefix}.ui_analyze_divider"))
         layout.addWidget(analyze_divider)
 
-        # Row 1
-        bpm_label = create_label(i18n.t(f"{I18N_Prefix}.ui_bpm_label"))
-        self.bpm_line_edit = create_line_edit(length=70, validator='float')
-        bpm_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_bpm_help"))
+        # Row 1 (BPM type combo + static input / dynamic config file)
+        bpm_type_label = create_label(i18n.t(f"{I18N_Prefix}.ui_bpm_type_label"))
+        self.bpm_type_combo_box = create_combo_box(
+            items=[i18n.t(f"{I18N_Prefix}.ui_bpm_type_static"),
+                   i18n.t(f"{I18N_Prefix}.ui_bpm_type_dynamic")],
+            default_index=0,
+            length = 93
+        )
+        self.input_static_bpm_label = create_label(i18n.t(f"{I18N_Prefix}.ui_input_static_bpm_label"))
+        self.static_bpm_line_edit = create_line_edit(length=70, validator='float')
+        self.static_bpm_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_static_bpm_help"))
+        self.static_bpm_spacer = create_label(expand=True) # 占位符，因为 add_stretch = False
 
+        (self.bpm_config_select_button,
+         self.bpm_config_path_display,
+         self.bpm_config_help
+        ) = create_file_selection_row(
+            button_text=i18n.t("app.media_subpages.measure_bpm.ui_select_config_button"),
+            help_text=i18n.t("app.media_subpages.measure_bpm.ui_select_config_help"),
+            button_length=130,
+            name_filter="bpm config (*.txt)",
+        )
 
-        row = _create_row(bpm_label, self.bpm_line_edit, bpm_help,
-                          add_stretch=True)
+        row = _create_row(bpm_type_label, self.bpm_type_combo_box,
+                          self.input_static_bpm_label, self.static_bpm_line_edit, self.static_bpm_help,
+                          self.static_bpm_spacer,
+                          self.bpm_config_select_button, self.bpm_config_help, self.bpm_config_path_display)
         layout.addWidget(row)
 
         # Row 2
@@ -372,6 +398,7 @@ class AutoRechartPage(BaseOutputPage):
 
         # 连接信号
         self.chart_lv_combo_box.currentTextChanged.connect(self._on_chart_lv_changed)
+        self.bpm_type_combo_box.currentIndexChanged.connect(self._on_bpm_type_changed)
 
 
 
@@ -564,7 +591,7 @@ class AutoRechartPage(BaseOutputPage):
                 
             if raw_data[AC_Defs.is_analyze_enabled.key]:
                 raw_data.update({
-                    AC_Defs.bpm.key: try_float(self.bpm_line_edit.text().strip()),
+                    AC_Defs.bpm.key: try_float(self.static_bpm_line_edit.text().strip()),
                     AC_Defs.is_big_touch.key: self.is_big_touch_check_box.isChecked(),
                     AC_Defs.chart_lv.key: try_int(self.chart_lv_combo_box.currentText()),
                     AC_Defs.base_denominator.key: try_int(self._transfer_base_denominator(self.base_denominator_combo_box.currentText())),
@@ -612,6 +639,20 @@ class AutoRechartPage(BaseOutputPage):
                 i18n.t("app.media_subpages.run_ffmpeg.warning_unexpected_submit_error", error=traceback.format_exc()))
         finally:
             self.submit_button.setEnabled(True)
+
+
+
+
+    def _on_bpm_type_changed(self, index: int):
+        """Toggle visibility between static BPM input and dynamic config file row."""
+        is_static = (index == 0)
+        self.input_static_bpm_label.setVisible(is_static)
+        self.static_bpm_line_edit.setVisible(is_static)
+        self.static_bpm_help.setVisible(is_static)
+        self.static_bpm_spacer.setVisible(is_static)
+        self.bpm_config_select_button.setVisible(not is_static)
+        self.bpm_config_help.setVisible(not is_static)
+        self.bpm_config_path_display.setVisible(not is_static)
 
 
 
