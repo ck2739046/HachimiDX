@@ -31,8 +31,8 @@ def update_global_offset(raw_config_text: str, offset_ms: int) -> OpResult[str]:
     Returns:
         OpResult[str]: 成功时 value 为最终配置文本（换行符与原文一致）。
     """
-    if raw_config_text is None:
-        return err("raw_config_text is None")
+    if raw_config_text is None or not raw_config_text.strip():
+        return err("selected bpm config file is None or empty")
 
     try:
         offset_sec = int(offset_ms) / 1000.0
@@ -60,6 +60,6 @@ def update_global_offset(raw_config_text: str, offset_ms: int) -> OpResult[str]:
             out_lines.append(ln)
 
     if not found_offset:
-        return err("原始配置缺少 global_offset 行，无法合并 offset")
+        return err("cannot find <global_offset> in the selected bpm config file")
 
     return ok("\n".join(out_lines))
