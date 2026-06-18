@@ -345,6 +345,7 @@ zh_CN:
         ui_auto_align_button: "自动对齐"
 
         ui_update_timing_config_button: "导出最终配置"
+        ui_send_to_auto_rechart_button: "填入自动抄谱页面"
 
         warning_bpm_measurer_start_failed: "启动 BPM 测速工具失败：\n%{error}"
         warning_bpm_measurer_failed: "BPM 测速工具异常退出（退出码 %{code}）。"

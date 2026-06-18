@@ -347,6 +347,7 @@ en_US:
         ui_auto_align_button: "Auto Align"
 
         ui_update_timing_config_button: "Export Final Config"
+        ui_send_to_auto_rechart_button: "Send to Auto Rechart Page"
 
         warning_bpm_measurer_start_failed: "Failed to start Bpm-Measurer:\n%{error}"
         warning_bpm_measurer_failed: "Bpm-Measurer exited unexpectedly (exit code %{code})."

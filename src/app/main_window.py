@@ -161,16 +161,28 @@ class RightPanel(QWidget):
         self.majdata_page = MajdataPage()
         self.stack.addWidget(self.majdata_page)
         # 1: Auto Rechart
-        self.stack.addWidget(AutoRechartPage())
+        self.auto_rechart_page = AutoRechartPage()
+        self.stack.addWidget(self.auto_rechart_page)
         # 2: Media Tools
-        self.stack.addWidget(MediaToolsPage())
+        self.media_tools_page = MediaToolsPage()
+        self.stack.addWidget(self.media_tools_page)
         # 3: Tasks
         self.stack.addWidget(TasksPage())
         # 4: Settings
         self.stack.addWidget(SettingsPage())
 
+        # 连接信号：Measure Bpm → Auto Rechart 一键填入
+        self.media_tools_page.request_send_to_auto_rechart.connect(self._on_send_to_auto_rechart)
+
         # 连接信号
         self.nav_bar.currentChanged.connect(self.stack.setCurrentIndex)
+
+
+    def _on_send_to_auto_rechart(self, video_path: str, bpm_config_path: str) -> None:
+        """处理 Measure Bpm 的一键填入请求：填入 Auto Rechart 并跳转。"""
+        success = self.auto_rechart_page.set_measure_bpm_result(video_path, bpm_config_path)
+        if success:
+            self.nav_bar.setCurrentIndex(1)  # 切到 Auto Rechart
 
 
     def set_majdata_edit_hwnd(self, hwnd: int) -> None:

@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from PyQt6.QtWidgets import QVBoxLayout, QFileDialog
+from PyQt6.QtCore import pyqtSignal
 
 from ..base_output_page import BaseOutputPage, _create_row
 from ...widgets import *
@@ -33,6 +34,9 @@ class MeasureBpmPage(BaseOutputPage):
     2. 与谱面确认视频对齐，得到 offset_ms，合并生成最终 bpm 配置
     """
 
+    # (video_path, bpm_config_path) — 发送到 Auto Rechart 页
+    request_send_to_auto_rechart = pyqtSignal(str, str)
+
     def setup_content(self) -> None:
         self.content_layout = QVBoxLayout(self.content_area)
         self.content_layout.setContentsMargins(10, 10, 10, 10)
@@ -61,11 +65,13 @@ class MeasureBpmPage(BaseOutputPage):
         self.block2_row3 = None        # row 3
         self.offset_line_edit = None
         self.update_timing_config_button = None
+        self.send_to_auto_rechart_button = None
 
         # state / runners
         self._align_runner_id = None
         self._bpm_measurer_runner_id = None
         self._notify_path = None
+        self._last_exported_config_path = None  # 最近一次导出的最终配置路径
 
         self._build_block1()
         self._build_block2()
@@ -223,15 +229,19 @@ class MeasureBpmPage(BaseOutputPage):
         offset_help = create_help_icon(_t("ui_offset_help"))
         self.offset_line_edit = create_line_edit(length=120, validator='int')
         self.update_timing_config_button = create_stated_button(_t("ui_update_timing_config_button"))
+        self.send_to_auto_rechart_button = create_stated_button(_t("ui_send_to_auto_rechart_button"))
         self.block2_row3 = _create_row(
             offset_label, self.offset_line_edit, offset_help,
-            self.update_timing_config_button, add_stretch=True)
+            self.update_timing_config_button,
+            self.send_to_auto_rechart_button,
+            add_stretch=True)
         self.content_layout.addWidget(self.block2_row3)
 
         # connect
         self.chart_video_input.media_loaded.connect(self._on_chart_video_loaded)
         self.auto_align_button.clicked.connect(self._on_auto_align_clicked)
         self.update_timing_config_button.clicked.connect(self._on_update_timing_config_clicked)
+        self.send_to_auto_rechart_button.clicked.connect(self._on_send_to_auto_rechart_clicked)
     
 
 
@@ -281,7 +291,11 @@ class MeasureBpmPage(BaseOutputPage):
 
 
     def _on_update_timing_config_clicked(self) -> None:
+        # reset
+        self._last_exported_config_path = None
+        self.send_to_auto_rechart_button.hide()
         self._set_all_buttons_enabled(False)
+
         config_path = self.config_path_display.text().strip()
         offset_text = self.offset_line_edit.text().strip()
         if not config_path or not offset_text:
@@ -328,7 +342,18 @@ class MeasureBpmPage(BaseOutputPage):
             return
 
         self.output_widget.append_text(_t("notice_export_success", output_path=out_path))
+        self._last_exported_config_path = out_path
+        self.send_to_auto_rechart_button.show()
         self._set_all_buttons_enabled(True)
+
+
+    def _on_send_to_auto_rechart_clicked(self) -> None:
+        video_path = self.chart_video_input.get_path().strip()
+        config_path = self._last_exported_config_path
+        if not video_path or not config_path:
+            show_notify_dialog(_t("dialog_title"), _t("warning_export_prerequisite"))
+            return
+        self.request_send_to_auto_rechart.emit(video_path, config_path)
 
 
 
@@ -347,6 +372,7 @@ class MeasureBpmPage(BaseOutputPage):
         self.auto_align_button.setEnabled(enabled)
         self.update_timing_config_button.setEnabled(enabled)
         self.offset_line_edit.setEnabled(enabled)
+        self.send_to_auto_rechart_button.setEnabled(enabled)
 
 
     def _toggle_block2(self, show: bool) -> None:
@@ -365,6 +391,7 @@ class MeasureBpmPage(BaseOutputPage):
         self.chart_video_input.reset()
         self.offset_line_edit.setText("")
         self.align_result_label.setText("")
+        self._last_exported_config_path = None
 
 
 
@@ -421,9 +448,11 @@ class MeasureBpmPage(BaseOutputPage):
                 # 显示 label
                 self.align_result_label.setText(label_text)
                 self.align_result_label.show()
-                # 显示 row3
-                self.offset_line_edit.setText(str(offset))
-                self.block2_row3.show()
+                # 只有没对齐才显示 aligned
+                if offset != 0:
+                    self.offset_line_edit.setText(str(offset))
+                    self.block2_row3.show()
+                    self.send_to_auto_rechart_button.hide()
                 return
 
 

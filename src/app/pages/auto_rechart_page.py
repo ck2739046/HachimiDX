@@ -111,12 +111,31 @@ class AutoRechartPage(BaseOutputPage):
 
 
 
+    def set_measure_bpm_result(self, video_path: str, bpm_config_path: str) -> bool:
+        """
+        接收 Measure Bpm 页导出的视频与最终 BPM 配置，自动填入。
+        会先调用 reset_page()（用户可在确认弹窗中取消）。
+
+        Returns:
+            True if filled successfully; False if user cancelled the reset.
+        """
+        if not self.reset_page():
+            return False
+        if video_path:
+            self.chart_confirm_video_input.set_path(video_path)
+        if bpm_config_path:
+            self.bpm_type_combo_box.setCurrentIndex(1)  # 动态 BPM
+            self.bpm_config_path_display.setText(bpm_config_path)
+        return True
 
 
+    def reset_page(self) -> bool:
+        """
+        Reset all controls to default state (does not clear output_widget).
 
-
-    def reset_page(self):
-        """Reset all controls to default state (does not clear output_widget)."""
+        Returns:
+            True if reset was performed; False if user cancelled the confirmation.
+        """
 
         # Check if user has selected content
         has_video = bool(self.chart_confirm_video_input.get_path().strip())
@@ -126,7 +145,7 @@ class AutoRechartPage(BaseOutputPage):
             title = i18n.t(f"{I18N_Prefix}.ui_reset_page_confirm_title")
             text = i18n.t(f"{I18N_Prefix}.ui_reset_page_confirm_text")
             if not show_confirm_dialog(title, text):
-                return
+                return False
 
         # Reset file selection
         self.chart_confirm_video_input.reset()
@@ -193,6 +212,7 @@ class AutoRechartPage(BaseOutputPage):
         self._update_panels_visibility()
         self.swtich_advanced_mode()
         self._on_bpm_type_changed(0)
+        return True
 
 
 

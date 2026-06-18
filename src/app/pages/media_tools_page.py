@@ -1,4 +1,5 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QStackedWidget
+from PyQt6.QtCore import pyqtSignal
 
 import i18n
 
@@ -14,6 +15,10 @@ class MediaToolsPage(QWidget):
     Media Tools 主页面
     包含内部导航栏和子页面 Stack
     """
+
+    # (video_path, bpm_config_path) — 透传到 RightPanel，用于填入 Auto Rechart 页
+    request_send_to_auto_rechart = pyqtSignal(str, str)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setup_ui()
@@ -53,10 +58,13 @@ class MediaToolsPage(QWidget):
         self.stack.addWidget(self.arcade_timing_page)
         self.stack.addWidget(self.simply_align_page)
         self.stack.addWidget(RunFFmpegPage())
-        self.stack.addWidget(MeasureBpmPage())
+        self.measure_bpm_page = MeasureBpmPage()
+        self.stack.addWidget(self.measure_bpm_page)
 
         # 连接信号：Arcade Timing → Simply Align 一键跳转
         self.arcade_timing_page.request_simply_align.connect(self._on_request_simply_align)
+        # 连接信号：Measure Bpm → Auto Rechart 一键填入（透传到上层）
+        self.measure_bpm_page.request_send_to_auto_rechart.connect(self.request_send_to_auto_rechart)
 
         # 连接信号
         self.nav_bar.currentChanged.connect(self.stack.setCurrentIndex)
