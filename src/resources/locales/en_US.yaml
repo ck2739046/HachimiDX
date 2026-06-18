@@ -174,7 +174,7 @@ en_US:
 
         ui_run_button: "Analyze"
         ui_edit_target_button: "Modify Target"
-        ui_video_align_button: "Align Video"
+        ui_video_align_button: "Retro-align Reference to Target"
 
         warning_reference_file_required: "Please select a reference file first."
         warning_target_file_required: "Please select a target file first."

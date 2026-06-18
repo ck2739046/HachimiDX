@@ -175,7 +175,7 @@ zh_CN:
 
         ui_run_button: "分析"
         ui_edit_target_button: "修改目标文件"
-        ui_video_align_button: "对齐视频"
+        ui_video_align_button: "回溯对齐基准到目标"
 
         warning_reference_file_required: "请先选择基准文件。"
         warning_target_file_required: "请先选择目标文件。"

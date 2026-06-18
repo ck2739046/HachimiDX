@@ -100,7 +100,7 @@ class SettingsPage(BaseOutputPage):
         self.model_backend_combo_box = self._create_combo_from_definition(S_Defs.model_backend, length=100)
         backend_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_model_backend_help"))
         self.check_model_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_check_model_button"))
-        self.convert_model_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_convert_model_button"), width=120)
+        self.convert_model_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_convert_model_button"))
         self.cancel_convert_model_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_cancel_convert_model_button"))
         self.convert_model_button.setVisible(False)        # 默认隐藏
         self.cancel_convert_model_button.setVisible(False) # 默认隐藏

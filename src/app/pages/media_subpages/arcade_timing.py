@@ -155,11 +155,11 @@ class ArcadeTimingPage(BaseOutputPage):
         self.offset_label = create_label(bold=True)
         self.offset_label.hide()
 
-        self.edit_target_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_edit_target_button"), width=100)
+        self.edit_target_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_edit_target_button"))
         self.edit_target_button.clicked.connect(self.on_edit_target_clicked)
         self.edit_target_button.hide()
 
-        self.video_align_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_video_align_button"), width=100)
+        self.video_align_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_video_align_button"))
         self.video_align_button.clicked.connect(self.on_video_align_clicked)
         self.video_align_button.hide()
 
