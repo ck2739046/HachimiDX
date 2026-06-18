@@ -39,7 +39,7 @@ class ArcadeTimingPage(BaseOutputPage):
 
         self.run_button = None
         self.offset_label = None
-        self.edit_audio_button = None
+        self.edit_target_button = None
         self.video_align_button = None
 
         self.waveform_label = None
@@ -113,7 +113,7 @@ class ArcadeTimingPage(BaseOutputPage):
         self.offset_label.setText("")
         self.offset_label.hide()
         self.video_align_button.hide()
-        self.edit_audio_button.hide()
+        self.edit_target_button.hide()
         self.waveform_label.hide()
         self.waveform_label.clear()
 
@@ -155,9 +155,9 @@ class ArcadeTimingPage(BaseOutputPage):
         self.offset_label = create_label(bold=True)
         self.offset_label.hide()
 
-        self.edit_audio_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_edit_audio_button"), width=100)
-        self.edit_audio_button.clicked.connect(self.on_edit_audio_clicked)
-        self.edit_audio_button.hide()
+        self.edit_target_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_edit_target_button"), width=100)
+        self.edit_target_button.clicked.connect(self.on_edit_target_clicked)
+        self.edit_target_button.hide()
 
         self.video_align_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_video_align_button"), width=100)
         self.video_align_button.clicked.connect(self.on_video_align_clicked)
@@ -165,7 +165,7 @@ class ArcadeTimingPage(BaseOutputPage):
 
         self.create_row(self.run_button,
                         self.offset_label,
-                        self.edit_audio_button,
+                        self.edit_target_button,
                         self.video_align_button,
                         add_stretch=True)
 
@@ -300,7 +300,7 @@ class ArcadeTimingPage(BaseOutputPage):
         # Handle media (edit audio) task
         if self._active_media_runner_id and runner_id == self._active_media_runner_id:
             self._active_media_runner_id = None
-            self.edit_audio_button.setEnabled(True)
+            self.edit_target_button.setEnabled(True)
 
             if getattr(ended, "cancelled", False):
                 self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_run_cancelled"))
@@ -312,13 +312,13 @@ class ArcadeTimingPage(BaseOutputPage):
                 failed = True
 
             if failed:
-                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.warning_edit_audio_failed_log"))
+                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.warning_edit_target_failed_log"))
                 self.video_align_button.hide()
                 return
 
             output_path_str = str(self._media_output_path) if self._media_output_path else "?"
             self.output_widget.append_text(
-                i18n.t(f"{I18N_Prefix}.notice_edit_audio_success", output_path=output_path_str)
+                i18n.t(f"{I18N_Prefix}.notice_edit_target_success", output_path=output_path_str)
             )
             self.video_align_button.show()
             return
@@ -355,13 +355,13 @@ class ArcadeTimingPage(BaseOutputPage):
             self.output_widget.append_text("ui: failed to parse offset from output")
             self._offset_action = None
             self._offset_value_ms = None
-            self.edit_audio_button.hide()
+            self.edit_target_button.hide()
             return
 
         if offset == 0:
             self._offset_action = "aligned"
             self._offset_value_ms = 0
-            self.edit_audio_button.hide()
+            self.edit_target_button.hide()
             return
 
         if offset > 0:  # delay
@@ -374,12 +374,12 @@ class ArcadeTimingPage(BaseOutputPage):
             self._offset_value_ms = value
             self.offset_label.setText(f"  Offset: trim {value} ms ")
         self.offset_label.show()
-        self.edit_audio_button.show()
+        self.edit_target_button.show()
 
 
 
 
-    def on_edit_audio_clicked(self) -> None:
+    def on_edit_target_clicked(self) -> None:
         if self._active_runner_id or self._active_media_runner_id:
             return
 
@@ -399,19 +399,19 @@ class ArcadeTimingPage(BaseOutputPage):
             return
         raw_data, output_path = data_res.value
 
-        self.edit_audio_button.setEnabled(False)
+        self.edit_target_button.setEnabled(False)
         self.video_align_button.hide()
         self._media_output_path = output_path
-        self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_edit_audio_start"))
+        self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_edit_target_start"))
         
         try:
             result = MediaPipeline.submit_task(raw_data, f"arcade_timing {Path(target_file).name}")
             if not result.is_ok:
                 show_notify_dialog(
                     i18n.t(f"{I18N_Prefix}.dialog_title"),
-                    i18n.t(f"{I18N_Prefix}.warning_edit_audio_failed", error=print_op_result(result)),
+                    i18n.t(f"{I18N_Prefix}.warning_edit_target_failed", error=print_op_result(result)),
                 )
-                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.warning_edit_audio_failed_log"))
+                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.warning_edit_target_failed_log"))
                 return
 
             runner_id, cmd_list = result.value
@@ -423,7 +423,7 @@ class ArcadeTimingPage(BaseOutputPage):
 
         finally:
             if not self._active_media_runner_id:
-                self.edit_audio_button.setEnabled(True)
+                self.edit_target_button.setEnabled(True)
 
 
     def on_video_align_clicked(self) -> None:
