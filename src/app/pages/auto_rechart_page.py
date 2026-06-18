@@ -338,12 +338,8 @@ class AutoRechartPage(BaseOutputPage):
         self.bpm_line_edit = create_line_edit(length=70, validator='float')
         bpm_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_bpm_help"))
 
-        is_big_touch_label = create_label(i18n.t(f"{I18N_Prefix}.ui_is_big_touch_label"))
-        self.is_big_touch_check_box = create_check_box(AC_Defs.is_big_touch.default)
-        is_big_touch_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_is_big_touch_help"))
-        
+
         row = _create_row(bpm_label, self.bpm_line_edit, bpm_help,
-                          is_big_touch_label, self.is_big_touch_check_box, is_big_touch_help,
                           add_stretch=True)
         layout.addWidget(row)
 
@@ -351,6 +347,10 @@ class AutoRechartPage(BaseOutputPage):
         chart_lv_label = create_label(i18n.t(f"{I18N_Prefix}.ui_chart_lv_label"))
         self.chart_lv_combo_box = self._create_combobox_with_options(AC_Defs.chart_lv, length=46)
         chart_lv_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_chart_lv_help"))
+
+        is_big_touch_label = create_label(i18n.t(f"{I18N_Prefix}.ui_is_big_touch_label"))
+        self.is_big_touch_check_box = create_check_box(AC_Defs.is_big_touch.default)
+        is_big_touch_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_is_big_touch_help"))
 
         bd_label = create_label(i18n.t(f"{I18N_Prefix}.ui_base_denominator_label"))
         self.base_denominator_combo_box = self._create_combobox_with_options(AC_Defs.base_denominator, length=80, transfer_fn=self._transfer_base_denominator)
@@ -361,6 +361,7 @@ class AutoRechartPage(BaseOutputPage):
         dd_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_duration_denominator_help"))
 
         row = _create_row(chart_lv_label, self.chart_lv_combo_box, chart_lv_help,
+                          is_big_touch_label, self.is_big_touch_check_box, is_big_touch_help,
                           bd_label, self.base_denominator_combo_box, bd_help,
                           dd_label, self.duration_denominator_combo_box, dd_help,
                           add_stretch=True)
