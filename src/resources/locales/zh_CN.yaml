@@ -320,6 +320,53 @@ zh_CN:
         warning_unexpected_submit_error: "任务提交时发生意外错误：\n%{error}"
 
 
+      measure_bpm:
+        dialog_title: "测量 BPM"
+
+        ui_block1_divider: "测量 BPM"
+        ui_enable_bpm_measurer_label: "启用 BPM 测量工具: "
+        ui_config_path_label: "配置："
+        ui_audio_path_label: "音频："
+        ui_select_config_button: "选择 BPM 配置"
+        ui_select_config_help: "Bpm-Measurer 导出的 timing_config.txt 配置文件。"
+        ui_select_audio_button: "选择音频"
+        ui_select_audio_help: "BPM 测速时所用的音频文件，需与配置来自同一次测量。"
+        ui_open_bpm_measurer_button: "打开 BPM 测量工具"
+        ui_manual_mode_hint: " 请在下方手动选择 BPM 配置文件和音频"
+
+        ui_block2_divider: "对齐"
+        ui_select_chart_video_button: "选择谱面确认视频"
+        ui_offset_label: "Offset (ms): "
+        ui_offset_help: |
+          测量音频相对于谱面确认视频的时间偏移（毫秒）。
+          正值 = 测量音频比视频早；负值 = 比视频晚。
+          有音轨时可点“自动对齐”自动填入并微调；无音轨时需手动输入。
+          最终 global_offset = 原始 offset + 该值 / 1000。
+        ui_auto_align_button: "自动对齐"
+
+        ui_update_timing_config_button: "导出最终配置"
+
+        warning_bpm_measurer_start_failed: "启动 Bpm-Measurer 失败：\n%{error}"
+        warning_bpm_measurer_failed: "Bpm-Measurer 异常退出（退出码 %{code}）。"
+        warning_manifest_missing: "未找到 Bpm-Measurer 的导出回执文件，请手动选择配置与音频。"
+        warning_manifest_read_failed: "读取 Bpm-Measurer 导出回执失败：\n%{error}"
+        warning_align_missing_files: "请先完成第①块（配置与音频），并选择谱面确认视频。"
+        warning_align_start_failed: "启动对齐任务失败：\n%{error}"
+        warning_align_failed: "对齐失败。"
+        warning_parse_offset_failed: "未能从对齐输出中解析 offset，请手动输入。"
+        warning_export_prerequisite: "请先完成第①块和第②块（配置、音频、offset 均已就绪）。"
+        warning_offset_invalid: "Offset 无效，请输入整数毫秒。"
+        warning_read_config_failed: "读取原始配置失败：\n%{error}"
+        warning_merge_failed: "合并配置失败：\n%{error}"
+        warning_export_failed: "导出最终配置失败：\n%{error}"
+
+        notice_bpm_measurer_start: "已启动 Bpm-Measurer，请在其中测量并导出配置…"
+        notice_bpm_measurer_cancelled: "Bpm-Measurer 未导出即关闭。"
+        notice_bpm_measurer_success: "已从 Bpm-Measurer 自动填入配置与音频。"
+        notice_no_audio_in_video: "该谱面确认视频没有音频，无法自动对齐。请手动输入 Offset（毫秒）。"
+        notice_align_start: "开始对齐…"
+        notice_align_success: "对齐完成，offset = %{offset} ms。"
+        notice_export_success: "已导出最终配置：\n%{output_path}"
 
 
     # ---- majdata 页面 ----

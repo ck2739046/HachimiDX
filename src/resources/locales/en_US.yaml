@@ -319,6 +319,54 @@ en_US:
         warning_unexpected_submit_error: "Unexpected error during task submission:\n%{error}"
 
 
+      measure_bpm:
+        dialog_title: "Measure BPM"
+
+        ui_block1_divider: "Measure BPM"
+        ui_enable_bpm_measurer_label: "Use BPM Measurer: "
+        ui_config_path_label: "Config: "
+        ui_audio_path_label: "Audio: "
+        ui_select_config_button: "Select BPM Config"
+        ui_select_config_help: "The timing_config.txt exported by Bpm-Measurer."
+        ui_select_audio_button: "Select Audio"
+        ui_select_audio_help: "The audio file used during BPM measurement; must come from the same measurement as the config."
+        ui_open_bpm_measurer_button: "Open BPM Measurer"
+        ui_manual_mode_hint: " Please select BPM config and audio files below"
+
+        ui_block2_divider: "Alignment"
+        ui_select_chart_video_button: "Select Chart Confirmation"
+        ui_offset_label: "Offset (ms): "
+        ui_offset_help: |
+          Time offset (milliseconds) of the measured audio relative to the chart confirmation video.
+          Positive = measured audio is earlier than the video; negative = later.
+          When the video has audio, click "Auto Align" to fill it automatically (then fine-tune);
+          when the video has no audio, enter it manually.
+          Final global_offset = original offset + this value / 1000.
+        ui_auto_align_button: "Auto Align"
+
+        ui_update_timing_config_button: "Export Final Config"
+
+        warning_bpm_measurer_start_failed: "Failed to start Bpm-Measurer:\n%{error}"
+        warning_bpm_measurer_failed: "Bpm-Measurer exited unexpectedly (exit code %{code})."
+        warning_manifest_missing: "Bpm-Measurer export manifest not found. Please select config and audio manually."
+        warning_manifest_read_failed: "Failed to read Bpm-Measurer export manifest:\n%{error}"
+        warning_align_missing_files: "Please complete block ① (config & audio) and select the chart confirmation video first."
+        warning_align_start_failed: "Failed to start alignment task:\n%{error}"
+        warning_align_failed: "Alignment failed."
+        warning_parse_offset_failed: "Could not parse offset from alignment output. Please enter it manually."
+        warning_export_prerequisite: "Please complete blocks ① and ② first (config, audio and offset must be ready)."
+        warning_offset_invalid: "Invalid offset. Please enter an integer number of milliseconds."
+        warning_read_config_failed: "Failed to read raw config:\n%{error}"
+        warning_merge_failed: "Failed to merge config:\n%{error}"
+        warning_export_failed: "Failed to export final config:\n%{error}"
+
+        notice_bpm_measurer_start: "Bpm-Measurer started. Please measure and export the config there…"
+        notice_bpm_measurer_cancelled: "Bpm-Measurer was closed without exporting."
+        notice_bpm_measurer_success: "Config and audio auto-filled from Bpm-Measurer."
+        notice_no_audio_in_video: "This chart confirmation video has no audio and cannot be auto-aligned. Please enter the Offset (ms) manually."
+        notice_align_start: "Aligning…"
+        notice_align_success: "Alignment complete, offset = %{offset} ms."
+        notice_export_success: "Final config exported:\n%{output_path}"
 
 
     # ---- majdata page ----
