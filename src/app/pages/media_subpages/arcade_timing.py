@@ -5,6 +5,7 @@ from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QLabel, QVBoxLayout
 
 from ..base_output_page import BaseOutputPage
+from .simply_align import parse_offset_ms
 from ...widgets import *
 from ...ui_style import UI_Style
 
@@ -347,52 +348,32 @@ class ArcadeTimingPage(BaseOutputPage):
 
 
     def _try_parse_offset(self) -> None:
-        offset_action = None
-        offset_value_ms = None
-        recent_output = self.output_widget.get_recent_lines(6)
-        for line in reversed(recent_output.splitlines()):
-            line = line.strip()
-            if not line:
-                continue
+        offset = parse_offset_ms(self.output_widget.get_recent_lines(6))
 
-            if line == "Audio files are perfectly aligned (offset < 10 ms)":
-                offset_action = "aligned"
-                offset_value_ms = 0
-                break
-
-            if line.startswith("Target file needs trim ") and line.endswith(" ms"):
-                value_text = line[len("Target file needs trim "):-len(" ms")].strip()
-                try:
-                    offset_action = "trim"
-                    offset_value_ms = int(value_text)
-                    break
-                except Exception:
-                    continue
-
-            if line.startswith("Target file needs delay ") and line.endswith(" ms"):
-                value_text = line[len("Target file needs delay "):-len(" ms")].strip()
-                try:
-                    offset_action = "delay"
-                    offset_value_ms = int(value_text)
-                    break
-                except Exception:
-                    continue
-
-        if offset_action in ("trim", "delay") and offset_value_ms is not None:
-            self._offset_action = offset_action
-            self._offset_value_ms = offset_value_ms
-            self.offset_label.setText(f"  Offset: {offset_action} {offset_value_ms} ms ") # 通过空格隔开
-            self.offset_label.show()
-            self.edit_audio_button.show()
-        elif offset_action == "aligned":
-            self._offset_action = "aligned"
-            self._offset_value_ms = 0
-            self.edit_audio_button.hide()
-        else:
+        if offset is None:
             self.output_widget.append_text("ui: failed to parse offset from output")
             self._offset_action = None
             self._offset_value_ms = None
             self.edit_audio_button.hide()
+            return
+
+        if offset == 0:
+            self._offset_action = "aligned"
+            self._offset_value_ms = 0
+            self.edit_audio_button.hide()
+            return
+
+        if offset > 0:  # delay
+            self._offset_action = "delay"
+            self._offset_value_ms = offset
+            self.offset_label.setText(f"  Offset: delay {offset} ms ")
+        else:  # trim
+            value = abs(offset)
+            self._offset_action = "trim"
+            self._offset_value_ms = value
+            self.offset_label.setText(f"  Offset: trim {value} ms ")
+        self.offset_label.show()
+        self.edit_audio_button.show()
 
 
 

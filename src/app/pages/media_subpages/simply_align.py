@@ -1,5 +1,7 @@
-from PyQt6.QtWidgets import QVBoxLayout
+import re
 from pathlib import Path
+
+from PyQt6.QtWidgets import QVBoxLayout
 
 from ..base_output_page import BaseOutputPage
 from ...widgets import *
@@ -16,6 +18,53 @@ from src.core.schemas.media_config import MediaConfig_Definitions as M_Defs
 
 I18N_Prefix = "app.media_subpages.arcade_timing"
 I18N_Simply_Align_Prefix = "app.media_subpages.simply_align"
+
+
+# audio_align_worker 的 stdout 文本契约：
+# "Audio files are perfectly aligned (offset < 10 ms)"  → 0
+# "Target file needs delay X ms"                        → +X
+# "Target file needs trim X ms"                         → -X
+_DELAY_RE = re.compile(r"Target file needs delay\s+(\d+)\s*ms", re.IGNORECASE)
+_TRIM_RE = re.compile(r"Target file needs trim\s+(\d+)\s*ms", re.IGNORECASE)
+_ALIGNED_RE = re.compile(r"Audio files are perfectly aligned", re.IGNORECASE)
+
+
+def parse_offset_ms(recent_output: str) -> int | None:
+    """
+    从 audio_align_worker 的 stdout 文本中解析 offset（带符号毫秒）。
+    从后往前扫描每行，命中第一个可识别的契约行即返回。
+
+    Args:
+        recent_output: worker 的最近输出文本 get_recent_lines(6)。
+    Returns:
+        带符号毫秒整数（delay→正，trim→负，aligned→0）；无法解析返回 None。
+    """
+    if not recent_output:
+        return None
+
+    for line in reversed(recent_output.splitlines()):
+        s = line.strip()
+        if not s:
+            continue
+
+        if _ALIGNED_RE.search(s):
+            return 0
+
+        m = _DELAY_RE.search(s)
+        if m:
+            try:
+                return int(m.group(1))
+            except ValueError:
+                continue
+
+        m = _TRIM_RE.search(s)
+        if m:
+            try:
+                return -int(m.group(1))
+            except ValueError:
+                continue
+
+    return None
 
 
 
@@ -263,56 +312,36 @@ class SimplyAlignPage(BaseOutputPage):
 
 
     def _try_parse_offset(self) -> None:
-        offset_action = None
-        offset_value_ms = None
-        recent_output = self.output_widget.get_recent_lines(6)
+        offset = parse_offset_ms(self.output_widget.get_recent_lines(6))
 
-        for line in reversed(recent_output.splitlines()):
-            line = line.strip()
-            if not line:
-                continue
-
-            if line == "Audio files are perfectly aligned (offset < 10 ms)":
-                offset_action = "aligned"
-                offset_value_ms = 0
-                break
-
-            if line.startswith("Target file needs trim ") and line.endswith(" ms"):
-                value_text = line[len("Target file needs trim "):-len(" ms")].strip()
-                try:
-                    offset_action = "trim"
-                    offset_value_ms = int(value_text)
-                    break
-                except Exception:
-                    continue
-
-            if line.startswith("Target file needs delay ") and line.endswith(" ms"):
-                value_text = line[len("Target file needs delay "):-len(" ms")].strip()
-                try:
-                    offset_action = "delay"
-                    offset_value_ms = int(value_text)
-                    break
-                except Exception:
-                    continue
-
-        if offset_action in ("trim", "delay") and offset_value_ms is not None:
-            self._offset_action = offset_action
-            self._offset_value_ms = offset_value_ms
-            self.offset_label.setText(f"  Offset: {offset_action} {offset_value_ms} ms ")
-            if offset_action == "trim":
-                self.quick_trim_line_edit.setText(str(offset_value_ms))
-            else:
-                self.quick_delay_line_edit.setText(str(offset_value_ms))
-            self._set_quick_export_visible(True)
-        elif offset_action == "aligned":
-            self._offset_action = "aligned"
-            self._offset_value_ms = 0
-            self._set_quick_export_visible(False)
-        else:
+        if offset is None:
             self.output_widget.append_text("ui: failed to parse offset from output")
             self._offset_action = None
             self._offset_value_ms = None
+            self.offset_label.hide()
             self._set_quick_export_visible(False)
+            return
+
+        if offset == 0:
+            self._offset_action = "aligned"
+            self._offset_value_ms = 0
+            self.offset_label.hide()
+            self._set_quick_export_visible(False)
+            return
+
+        if offset > 0:  # delay
+            self._offset_action = "delay"
+            self._offset_value_ms = offset
+            self.offset_label.setText(f"  Offset: delay {offset} ms ")
+            self.quick_delay_line_edit.setText(str(offset))
+        else:  # trim
+            value = abs(offset)
+            self._offset_action = "trim"
+            self._offset_value_ms = value
+            self.offset_label.setText(f"  Offset: trim {value} ms ")
+            self.quick_trim_line_edit.setText(str(value))
+        self.offset_label.show()
+        self._set_quick_export_visible(True)
 
 
 

@@ -15,7 +15,7 @@ def button_qss_base(color):
         f"  border-radius: 6px;"
         f"  color: {c['text_primary']};"
         f"  background-color: {c[color]};"
-        f"  padding: 2px 12px;"  # 内边距，让按钮根据文本长度自适应宽度
+        f"  padding: 0px 10px;"  # 内边距，让按钮根据文本长度自适应宽度
     )
 
 
