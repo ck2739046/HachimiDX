@@ -25,10 +25,6 @@ class StatedButton(QPushButton):
     States:
       - Enabled: blue
       - Disabled: grey
-
-    Behavior:
-      - Auto-disables itself after a successful click (mouse release inside).
-        Re-enabling is controlled by the caller (UI).
     """
 
     def __init__(self, text: str, isbig: bool = False, width: int = None, height: int = None, parent=None):
@@ -66,18 +62,6 @@ class StatedButton(QPushButton):
     def setEnabled(self, enabled: bool) -> None:  # type: ignore[override]
         super().setEnabled(enabled)
         self._update_cursor()
-
-    def mouseReleaseEvent(self, event) -> None:  # type: ignore[override]
-        was_enabled = self.isEnabled()
-        super().mouseReleaseEvent(event)
-
-        if not was_enabled:
-            return
-        if event.button() != Qt.MouseButton.LeftButton:
-            return
-        if not self.rect().contains(event.position().toPoint()):
-            return
-
 
 
 
