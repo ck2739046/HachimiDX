@@ -42,7 +42,7 @@ def create_file_selection_row(button_text: str,
         """默认处理: 打开文件选择界面，更新 LineEdit 显示所选择的文件路径"""
         file_dialog = QFileDialog()
         file_dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
-        file_dialog.setNameFilter("video/audio (*.mov *.mkv *.mp4 *.webm *.avi *.mp3 *.ogg *.wav *.aac *.flac)")
+        file_dialog.setNameFilter("video/audio (*.mov *.mkv *.mp4 *.webm *.mp3 *.ogg *.wav *.aac *.flac *.m4a)")
         file_dialog.setViewMode(QFileDialog.ViewMode.Detail)
         if file_dialog.exec():
             selected_files = file_dialog.selectedFiles()
