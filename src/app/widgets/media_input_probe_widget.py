@@ -173,6 +173,13 @@ class MediaInputProbeWidget(QWidget):
     def get_path(self) -> str:
         return str(self.input_file_path_display_line_edit.text()).strip()
 
+    def reset(self) -> None:
+        self.input_file_path_display_line_edit.clear()
+        self.probe_result_display_label.clear()
+        self.selected_file_duration = None
+        self.selected_file_type = MediaType.UNKNOWN
+        self.selected_video_fps = None
+
 
     def set_path(self, path: str) -> None:
         """编程方式设置文件路径并自动触发 ffprobe 检测"""
