@@ -505,6 +505,9 @@ zh_CN:
 
         是否仍要继续？
 
+      ui_reset_page_confirm_title: "重置确认"
+      ui_reset_page_confirm_text: "当前已在自动抄谱页面（auto rechart）选择了谱面确认视频或谱面文件夹，确定要重置页面吗？所有输入内容将被清空。"
+
 
     # ---- settings 页面 ----
 

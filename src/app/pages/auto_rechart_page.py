@@ -112,6 +112,93 @@ class AutoRechartPage(BaseOutputPage):
 
 
 
+
+
+
+    def reset_page(self):
+        """Reset all controls to default state (does not clear output_widget)."""
+
+        # Check if user has selected content
+        has_video = bool(self.chart_confirm_video_input.get_path().strip())
+        has_folder = bool(self.selected_output_dir_display.text().strip())
+
+        if has_video or has_folder:
+            title = i18n.t(f"{I18N_Prefix}.ui_reset_page_confirm_title")
+            text = i18n.t(f"{I18N_Prefix}.ui_reset_page_confirm_text")
+            if not show_confirm_dialog(title, text):
+                return
+
+        # Reset file selection
+        self.chart_confirm_video_input.reset()
+        self.selected_output_dir_display.clear()
+
+        # Reset standardize panel
+        self.song_name_line_edit.clear()
+        video_mode_options = AC_Defs.video_mode.constraints["options"]
+        self.video_mode_combo_box.setCurrentIndex(
+            video_mode_options.index(AC_Defs.video_mode.default)
+        )
+        self.need_screen_rectification_check_box.setChecked(
+            AC_Defs.need_screen_rectification.default
+        )
+        self.start_sec_line_edit.clear()
+        self.end_sec_line_edit.clear()
+        self.video_range_visualizer.update_val(None, None, None)
+
+        # Reset detect panel
+        self.enable_reid_check_box.setChecked(AC_Defs.enable_reid.default)
+        self.skip_detect_check_box.setChecked(AC_Defs.skip_detect.default)
+        self.skip_cls_check_box.setChecked(AC_Defs.skip_cls.default)
+        self.skip_export_tracked_check_box.setChecked(
+            AC_Defs.skip_export_tracked_video.default
+        )
+
+        # Reset analyze panel
+        self.bpm_type_combo_box.setCurrentIndex(0)
+        self.bpm_config_path_display.clear()
+        self.static_bpm_line_edit.clear()
+        self.is_big_touch_check_box.setChecked(AC_Defs.is_big_touch.default)
+        chart_lv_options = AC_Defs.chart_lv.constraints["options"]
+        self.chart_lv_combo_box.setCurrentIndex(
+            chart_lv_options.index(AC_Defs.chart_lv.default)
+        )
+        bd_default = AC_Defs.base_denominator.default
+        for i in range(self.base_denominator_combo_box.count()):
+            item_text = self.base_denominator_combo_box.itemText(i)
+            raw = self._transfer_base_denominator(item_text)
+            if int(raw) == bd_default:
+                self.base_denominator_combo_box.setCurrentIndex(i)
+                break
+        dd_options = AC_Defs.duration_denominator.constraints["options"]
+        self.duration_denominator_combo_box.setCurrentIndex(
+            dd_options.index(AC_Defs.duration_denominator.default)
+        )
+
+        # Reset common panel
+        self.enable_standardize_check_box.setChecked(
+            AC_Defs.is_standardize_enabled.default
+        )
+        self.enable_detect_check_box.setChecked(
+            AC_Defs.is_detect_enabled.default
+        )
+        self.enable_analyze_check_box.setChecked(
+            AC_Defs.is_analyze_enabled.default
+        )
+        self.taskname_line_edit.clear()
+
+        # Disable advanced mode
+        self.advanced_mode_check_box.setChecked(False)
+
+        # Restore UI display state
+        self._update_panels_visibility()
+        self.swtich_advanced_mode()
+        self._on_bpm_type_changed(0)
+
+
+
+
+
+
     def _build_file_selection_panel(self):
 
         # divider
