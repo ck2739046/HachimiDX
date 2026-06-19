@@ -16,5 +16,17 @@ def build_launch_cmd(notify_path, audio_path=None) -> list[str]:
         cmd.append(f"--audio={Path(audio_path).resolve()}")
 
     cmd.append(f"--notify={Path(notify_path).resolve()}")
-    
+    return cmd
+
+
+
+
+def build_parse_config_cmd(notify_path, config_path) -> list[str]:
+
+    exe = PathManage.BPM_MEASURER_EXE_PATH
+    cmd: list[str] = [str(exe)]
+
+    cmd.append(f"--language={i18n.get('locale') or 'zh_CN'}")
+    cmd.append(f"--parse_config={Path(config_path).resolve()}")
+    cmd.append(f"--notify={Path(notify_path).resolve()}")
     return cmd
