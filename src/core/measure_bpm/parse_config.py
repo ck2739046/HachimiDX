@@ -80,7 +80,7 @@ def parse_config(config_path: str | Path, *, timeout: float | None = 60.0) -> Op
 
 
 
-def load_bpm_segments(notify_path: str | Path) -> OpResult[list[list]]:
+def load_timing_points(notify_path: str | Path) -> OpResult[list[list]]:
     """
     读取 Bpm-Measurer 输出的 notify JSON，计算每个 bpm 段的起始绝对时间(ms)。
 
@@ -97,9 +97,6 @@ def load_bpm_segments(notify_path: str | Path) -> OpResult[list[list]]:
         time_sec[0] = global_offset
         time_sec[i] = time_sec[i-1] + (beat_index[i] - beat_index[i-1]) * 60.0 / bpm[i-1]
     全程用浮点秒累加，最后一次性 ×1000 取整，避免逐段 round 累积误差。
-
-    首段输出固定 start_ms = 0（避免音符时间落在首段起始之前），
-    后续段的 start_ms 正常含 global_offset。
 
     Args:
         notify_path: notify JSON 文件路径（通常由 parse_config 生成）。
@@ -166,8 +163,7 @@ def load_bpm_segments(notify_path: str | Path) -> OpResult[list[list]]:
         if bpm <= 0:
             return err(f"bpm must be positive, got {bpm}")
 
-        # 首段输出固定 start_ms = 0；后续段正常累加（含 global_offset）
-        start_ms = 0 if i == 0 else round(time_sec * 1000)
-        segments.append([bpm, start_ms])
+        # 所有段返回真实 start_ms（含 global_offset）
+        segments.append([beat_index, bpm, round(time_sec * 1000)])
 
     return ok(segments)

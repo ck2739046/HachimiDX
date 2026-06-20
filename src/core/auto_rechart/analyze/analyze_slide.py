@@ -5,7 +5,6 @@ from ultralytics import YOLO
 
 from ..detect.note_definition import *
 from ..detect.classify import classify_note_path
-from ...measure_bpm.parse_config import load_bpm_segments
 from .shared_context import *
 from .analyze_tap import analyze_tap_time
 
@@ -15,7 +14,7 @@ from .analyze_slide_movement import analyze_slide_tail_movement_syntax, is_line_
 
 
 def analyze_slide_time(shared_context, slide_head_data, slide_tail_data,
-                       static_bpm, bpm_config,
+                       timing_points,
                        cls_ex_model_path, cls_break_model_path,
                        inference_device, batch_cls):
 
@@ -24,19 +23,11 @@ def analyze_slide_time(shared_context, slide_head_data, slide_tail_data,
     # 处理星星尾的时间
     slide_tail_info = analyze_slide_tail_time(shared_context, slide_tail_data)
 
-    # bpm 转 [bpm, start_ms]
-    # start_ms 为该段起始绝对时间 (ms)
-    if static_bpm is not None:
-        bpm_segments = [[static_bpm, 0]]
-    elif bpm_config is not None:
-        result = load_bpm_segments(bpm_config)
-        if result.is_ok:
-            bpm_segments = result.value
-        else:
-            print(f"analyze_slide_time: failed to load bpm_config {bpm_config}\n{print_op_result(result)}")
-            bpm_segments = []
-    else:
-        bpm_segments = []
+    # 首段 start_ms 改为 0，避免音符落在首段起始之前导致 _delay_params_at 定位异常
+    # _delay_params_at 只用 [bpm, start_ms] 二元组，这里剥离 beat_index
+    bpm_segments = []
+    for i, (beat_index, bpm, start_ms) in enumerate(timing_points):
+        bpm_segments.append([bpm, 0 if i == 0 else start_ms])
 
     if not bpm_segments:
         print("analyze_slide_time: no valid bpm_segments, skipping slide matching")

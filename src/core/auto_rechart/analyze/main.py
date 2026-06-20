@@ -2,7 +2,7 @@ from pathlib import Path
 import os
 
 from ..detect.note_definition import *
-from ...measure_bpm.parse_config import load_bpm_segments
+from ...measure_bpm.parse_config import load_timing_points
 from ...schemas.op_result import OpResult, ok, err
 from .tool import *
 from .shared_context import *
@@ -44,6 +44,19 @@ def main(std_video_path: Path,
     
     try:
         print('开始音符分析...')
+
+        # 统一解析 bpm 一次（供 slide 与 generate_maidata 共用，避免 slide 重复解析）
+        # timing_points: [[beat_index, bpm, start_ms], ...]，首段返回真实 global_offset
+        if bpm_config is not None:
+            tp_res = load_timing_points(bpm_config)
+            if not tp_res.is_ok:
+                return err(f"failed to load timing_points: {tp_res.error_msg}", inner=tp_res)
+            timing_points = tp_res.value
+        elif static_bpm is not None:
+            timing_points = [[0, static_bpm, 0]]
+        else:
+            return err("no bpm source: neither static_bpm nor bpm_config is provided")
+
         shared_context = create_shared_context(std_video_path, is_big_touch)
         tap_speed_print_info = "tap speed not estimated (no tap data)"
         touch_speed_print_info = "touch speed not estimated (no touch data)"
@@ -82,7 +95,7 @@ def main(std_video_path: Path,
         touch_hold_info = analyze_touch_hold_time(shared_context, touch_hold_data)
         slide_info = analyze_slide_time(
             shared_context, slide_head_data, slide_tail_data,
-            static_bpm, bpm_config,
+            timing_points,
             cls_ex_model_path, cls_break_model_path,
             inference_device, batch_cls
         )
@@ -95,7 +108,7 @@ def main(std_video_path: Path,
             return ok()
 
         # generate maidata
-        generate_maidata(shared_context, bpm, chart_lv,
+        generate_maidata(shared_context, timing_points, chart_lv,
                          base_denominator, duration_denominator, final_note_info,
                          note_SpeedIndex, touch_SpeedIndex)
 
