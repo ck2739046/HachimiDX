@@ -98,13 +98,16 @@ def load_bpm_segments(notify_path: str | Path) -> OpResult[list[list]]:
         time_sec[i] = time_sec[i-1] + (beat_index[i] - beat_index[i-1]) * 60.0 / bpm[i-1]
     全程用浮点秒累加，最后一次性 ×1000 取整，避免逐段 round 累积误差。
 
+    首段输出固定 start_ms = 0（避免音符时间落在首段起始之前），
+    后续段的 start_ms 正常含 global_offset。
+
     Args:
         notify_path: notify JSON 文件路径（通常由 parse_config 生成）。
 
     Returns:
         OpResult[list[list]]:
             成功 → value = 每段 [bpm, start_ms]；bpm 为 float，start_ms 为 int。
-                   示例: [[180.0, 1000], [200.0, 129000]]
+                   示例: [[180.0, 0], [200.0, 129000]]
             失败 → 文件不存在 / JSON 解析失败 / timing_points 为空 / beat_index 非法等，
                    error_msg 描述原因，error_raw 存原始异常。
     """
@@ -163,6 +166,8 @@ def load_bpm_segments(notify_path: str | Path) -> OpResult[list[list]]:
         if bpm <= 0:
             return err(f"bpm must be positive, got {bpm}")
 
-        segments.append([bpm, round(time_sec * 1000)])
+        # 首段输出固定 start_ms = 0；后续段正常累加（含 global_offset）
+        start_ms = 0 if i == 0 else round(time_sec * 1000)
+        segments.append([bpm, start_ms])
 
     return ok(segments)
