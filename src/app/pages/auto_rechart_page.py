@@ -10,6 +10,7 @@ from src.services import AutoRechartPipeline, process_manager_api
 from src.core.tools import show_confirm_dialog, show_notify_dialog
 from src.core.schemas.op_result import OpResult, ok, err, print_op_result
 from src.core.schemas.auto_rechart_config import AutoRechartConfig_Definitions as AC_Defs
+from src.core.measure_bpm.edit_config import edit_config
 import i18n
 
 I18N_Prefix = "app.auto_rechart_page"
@@ -711,6 +712,29 @@ class AutoRechartPage(BaseOutputPage):
                     raw_data.update({AC_Defs.bpm.key: try_float(self.static_bpm_line_edit.text().strip())})
                 else:
                     raw_data.update({AC_Defs.bpm_config.key: self.bpm_config_path_display.text().strip() or None})
+
+            # start_sec 修正 bpm_config global_offset：
+            # 启用 standardize 且设置 start_sec 时，start_sec 会裁掉视频前 start_sec 秒，
+            # 使第一拍提前出现，需把 bpm_config 的 global_offset 减去 start_sec 生成新 config。
+            # 用户取消则中止提交。
+            bpm_config_val = raw_data.get(AC_Defs.bpm_config.key)
+            start_sec_val = raw_data.get(AC_Defs.start_sec.key)
+            if raw_data[AC_Defs.is_analyze_enabled.key] \
+               and raw_data[AC_Defs.is_standardize_enabled.key] \
+               and bpm_config_val \
+               and start_sec_val:
+                title = i18n.t(f"{I18N_Prefix}.ui_start_sec_fix_dialog_title")
+                text = i18n.t(f"{I18N_Prefix}.ui_start_sec_fix_dialog_text", start_sec=start_sec_val)
+                if not show_confirm_dialog(title, text):
+                    return
+                edit_res = edit_config(bpm_config_val, round(start_sec_val * 1000), parent=self.window())
+                if not edit_res.is_ok:
+                    show_notify_dialog(
+                        i18n.t(f"{I18N_Prefix}.ui_start_sec_fix_failed_title"),
+                        i18n.t(f"{I18N_Prefix}.ui_start_sec_fix_failed_text", error=edit_res.error_msg),
+                    )
+                    return
+                raw_data[AC_Defs.bpm_config.key] = str(edit_res.value)
 
             # 如果启用音符分析模组，并且处于非高级模式下
             # 高等级谱面 + 低帧率视频 弹警告
