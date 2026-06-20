@@ -2,6 +2,7 @@ from pathlib import Path
 import os
 
 from ..detect.note_definition import *
+from ...measure_bpm.parse_config import load_bpm_segments
 from ...schemas.op_result import OpResult, ok, err
 from .tool import *
 from .shared_context import *
@@ -27,7 +28,6 @@ from .generate_maidata import generate_maidata
 
 
 def main(std_video_path: Path,
-         bpm: float,
          is_big_touch: bool,
          chart_lv: int,
          base_denominator: int,
@@ -38,6 +38,8 @@ def main(std_video_path: Path,
          batch_cls: int = 16,
          cls_break_model_path: Path = None,
          cls_ex_model_path: Path = None,
+         static_bpm: float = None,
+         bpm_config: Path = None,
         ) -> OpResult[None]:
     
     try:
@@ -79,7 +81,8 @@ def main(std_video_path: Path,
         hold_info = analyze_hold_time(shared_context, hold_data)
         touch_hold_info = analyze_touch_hold_time(shared_context, touch_hold_data)
         slide_info = analyze_slide_time(
-            shared_context, slide_head_data, slide_tail_data, bpm,
+            shared_context, slide_head_data, slide_tail_data,
+            static_bpm, bpm_config,
             cls_ex_model_path, cls_break_model_path,
             inference_device, batch_cls
         )

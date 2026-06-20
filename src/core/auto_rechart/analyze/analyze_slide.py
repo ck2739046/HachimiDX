@@ -5,6 +5,7 @@ from ultralytics import YOLO
 
 from ..detect.note_definition import *
 from ..detect.classify import classify_note_path
+from ...measure_bpm.parse_config import load_bpm_segments
 from .shared_context import *
 from .analyze_tap import analyze_tap_time
 
@@ -13,7 +14,8 @@ from .analyze_slide_movement import analyze_slide_tail_movement_syntax, is_line_
 
 
 
-def analyze_slide_time(shared_context, slide_head_data, slide_tail_data, bpm,
+def analyze_slide_time(shared_context, slide_head_data, slide_tail_data,
+                       static_bpm, bpm_config,
                        cls_ex_model_path, cls_break_model_path,
                        inference_device, batch_cls):
 
@@ -22,24 +24,34 @@ def analyze_slide_time(shared_context, slide_head_data, slide_tail_data, bpm,
     # 处理星星尾的时间
     slide_tail_info = analyze_slide_tail_time(shared_context, slide_tail_data)
 
-    # slide delay
-    delay_index = 0.25 # 标准延迟是0.25拍
-    one_beat_Msec = 60 / bpm * 1000 * 4
-    std_delay = one_beat_Msec * delay_index
-    max_delay = std_delay * 1.2
-    min_delay = std_delay * 0.8
-    split_delay_tolerance = one_beat_Msec / 16 # 16分
-    
+    # bpm 转 [bpm, start_ms]
+    # start_ms 为该段起始绝对时间 (ms)
+    if static_bpm is not None:
+        bpm_segments = [[static_bpm, 0]]
+    elif bpm_config is not None:
+        result = load_bpm_segments(bpm_config)
+        if result.is_ok:
+            bpm_segments = result.value
+        else:
+            print(f"analyze_slide_time: failed to load bpm_config {bpm_config}\n{print_op_result(result)}")
+            bpm_segments = []
+    else:
+        bpm_segments = []
+
+    if not bpm_segments:
+        print("analyze_slide_time: no valid bpm_segments, skipping slide matching")
+        return {}
+
     # 第一轮头尾匹配
     matched_tails_by_head, unmatched_heads = slide_head_tail_match_by_time(
-        shared_context, slide_head_info, slide_tail_info, std_delay, min_delay, max_delay
+        shared_context, slide_head_info, slide_tail_info, bpm_segments
     )
     
     if unmatched_heads:
         # 一笔画的多个星星尾可能会被视为一条，可能需要分割
         matched_tails_by_head, unmatched_heads = try_split_slide_tail(
             shared_context, matched_tails_by_head, unmatched_heads,
-            std_delay, split_delay_tolerance,
+            bpm_segments,
             cls_ex_model_path, cls_break_model_path,
             inference_device, batch_cls,
         )
@@ -48,6 +60,39 @@ def analyze_slide_time(shared_context, slide_head_data, slide_tail_data, bpm,
     final_slide_info = merge_slide_info(shared_context, matched_tails_by_head, unmatched_heads)
 
     return final_slide_info
+
+
+
+
+
+def _delay_params_at(bpm_segments: list[list], t_ms: float):
+    '''
+    根据时间戳 t_ms 查询所在 bpm 段，计算该段的 slide delay 参数。
+
+    bpm_segments: [[bpm, start_ms], ...]，按 start_ms 升序
+    t_ms: 查询时间戳(ms)
+
+    返回 (std_delay, min_delay, max_delay, split_delay_tolerance)
+        one_beat_Msec = 60 / bpm * 1000 * 4
+        std_delay     = one_beat_Msec * 0.25
+        min_delay     = std_delay * 0.8
+        max_delay     = std_delay * 1.2
+        split_delay_tolerance = one_beat_Msec / 16  # 16分
+    '''
+    # 找最后一个 start_ms <= t_ms 的段；早于首段则 fallback 首段
+    bpm = bpm_segments[0][0]
+    for seg_bpm, seg_start_ms in bpm_segments:
+        if seg_start_ms <= t_ms:
+            bpm = seg_bpm
+        else:
+            break
+
+    one_beat_Msec = 60 / bpm * 1000 * 4
+    std_delay = one_beat_Msec * 0.25
+    min_delay = std_delay * 0.8
+    max_delay = std_delay * 1.2
+    split_delay_tolerance = one_beat_Msec / 16
+    return std_delay, min_delay, max_delay, split_delay_tolerance
 
 
 
@@ -80,7 +125,7 @@ def analyze_slide_tail_time(shared_context, slide_tail_data):
 
 
 def slide_head_tail_match_by_time(shared_context, slide_head_info, slide_tail_info,
-                                  std_delay, min_delay, max_delay):
+                                  bpm_segments):
     '''
     匹配slide头尾
 
@@ -93,11 +138,12 @@ def slide_head_tail_match_by_time(shared_context, slide_head_info, slide_tail_in
             key: (tail_track_id, note_type, note_variant, tail_start_position_id, tail_end_position_id),
             value: (tail_start_time, tail_end_time, note_path)
         }
+        bpm_segments: [[bpm, start_ms], ...]，按段动态计算 delay
 
     delay = tail_start_time - head_end_time
     匹配规则1：一个tail最多只能匹配到一个head，但是一个head可以匹配多个tail
     匹配规则2：head_position = tail_start_position
-    匹配规则3：min_delay < delay < max_delay
+    匹配规则3：min_delay < delay < max_delay（delay 以 head 所在时间段 bpm 计算）
     匹配规则4：如果tail与多个head都符合匹配条件，选择delay与std_delay最接近的head
 
     返回:
@@ -107,13 +153,6 @@ def slide_head_tail_match_by_time(shared_context, slide_head_info, slide_tail_in
         }
         unmatched_heads: list of (head_key, head_value)
     '''
-    # print(f"\n=== Matching Parameters ===")
-    # print(f"BPM: {bpm}, One Beat: {one_beat_Msec:.2f} ms")
-    # print(f"Std Delay: {std_delay:.2f} ms")
-    # print(f"Min Delay: {min_delay:.2f} ms")
-    # print(f"Max Delay: {max_delay:.2f} ms")
-    # print(f"===========================\n")
-
     # 先按位置分组head数据
     # 这样后续tail查找head时，只会在对应位置的head中查找，减少计算量
     head_by_position = defaultdict(list)
@@ -145,8 +184,10 @@ def slide_head_tail_match_by_time(shared_context, slide_head_info, slide_tail_in
         best_head = None
         best_delay_diff = float('inf')
         for head_key, head_value in head_by_position[tail_start_position]:
-            # 匹配规则3: min_delay < delay < max_delay
+            # delay 以 head 所在时间段 bpm 动态计算
             head_end_time = head_value
+            std_delay, min_delay, max_delay, _ = _delay_params_at(bpm_segments, head_end_time)
+            # 匹配规则3: min_delay < delay < max_delay
             delay = tail_start_time - head_end_time
             if not (min_delay < delay < max_delay):
                 continue
@@ -183,7 +224,7 @@ def slide_head_tail_match_by_time(shared_context, slide_head_info, slide_tail_in
 
 
 def try_split_slide_tail(shared_context, matched_tails_by_head: dict, unmatched_heads: list,
-                         std_delay: float, split_delay_tolerance: float,
+                         bpm_segments: list[list],
                          cls_ex_model_path, cls_break_model_path,
                          inference_device, batch_cls):
     '''
@@ -195,6 +236,7 @@ def try_split_slide_tail(shared_context, matched_tails_by_head: dict, unmatched_
             value: list of (tail_key, tail_value)
         }
         unmatched_heads: list of (head_key, head_value)
+        bpm_segments: [[bpm, start_ms], ...]，按段动态计算 split delay/容差
 
     说明:
         head_key: (head_track_id, note_type, note_variant, head_position),
@@ -207,6 +249,7 @@ def try_split_slide_tail(shared_context, matched_tails_by_head: dict, unmatched_
         这样 later head 触发 tail 分割后，新的 tail 还能继续被 earlier head 触发分割
 
         规则1: 找到时间戳在 head_end_time + std_delay ± split_delay_tolerance 内的视频帧
+               std_delay / split_delay_tolerance 按 head 所在时间段 bpm 计算
                tail 必须在这些视频帧内经过了 head_position A 区, 触发分割
         规则2: 如果一个 slide 触发多个 tail 分割, 则全部都分割
                因为一个 head 可以匹配多个 tail (对应 head_tail_match 匹配规则1)
@@ -239,6 +282,9 @@ def try_split_slide_tail(shared_context, matched_tails_by_head: dict, unmatched_
         head_end_time = unmatched_head_value
 
         head_position_A_zone = f"A{head_position[0]}"
+
+        # delay / split 容差按 head 所在时间段 bpm 动态计算
+        std_delay, _, _, split_delay_tolerance = _delay_params_at(bpm_segments, head_end_time)
 
         # 规则1: 找到时间戳在 head_end_time + std_delay ± split_delay_tolerance 内的视频帧
         target_time = head_end_time + std_delay

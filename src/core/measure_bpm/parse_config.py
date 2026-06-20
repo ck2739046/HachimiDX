@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -73,3 +74,95 @@ def parse_config(config_path: str | Path, *, timeout: float | None = 60.0) -> Op
         + (f"\nstderr: {stderr_tail}" if stderr_tail else ""),
         error_raw=exit_code,
     )
+
+
+
+
+
+
+def load_bpm_segments(notify_path: str | Path) -> OpResult[list[list]]:
+    """
+    读取 Bpm-Measurer 输出的 notify JSON，计算每个 bpm 段的起始绝对时间(ms)。
+
+    notify JSON 格式（见 Bpm-Measurer/App.HeadlessExport.cs）：
+        {
+          "global_offset": <秒, float>,
+          "timing_points": [
+            {"beat_index": <int>, "bpm": <float>, "beats_per_bar": <int>},
+            ...
+          ]
+        }
+
+    段起始绝对时间计算（复刻 Bpm-Measurer/TimingEngine.cs RecalculateTiming，单位秒）：
+        time_sec[0] = global_offset
+        time_sec[i] = time_sec[i-1] + (beat_index[i] - beat_index[i-1]) * 60.0 / bpm[i-1]
+    全程用浮点秒累加，最后一次性 ×1000 取整，避免逐段 round 累积误差。
+
+    Args:
+        notify_path: notify JSON 文件路径（通常由 parse_config 生成）。
+
+    Returns:
+        OpResult[list[list]]:
+            成功 → value = 每段 [bpm, start_ms]；bpm 为 float，start_ms 为 int。
+                   示例: [[180.0, 1000], [200.0, 129000]]
+            失败 → 文件不存在 / JSON 解析失败 / timing_points 为空 / beat_index 非法等，
+                   error_msg 描述原因，error_raw 存原始异常。
+    """
+    path = Path(notify_path)
+    if not path.is_file():
+        return err(f"notify file not found: {path}")
+
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        return err(f"failed to read notify json {path}: {e}", error_raw=e)
+
+    try:
+        global_offset_sec = float(data.get("global_offset", 0.0))
+    except (TypeError, ValueError) as e:
+        return err(f"invalid global_offset: {e}", error_raw=e)
+
+    raw_points = data.get("timing_points")
+    if not raw_points:
+        return err(f"notify json has no timing_points: {path}")
+
+    # 按 beat_index 升序排序（C# 端已保证严格递增，稳妥再排一次）
+    try:
+        points = sorted(raw_points, key=lambda p: int(p["beat_index"]))
+    except (KeyError, TypeError, ValueError) as e:
+        return err(f"invalid beat_index in timing_points: {e}", error_raw=e)
+
+    segments: list[list] = []
+    time_sec = global_offset_sec
+    for i, point in enumerate(points):
+        try:
+            bpm = float(point["bpm"])
+            beat_index = int(point["beat_index"])
+        except (KeyError, TypeError, ValueError) as e:
+            return err(f"invalid timing_point[{i}]: {e}", error_raw=e)
+
+        if i == 0:
+            if beat_index != 0:
+                return err(
+                    f"first timing_point beat_index must be 0, got {beat_index}"
+                )
+            time_sec = global_offset_sec
+        else:
+            prev_beat_index = int(points[i - 1]["beat_index"])
+            prev_bpm = float(points[i - 1]["bpm"])
+            beat_diff = beat_index - prev_beat_index
+            if beat_diff <= 0:
+                return err(
+                    f"beat_index must be strictly increasing, got {prev_beat_index} -> {beat_index}"
+                )
+            if prev_bpm <= 0:
+                return err(f"bpm must be positive, got {prev_bpm}")
+            time_sec = time_sec + beat_diff * (60.0 / prev_bpm)
+
+        if bpm <= 0:
+            return err(f"bpm must be positive, got {bpm}")
+
+        segments.append([bpm, round(time_sec * 1000)])
+
+    return ok(segments)
