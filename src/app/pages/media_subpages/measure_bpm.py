@@ -254,10 +254,11 @@ class MeasureBpmPage(BaseOutputPage):
         # 显示 auto align 按钮（如果有音频轨道）
         has_audio = self.chart_video_input.selected_file_type in (MediaType.AUDIO, MediaType.VIDEO_WITH_AUDIO)
         if has_audio:
-            self
             self.auto_align_button.show()
         else:
             self.auto_align_button.hide()
+            self.block2_row3.show()
+            self.send_to_auto_rechart_button.hide()
             show_notify_dialog(_t("dialog_title"), _t("notice_no_audio_in_video"))
 
 
@@ -321,7 +322,7 @@ class MeasureBpmPage(BaseOutputPage):
 
         out_path = res.value
         self.output_widget.append_text(_t("notice_export_success", output_path=out_path))
-        self._last_exported_config_path = out_path
+        self._last_exported_config_path = str(out_path)
         self.send_to_auto_rechart_button.show()
         self._set_all_buttons_enabled(True)
 
@@ -364,7 +365,7 @@ class MeasureBpmPage(BaseOutputPage):
         # row 2 默认隐藏，只有在选择谱面确认视频后才显示
         self.auto_align_button.hide()
         self.align_result_label.hide()
-        # row3 默认隐藏，只有在自动对齐成功后才显示
+        # row3 默认隐藏，在自动对齐成功或手动输入 offset 后显示
         self.block2_row3.hide()
         # 始终 reset
         self.chart_video_input.reset()
@@ -427,11 +428,9 @@ class MeasureBpmPage(BaseOutputPage):
                 # 显示 label
                 self.align_result_label.setText(label_text)
                 self.align_result_label.show()
-                # 只有没对齐才显示 aligned
-                if offset != 0:
-                    self.offset_line_edit.setText(str(offset))
-                    self.block2_row3.show()
-                    self.send_to_auto_rechart_button.hide()
+                self.offset_line_edit.setText(str(offset))
+                self.block2_row3.show()
+                self.send_to_auto_rechart_button.hide()
                 return
 
 
