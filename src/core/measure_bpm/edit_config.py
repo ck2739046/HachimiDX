@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
+from PyQt6.QtWidgets import QFileDialog
 
 from src.core.schemas.op_result import OpResult, ok, err
 
@@ -63,3 +65,52 @@ def update_global_offset(raw_config_text: str, offset_ms: int) -> OpResult[str]:
         return err("cannot find <global_offset> in the selected bpm config file")
 
     return ok("\n".join(out_lines))
+
+
+
+
+
+
+def edit_config(
+    config_path,
+    offset_ms: int,
+    *,
+    parent=None,
+) -> OpResult[Path]:
+    """
+    读 bpm config 文本 → 用 update_global_offset 修正 global_offset
+    → 弹 QFileDialog 让用户选保存路径 → 写入 → 返回新路径。
+
+    Args:
+        config_path: 原始 bpm config 文件路径（.txt）。
+        offset_ms: 对齐偏移，整数毫秒；语义同 update_global_offset。
+        parent: QFileDialog 的父窗口（可选）。
+
+    Returns:
+        OpResult[Path]:
+            成功 → value 为写入的新文件路径。
+            失败 → 读失败 / update_global_offset 失败 / 用户取消保存 / 写失败，
+                  error_msg 描述原因。
+    """
+    src = Path(config_path)
+    try:
+        raw_text = src.read_text(encoding="utf-8")
+    except OSError as e:
+        return err(f"failed to read bpm config '{src}': {e}", error_raw=e)
+
+    res = update_global_offset(raw_text, offset_ms)
+    if not res.is_ok:
+        return res  # 透传 OpResult[str] 的 err（类型兼容 OpResult[Any]）
+
+    default_name = src.stem + "_aligned.txt"
+    default_dir = src.parent / default_name
+    out_path, _ = QFileDialog.getSaveFileName(parent, "save bpm config", str(default_dir), "bpm config (*.txt)")
+    if not out_path:
+        return err("user cancelled save dialog")
+
+    try:
+        Path(out_path).write_text(res.value, encoding="utf-8")
+    except OSError as e:
+        return err(f"failed to write bpm config '{out_path}': {e}", error_raw=e)
+
+    return ok(Path(out_path))

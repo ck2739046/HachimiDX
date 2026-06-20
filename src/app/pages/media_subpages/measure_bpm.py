@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from PyQt6.QtWidgets import QVBoxLayout, QFileDialog
+from PyQt6.QtWidgets import QVBoxLayout
 from PyQt6.QtCore import pyqtSignal
 
 from ..base_output_page import BaseOutputPage, _create_row
@@ -15,7 +15,7 @@ from src.core.schemas.media_config import MediaType
 from src.core.tools import show_notify_dialog, generate_uid
 from src.core.build_worker_cmd import build_cmd_head_python_exe
 from src.core.build_bpm_measurer_cmd import build_launch_cmd
-from src.core.measure_bpm.edit_config import update_global_offset
+from src.core.measure_bpm.edit_config import edit_config
 from .simply_align import parse_offset_ms
 
 import i18n
@@ -310,37 +310,16 @@ class MeasureBpmPage(BaseOutputPage):
             self._set_all_buttons_enabled(True)
             return
 
-        # 读原始配置
-        try:
-            raw_text = Path(config_path).read_text(encoding="utf-8")
-        except Exception as e:
-            show_notify_dialog(_t("dialog_title"), _t("warning_read_config_failed", error=str(e)))
-            self._set_all_buttons_enabled(True)
-            return
-
-        res = update_global_offset(raw_text, offset_ms)
+        # 读 → 修正 global_offset → 保存对话框 → 写，统一由 edit_config 完成
+        res = edit_config(config_path, offset_ms, parent=self)
         if not res.is_ok:
-            show_notify_dialog(_t("dialog_title"), _t("warning_merge_failed", error=res.error_msg))
+            # 用户取消保存对话框时静默恢复
+            if res.error_msg != "user cancelled save dialog":
+                show_notify_dialog(_t("dialog_title"), _t("warning_merge_failed", error=res.error_msg))
             self._set_all_buttons_enabled(True)
             return
 
-        # 选保存路径
-        default_name = Path(config_path).stem + "_aligned.txt"
-        out_path, _ = QFileDialog.getSaveFileName(
-            self, _t("ui_update_timing_config_button"), default_name,
-            f"{_t('ui_config_filter_name')} (*.txt)"
-        )
-        if not out_path:
-            self._set_all_buttons_enabled(True)
-            return
-
-        try:
-            Path(out_path).write_text(res.value, encoding="utf-8")
-        except Exception as e:
-            show_notify_dialog(_t("dialog_title"), _t("warning_export_failed", error=str(e)))
-            self._set_all_buttons_enabled(True)
-            return
-
+        out_path = res.value
         self.output_widget.append_text(_t("notice_export_success", output_path=out_path))
         self._last_exported_config_path = out_path
         self.send_to_auto_rechart_button.show()
