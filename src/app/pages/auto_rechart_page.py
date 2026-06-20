@@ -698,12 +698,19 @@ class AutoRechartPage(BaseOutputPage):
                 
             if raw_data[AC_Defs.is_analyze_enabled.key]:
                 raw_data.update({
-                    AC_Defs.bpm.key: try_float(self.static_bpm_line_edit.text().strip()),
                     AC_Defs.is_big_touch.key: self.is_big_touch_check_box.isChecked(),
                     AC_Defs.chart_lv.key: try_int(self.chart_lv_combo_box.currentText()),
                     AC_Defs.base_denominator.key: try_int(self._transfer_base_denominator(self.base_denominator_combo_box.currentText())),
                     AC_Defs.duration_denominator.key: try_int(self.duration_denominator_combo_box.currentText()),
                 })
+                # BPM 二选一：
+                #   index 0 = 静态 BPM → 写 bpm
+                #   index 1 = 动态 BPM → 写 bpm_config
+                is_static_bpm = (self.bpm_type_combo_box.currentIndex() == 0)
+                if is_static_bpm:
+                    raw_data.update({AC_Defs.bpm.key: try_float(self.static_bpm_line_edit.text().strip())})
+                else:
+                    raw_data.update({AC_Defs.bpm_config.key: self.bpm_config_path_display.text().strip() or None})
 
             # 如果启用音符分析模组，并且处于非高级模式下
             # 高等级谱面 + 低帧率视频 弹警告

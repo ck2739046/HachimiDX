@@ -187,10 +187,18 @@ class AutoRechartConfig_Definitions:
         key="bpm",
         type="float",
         group="analyze",
-        optional=False, # 必选没有默认值
+        optional=True,
         constraints={"gt": 0}
     )
-      
+
+    bpm_config = AutoRechartConfig_Definition(
+        key="bpm_config",
+        type="path",
+        group="analyze",
+        optional=True,
+        constraints={"must_exist": True}
+    )
+
     is_big_touch = AutoRechartConfig_Definition(
         key="is_big_touch",
         type="bool",

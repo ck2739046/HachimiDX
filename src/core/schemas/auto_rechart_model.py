@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, FilePath, model_validator
 
 from .auto_rechart_config import AutoRechartConfig_Definitions as AC_Defs
 from src.core.tools.validate_windows_filename import validate_windows_filename
+from src.core.measurer_bpm.parse_config import parse_config
 from .media_config import MediaType
 
 
@@ -59,7 +60,12 @@ class AutoRechartModel(BaseModel):
 
     # analyze group
 
-    bpm: Optional[float] = Field(default=None) # 必需参数 没有默认值
+    bpm: Optional[float] = Field(default=None, gt=AC_Defs.bpm.constraints["gt"])
+
+    # bpm_config：前端传「bpm 配置文件原路径」（FilePath 自动校验存在）；
+    # validate_bpm_source 内调 parse_config 解析后，会被替换为「notify JSON 路径」，
+    # 最终由 build_cmd 作为 --bpm_config 参数发送给 worker。
+    bpm_config: Optional[FilePath] = Field(default=None)
 
     is_big_touch: Optional[bool] = Field(default=AC_Defs.is_big_touch.default)
 
@@ -193,22 +199,38 @@ class AutoRechartModel(BaseModel):
         return self
         
 
-
-
-
-
-    # analyze
-
     @model_validator(mode='after')
-    def validate_bpm(self):
+    def validate_bpm_source(self):
+        """
+        analyze 启用时的 BPM 来源二选一校验：
+            - 两者都没给 → 报错
+            - 两者都给 → 优先 bpm（bpm_config 置 None）
+            - 仅 bpm   → 取三位小数
+            - 仅 bpm_config → 调 parse_config 解析（fail fast）；成功则把 bpm_config
+                              替换为 parse_config 返回的 notify JSON 路径，供 worker 消费
+        """
         if not self.is_analyze_enabled:
             return self
-        if self.bpm is None:
-            raise ValueError("bpm is required when analyze is enabled.")
-        if self.bpm <= 0:
-            raise ValueError(f"bpm must be greater than 0, got {self.bpm}")
-        # 统一设置为三位小数
-        self.bpm = round(self.bpm, 3)
+
+        bpm_set = self.bpm is not None
+        cfg_set = self.bpm_config is not None
+
+        if not bpm_set and not cfg_set:
+            raise ValueError("analyze module is enabled but neither bpm nor bpm_config was provided.")
+
+        if bpm_set:
+            # 优先静态 bpm：丢弃 bpm_config
+            if cfg_set:
+                self.bpm_config = None
+            # 取三位小数
+            self.bpm = round(self.bpm, 3)
+            return self
+
+        # 仅 bpm_config：解析配置文件，把 bpm_config 替换为 notify JSON 路径。
+        res = parse_config(self.bpm_config)
+        if not res.is_ok:
+            raise ValueError(f"failed to parse bpm_config: {res.error_msg}")
+        self.bpm_config = res.value
         return self
 
 
