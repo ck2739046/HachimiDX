@@ -15,7 +15,7 @@ from src.core.schemas.media_config import MediaType
 from src.core.tools import show_notify_dialog, generate_uid
 from src.core.build_worker_cmd import build_cmd_head_python_exe
 from src.core.build_bpm_measurer_cmd import build_launch_cmd
-from src.core.measurer_bpm.edit_config import update_global_offset
+from src.core.measure_bpm.edit_config import update_global_offset
 from .simply_align import parse_offset_ms
 
 import i18n

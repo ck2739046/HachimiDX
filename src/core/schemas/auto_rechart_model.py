@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field, FilePath, model_validator
 
 from .auto_rechart_config import AutoRechartConfig_Definitions as AC_Defs
 from src.core.tools.validate_windows_filename import validate_windows_filename
-from src.core.measurer_bpm.parse_config import parse_config
+from src.core.measure_bpm.parse_config import parse_config
 from .media_config import MediaType
 
 
