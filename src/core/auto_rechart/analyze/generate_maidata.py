@@ -107,9 +107,8 @@ def generate_maidata(shared_context: SharedContext,
     
     # 核心: 追踪音符状态
     last_note_time = None
-    last_note_position = None
+    last_position = None
     last_denominator = None
-    last_bpm = None
     
     # 仅用于统计误差
     time_deviations = []
@@ -157,8 +156,7 @@ def generate_maidata(shared_context: SharedContext,
                 # 第一个音符
                 init_time = cur_note_time
                 last_note_time = cur_note_time
-                last_note_position = cur_position
-                last_bpm = cur_bpm
+                last_position = cur_position
                 # 控制台打印
                 print(f"first note appear at {cur_note_time:.1f} ms")
                 continue
@@ -187,12 +185,16 @@ def generate_maidata(shared_context: SharedContext,
 
 
 
-            if numerator == 0 and one == 0:
-                # 零间隔，使用 '/' 与上一个音符连接 
-                position = f'{last_position}/{position}'
-                # 跳过后续的处理，直接 continue
-                last_position = position
-                continue
+            
+            # 提前处理零间隔并行音符
+            if len(beat_diffs) == 1:
+                (bpm, numerator, denominator, one) = beat_diffs[0]
+                if numerator == 0 and one == 0:
+                    # 零间隔，使用 '/' 与上一个音符连接 
+                    cur_position = f'{last_position}/{cur_position}'
+                    # 跳过后续的处理，直接 continue
+                    last_position = cur_position
+                    continue
 
 
 
@@ -224,7 +226,7 @@ def generate_maidata(shared_context: SharedContext,
             if one > 0: denominator = 1
 
             last_denominator = denominator
-            last_position = position
+            last_position = cur_position
             
 
 
