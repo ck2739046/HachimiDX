@@ -109,6 +109,7 @@ def generate_maidata(shared_context: SharedContext,
     last_note_time = None
     last_position = None
     last_denominator = None
+    last_bpm = None
     
     # 仅用于统计误差
     time_deviations = []
@@ -157,6 +158,7 @@ def generate_maidata(shared_context: SharedContext,
                 init_time = cur_note_time
                 last_note_time = cur_note_time
                 last_position = cur_position
+                last_bpm = cur_bpm
                 # 控制台打印
                 print(f"first note appear at {cur_note_time:.1f} ms")
                 continue
@@ -202,32 +204,71 @@ def generate_maidata(shared_context: SharedContext,
             
 
             # 生成逗号部分
-            if numerator == 0 and denominator == 1 and one > 0:
-                # 特殊情况2：时间间隔是整数
-                # 逗号数量等于整数部分
-                commas = f'{"," * one}'
-            elif one > 0:
-                # 特殊情况1：时间间隔是小数，但是 > 1
-                # 比如 11/4，正常来说是 {4},,,,,,,,,,, (x11)
-                # 现在简写成 {4},,,{1},,
-                # 使用带分数
-                commas = f'{"," * numerator}' + '{1}' + f'{"," * one}'
-            else:
-                # 普通情况: 时间间隔是小数，并且 < 1
-                commas = f'{"," * numerator}'
+            commas = ""
+            for idx, (bpm, numerator, denominator, one) in enumerate(beat_diffs):
+
+                if idx > 0:
+                    # 首个子段在下方处理，此处仅处理后续子段
+                    commas += f'\n({bpm})'
+                    # 换 bpm 后总是写入 denominator
+                    commas += f'\n{{ {denominator} }}'
+
+                # 生成逗号部分
+                (bpm, numerator, denominator, one) = beat_diffs[0]
+                if numerator == 0 and denominator == 1 and one > 0:
+                    # 特殊情况1：时间间隔是整数
+                    # 逗号数量等于整数部分
+                    fcommas += f'{"," * one}'
+                elif one > 0:
+                    # 特殊情况2：时间间隔是小数，但是 > 1
+                    # 比如 11/4，正常来说是 {4},,,,,,,,,,, (x11)
+                    # 现在简写成 {4},,,{1},,
+                    # 使用带分数
+                    commas += f'{"," * numerator}' + '{1}' + f'{"," * one}'
+                else:
+                    # 普通情况: 时间间隔是小数，并且 < 1
+                    commas += f'{"," * numerator}'
+
+
+
+
+
+
 
             # 将当前音符写入txt
-            if denominator != last_denominator:
-                f.write('\n{' + f'{denominator}' + '}' + f'{last_position}{commas}')
-            else:
-                f.write(f'{last_position}{commas}')
 
-            # 上面使用了带分数，所以现在是 1
-            if one > 0: denominator = 1
+            # bpm
+            if cur_bpm != last_bpm:
+                f.write(f'\n({cur_bpm})')
+                last_bpm = cur_bpm
+                # 换 bpm 后总是写入 denominator
+                # 此处仅考虑 denominator 不变的情况，改变的情况由下方处理
+                if denominator == last_denominator:
+                    f.write('\n{' + f'{denominator}' + '}')
+            
+            # denominator
+            if denominator != last_denominator:
+                f.write('\n{' + f'{denominator}' + '}')
+
+            # 音符本体
+            f.write(f'{last_position}{commas}')
+
+
+            
+            
+            # 更新状态
+
+            # 因为 commas 可能会变 bpmhe denominator
+            # 所以始终使用最后一个子段的 bpm 和 denominator 来更新状态
+            (bpm_e, numerator_e, denominator_e, one_e) = beat_diffs[-1]
+            # 特殊情况, denominator 是带分数
+            if numerator > 0 and denominator == 1 and one > 0:
+                denominator_e == 1
 
             last_denominator = denominator
+            last_bpm = bpm_e
+
             last_position = cur_position
-            
 
 
 
