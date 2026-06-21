@@ -563,16 +563,21 @@ def get_bpm_by_note_time(note_time: float, timing_points: list) -> float:
 def snap_note_time_to_bpm_segment(note_time, timing_points,
                                   base_denominator) -> float:
     """
-    多 BPM 段时，将 note_time 吸附到即将到来的 BPM 段起点。
+    双方向吸附：
+    1. 前向：note_time 足够接近下一段起点 → 吸附到下一段
+    2. 后向：note_time 足够接近当前段起点 → 吸附到当前段
+       （第一段不后向吸附）
+
+    判定标准：计算差值后用 get_fraction 判断是否返回 (0, 1, 0)。
 
     吸附判定:
-        计算 note_time 到下一个 BPM 段起始时间的差值，
-        用当前所在段 BPM 调用 get_fraction 计算与新段起点的时间
-        如果返回 (0, 1, 0) 说明非常接近新段，执行吸附。
+        计算 note_time 到 BPM 段起始时间的差值,
+        如果 get_fraction 返回 (0, 1, 0),
+        说明此音符非常接近 bpm 段边界，执行吸附。
 
     返回:
         如果不用吸附，返回原始 note_time
-        如果需要吸附，返回新 BPM 段的起始时间，视为新的 note_time
+        如果需要吸附，返回 BPM 段的起始时间，视为新的 note_time
     """
 
     # 单段 BPM，无需吸附
@@ -581,26 +586,30 @@ def snap_note_time_to_bpm_segment(note_time, timing_points,
 
     seg_idx = get_bpm_segment_idx(note_time, timing_points)
 
-    # 如果位于最后一段，没有新段可供吸附，直接返回
-    if seg_idx >= len(timing_points) - 1:
+    # 后向吸附：当前段起点
+    if seg_idx > 0: # 第一段不吸
+        current_start_ms = timing_points[seg_idx][2]
+        diff_ms = note_time - current_start_ms
         current_bpm = timing_points[seg_idx][1]
-        return note_time
+        one_beat_ms = calculate_one_beat_ms(current_bpm)
+        diff_beat = diff_ms / one_beat_ms
+        numerator, denominator, one = get_fraction(diff_beat, base_denominator, enable_12=True)
+        if numerator == 0 and denominator == 1 and one == 0:
+            return current_start_ms
 
-    # 计算与下一段起点的差值
-    next_start_ms = timing_points[seg_idx + 1][2]
-    diff_ms = next_start_ms - note_time
+    # 前向吸附：下一段起点
+    if seg_idx < len(timing_points) - 1: # 如果位于最后一段，没有新段可供吸附，直接返回
+        next_start_ms = timing_points[seg_idx + 1][2]
+        diff_ms = next_start_ms - note_time
+        current_bpm = timing_points[seg_idx][1]
+        one_beat_ms = calculate_one_beat_ms(current_bpm)
+        diff_beat = diff_ms / one_beat_ms
+        numerator, denominator, one = get_fraction(diff_beat, base_denominator, enable_12=True)
+        if numerator == 0 and denominator == 1 and one == 0:
+            return next_start_ms
 
-    current_bpm = timing_points[seg_idx][1]
-    one_beat_ms = calculate_one_beat_ms(current_bpm)
-    diff_beat = diff_ms / one_beat_ms
-
-    numerator, denominator, one = get_fraction(diff_beat, base_denominator, enable_12=True)
-    if numerator == 0 and denominator == 1 and one == 0:
-        # 吸附到下一段
-        return next_start_ms
-    else:
-        # 无需吸附
-        return note_time
+    # 无需吸附
+    return note_time
 
 
 
