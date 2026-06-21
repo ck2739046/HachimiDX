@@ -109,6 +109,7 @@ def generate_maidata(shared_context: SharedContext,
     last_note_time = None
     last_position = None
     last_denominator = None
+    last_last_bpm = None
     last_bpm = None
     
     # 仅用于统计误差
@@ -237,8 +238,8 @@ def generate_maidata(shared_context: SharedContext,
             # 将当前音符写入txt
 
             # bpm
-            if cur_bpm != last_bpm:
-                f.write(f'\n({cur_bpm})')
+            if last_bpm != last_last_bpm and last_last_bpm is not None:
+                f.write(f'\n({last_bpm})')
                 # 换 bpm 后总是写入 denominator
                 # 此处仅考虑 denominator 不变的情况，改变的情况由下方处理
                 if denominator == last_denominator:
@@ -265,6 +266,7 @@ def generate_maidata(shared_context: SharedContext,
 
             last_denominator = denominator_e
 
+            last_last_bpm = last_bpm
             last_bpm = cur_bpm
             last_position = cur_position
 
