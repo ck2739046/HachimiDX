@@ -105,8 +105,8 @@ def generate_maidata(shared_context: SharedContext,
     passed_beat_tracker = PassedBeatTracker(base_denominator)
     
     # 核心: 追踪音符状态
-    last_time = None
-    last_position = None
+    last_note_time = None
+    last_note_position = None
     last_denominator = None
     last_bpm = None
     
@@ -119,67 +119,71 @@ def generate_maidata(shared_context: SharedContext,
 
     # 开始生成
     with open(txt_path, 'a', encoding='utf-8') as f:
-        for (track_id, note_type, note_variant, position), time in notes_info:
+        for (track_id, note_type, note_variant, cur_position), time in notes_info:
 
-            note_time = get_note_reach_time(time, track_id)
-            if note_time is None: continue
+            raw_cur_note_time = get_note_reach_time(time, track_id)
+            if raw_cur_note_time is None: continue
+
+            # 可能需要吸附
+            cur_note_time = snap_note_time_to_bpm_segment(raw_cur_note_time, timing_points, base_denominator)
             
+            # 获取这个音符的 bpm
+            cur_bpm = get_bpm_by_note_time(cur_note_time, timing_points)
+            one_beat_ms = calculate_one_beat_ms(cur_bpm)
 
             # 对于 slide, hold, touch_hold 可能存在 duration 信息
             if isinstance(time, tuple) and len(time) >= 2:
                 if note_type == NoteType.SLIDE:
                     # slide 可包含多个 duration
-                    position = _append_slide_duration_syntax(
-                        position, list(time[1:]), one_beat_Msec,
+                    cur_position = _append_slide_duration_syntax(
+                        cur_position, list(time[1:]), one_beat_ms,
                         base_denominator, duration_denominator)
                     # 特例：三段同头直线 slide 压缩为 w 语法
-                    position = _try_compress_wifi_special(position)
+                    cur_position = _try_compress_wifi_special(cur_position)
                 elif note_type == NoteType.HOLD and time[-1] == 0:
                     # 特例: hold 时值为 0 时不添加时值文本
                     pass
                 else:
-                    duration_syntax = parse_note_duration(one_beat_Msec, note_type, time[-1],
+                    duration_syntax = parse_note_duration(one_beat_ms, note_type, time[-1],
                                                           base_denominator, duration_denominator)
-                    position += duration_syntax
+                    cur_position += duration_syntax
 
 
 
 
 
-            if last_time is None:
+            if last_note_time is None:
                 # 第一个音符
-                init_time = note_time
-                last_time = note_time
-                last_position = position
+                init_time = cur_note_time
+                last_note_time = cur_note_time
+                last_note_position = cur_position
+                last_bpm = cur_bpm
                 # 控制台打印
-                print(f"first note appear at {note_time:.1f} ms")
+                print(f"first note appear at {cur_note_time:.1f} ms")
                 continue
 
 
 
 
             # 计算与上一个音符的时间差，转为分数形式
-            diff_Msec = note_time - last_time
-            diff_beat = diff_Msec / one_beat_Msec
-            numerator, denominator, one = get_fraction(diff_beat, base_denominator, enable_12=True)
+            # 需要考虑跨 bpm 的情况
+            if cur_bpm != last_bpm:
+                
 
-            # update base_numerator_counter
-            # 使用最小公倍数分母进行累加 (为了兼容1/12)
-            selected_total_numerator = one * denominator + numerator
-            base_numerator = selected_total_numerator * (lcm_denom // denominator)
-            base_numerator_counter += base_numerator
+            else:  # 没有跨 bpm
+                diff_ms = cur_note_time - last_note_time
+                diff_beat = diff_ms / one_beat_ms
+                numerator, denominator, one = get_fraction(diff_beat, base_denominator, enable_12=True)
 
             # update last_time
             # 采用 init_time + 总 passed_beat
             # 这是精确的谱面播放到此处的时间点，避免了累加误差
-            passed_beat = base_numerator_counter / lcm_denom
-            passed_beat_Msec = passed_beat * one_beat_Msec
-            last_time = passed_beat_Msec + init_time
+            
 
             # 统计误差
             # note_time 是通过分析得到的音符实际时间
             # last_time 是通过分数化处理后计算得到的理论时间
-            time_deviation = note_time - last_time
+            time_deviation = raw_cur_note_time - last_note_time
             time_deviations.append(time_deviation)
 
 
@@ -536,4 +540,61 @@ def calculate_one_beat_ms(bpm):
     return 60 / bpm * 1000 * 4
 
 
-def 
+def get_bpm_by_note_time(note_time: float, timing_points: list) -> float:
+    """返回起始时间最大且 <= note_time 的那段 BPM 数值"""
+    current_bpm = timing_points[0][1]
+    for tp in timing_points:
+        if tp[2] <= note_time:
+            current_bpm = tp[1]
+        else:
+            break
+    return current_bpm
+
+
+def snap_note_time_to_bpm_segment(note_time, timing_points,
+                                  base_denominator) -> float:
+    """
+    多 BPM 段时，将 note_time 吸附到即将到来的 BPM 段起点。
+
+    吸附判定:
+        计算 note_time 到下一个 BPM 段起始时间的差值，
+        用当前所在段 BPM 调用 get_fraction 计算与新段起点的时间
+        如果返回 (0, 1, 0) 说明非常接近新段，执行吸附。
+
+    返回:
+        如果不用吸附，返回原始 note_time
+        如果需要吸附，返回新 BPM 段的起始时间，视为新的 note_time
+    """
+
+    # 单段 BPM，无需吸附
+    if len(timing_points) <= 1:
+        return note_time
+
+    # 找到当前段索引（最后一个 start_ms <= note_time 的段）
+    seg_idx = 0
+    for i, tp in enumerate(timing_points):
+        if tp[2] <= note_time:
+            seg_idx = i
+        else:
+            break
+
+    # 如果位于最后一段，没有新段可供吸附，直接返回
+    if seg_idx >= len(timing_points) - 1:
+        current_bpm = timing_points[seg_idx][1]
+        return note_time
+
+    # 计算与下一段起点的差值
+    next_start_ms = timing_points[seg_idx + 1][2]
+    diff_ms = next_start_ms - note_time
+
+    current_bpm = timing_points[seg_idx][1]
+    one_beat_ms = calculate_one_beat_ms(current_bpm)
+    diff_beat = diff_ms / one_beat_ms
+
+    numerator, denominator, one = get_fraction(diff_beat, base_denominator, enable_12=True)
+    if numerator == 0 and denominator == 1 and one == 0:
+        # 吸附到下一段
+        return next_start_ms
+    else:
+        # 无需吸附
+        return note_time
