@@ -168,7 +168,7 @@ def generate_maidata(shared_context: SharedContext,
             # 计算与上一个音符的时间差，转为分数形式
             # 需要考虑跨 bpm 的情况
             if cur_bpm != last_bpm:
-                
+                pass
 
             else:  # 没有跨 bpm
                 diff_ms = cur_note_time - last_note_time
@@ -536,19 +536,29 @@ def _try_compress_wifi_special(slide_position: str) -> str:
 
 
 
+
+
+
+
 def calculate_one_beat_ms(bpm):
     return 60 / bpm * 1000 * 4
 
 
-def get_bpm_by_note_time(note_time: float, timing_points: list) -> float:
-    """返回起始时间最大且 <= note_time 的那段 BPM 数值"""
-    current_bpm = timing_points[0][1]
-    for tp in timing_points:
+def get_bpm_segment_idx(note_time: float, timing_points: list):
+    """找到当前段索引（最后一个 start_ms <= note_time 的段）"""
+    seg_idx = 0
+    for i, tp in enumerate(timing_points):
         if tp[2] <= note_time:
-            current_bpm = tp[1]
+            seg_idx = i
         else:
             break
-    return current_bpm
+    return seg_idx
+
+
+def get_bpm_by_note_time(note_time: float, timing_points: list) -> float:
+    """返回起始时间最大且 <= note_time 的那段 BPM 数值"""
+    seg_idx = get_bpm_segment_idx(note_time, timing_points)
+    return timing_points[seg_idx][1]
 
 
 def snap_note_time_to_bpm_segment(note_time, timing_points,
@@ -570,13 +580,7 @@ def snap_note_time_to_bpm_segment(note_time, timing_points,
     if len(timing_points) <= 1:
         return note_time
 
-    # 找到当前段索引（最后一个 start_ms <= note_time 的段）
-    seg_idx = 0
-    for i, tp in enumerate(timing_points):
-        if tp[2] <= note_time:
-            seg_idx = i
-        else:
-            break
+    seg_idx = get_bpm_segment_idx(note_time, timing_points)
 
     # 如果位于最后一段，没有新段可供吸附，直接返回
     if seg_idx >= len(timing_points) - 1:
@@ -598,3 +602,58 @@ def snap_note_time_to_bpm_segment(note_time, timing_points,
     else:
         # 无需吸附
         return note_time
+
+
+
+
+
+
+
+
+def split_time_cross_bpm(last_note_time: float,
+                         cur_note_time: float,
+                         timing_points: list,
+                         base_denominator: int,
+                        ) -> list[tuple[int, int, int]]:
+    """
+    将 last_note_time → cur_note_time 按 BPM 段边界拆分。
+    跨越多个 BPM 段时，中间用段起始时间作为切分点。
+
+    返回列表: 每个子段的 (numerator, denominator, one) 。
+    """
+    result: list[tuple[int, int, int]] = []
+
+    # 初始起点 = last_note_time
+    seg_start = last_note_time
+    # 初始起点段索引
+    seg_idx = get_bpm_segment_idx(seg_start, timing_points)
+
+    while True:
+        bpm = timing_points[seg_idx][1]
+
+        # 下一个 BPM 段起点
+        if seg_idx + 1 < len(timing_points):
+            next_boundary = timing_points[seg_idx + 1][2]
+        else:
+            next_boundary = float('inf')
+
+        if next_boundary >= cur_note_time:
+            # 最后一个子段：seg_start → cur_note_time
+            diff_ms = cur_note_time - seg_start
+            one_beat_ms = calculate_one_beat_ms(bpm)
+            diff_beat = diff_ms / one_beat_ms
+            numerator, denominator, one = get_fraction(diff_beat, base_denominator, enable_12=True)
+            result.append((numerator, denominator, one))
+            break
+        else:
+            # 中间子段：seg_start → next_boundary
+            diff_ms = next_boundary - seg_start
+            one_beat_ms = calculate_one_beat_ms(bpm)
+            diff_beat = diff_ms / one_beat_ms
+            numerator, denominator, one = get_fraction(diff_beat, base_denominator, enable_12=True)
+            result.append((numerator, denominator, one))
+            # 推进到下一段
+            seg_start = next_boundary
+            seg_idx += 1
+
+    return result
