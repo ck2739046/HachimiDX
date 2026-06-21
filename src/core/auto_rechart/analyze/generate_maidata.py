@@ -43,10 +43,11 @@ class PassedBeatTracker:
         else:
             return base_denominator
 
-    def add(self, bpm: float, numerator: int, denominator: int) -> None:
+    def add(self, bpm: float, numerator: int, denominator: int, one: int = 0) -> None:
         # 将分数统一转为 lcm_denom 当分母
         # 假设分母不为 0，并且是 lcm_denom 的因数
-        scaled_numerator = numerator * (self.lcm_denom // denominator)
+        total_numerator = one * denominator + numerator
+        scaled_numerator = total_numerator * (self.lcm_denom // denominator)
         # 如果列表为空或最后一项的 BPM 不同，添加新段；否则累加到当前段
         if not self._entries or self._entries[-1]['bpm'] != bpm:
             self._entries.append({'bpm': bpm, 'passed_numerator': 0})
@@ -166,20 +167,16 @@ def generate_maidata(shared_context: SharedContext,
 
 
             # 计算与上一个音符的时间差，转为分数形式
-            # 需要考虑跨 bpm 的情况
-            if cur_bpm != last_bpm:
-                pass
+            beat_diffs = calculate_beat_diff(last_note_time, cur_note_time,
+                                             timing_points, base_denominator)
 
-            else:  # 没有跨 bpm
-                diff_ms = cur_note_time - last_note_time
-                diff_beat = diff_ms / one_beat_ms
-                numerator, denominator, one = get_fraction(diff_beat, base_denominator, enable_12=True)
-
-            # update last_time
+            # update last_note_time
             # 采用 init_time + 总 passed_beat
             # 这是精确的谱面播放到此处的时间点，避免了累加误差
+            for beat_diff in beat_diffs:
+                passed_beat_tracker.add(*beat_diff)
+            last_note_time = init_time + passed_beat_tracker.total_elapsed_ms
             
-
             # 统计误差
             # note_time 是通过分析得到的音符实际时间
             # last_time 是通过分数化处理后计算得到的理论时间
@@ -610,18 +607,19 @@ def snap_note_time_to_bpm_segment(note_time, timing_points,
 
 
 
-def split_time_cross_bpm(last_note_time: float,
-                         cur_note_time: float,
-                         timing_points: list,
-                         base_denominator: int,
-                        ) -> list[tuple[int, int, int]]:
+def calculate_beat_diff(last_note_time: float,
+                        cur_note_time: float,
+                        timing_points: list,
+                        base_denominator: int,
+                       ) -> list[tuple[float, int, int, int]]:
     """
+    同时适配 非跨段 和 跨段
     将 last_note_time → cur_note_time 按 BPM 段边界拆分。
     跨越多个 BPM 段时，中间用段起始时间作为切分点。
 
-    返回列表: 每个子段的 (numerator, denominator, one) 。
+    返回列表: 每个子段的 (bpm, numerator, denominator, one)。
     """
-    result: list[tuple[int, int, int]] = []
+    result: list[tuple[float, int, int, int]] = []
 
     # 初始起点 = last_note_time
     seg_start = last_note_time
@@ -643,7 +641,7 @@ def split_time_cross_bpm(last_note_time: float,
             one_beat_ms = calculate_one_beat_ms(bpm)
             diff_beat = diff_ms / one_beat_ms
             numerator, denominator, one = get_fraction(diff_beat, base_denominator, enable_12=True)
-            result.append((numerator, denominator, one))
+            result.append((bpm, numerator, denominator, one))
             break
         else:
             # 中间子段：seg_start → next_boundary
@@ -651,7 +649,7 @@ def split_time_cross_bpm(last_note_time: float,
             one_beat_ms = calculate_one_beat_ms(bpm)
             diff_beat = diff_ms / one_beat_ms
             numerator, denominator, one = get_fraction(diff_beat, base_denominator, enable_12=True)
-            result.append((numerator, denominator, one))
+            result.append((bpm, numerator, denominator, one))
             # 推进到下一段
             seg_start = next_boundary
             seg_idx += 1
