@@ -54,7 +54,7 @@ class PassedBeatTracker:
         # 始终累加到最新段
         self._entries[-1]['passed_numerator'] += scaled_numerator
 
-    def total_elapsed_ms(self) -> float:
+    def get_total_elapsed_ms(self) -> float:
         total_ms = 0
         for entry in self._entries:
             one_beat_ms = calculate_one_beat_ms(entry['bpm'])
@@ -175,7 +175,7 @@ def generate_maidata(shared_context: SharedContext,
             # 这是精确的谱面播放到此处的时间点，避免了累加误差
             for beat_diff in beat_diffs:
                 passed_beat_tracker.add(*beat_diff)
-            last_note_time = init_time + passed_beat_tracker.total_elapsed_ms
+            last_note_time = init_time + passed_beat_tracker.get_total_elapsed_ms()
             
             # 统计误差
             # note_time 是通过分析得到的音符实际时间
@@ -211,14 +211,13 @@ def generate_maidata(shared_context: SharedContext,
                     # 首个子段在下方处理，此处仅处理后续子段
                     commas += f'\n({bpm})'
                     # 换 bpm 后总是写入 denominator
-                    commas += f'\n{{ {denominator} }}'
+                    commas += '\n{' + f'{denominator}' + '}'
 
                 # 生成逗号部分
-                (bpm, numerator, denominator, one) = beat_diffs[0]
                 if numerator == 0 and denominator == 1 and one > 0:
                     # 特殊情况1：时间间隔是整数
                     # 逗号数量等于整数部分
-                    fcommas += f'{"," * one}'
+                    commas += f'{"," * one}'
                 elif one > 0:
                     # 特殊情况2：时间间隔是小数，但是 > 1
                     # 比如 11/4，正常来说是 {4},,,,,,,,,,, (x11)
@@ -240,7 +239,6 @@ def generate_maidata(shared_context: SharedContext,
             # bpm
             if cur_bpm != last_bpm:
                 f.write(f'\n({cur_bpm})')
-                last_bpm = cur_bpm
                 # 换 bpm 后总是写入 denominator
                 # 此处仅考虑 denominator 不变的情况，改变的情况由下方处理
                 if denominator == last_denominator:
@@ -258,16 +256,16 @@ def generate_maidata(shared_context: SharedContext,
             
             # 更新状态
 
-            # 因为 commas 可能会变 bpmhe denominator
-            # 所以始终使用最后一个子段的 bpm 和 denominator 来更新状态
+            # 因为 commas 可能会变 denominator
+            # 始终使用最后一个子段的 denominator 来更新状态
             (bpm_e, numerator_e, denominator_e, one_e) = beat_diffs[-1]
             # 特殊情况, denominator 是带分数
             if numerator > 0 and denominator == 1 and one > 0:
-                denominator_e == 1
+                denominator_e = 1
 
-            last_denominator = denominator
-            last_bpm = bpm_e
+            last_denominator = denominator_e
 
+            last_bpm = cur_bpm
             last_position = cur_position
 
 
