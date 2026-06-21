@@ -170,6 +170,9 @@ def generate_maidata(shared_context: SharedContext,
             # 计算与上一个音符的时间差，转为分数形式
             beat_diffs = calculate_beat_diff(last_note_time, cur_note_time,
                                              timing_points, base_denominator)
+            if not beat_diffs:
+                print(f"Warning: empty beat_diffs between {last_note_time:.1f} and {cur_note_time:.1f}, skipping")
+                continue
 
             # update last_note_time
             # 采用 init_time + 总 passed_beat
@@ -236,18 +239,19 @@ def generate_maidata(shared_context: SharedContext,
 
 
             # 将当前音符写入txt
+            cur_first_denominator = beat_diffs[0][2]
 
             # bpm
             if last_bpm != last_last_bpm and last_last_bpm is not None:
                 f.write(f'\n({last_bpm})')
                 # 换 bpm 后总是写入 denominator
                 # 此处仅考虑 denominator 不变的情况，改变的情况由下方处理
-                if denominator == last_denominator:
-                    f.write('\n{' + f'{denominator}' + '}')
+                if cur_first_denominator == last_denominator:
+                    f.write('\n{' + f'{cur_first_denominator}' + '}')
             
             # denominator
-            if denominator != last_denominator:
-                f.write('\n{' + f'{denominator}' + '}')
+            if cur_first_denominator != last_denominator:
+                f.write('\n{' + f'{cur_first_denominator}' + '}')
 
             # 音符本体
             f.write(f'{last_position}{commas}')
@@ -257,16 +261,16 @@ def generate_maidata(shared_context: SharedContext,
             
             # 更新状态
 
-            # 因为 commas 可能会变 denominator
+            # 因为 commas 可能会变 denominator 和 bpm
             # 始终使用最后一个子段的 denominator 来更新状态
             (bpm_e, numerator_e, denominator_e, one_e) = beat_diffs[-1]
             # 特殊情况, denominator 是带分数
-            if numerator > 0 and denominator == 1 and one > 0:
+            if numerator_e > 0 and one_e > 0:
                 denominator_e = 1
 
             last_denominator = denominator_e
+            last_last_bpm = bpm_e
 
-            last_last_bpm = last_bpm
             last_bpm = cur_bpm
             last_position = cur_position
 
