@@ -705,7 +705,12 @@ def calculate_beat_diff(last_note_time: float,
             one_beat_ms = calculate_one_beat_ms(bpm)
             diff_beat = diff_ms / one_beat_ms
             numerator, denominator, one = get_fraction(diff_beat, base_denominator, enable_12=True)
-            result.append((bpm, numerator, denominator, one))
+            # 过滤零长度碎段
+            # 产生的原因可能是 bpm config 的 global offset 没有精准对齐
+            # 或者 bpm config 的起始时间 / last_not_time 有精度误差
+            # 总之产生了到段边界有几 ms 的碎片
+            if (numerator, denominator, one) != (0, 1, 0):
+                result.append((bpm, numerator, denominator, one))
             # 推进到下一段
             seg_start = next_boundary
             seg_idx += 1
