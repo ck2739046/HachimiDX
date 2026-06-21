@@ -1,7 +1,6 @@
 import numpy as np
 import os
 import math
-from pathlib import Path
 
 from .shared_context import *
 from ..detect.note_definition import *
@@ -20,10 +19,59 @@ _WIFI_ENDPOINT_SEQ = {
 
 
 
-def generate_maidata(shared_context: SharedContext, bpm, chart_lv,
-                     base_denominator, duration_denominator, notes_info,
-                     note_speed: float, touch_speed: float):
 
+class PassedBeatTracker:
+    """
+    按加入顺序追踪每个 BPM 段下已通过的 beat 数。
+
+    同一 BPM 可多次出现（视为不同段），每段的 passed_numerator 独立累加。
+    内部使用最小公倍数分母 (lcm_denom) 统一分数，避免浮点数误差。
+    """
+
+    def __init__(self, base_denominator: int):
+        self.lcm_denom = self.calculate_lcm_denom(base_denominator)
+        self._entries: list[dict] = []  # list of dict {bpm, passed_numerator}
+
+    @property
+    def entries(self) -> list[dict]:
+        return self._entries
+
+    @staticmethod
+    def calculate_lcm_denom(base_denominator: int) -> int:
+        if base_denominator >= 16:
+            return base_denominator * 12 // math.gcd(base_denominator, 12)
+        else:
+            return base_denominator
+
+    def add(self, bpm: float, numerator: int, denominator: int) -> None:
+        # 将分数统一转为 lcm_denom 当分母
+        # 假设分母不为 0，并且是 lcm_denom 的因数
+        scaled_numerator = numerator * (self.lcm_denom // denominator)
+        # 如果列表为空或最后一项的 BPM 不同，添加新段；否则累加到当前段
+        if not self._entries or self._entries[-1]['bpm'] != bpm:
+            self._entries.append({'bpm': bpm, 'passed_numerator': 0})
+        # 始终累加到最新段
+        self._entries[-1]['passed_numerator'] += scaled_numerator
+
+    def total_elapsed_ms(self) -> float:
+        total_ms = 0
+        for entry in self._entries:
+            one_beat_ms = calculate_one_beat_ms(entry['bpm'])
+            segment_ms = one_beat_ms * entry['passed_numerator'] / self.lcm_denom
+            total_ms += segment_ms
+        return total_ms
+
+
+
+
+
+def generate_maidata(shared_context: SharedContext,
+                     timing_points, chart_lv,
+                     base_denominator, duration_denominator,
+                     notes_info,
+                     note_speed: float, touch_speed: float):
+    
+    # timing_points = [[beat_index, bpm, start_ms], ...]
 
     # 准备输出txt文件
     output_dir = shared_context.std_video_path.parent
@@ -39,7 +87,7 @@ def generate_maidata(shared_context: SharedContext, bpm, chart_lv,
         f.write('&first=0\n')
         f.write(f'&des_{chart_lv}=default\n')
         f.write(f'&lv_{chart_lv}=15\n')
-        f.write(f'&inote_{chart_lv}=({bpm})' + '{1},\n')
+        f.write(f'&inote_{chart_lv}=({timing_points[0][1]})' + '{1},\n')
         # 打印流速信息
         note_speed_str = f"{note_speed:.2f}" if note_speed else "N/A"
         touch_speed_str = f"{touch_speed:.2f}" if touch_speed else "N/A"
@@ -48,41 +96,35 @@ def generate_maidata(shared_context: SharedContext, bpm, chart_lv,
     # 打印基础信息
     level_label = ['zero', 'easy', 'basic', 'advanced', 'expert', 'master', 'remaster', 'special']
     print(f"\n{video_name} - {level_label[chart_lv]}")
-    one_beat_Msec = 60 / bpm * 1000 * 4
-    base_resolution = one_beat_Msec / base_denominator
-    print(f"bpm: {bpm}, one beat: {one_beat_Msec:.3f} ms, base resolution: {base_resolution:.3f} ms")
 
 
 
 
-
-
-    # 计算最小公倍数分母用于累加 (兼容1/12)
-    if base_denominator >= 16:
-        lcm_denom = base_denominator * 12 // math.gcd(base_denominator, 12)
-    else:
-        lcm_denom = base_denominator
-
-
+    # 追踪理论时间
     init_time = None
+    passed_beat_tracker = PassedBeatTracker(base_denominator)
+    
+    # 核心: 追踪音符状态
     last_time = None
-    base_numerator_counter = 0
     last_position = None
-    last_denominator = 0
+    last_denominator = None
+    last_bpm = None
+    
+    # 仅用于统计误差
     time_deviations = []
 
 
 
 
 
-
+    # 开始生成
     with open(txt_path, 'a', encoding='utf-8') as f:
         for (track_id, note_type, note_variant, position), time in notes_info:
 
-            note_time = check_note_time(time, track_id)
-            if note_time is None:
-                continue
+            note_time = get_note_reach_time(time, track_id)
+            if note_time is None: continue
             
+
             # 对于 slide, hold, touch_hold 可能存在 duration 信息
             if isinstance(time, tuple) and len(time) >= 2:
                 if note_type == NoteType.SLIDE:
@@ -276,12 +318,12 @@ def get_fraction(diff_beat, input_denominator, enable_12=True):
 
 
 
-def check_note_time(time, track_id):
+def get_note_reach_time(time, track_id):
 
     if isinstance(time, (float, int)):
         # check time
         if math.isnan(time) or time < 0:
-            print(f"analyze_all_notes_info: invalid time value for track_id {track_id}, time: {time}")
+            print(f"analyze_all_notes_info: get_note_reach_time: invalid time value for track_id {track_id}, time: {time}")
             return None
         # 赋值
         return time
@@ -289,12 +331,12 @@ def check_note_time(time, track_id):
     elif isinstance(time, tuple):
         # check time tuple
         if len(time) == 0:
-            print(f"analyze_all_notes_info: empty time tuple for track_id {track_id}")
+            print(f"analyze_all_notes_info: get_note_reach_time: empty time tuple for track_id {track_id}")
             return None
         valid = True
         for i, t in enumerate(time):
             if not (isinstance(t, (float, int)) and not math.isnan(t) and t >= 0):
-                print(f"analyze_all_notes_info: invalid time tuple element at index {i} for track_id {track_id}, value: {t}")
+                print(f"analyze_all_notes_info: get_note_reach_time: invalid time tuple element at index {i} for track_id {track_id}, value: {t}")
                 valid = False
                 break
         if not valid:
@@ -303,7 +345,7 @@ def check_note_time(time, track_id):
         return time[0]
 
     else:
-        print(f"analyze_all_notes_info: invalid time format for track_id {track_id}, time: {time}")
+        print(f"analyze_all_notes_info: get_note_reach_time: invalid time format for track_id {track_id}, time: {time}")
         return None
 
 
@@ -486,3 +528,12 @@ def _try_compress_wifi_special(slide_position: str) -> str:
         return slide_position
     
     return f"{start}w{seq[1]}{end_syntax}{duration}"
+
+
+
+
+def calculate_one_beat_ms(bpm):
+    return 60 / bpm * 1000 * 4
+
+
+def 
