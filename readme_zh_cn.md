@@ -4,7 +4,7 @@
 &nbsp;•&nbsp;
 📥︎ [**软件下载**](https://github.com/ck2739046/HachimiDX/releases/latest)
 
-<img src="src/resources/doc/images/qq_icon.svg" width="20px" style="vertical-align: middle;"> QQ 交流群 **`868888361`**
+> <img src="src/resources/doc/images/qq_icon.svg" width="20px" style="vertical-align: middle;"> 如果在使用中遇到问题、需要帮助、想反馈 Bug 或提出建议，亦或参与开发讨论，欢迎加入 QQ 交流群 **`868888361`**。
 
 📄 [**English README**](readme.md)
 &nbsp;•&nbsp;
@@ -33,6 +33,9 @@
 
 - **内置谱面编辑器**
     - 内嵌 [`MajdataEdit`](https://github.com/LingFeng-bbben/MajdataView) 和 [`MajdataView`](https://github.com/TeamMajdata/MajdataView/tree/431-NC-TH)，抄谱结果一站式预览与修改。
+
+- **内置 BPM 测速工具**
+    - 内嵌 [`Bpm-Measurer`](https://github.com/ck2739046/Bpm-Measurer)，一款实用的歌曲 BPM 测量工具。
 
 - **多后台推理支持**
     - 支持 PyTorch / NVIDIA TensorRT / DirectML 多种深度学习推理后端，兼容各类硬件。
@@ -93,8 +96,6 @@
     - 不支持烟花特效识别 (`f`)
     
 - 不支持伪双押 (`` ` ``)
-
-- 歌曲全程保持固定 BPM，不支持 BPM 变速曲目。
 
 - 相机实拍屏幕的视频可能存在拍摄角度、色偏、曝光等问题，此时 ex/break 等音符变体的分类准确率会下降。
 

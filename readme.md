@@ -4,7 +4,7 @@
 &nbsp;•&nbsp;
 📥︎ [**Software Download**](https://github.com/ck2739046/HachimiDX/releases/latest)
 
-<img src="src/resources/doc/images/qq_icon.svg" width="20px" style="vertical-align: middle;"> QQ Group Chat **`868888361`**
+> <img src="src/resources/doc/images/qq_icon.svg" width="20px" style="vertical-align: middle;"> Run into issues, need a hand, want to report bugs, share suggestions, or talk development? Join our QQ group chat **`868888361`**.
 
 📄 [**中文 README**](readme_zh_cn.md)
 &nbsp;•&nbsp;
@@ -30,6 +30,9 @@ A tool built specifically for the rhythm game `maimai`. Give it a chart confirma
 
 - **Built-in editors**
     - Integrates [`MajdataEdit`](https://github.com/LingFeng-bbben/MajdataView) and [`MajdataView`](https://github.com/TeamMajdata/MajdataView/tree/431-NC-TH) so rechart results can be previewed and modified in one place.
+
+- **Built-in BPM measurement tool**
+    - Integrates [`Bpm-Measurer`](https://github.com/ck2739046/Bpm-Measurer), a handy tool for measuring a song's BPM.
 
 - **Flexible inference backends**
     - Supports PyTorch / NVIDIA TensorRT / DirectML inference backends for compatibility with a range of hardware.
@@ -90,8 +93,6 @@ Code lives in `src/`, organized in three layers:
     - Fireworks effects (`f`) are not supported.
 
  - Fake jumps (`` ` ``) are not supported.
-
-- Songs are assumed to have a fixed BPM throughout and do not support BPM changes.
 
 - Camera-captured footage (off-screen recordings) may suffer from angle, color cast, or exposure issues. This hurts accuracy for ex/break classification.
 
