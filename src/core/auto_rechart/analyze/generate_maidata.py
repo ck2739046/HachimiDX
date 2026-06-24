@@ -116,6 +116,8 @@ def generate_maidata(shared_context: SharedContext,
     
     # 仅用于统计误差
     time_deviations = []
+    # 仅用于统计吸附到 bpm 段的差值
+    snap_deltas = []
 
 
 
@@ -130,7 +132,10 @@ def generate_maidata(shared_context: SharedContext,
 
             # 可能需要吸附
             cur_note_time = snap_note_time_to_bpm_segment(raw_cur_note_time, timing_points, base_denominator)
-            
+            # 记录吸附差值（仅当吸附到 bpm 段边界时）
+            if cur_note_time != raw_cur_note_time:
+                snap_deltas.append(raw_cur_note_time - cur_note_time)
+
             # 获取这个音符的 bpm
             cur_bpm = get_bpm_by_note_time(cur_note_time, timing_points)
             one_beat_ms = calculate_one_beat_ms(cur_bpm)
@@ -303,6 +308,14 @@ def generate_maidata(shared_context: SharedContext,
         print(f"\nTime deviations of {length} notes: Median {median:.3f}, Min {min:.3f}, Max {max:.3f}, Mean {mean:.3f}, Std Dev {std_dev:.3f}")
     else:
         print(f"\nNot enough notes detected, no time deviation statistics available.")
+
+    # 打印吸附（snap）统计信息
+    if snap_deltas:
+        snap_count = len(snap_deltas)
+        snap_mean = np.mean(snap_deltas)
+        backward_count = sum(1 for d in snap_deltas if d > 0)  # 后向吸附：吸附到当前段起点
+        forward_count = sum(1 for d in snap_deltas if d < 0)   # 前向吸附：吸附到下一段起点
+        print(f"\nSnap deltas of {snap_count} notes (backward {backward_count} / forward {forward_count}): Mean {snap_mean:.3f}")
 
     # 打印生成的 maidata.txt 路径
     print(f"\nmaidata.txt: {txt_path}")
