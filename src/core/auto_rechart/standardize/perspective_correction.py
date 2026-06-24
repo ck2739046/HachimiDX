@@ -352,6 +352,24 @@ class PerspectiveCorrection:
 
 
 
+    def _draw_dashed_circle(self, panel: np.ndarray,
+                            center,
+                            radius,
+                            color,
+                            thickness: int = 2,
+                            dash_deg: float = 3,
+                            gap_deg: float = 2) -> None:
+        """用 cv2.ellipse 画弧段拼接出虚线圆"""
+        if radius <= 0:
+            return
+        angle = 0.0
+        step = dash_deg + gap_deg
+        while angle < 360.0:
+            end = min(angle + dash_deg, 360.0)
+            cv2.ellipse(panel, center, (radius, radius), 0,
+                        angle, end, color, thickness)
+            angle += step
+
     def _draw_reference_marks(self, panel: np.ndarray) -> None:
         """在右侧面板上绘制固定参考标记"""
         height, width = panel.shape[:2]
@@ -360,22 +378,36 @@ class PerspectiveCorrection:
         
         # 半径为5的红色圆形（中心点）
         cv2.circle(panel, (center_x, center_y),
-                   5, (0, 0, 255), 2)
+                   6, (0, 0, 255), 2)
         
-        # 半径为600的绿色圆形
-        d = self.FRAME_PREVIEW_SIZE * 960/1080 # 判定线参考圆
-        cv2.circle(panel, (center_x, center_y),
-                   round(d/2), (0, 255, 0), 2)
+        # 内测圆 判定线
+        inner_d = self.FRAME_PREVIEW_SIZE * 960/1080 # 判定线参考圆
+        inner_r = int(inner_d / 2)
+        inner_cx, inner_cy = center_x - 1, center_y - 1
+        self._draw_dashed_circle(panel, (inner_cx, inner_cy),
+                                 inner_r, (0, 255, 0))
+
+        # 内圈上 8 个角度（22.5° 起每隔 45°）的红色标记点
+        for deg in (22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5):
+            rad = np.deg2rad(deg)
+            px = int(round(inner_cx + inner_r * np.cos(rad)))
+            py = int(round(inner_cy + inner_r * np.sin(rad)))
+            cv2.circle(panel, (px, py), 9, (0, 0, 255), 2)
+
+        # 外侧圆 屏幕边缘
+        outer_radius = min(width, height) // 2
+        self._draw_dashed_circle(panel, (inner_cx, inner_cy),
+                                 outer_radius, (0, 255, 0))
         
-        # 垂直线 x 1/3, 2/3
-        v_line1_x = int(round(width / 3))
-        v_line2_x = int(round(2 * width / 3))
+        # 垂直/水平线穿过内圈上的 8 个参考点
+        # 每条线距圆心 = inner_r * sin(22.5°) 恰好经过参考点
+        line_offset = int(round(inner_r * np.sin(np.deg2rad(22.5))))
+        v_line1_x = inner_cx - line_offset
+        v_line2_x = inner_cx + line_offset
         cv2.line(panel, (v_line1_x, 0), (v_line1_x, height), (0, 255, 0), 1)
         cv2.line(panel, (v_line2_x, 0), (v_line2_x, height), (0, 255, 0), 1)
-        
-        # 水平线 y 1/3, 2/3
-        h_line1_y = int(round(height / 3))
-        h_line2_y = int(round(2 * height / 3))
+        h_line1_y = inner_cy - line_offset
+        h_line2_y = inner_cy + line_offset
         cv2.line(panel, (0, h_line1_y), (width, h_line1_y), (0, 255, 0), 1)
         cv2.line(panel, (0, h_line2_y), (width, h_line2_y), (0, 255, 0), 1)
 
