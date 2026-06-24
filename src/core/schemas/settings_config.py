@@ -42,7 +42,10 @@ class SettingsConfig_Definitions:
         type="str",
         group="model",
         default="TensorRT",
-        constraints={"options": ["CPU", "TensorRT", "DirectML"]},
+        constraints={"options": ["CPU", "TensorRT", "DirectML"],
+                     "options_tooltips": ["ui_model_backend_cpu_tooltip",
+                                          "ui_model_backend_tensorrt_tooltip",
+                                          "ui_model_backend_directml_tooltip"]},
     )
 
     @staticmethod
@@ -132,7 +135,10 @@ class SettingsConfig_Definitions:
         type="str",
         group="ffmpeg",
         default="CPU",
-        constraints={"options": ["CPU", "Intel", "Nvidia"]},
+        constraints={"options": ["CPU", "Intel", "Nvidia"],
+                     "options_tooltips": ["ui_ffmpeg_encoder_cpu_tooltip",
+                                          "ui_ffmpeg_encoder_intel_tooltip",
+                                          "ui_ffmpeg_encoder_nvidia_tooltip"]},
     )
 
     # general

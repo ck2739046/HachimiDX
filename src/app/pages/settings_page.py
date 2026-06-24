@@ -98,7 +98,6 @@ class SettingsPage(BaseOutputPage):
 
         backend_label = create_label(i18n.t(f"{I18N_Prefix}.ui_model_backend_label"))
         self.model_backend_combo_box = self._create_combo_from_definition(S_Defs.model_backend, length=100)
-        backend_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_model_backend_help"))
         self.check_model_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_check_model_button"))
         self.convert_model_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_convert_model_button"))
         self.cancel_convert_model_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_cancel_convert_model_button"))
@@ -108,7 +107,6 @@ class SettingsPage(BaseOutputPage):
         self.create_row(
             backend_label,
             self.model_backend_combo_box,
-            backend_help,
             self.check_model_button,
             self.convert_model_button,
             self.cancel_convert_model_button,
@@ -127,7 +125,6 @@ class SettingsPage(BaseOutputPage):
 
         encoder_label = create_label(i18n.t(f"{I18N_Prefix}.ui_ffmpeg_encoder_label"))
         self.ffmpeg_hw_encoder_combo_box = self._create_combo_from_definition(S_Defs.ffmpeg_hw_encoder, length=80)
-        encoder_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_ffmpeg_encoder_help"))
 
         self.check_ffmpeg_hw_accel_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_auto_detect_hw_button"))
         self.check_ffmpeg_hw_accel_button.clicked.connect(self.on_check_ffmpeg_hw_accel_clicked)
@@ -135,7 +132,6 @@ class SettingsPage(BaseOutputPage):
         self.create_row(
             encoder_label,
             self.ffmpeg_hw_encoder_combo_box,
-            encoder_help,
 
             self.check_ffmpeg_hw_accel_button,
             add_stretch=True,
@@ -230,7 +226,13 @@ class SettingsPage(BaseOutputPage):
         options = [str(item) for item in definition.constraints["options"]]
         default_value = str(definition.default)
         default_index = options.index(default_value)
-        return create_combo_box(length=length, items=options, default_index=default_index)
+        tooltips = definition.constraints.get("options_tooltips")
+        if tooltips:
+            tooltips = [None if key is None else i18n.t(f"{I18N_Prefix}.{key}") for key in tooltips]
+        return create_combo_box(length=length, items=options,
+                                default_index=default_index,
+                                show_tooltip=tooltips is not None,
+                                item_tooltips=tooltips)
 
 
 

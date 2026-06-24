@@ -414,9 +414,8 @@ en_US:
 
       ui_song_name_label: "Song Name: "
       ui_video_mode_label: "Video Mode: "
-      ui_video_mode_help: |
-        source video: native in-game footage
-        camera footage: camera directly filming the arcade screen
+      ui_video_mode_source_tooltip: "native in-game footage"
+      ui_video_mode_camera_tooltip: "camera directly filming the arcade screen"
       ui_need_screen_rectification_label: "Screen Rectification: "
       ui_need_screen_rectification_help: |
         Expected input: camera facing the screen directly, with content centered 
@@ -460,7 +459,13 @@ en_US:
         In Basic/Advanced level,
         touch/touch-hold notes are usually larger in size.
       ui_chart_lv_label: "Chart Level: "
-      ui_chart_lv_help: "1-easy\n2-basic\n3-advanced\n4-expert\n5-master\n6-re:master\n7-utage"
+      ui_chart_lv_1_tooltip: "Easy"
+      ui_chart_lv_2_tooltip: "Basic"
+      ui_chart_lv_3_tooltip: "Advanced"
+      ui_chart_lv_4_tooltip: "Expert"
+      ui_chart_lv_5_tooltip: "Master"
+      ui_chart_lv_6_tooltip: "Re:Master"
+      ui_chart_lv_7_tooltip: "Utage"
       ui_base_denominator_label: "Base Denominator: "
       ui_base_denominator_help: |
         Time resolution used to parse note intervals.
@@ -534,20 +539,18 @@ en_US:
 
       ui_model_divider: "Model Inference"
       ui_model_backend_label: "Model Backend: "
-      ui_model_backend_help: |
-        CPU:      slowest, no GPU required.
-        TensorRT: fastest, requires NVIDIA GPU.
-        DirectML: medium, requires compatible GPU (NVIDIA, AMD, Intel).
+      ui_model_backend_cpu_tooltip: "slowest, no GPU required"
+      ui_model_backend_tensorrt_tooltip: "fastest, requires NVIDIA GPU"
+      ui_model_backend_directml_tooltip: "medium, requires compatible GPU (NVIDIA, AMD, Intel)"
       ui_check_model_button: "Check"
       ui_convert_model_button: "Convert Model"
       ui_cancel_convert_model_button: "Cancel"
 
       ui_ffmpeg_divider: "FFmpeg Hardware Acceleration"
       ui_ffmpeg_encoder_label: "Encoder: "
-      ui_ffmpeg_encoder_help: |
-        CPU:    libx264 software encoding.
-        Intel:  Intel QSV (h264_qsv) hardware encoding.
-        Nvidia: NVIDIA NVENC (h264_nvenc) hardware encoding.
+      ui_ffmpeg_encoder_cpu_tooltip: "libx264 software encoding"
+      ui_ffmpeg_encoder_intel_tooltip: "Intel QSV (h264_qsv) hardware encoding"
+      ui_ffmpeg_encoder_nvidia_tooltip: "NVIDIA NVENC (h264_nvenc) hardware encoding"
       ui_auto_detect_hw_button: "Auto Detect Best Settings"
 
       ui_general_divider: "General"

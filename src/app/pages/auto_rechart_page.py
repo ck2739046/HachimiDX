@@ -312,7 +312,6 @@ class AutoRechartPage(BaseOutputPage):
         # Row 2
         video_mode_label = create_label(i18n.t(f"{I18N_Prefix}.ui_video_mode_label"))
         self.video_mode_combo_box = self._create_combobox_with_options(AC_Defs.video_mode, length=135)
-        video_mode_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_video_mode_help"))
 
         need_screen_rectification_label = create_label(i18n.t(f"{I18N_Prefix}.ui_need_screen_rectification_label"))
         self.need_screen_rectification_check_box = create_check_box(AC_Defs.need_screen_rectification.default)
@@ -320,7 +319,6 @@ class AutoRechartPage(BaseOutputPage):
 
         row = _create_row(video_mode_label,
                           self.video_mode_combo_box,
-                          video_mode_help,
 
                           need_screen_rectification_label,
                           self.need_screen_rectification_check_box,
@@ -480,7 +478,6 @@ class AutoRechartPage(BaseOutputPage):
         # Row 2
         chart_lv_label = create_label(i18n.t(f"{I18N_Prefix}.ui_chart_lv_label"))
         self.chart_lv_combo_box = self._create_combobox_with_options(AC_Defs.chart_lv, length=46)
-        chart_lv_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_chart_lv_help"))
 
         is_big_touch_label = create_label(i18n.t(f"{I18N_Prefix}.ui_is_big_touch_label"))
         self.is_big_touch_check_box = create_check_box(AC_Defs.is_big_touch.default)
@@ -494,7 +491,7 @@ class AutoRechartPage(BaseOutputPage):
         self.duration_denominator_combo_box = self._create_combobox_with_options(AC_Defs.duration_denominator, length=55)
         dd_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_duration_denominator_help"))
 
-        row = _create_row(chart_lv_label, self.chart_lv_combo_box, chart_lv_help,
+        row = _create_row(chart_lv_label, self.chart_lv_combo_box,
                           is_big_touch_label, self.is_big_touch_check_box, is_big_touch_help,
                           bd_label, self.base_denominator_combo_box, bd_help,
                           dd_label, self.duration_denominator_combo_box, dd_help,
@@ -827,7 +824,13 @@ class AutoRechartPage(BaseOutputPage):
         default_index = options.index(default_val)
         if transfer_fn:
             options = transfer_fn(options)
-        return create_combo_box(length=length, items=options, default_index=default_index)
+        tooltips = param.constraints.get("options_tooltips")
+        if tooltips:
+            tooltips = [None if key is None else i18n.t(f"{I18N_Prefix}.{key}") for key in tooltips]
+        return create_combo_box(length=length, items=options,
+                                default_index=default_index,
+                                show_tooltip=tooltips is not None,
+                                item_tooltips=tooltips)
 
 
 

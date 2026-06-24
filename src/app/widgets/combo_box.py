@@ -328,6 +328,16 @@ class ToolTipComboBox(StyledComboBox):
         self._connected_view = None
         self._event_filter_installed = False
         self._tooltip = get_shared_tooltip()
+        self._item_tooltips: list[str | None] | None = None
+
+
+
+    def set_item_tooltips(self, tooltips: list[str]) -> None:
+        """为每个选项设置自定义 tooltip 文本，索引一一对应"""
+        self._item_tooltips = tooltips
+        for i, tip in enumerate(tooltips):
+            if i < self.count():
+                self.setItemData(i, tip, Qt.ItemDataRole.UserRole)
 
 
 
@@ -431,8 +441,15 @@ class ToolTipComboBox(StyledComboBox):
             return
         viewport = view.viewport()
 
-        # 获取选项文本
-        text = index.data()
+        row = index.row()
+        # 若该选项 tooltip 被显式设为 None，不显示任何 tooltip
+        if self._item_tooltips and row < len(self._item_tooltips) and self._item_tooltips[row] is None:
+            self._tooltip.hide()
+            return
+        # 获取自定义 tooltip，若无则回退到显示文本
+        text = index.data(Qt.ItemDataRole.UserRole)
+        if not text:
+            text = index.data()
         if not text:  # 忽略空文本
             self._tooltip.hide()
             return
@@ -484,7 +501,7 @@ class ToolTipComboBox(StyledComboBox):
 
 
 
-def create_combo_box(length=None, items=None, default_index=0, show_tooltip=False):
+def create_combo_box(length=None, items=None, default_index=0, show_tooltip=False, item_tooltips=None):
     """
     创建带悬停提示的下拉选择框
 
@@ -493,6 +510,7 @@ def create_combo_box(length=None, items=None, default_index=0, show_tooltip=Fals
         items: list，选项列表，可选，默认None
         default_index: int，默认选中的索引，可选，默认0
         show_tooltip: bool，是否显示悬停提示，可选，默认False
+        item_tooltips: list[str]/None，逐项自定义 tooltip 文本，索引与 items 一一对应
 
     Returns:
         配置好的下拉选择框
@@ -515,5 +533,8 @@ def create_combo_box(length=None, items=None, default_index=0, show_tooltip=Fals
         combo.addItems(str_items)
         if 0 <= default_index < len(str_items):
             combo.setCurrentIndex(default_index)
+
+    if show_tooltip and item_tooltips:
+        combo.set_item_tooltips(item_tooltips)
 
     return combo

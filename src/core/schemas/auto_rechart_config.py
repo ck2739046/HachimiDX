@@ -29,8 +29,10 @@ class AutoRechartConfig_Definition:
             - "le": int, maximum value (inclusive)
             - "lt": int, maximum value (exclusive)
             - "options": list of allowed values
+            - "options_tooltips": list of tooltips for each option
         For str:
             - "options": list of allowed strings
+            - "options_tooltips": list of tooltips for each option
         For path:
             - "must_exist": bool
         For bool:
@@ -93,7 +95,9 @@ class AutoRechartConfig_Definitions:
         type="str",
         group="standardize",
         default = "source video", # 默认模式
-        constraints={"options":["source video", "camera footage"]}
+        constraints={"options":["source video", "camera footage"],
+                     "options_tooltips": ["ui_video_mode_source_tooltip",
+                                          "ui_video_mode_camera_tooltip"]}
     )
       
     media_type = AutoRechartConfig_Definition(
@@ -211,7 +215,14 @@ class AutoRechartConfig_Definitions:
         type="int",
         group="analyze",
         default=5, # master
-        constraints={"options": [1, 2, 3, 4, 5, 6, 7]}
+        constraints={"options": [1, 2, 3, 4, 5, 6, 7],
+                     "options_tooltips": ["ui_chart_lv_1_tooltip",
+                                          "ui_chart_lv_2_tooltip",
+                                          "ui_chart_lv_3_tooltip",
+                                          "ui_chart_lv_4_tooltip",
+                                          "ui_chart_lv_5_tooltip",
+                                          "ui_chart_lv_6_tooltip",
+                                          "ui_chart_lv_7_tooltip"]}
     )
 
     base_denominator = AutoRechartConfig_Definition(
