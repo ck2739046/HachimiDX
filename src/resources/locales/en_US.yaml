@@ -459,7 +459,6 @@ en_US:
         In Basic/Advanced level,
         touch/touch-hold notes are usually larger in size.
       ui_chart_lv_label: "Chart Level: "
-      ui_chart_lv_1_tooltip: "Easy"
       ui_chart_lv_2_tooltip: "Basic"
       ui_chart_lv_3_tooltip: "Advanced"
       ui_chart_lv_4_tooltip: "Expert"

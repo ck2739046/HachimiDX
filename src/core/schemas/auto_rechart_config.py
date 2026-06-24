@@ -215,9 +215,8 @@ class AutoRechartConfig_Definitions:
         type="int",
         group="analyze",
         default=5, # master
-        constraints={"options": [1, 2, 3, 4, 5, 6, 7],
-                     "options_tooltips": ["ui_chart_lv_1_tooltip",
-                                          "ui_chart_lv_2_tooltip",
+        constraints={"options": [2, 3, 4, 5, 6, 7],
+                     "options_tooltips": ["ui_chart_lv_2_tooltip",
                                           "ui_chart_lv_3_tooltip",
                                           "ui_chart_lv_4_tooltip",
                                           "ui_chart_lv_5_tooltip",
@@ -242,7 +241,6 @@ class AutoRechartConfig_Definitions:
      )
 
     CHART_LV_PRESETS = {
-        1: {is_big_touch.key: True,  base_denominator.key: 8,  duration_denominator.key: 8},
         2: {is_big_touch.key: True,  base_denominator.key: 8,  duration_denominator.key: 8},
         3: {is_big_touch.key: True,  base_denominator.key: 8,  duration_denominator.key: 8},
         4: {is_big_touch.key: False, base_denominator.key: 16, duration_denominator.key: 16},

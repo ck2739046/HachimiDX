@@ -452,7 +452,6 @@ zh_CN:
         在 Basic/Advanced 难度中，
         touch/touch-hold 音符的尺寸通常会更大。
       ui_chart_lv_label: "谱面难度: "
-      ui_chart_lv_1_tooltip: "简单 Easy"
       ui_chart_lv_2_tooltip: "初级 Basic"
       ui_chart_lv_3_tooltip: "高级 Advanced"
       ui_chart_lv_4_tooltip: "专家 Expert"
