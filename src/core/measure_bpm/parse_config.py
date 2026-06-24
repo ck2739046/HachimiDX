@@ -93,6 +93,8 @@ def load_timing_points(notify_path: str | Path) -> OpResult[list[list]]:
           ]
         }
 
+    global_offset 固定减 110ms 因为 maimai 谱面会提早开始播放
+
     段起始绝对时间计算（复刻 Bpm-Measurer/TimingEngine.cs RecalculateTiming，单位秒）：
         time_sec[0] = global_offset
         time_sec[i] = time_sec[i-1] + (beat_index[i] - beat_index[i-1]) * 60.0 / bpm[i-1]
@@ -119,7 +121,7 @@ def load_timing_points(notify_path: str | Path) -> OpResult[list[list]]:
         return err(f"failed to read notify json {path}: {e}", error_raw=e)
 
     try:
-        global_offset_sec = float(data.get("global_offset", 0.0))
+        global_offset_sec = float(data.get("global_offset", 0.0)) - 0.110  # 固定减 110ms 因为 maimai 谱面会提早开始播放
     except (TypeError, ValueError) as e:
         return err(f"invalid global_offset: {e}", error_raw=e)
 
