@@ -458,6 +458,9 @@ zh_CN:
       ui_chart_lv_5_tooltip: "大师 Master"
       ui_chart_lv_6_tooltip: "宗师 Re:Master"
       ui_chart_lv_7_tooltip: "宴会场 Utage"
+      ui_base_denominator_16_tooltip: "支持 x/12 分音符"
+      ui_base_denominator_32_tooltip: "支持 x/12 和 1/24 分音符"
+      ui_base_denominator_64_tooltip: "支持 x/12 和 1/24 分音符"
       ui_base_denominator_label: "音符间隔分辨率: "
       ui_base_denominator_help: |
         程序解析音符间隔的时间分辨率。
@@ -466,8 +469,6 @@ zh_CN:
 
         单位时间计算: 240000 / bpm / 分辨率 (ms)
         建议单位时间 ≥30ms，如果 BPM 较高，需要适当降低分辨率以保证准确性。
-        
-        注: XX (12) 表示当分辨率 ≥16 时，额外支持 12 分音符。
       ui_duration_denominator_label: "音符时值分辨率: "
       ui_duration_denominator_help: |
         程序解析音符时值的时间分辨率

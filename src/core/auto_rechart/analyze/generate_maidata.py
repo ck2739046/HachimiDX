@@ -38,7 +38,9 @@ class PassedBeatTracker:
 
     @staticmethod
     def calculate_lcm_denom(base_denominator: int) -> int:
-        if base_denominator >= 16:
+        if base_denominator >= 24:
+            return base_denominator * 24 // math.gcd(base_denominator, 24)
+        elif base_denominator >= 12:
             return base_denominator * 12 // math.gcd(base_denominator, 12)
         else:
             return base_denominator
@@ -308,13 +310,16 @@ def generate_maidata(shared_context: SharedContext,
 
 
 
-def get_best_numerator_denominator(diff_beat, input_denominator, enable_12):
-    """在12和输入分母中选择误差最小的分母"""
+def get_best_numerator_denominator(diff_beat, input_denominator,enable_12, enable_24_1):
+    """在12/24和输入分母中选择误差最小的分母"""
 
-    # 如果输入的分母 >=16，启用12作为备选分母
+    # 如果输入的分母 >=12，启用12作为备选分母
+    # 如果输入的分母 >=24，启用24作为备选分母
     candidates = [input_denominator]
-    if input_denominator >= 16 and enable_12:
+    if input_denominator >= 12 and enable_12:
         candidates.append(12)
+    if input_denominator >= 24 and enable_24_1:
+        candidates.append(24)
     
     # 选择误差最小的分母
     best_error = float('inf')
@@ -344,7 +349,8 @@ def get_best_numerator_denominator(diff_beat, input_denominator, enable_12):
 
 
 
-def get_fraction(diff_beat, input_denominator, enable_12=True):
+def get_fraction(diff_beat, input_denominator,
+                 enable_12=True, enable_24_1=True):
         
         # 将数字转为带分数形式
         # 返回格式：分子，分母，整数
@@ -353,7 +359,15 @@ def get_fraction(diff_beat, input_denominator, enable_12=True):
         # 1.0   =  0/1 + 1  =  0, 1, 1
         # 2.25  =  1/4 + 2  =  1, 4, 2
         
-        raw_numerator, raw_denominator = get_best_numerator_denominator(diff_beat, input_denominator, enable_12)
+        raw_numerator, raw_denominator = get_best_numerator_denominator(
+            diff_beat, input_denominator, enable_12, enable_24_1)
+        
+        # 有限度的支持 24 分音符: 仅限 1/24
+        # 如果不是 N+1/24，禁用 24 并重新计算
+        if enable_24_1 and raw_denominator == 24 and raw_numerator % 24 != 1:
+            raw_numerator, raw_denominator = get_best_numerator_denominator(
+                diff_beat, input_denominator, enable_12, enable_24_1=False)
+        
         if raw_numerator == 0: return 0, 1, 0 # 零间隔直接返回
         # 获取整数和余数部分
         one = raw_numerator // raw_denominator
@@ -417,7 +431,8 @@ def parse_note_duration(one_beat_Msec, note_type, note_length, base_denominator,
         denominator_to_use = base_denominator
     
     # 将 duration 变为分数形式
-    numerator, denominator, one = get_fraction(length_beat, denominator_to_use, enable_12=False)
+    numerator, denominator, one = get_fraction(
+        length_beat, denominator_to_use, enable_12=False, enable_24_1=False)
     # 将整数部分加入分子
     if one > 0:
         numerator = numerator + one * denominator
@@ -642,7 +657,7 @@ def snap_note_time_to_bpm_segment(note_time, timing_points,
         current_bpm = timing_points[seg_idx][1]
         one_beat_ms = calculate_one_beat_ms(current_bpm)
         diff_beat = diff_ms / one_beat_ms
-        numerator, denominator, one = get_fraction(diff_beat, base_denominator, enable_12=True)
+        numerator, denominator, one = get_fraction(diff_beat, base_denominator)
         if numerator == 0 and denominator == 1 and one == 0:
             return current_start_ms
 
@@ -653,7 +668,7 @@ def snap_note_time_to_bpm_segment(note_time, timing_points,
         current_bpm = timing_points[seg_idx][1]
         one_beat_ms = calculate_one_beat_ms(current_bpm)
         diff_beat = diff_ms / one_beat_ms
-        numerator, denominator, one = get_fraction(diff_beat, base_denominator, enable_12=True)
+        numerator, denominator, one = get_fraction(diff_beat, base_denominator)
         if numerator == 0 and denominator == 1 and one == 0:
             return next_start_ms
 
@@ -700,7 +715,7 @@ def calculate_beat_diff(last_note_time: float,
             diff_ms = cur_note_time - seg_start
             one_beat_ms = calculate_one_beat_ms(bpm)
             diff_beat = diff_ms / one_beat_ms
-            numerator, denominator, one = get_fraction(diff_beat, base_denominator, enable_12=True)
+            numerator, denominator, one = get_fraction(diff_beat, base_denominator)
             result.append((bpm, numerator, denominator, one))
             break
         else:
@@ -708,7 +723,7 @@ def calculate_beat_diff(last_note_time: float,
             diff_ms = next_boundary - seg_start
             one_beat_ms = calculate_one_beat_ms(bpm)
             diff_beat = diff_ms / one_beat_ms
-            numerator, denominator, one = get_fraction(diff_beat, base_denominator, enable_12=True)
+            numerator, denominator, one = get_fraction(diff_beat, base_denominator)
             # 过滤零长度碎段
             # 产生的原因可能是 bpm config 的 global offset 没有精准对齐
             # 或者 bpm config 的起始时间 / last_not_time 有精度误差

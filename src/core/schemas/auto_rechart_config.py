@@ -229,7 +229,11 @@ class AutoRechartConfig_Definitions:
         type="int",
         group="analyze",
         default=32, # 匹配 CHART_LV_PRESETS
-        constraints={"options": [4, 8, 16, 32, 64]}
+        constraints={"options": [4, 8, 16, 32, 64],
+                     "options_tooltips": [None, None,
+                                          "ui_base_denominator_16_tooltip",
+                                          "ui_base_denominator_32_tooltip",
+                                          "ui_base_denominator_64_tooltip"]}
     )
 
     duration_denominator = AutoRechartConfig_Definition(

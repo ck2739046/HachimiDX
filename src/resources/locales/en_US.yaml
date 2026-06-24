@@ -465,6 +465,9 @@ en_US:
       ui_chart_lv_5_tooltip: "Master"
       ui_chart_lv_6_tooltip: "Re:Master"
       ui_chart_lv_7_tooltip: "Utage"
+      ui_base_denominator_16_tooltip: "Supports x/12 notes"
+      ui_base_denominator_32_tooltip: "Supports x/12 and 1/24 notes"
+      ui_base_denominator_64_tooltip: "Supports x/12 and 1/24 notes"
       ui_base_denominator_label: "Base Denominator: "
       ui_base_denominator_help: |
         Time resolution used to parse note intervals.
@@ -473,8 +476,6 @@ en_US:
 
         Unit time calculation: 240000 / bpm / denominator (ms)
         Recommended unit time is >=30ms. If BPM is high, lower the denominator for better accuracy.
-
-        Note: XX (12) means 12th-note support is additionally enabled when denominator >=16.
       ui_duration_denominator_label: "Duration Denominator: "
       ui_duration_denominator_help: |
         Time resolution used to parse note durations.

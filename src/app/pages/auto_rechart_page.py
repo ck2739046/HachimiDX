@@ -484,11 +484,11 @@ class AutoRechartPage(BaseOutputPage):
         is_big_touch_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_is_big_touch_help"))
 
         bd_label = create_label(i18n.t(f"{I18N_Prefix}.ui_base_denominator_label"))
-        self.base_denominator_combo_box = self._create_combobox_with_options(AC_Defs.base_denominator, length=80, transfer_fn=self._transfer_base_denominator)
+        self.base_denominator_combo_box = self._create_combobox_with_options(AC_Defs.base_denominator, length=58, transfer_fn=self._transfer_base_denominator)
         bd_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_base_denominator_help"))
 
         dd_label = create_label(i18n.t(f"{I18N_Prefix}.ui_duration_denominator_label"))
-        self.duration_denominator_combo_box = self._create_combobox_with_options(AC_Defs.duration_denominator, length=55)
+        self.duration_denominator_combo_box = self._create_combobox_with_options(AC_Defs.duration_denominator, length=58)
         dd_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_duration_denominator_help"))
 
         row = _create_row(chart_lv_label, self.chart_lv_combo_box,
@@ -800,7 +800,7 @@ class AutoRechartPage(BaseOutputPage):
         # is_big_touch
         self.is_big_touch_check_box.setChecked(preset[AC_Defs.is_big_touch.key])
 
-        # base_denominator — combo 显示 "16 (12)" 格式，用 transfer 函数反向翻译后匹配
+        # base_denominator — combo 显示 "16*" 格式，用 transfer 函数反向翻译后匹配
         bd_value: int = preset[AC_Defs.base_denominator.key]
         for i in range(self.base_denominator_combo_box.count()):
             item_text = self.base_denominator_combo_box.itemText(i)
@@ -836,14 +836,14 @@ class AutoRechartPage(BaseOutputPage):
 
     def _transfer_base_denominator(self, input):
 
-        if "(12)" in str(input):
-            return input.replace(" (12)", "").strip()
+        if "*" in str(input):
+            return input.replace("*", "").strip()
         
         if isinstance(input, list):
             output = []
             for item in input:
                 if int(item) >= 12:
-                    output.append(f"{item} (12)")
+                    output.append(f"{item}*")
                 else:
                     output.append(item)
             return output
