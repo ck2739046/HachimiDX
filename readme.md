@@ -117,13 +117,15 @@ Code lives in `src/`, organized in three layers:
 
 ### 3. Obtain Majdata Editor & Viewer
 
-Compile from the following repositories and place the outputs into `src/resources/majdata`:
+Compile [MajdataEdit](https://github.com/ck2739046/MajdataEdit/tree/v4.3.1) & [MajdataView](https://github.com/ck2739046/MajdataView/tree/431-NC-TH) and place the outputs into `src/resources/majdata`.
 
-- [MajdataEdit](https://github.com/ck2739046/MajdataEdit/tree/v4.3.1) & [MajdataView](https://github.com/ck2739046/MajdataView/tree/431-NC-TH)
+> *Obtain `SFX` and `Skin` from other sources and put them in the folder.*
 
-Obtain `SFX` and `Skin` from other sources and put them in the folder.
+### 4. Obtain BPM Measurer
 
-### 4. Install & launch
+Compile [Bpm-Measurer](https://github.com/ck2739046/Bpm-Measurer) and place the output into `src/resources/Bpm Measurer/`.
+
+### 5. Install & launch
 
 Run `install/script/install.py` to install dependencies.<br>
 Run `src/main.py` to launch the application.

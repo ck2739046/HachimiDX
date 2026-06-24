@@ -120,13 +120,15 @@
 
 ### 3. 获取 Majdata 编辑器与查看器
 
-从以下仓库编译，编译后放入 `src/resources/majdata`：
+编译 [MajdataEdit](https://github.com/ck2739046/MajdataEdit/tree/v4.3.1) & [MajdataView](https://github.com/ck2739046/MajdataView/tree/431-NC-TH)，将编译输出放入 `src/resources/majdata`：
 
-- [MajdataEdit](https://github.com/ck2739046/MajdataEdit/tree/v4.3.1) & [MajdataView](https://github.com/ck2739046/MajdataView/tree/431-NC-TH)
+> *请自行从其他渠道获取 `SFX` 和 `Skin`，放入文件夹中。*
 
-请自行从其他渠道获取 `SFX` 和 `Skin`，放入文件夹中。
+### 4. 获取 BPM 测量工具
 
-### 4. 安装并启动
+编译 [Bpm-Measurer](https://github.com/ck2739046/Bpm-Measurer)，将编译输出放入 `src/resources/Bpm Measurer/`。
+
+### 5. 安装并启动
 
 运行 `install/script/install.py` 安装依赖。<br>
 运行 `src/main.py` 启动程序。
