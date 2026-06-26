@@ -400,8 +400,8 @@ class FFprobeInspect:
                     print(i18n.t("media_ffprobe_inspect.notice_ignore_invalid_video_stream", na_fields=na_fields, stream_info=str(s)))
                     continue  # invalid
                 # 有时候 mp3 封面会被识别为视频流
-                if codec_name == "png":
-                    print(i18n.t("media_ffprobe_inspect.notice_ignore_invalid_video_stream_png", stream_info=str(s)))
+                if codec_name in ["png", "mjpeg"]:
+                    print(i18n.t("media_ffprobe_inspect.notice_ignore_invalid_video_stream_cover", stream_info=str(s)))
                     continue  # invalid
 
             if codec_type == "audio":

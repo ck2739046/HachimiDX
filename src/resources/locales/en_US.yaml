@@ -41,7 +41,7 @@ en_US:
       Duration=%{duration},  \
       Sample Rate=%{sample_rate}"
     notice_ignore_invalid_video_stream: "--FFprobe_Inspect: ignore invalid video stream (%{na_fields}=N/A):\n%{stream_info}"
-    notice_ignore_invalid_video_stream_png: "--FFprobe_Inspect: ignore invalid video stream (likely png song cover):\n%{stream_info}"
+    notice_ignore_invalid_video_stream_cover: "--FFprobe_Inspect: ignore invalid video stream (likely PMG/MJPG song cover):\n%{stream_info}"
     notice_ignore_invalid_video_stream_no_duration: "--FFprobe_Inspect: ignore invalid video stream (no duration):\n%{stream_info}"
     notice_ignore_invalid_audio_stream: "--FFprobe_Inspect: ignore invalid audio stream (%{na_fields}=N/A):\n%{stream_info}"
     notice_ignore_invalid_audio_stream_no_duration: "--FFprobe_Inspect: ignore invalid audio stream (no duration):\n%{stream_info}"

@@ -41,7 +41,7 @@ zh_CN:
       时长=%{duration},  \
       采样率=%{sample_rate}"
     notice_ignore_invalid_video_stream: "--FFprobe_Inspect: 忽略无效视频流 (%{na_fields}=N/A):\n%{stream_info}"
-    notice_ignore_invalid_video_stream_png: "--FFprobe_Inspect: 忽略无效视频流（可能是 PNG 歌曲封面）:\n%{stream_info}"
+    notice_ignore_invalid_video_stream_cover: "--FFprobe_Inspect: 忽略无效视频流（可能是 PNG/MJPG 歌曲封面）:\n%{stream_info}"
     notice_ignore_invalid_video_stream_no_duration: "--FFprobe_Inspect: 忽略无效视频流（没有时长）:\n%{stream_info}"
     notice_ignore_invalid_audio_stream: "--FFprobe_Inspect: 忽略无效音频流 (%{na_fields}=N/A):\n%{stream_info}"
     notice_ignore_invalid_audio_stream_no_duration: "--FFprobe_Inspect: 忽略无效音频流（没有时长）:\n%{stream_info}"
