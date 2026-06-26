@@ -88,7 +88,7 @@ def load_timing_points(notify_path: str | Path) -> OpResult[list[list]]:
         {
           "global_offset": <秒, float>,
           "timing_points": [
-            {"beat_index": <int>, "bpm": <float>, "beats_per_bar": <int>},
+            {"beat_index": <float>, "bpm": <float>, "beats_per_bar": <int>},
             ...
           ]
         }
@@ -131,7 +131,7 @@ def load_timing_points(notify_path: str | Path) -> OpResult[list[list]]:
 
     # 按 beat_index 升序排序（C# 端已保证严格递增，稳妥再排一次）
     try:
-        points = sorted(raw_points, key=lambda p: int(p["beat_index"]))
+        points = sorted(raw_points, key=lambda p: float(p["beat_index"]))
     except (KeyError, TypeError, ValueError) as e:
         return err(f"invalid beat_index in timing_points: {e}", error_raw=e)
 
@@ -140,7 +140,7 @@ def load_timing_points(notify_path: str | Path) -> OpResult[list[list]]:
     for i, point in enumerate(points):
         try:
             bpm = float(point["bpm"])
-            beat_index = int(point["beat_index"])
+            beat_index = float(point["beat_index"])
         except (KeyError, TypeError, ValueError) as e:
             return err(f"invalid timing_point[{i}]: {e}", error_raw=e)
 
@@ -151,7 +151,7 @@ def load_timing_points(notify_path: str | Path) -> OpResult[list[list]]:
                 )
             time_sec = global_offset_sec
         else:
-            prev_beat_index = int(points[i - 1]["beat_index"])
+            prev_beat_index = float(points[i - 1]["beat_index"])
             prev_bpm = float(points[i - 1]["bpm"])
             beat_diff = beat_index - prev_beat_index
             if beat_diff <= 0:
