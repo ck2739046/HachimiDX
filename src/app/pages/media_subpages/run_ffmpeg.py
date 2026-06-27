@@ -179,6 +179,8 @@ class RunFFmpegPage(BaseOutputPage):
 
         self.output_filename_line_edit.textChanged.connect(self.update_output_full_path_display)
 
+        self.audio_format_combo_box.currentTextChanged.connect(self.update_output_full_path_display)
+
         self.submit_button.clicked.connect(self.on_submit_clicked)
         
         # Connect runner output signals to our output widget
@@ -308,7 +310,7 @@ class RunFFmpegPage(BaseOutputPage):
         
 
         # audio format combo box
-        self.audio_format_combo_box = create_combo_box(length=62)
+        self.audio_format_combo_box = create_combo_box(length=65)
         # audio bitrate combo box
         self.audio_bitrate_combo_box = self._create_ffmpeg_widget(
             widget_type="combo_box", param=M_Defs.audio_bitrate, length=70)
