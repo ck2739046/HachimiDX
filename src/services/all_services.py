@@ -62,6 +62,15 @@ class AllServices:
             print("Majdata sync server initialization completed.")
         except Exception as e:
             return err(f"Failed to initialize Majdata sync server: {e}")
+        
+
+        # 清理残留的 bpm_notify 文件
+        for pattern in ("bpm_parse_notify_*.json", "bpm_notify_*.json"):
+            for f in PathManage.TEMP_DIR.glob(pattern):
+                try:
+                    f.unlink()
+                except OSError:
+                    pass
 
 
         cls._is_pre_initialized = True

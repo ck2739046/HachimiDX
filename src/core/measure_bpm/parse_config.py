@@ -168,4 +168,10 @@ def load_timing_points(notify_path: str | Path) -> OpResult[list[list]]:
         # 所有段返回真实 start_ms（含 global_offset）
         segments.append([beat_index, bpm, round(time_sec * 1000)])
 
+    # 解析成功，删除临时 notify 文件
+    try:
+        path.unlink(missing_ok=True)
+    except OSError:
+        pass
+
     return ok(segments)
