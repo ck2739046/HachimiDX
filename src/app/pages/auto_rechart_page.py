@@ -758,8 +758,16 @@ class AutoRechartPage(BaseOutputPage):
                         reason = root_result.error_raw
                 except Exception:
                     pass
+                # 尝试直接访问模型缺失错误
+                try:
+                    root_result = result.inner.inner.inner
+                    if "get_path_by_backend()" in root_result.source.lower() and \
+                       "model file not found for backend" in root_result.error_msg.lower():
+                        reason = root_result.error_msg
+                except Exception:
+                    pass
                 error_msg = i18n.t("app.media_subpages.run_ffmpeg.warning_task_submit_failed", error = reason)
-                show_notify_dialog("app.media_subpages.run_ffmpeg", error_msg)
+                show_notify_dialog("AutoRechartPipeline error", error_msg)
                 return
 
             runner_id, cmd_list = result.value
