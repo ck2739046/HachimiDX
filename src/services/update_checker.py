@@ -8,11 +8,12 @@ from typing import Optional
 import i18n
 
 from PyQt6.QtCore import QUrl
+from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 
 from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
 from .settings_manage import SettingsManage
-from src.core.tools.popup_dialog import show_notify_dialog
+from src.core.tools.popup_dialog import show_confirm_dialog
 
 # Transfer timeout: abort if no data for 10 seconds.
 REQUEST_TIMEOUT_MS = 10_000
@@ -125,17 +126,17 @@ def check_update() -> None:
                     SettingsManage.set(S_Defs.last_check_update_time.key, today_str)
                     return
 
-                # 5. New version available — notify
+                # 5. New version available — confirm
                 print(i18n.t("check_update.notice_new_version",
                              latest=latest_tag, current=VERSION))
                 SettingsManage.set(S_Defs.last_check_update_time.key, today_str)
-                show_notify_dialog(
+                if show_confirm_dialog(
                     i18n.t("check_update.dialog_title"),
                     i18n.t("check_update.dialog_prompt",
                            latest_version=latest_tag,
-                           current_version=f"v{VERSION}",
-                           repo_url=REPO),
-                )
+                           current_version=f"v{VERSION}")
+                ):
+                    QDesktopServices.openUrl(QUrl(f"{REPO}/releases/latest"))
             finally:
                 # cleanup
                 nam.finished.disconnect(_on_reply_finished)

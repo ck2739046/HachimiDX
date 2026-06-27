@@ -101,13 +101,12 @@ en_US:
     
     dialog_title: "Check Update"
     dialog_prompt: |
-      New Version Available!
+      HachimiDX Update Available!
 
       Current version: %{current_version}
-      New version:     %{latest_version}
+      Latest version:  %{latest_version}
       
-      Visit GitHub to download:
-      %{repo_url}
+      Would you like to visit the download page?
 
 
   # ---- app ----
