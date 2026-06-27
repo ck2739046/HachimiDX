@@ -129,7 +129,7 @@ class MeasureBpmPage(BaseOutputPage):
             button_text=_t("ui_select_audio_button"),
             help_text=_t("ui_select_audio_help"),
             button_length=130,
-            name_filter="audio (*.mp3 *.ogg *.wav *.aac *.flac *.m4a)",
+            name_filter="audio",
         )
         self.create_row(self.audio_path_label, self.audio_select_button,
                         self.audio_help, self.audio_path_display)

@@ -7,6 +7,27 @@ from .help_icon import create_help_icon
 from .path_display import create_path_display
 from .button import create_button
 
+# --- File filter constants (Qt setNameFilter format) ---
+
+_SUPPORTED_AUDIO = [
+    "*.mp3", "*.m4a", "*.aac",
+    "*.wav", "*.mka", "*.flac",
+    "*.ogg", "*.oga", "*.opus",
+]
+_SUPPORTED_VIDEO = [
+    "*.mov", "*.mkv", "*.mp4", "*.webm",
+]
+
+AUDIO_FILTER = f"audio ({' '.join(_SUPPORTED_AUDIO)})"
+VIDEO_FILTER = f"video ({' '.join(_SUPPORTED_VIDEO)})"
+MEDIA_FILTER = f"video/audio ({' '.join(_SUPPORTED_VIDEO + _SUPPORTED_AUDIO)}))"
+
+_FILTER_MAP = {
+    "audio": AUDIO_FILTER,
+    "video": VIDEO_FILTER,
+}
+
+
 def create_file_selection_row(button_text: str,
                               button_length: int = None,
                               help_text: str = None,
@@ -20,8 +41,11 @@ def create_file_selection_row(button_text: str,
         button_length: int，可选，按钮长度，默认 120
         help_text: str，可选，默认None，不创建help_icon
         on_button_clicked_handler: function，可选，按钮点击事件处理函数 (这个函数需要接受"选择的文件路径"作为参数)
-        name_filter: str，可选，自定义文件过滤器（Qt setNameFilter 格式，如 "Text file (*.txt)"），
-                     默认None时使用 video/audio 过滤器
+        name_filter: str，可选，文件过滤器。支持以下简写：
+                     "audio" — 仅音频文件
+                     "video" — 仅视频文件
+                     None — 默认 video+audio（所有媒体文件）
+                     其他字符串 — 作为 Qt setNameFilter 原始值透传（如 "bpm config (*.txt)"）
 
     Returns:
         tuple: (button_widget, line_edit_widget, help_label_widget | None)
@@ -43,11 +67,11 @@ def create_file_selection_row(button_text: str,
     # 默认的文件选择处理函数
     def _default_file_select_handler():
         """默认处理: 打开文件选择界面，更新 LineEdit 显示所选择的文件路径"""
+        resolved_filter = _FILTER_MAP.get(name_filter, name_filter) or MEDIA_FILTER
+
         file_dialog = QFileDialog()
         file_dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
-        file_dialog.setNameFilter(
-            name_filter or "video/audio (*.mov *.mkv *.mp4 *.webm *.mp3 *.ogg *.wav *.aac *.flac *.m4a)"
-        )
+        file_dialog.setNameFilter(resolved_filter)
         file_dialog.setViewMode(QFileDialog.ViewMode.Detail)
         if file_dialog.exec():
             selected_files = file_dialog.selectedFiles()
