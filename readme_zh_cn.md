@@ -1,20 +1,18 @@
 # <img src="src/resources/icon.ico" width="60px"> HachimiDX: 舞萌自动抄谱工具 🐱
 
-🔗 [**项目地址**](https://github.com/ck2739046/HachimiDX)
-&nbsp;•&nbsp;
-📥︎ [**软件下载**](https://github.com/ck2739046/HachimiDX/releases/latest)
+📄 [**English README**](readme.md)
+
+---
+
+🔗 [**项目地址**](https://github.com/ck2739046/HachimiDX) &nbsp;•&nbsp; 📥︎ [**软件下载**](https://github.com/ck2739046/HachimiDX/releases/latest) &nbsp;•&nbsp; ▶️ [**演示视频**](https://www.bilibili.com/video/BV1Rz5c6vEQH)
 
 > <img src="src/resources/doc/images/qq_icon.svg" width="20px" style="vertical-align: middle;"> 如果在使用中遇到问题、需要帮助、想反馈 Bug 或提出建议，亦或参与开发讨论，欢迎加入 QQ 交流群 **`868888361`**。
 
-📄 [**English README**](readme.md)
-&nbsp;•&nbsp;
-▶️ [**演示视频**](https://www.bilibili.com/video/BV1Rz5c6vEQH)
-
-
+---
 
 **小团体不拉我，拿不到最新最热，所以自己抄谱😡😡😡😭😭😭🤔🤔🤔😋😋😋**
 
-专门为音乐游戏 `maimai` 设计的工具。输入谱面确认视频，执行全自动抄谱，复刻还原官方 maimai 谱面，输出为 simai 格式 (`maidata.txt`)。
+专为音乐游戏 `maimai` 设计的工具。输入谱面确认视频，执行全自动抄谱，复刻官方 maimai 谱面，输出为 simai 格式 (`maidata.txt`)。
 
 
 
@@ -29,13 +27,13 @@
     - 专门针对游戏画面优化，能够适应复杂场景，识别更稳健。
 
 - **可视化图形界面**
-    - 全程使用可视化图形界面。
+    - 全程通过可视化界面操作，无需输入命令行。
 
 - **内置谱面编辑器**
     - 内嵌 [`MajdataEdit`](https://github.com/LingFeng-bbben/MajdataView) 和 [`MajdataView`](https://github.com/TeamMajdata/MajdataView/tree/431-NC-TH)，抄谱结果一站式预览与修改。
 
 - **内置 BPM 测速工具**
-    - 内嵌 [`Bpm-Measurer`](https://github.com/ck2739046/Bpm-Measurer)，一款实用的歌曲 BPM 测量工具。
+    - 集成 [`Bpm-Measurer`](https://github.com/ck2739046/Bpm-Measurer)，一款实用的歌曲 BPM 测量工具。
 
 - **多后台推理支持**
     - 支持 PyTorch / NVIDIA TensorRT / DirectML 多种深度学习推理后端，兼容各类硬件。
@@ -47,16 +45,39 @@
 
 
 
+## 💻 硬件 / 运行环境要求
+
+- **操作系统**：仅支持 Windows 10 / 11 (x64)
+- **显卡显存**：至少 3 GB（如使用纯 CPU 推理则无显存要求）
+- **内存**：至少 2 GB 可用
+- **硬盘**：至少 7 GB 可用空间
+
+
+
+
+## 🚧 已知问题
+
+- 不支持识别 Touch/Touch-Hold 烟花特效 (`f`)
+
+- 不支持伪双押 (`` ` ``)
+
+- BPM 频繁变化可能导致谱面产生偏移。
+
+- 相机实拍屏幕的视频可能存在拍摄角度、色偏、曝光等问题，此时 ex/break 等音符变体的分类准确率会下降。
+
+
+
 ## 🎯 关于模型训练数据
 
-模型的训练数据全部自己采集：
+模型训练数据均为自行采集：
 
 - **全自动标注**
     - 用 [Mod](archive/yolo-train/mod_dump_notes/Dump_Notes.cs) 捕获游戏内部原始数据，配合 [脚本](archive/yolo-train/label_notes.py) 自动生成标注，坐标和类别高度准确。整个数据集构建过程便捷高效，能够快速按需获取海量优质样本。
 
 - **分任务训练**
-    - 三个模型各自使用专门的数据集，针对性优化。
+    - 各个模型各自使用专门的数据集，针对性优化。
     - `train_detect` — 识别音符位置
+    - `train_detect_touch_hold` — 识别 touch-hold 位置与进度
     - `train_obb` — 识别 slide 旋转角度
     - `train_classify` — 判断 ex、break 等变体类型
 
@@ -65,39 +86,38 @@
 
 ## 🧩 技术架构
 
-代码主要在 `src` 目录下，分三层：
+代码集中在 `src` 目录，分三层。中间层通过 **子进程 worker** 驱动核心算法，将重计算隔离在 GUI 之外，保证界面流畅。
 
-- **UI 层 (`src/app`)**
-    - 基于 Qt 构建图形化界面
-    - 每个功能都有独立的页面
-    - 定制了一套统一的 Widget 组件库，所有页面共用，视觉风格和操作体验高度一致
-- **中间层 (`src/services`)**
-    - 管理核心任务队列，控制并发，分发任务状态。
-    - 子任务使用 QProcess 独立运行，由专门的进程管理器统一调度。
-    - 使用 pydantic 校验参数并组装指令。
-    - 各项基础服务使用独立的组件，职责清晰。
-    - 提供统一的 API，前端只需简单调用，由中间层统一调度核心算法。
-- **核心算法层 (`src/core`)**
-    - 使用 OpenCV 处理画面
-    - 使用 YOLO 视觉模型识别画面
-    - 元素路径追踪 (BOTSORT, OCSORT)
-    - 数据过滤，转换，处理
-    - 音符方位推演、时差推演、时值推演
-    - simai 语法转换
-    - 音频匹配、同步、街机延时 (arcade timing) 推演
+- **UI 层 (`src/app`)** — 基于 **PyQt6** 的图形界面
+    - `QSharedMemory` 单实例
+    - 功能分页：Majdata 编辑、自动抄谱、任务队列、多媒体工具、软件设置
+    - 统一 Widget 组件库（`src/app/widgets`），视觉与操作风格一致
+    - 内嵌视频播放器，与谱面编辑器联动预览
+    - 支持 UI 缩放与多语言（`i18n`，中/英切换）
+- **中间层 (`src/services`)** — 服务生命周期与任务调度
+    - **两阶段初始化**：统一管理服务：路径 → 设置 → i18n → 同步服务 → 初始化各管线
+    - **任务调度器**：管理任务队列，按类型控制并发并向 UI 推送状态快照
+    - **进程管理器**：统一托管 `QProcess`，为子任务分配 runner_id、合并输出并定时刷新
+    - **独立管线**（`AutoRechartPipeline` / `MediaPipeline`）：用 **pydantic** 校验参数、组装 CLI 指令并提交调度器
+    - 子任务以独立 **worker 子进程** 运行（抄谱 / 音频对齐 / 模型转换 / 硬件检测等），由进程管理器统一调度
+    - **视频同步服务**：通过 UDP 与 MajdataEdit / MajdataView 双向联动（播放 / 暂停 / 跳转），内置时间容差与防抖
+    - **看门狗**：子进程在退出时清理残留 Majdata 进程；
+    - 内置 GitHub Releases 版本更新检查
+- **核心算法层 (`src/core`)** — 抄谱按 `standardize → detect → analyze` 三阶段运行：
+    - **视频规范化**
+        - **OpenCV** 检测外屏圆 + 透视矫正
+        - **FFmpeg** 执行裁剪 / 分辨率统一 / 重编码
+    - **检测与追踪**：
+        - **目标检测**：**YOLO**（ultralytics）多进程流式并行推理 `detect` 与 `obb` 模型
+        - **变体分类**：ex / break 采用生产者-消费者管线（解码线程 + GPU 推理，双缓冲）实现 CPU/GPU 重叠
+        - **路径追踪**：融合 **BOTSORT** + 自定义 **OCSort**，可选 re-id 重识别
+    - **音符分析**：按 tap / touch / hold / touch-hold / slide 分别做预处理 → 速度估计 → 时差 / 时值推演 → slide 移动模式分析
+    - **simai 语法转换**：输出 `maidata.txt`
+    - **音频处理**：**librosa + scipy** 互相关做匹配同步、确认点击起点检测、街机延时 (arcade timing) 推演
+    - **BPM 测量**：对接外部 `Bpm-Measurer`
+    - **数据模型**：**pydantic** 定义配置与数据模型
+    - **错误处理**：类 **Rust** 风格 `OpResult`（`ok` / `err`），统一封装每次操作结果
 
-
-
-
-## 🚧 已知问题
-
-- **Touch/Touch-Hold**
-    - 不支持在同一位置重叠出现
-    - 不支持烟花特效识别 (`f`)
-    
-- 不支持伪双押 (`` ` ``)
-
-- 相机实拍屏幕的视频可能存在拍摄角度、色偏、曝光等问题，此时 ex/break 等音符变体的分类准确率会下降。
 
 
 
@@ -107,10 +127,10 @@
 
 - 方式一：将 [`嵌入式 Python`](src/resources/for_release_only/python%20portable/py3.13.11.zip) 解压到项目根目录，用 `./python/python.exe` 运行脚本。
 - 方式二：自行安装 Python 并创建虚拟环境 (venv)。
-  > 本项目使用 **Python 3.13.11**；Python 3.10+ 似乎大概都可以运行，仅猜测，未经实际验证。
+  > 本项目使用 **Python 3.13.11**；Python 3.10+ 应该也能运行，但未经实际验证。
 
   > **注意 (2026.05.09):**<br>
-  > NVIDIA TensorRT 目前不支持 Python 3.14。使用 `DirectML` 或 `PyTorch` 推理时，Python 3.14 可用；使用 `TensorRT` 时，最高支持到 Python 3.13。
+  > NVIDIA TensorRT 目前不支持 Python 3.14。
 
 ### 2. 解压资源文件
 

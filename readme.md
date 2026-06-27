@@ -1,17 +1,16 @@
 # <img src="src/resources/icon.ico" width="60px"> HachimiDX: Maimai auto rechart tool 🐱
 
-🔗 [**Project URL**](https://github.com/ck2739046/HachimiDX)
-&nbsp;•&nbsp;
-📥︎ [**Software Download**](https://github.com/ck2739046/HachimiDX/releases/latest)
+📄 [**中文 README**](readme_zh_cn.md)
+
+---
+
+🔗 [**Project URL**](https://github.com/ck2739046/HachimiDX) &nbsp;•&nbsp; 📥︎ [**Download**](https://github.com/ck2739046/HachimiDX/releases/latest) &nbsp;•&nbsp; ▶️ [**Demo Video**](https://www.bilibili.com/video/BV1Rz5c6vEQH)
 
 > <img src="src/resources/doc/images/qq_icon.svg" width="20px" style="vertical-align: middle;"> Run into issues, need a hand, want to report bugs, share suggestions, or talk development? Join our QQ group chat **`868888361`**.
 
-📄 [**中文 README**](readme_zh_cn.md)
-&nbsp;•&nbsp;
-▶️ [**Demo Video**](https://www.bilibili.com/video/BV1Rz5c6vEQH)
+---
 
-
-A tool built specifically for the rhythm game `maimai`. Give it a chart confirmation video, and it will fully automatically rechart — faithfully reproducing the official maimai chart and outputting it in simai format (`maidata.txt`).
+A tool built specifically for the rhythm game `maimai`. Feed it a chart confirmation video, and it will fully automatically rechart — faithfully reproducing the official maimai chart and outputting it in simai format (`maidata.txt`).
 
 
 
@@ -23,10 +22,10 @@ A tool built specifically for the rhythm game `maimai`. Give it a chart confirma
     - Supports all simai slide movement syntax: `-` `><` `pq` `ppqq` `sz` `v`.
 
 - **Custom vision models**
-    - Optimized specifically for maimai, with stronger robustness in complex scenes.
+    - Optimized specifically for maimai gameplay, with robust performance in complex scenes.
 
 - **GUI-first design**
-    - Everything is done through a visual interface.
+    - Everything is done through a visual interface — no CLI commands required.
 
 - **Built-in editors**
     - Integrates [`MajdataEdit`](https://github.com/LingFeng-bbben/MajdataView) and [`MajdataView`](https://github.com/TeamMajdata/MajdataView/tree/431-NC-TH) so rechart results can be previewed and modified in one place.
@@ -44,16 +43,39 @@ A tool built specifically for the rhythm game `maimai`. Give it a chart confirma
 
 
 
+## 💻 System Requirements
+
+- **OS**: Windows 10 / 11 (x64) only
+- **GPU VRAM**: at least 3 GB (no VRAM requirement if using CPU-only inference)
+- **RAM**: at least 2 GB available
+- **Disk**: at least 7 GB free
+
+
+
+
+## 🚧 Known Issues
+
+- Touch / Touch-Hold Fireworks effects (`f`) are not supported.
+
+- Fake jumps (`` ` ``) are not supported.
+
+- Frequent BPM changes may cause offset errors.
+
+- Camera-captured footage (off-screen recordings) may suffer from angle, color cast, or exposure issues. This hurts accuracy for ex/break classification.
+
+
+
 ## 🎯 Model Training Data
 
-All training data was gathered in-house:
+All training data was collected in-house:
 
 - **Automated labeling**
-    - A [Mod](archive/yolo-train/mod_dump_notes/Dump_Notes.cs) captures raw game data. A [script](archive/yolo-train/label_notes.py) turns it into annotations automatically. Coordinates and categories are highly accurate. This makes dataset construction efficient and convenient, and it can quickly produce large amounts of high-quality samples on demand.
+    - A [Mod](archive/yolo-train/mod_dump_notes/Dump_Notes.cs) captures raw game data, and a [script](archive/yolo-train/label_notes.py) automatically generates annotations. Coordinates and categories are highly accurate. This makes dataset construction efficient and scalable, enabling large volumes of high-quality samples on demand.
 
 - **Task-specific training**
-    - Each of the three models uses a dedicated dataset and is optimized for its own task.
+    - Each model uses a dedicated dataset and is optimized for its own task.
     - `train_detect` — identifies note positions
+    - `train_detect_touch_hold` — identifies touch-hold positions/progress.
     - `train_obb` — identifies slide rotation angles
     - `train_classify` — determines variants such as ex and break
 
@@ -62,39 +84,38 @@ All training data was gathered in-house:
 
 ## 🧩 Technical Architecture
 
-Code lives in `src/`, organized in three layers:
+Code lives in `src/`, organized in three layers. The middle layer drives the core algorithms via **subprocess workers**, isolating heavy computation from the GUI to keep it responsive.
 
-- **UI layer (`src/app`)**
-    - Built with Qt.
-    - Each feature has its own page.
-    - Shared widget library ensures a consistent visual style and user experience.
-- **Middle layer (`src/services`)**
-    - Manages task queues, controls concurrency, and distribute status.
-    - Subtasks run in separate QProcess instances, managed by a process manager.
-    - Uses pydantic to validate params and build commands.
-    - Services are modular, each with a clear role.
-    - Exposes a unified API for frontend. 
-- **Core layer (`src/core`)**
-    - OpenCV for frame processing.
-    - YOLO for visual recognition.
-    - Elements path tracking (BOTSORT, OCSORT).
-    - Filters, converts, and processes data.
-    - Infers note position, timing, and duration.
-    - Converts to simai syntax.
-    - Performs audio matching, synchronization, and arcade timing inference.
+- **UI layer (`src/app`)** — GUI built with **PyQt6**
+    - `QSharedMemory` single-instance
+    - Feature pages: Majdata editor, auto rechart, task queue, media tools, app settings
+    - A shared widget library (`src/app/widgets`) keeps the visual style consistent across pages.
+    - Embedded video player that syncs with the chart editor for preview.
+    - UI scaling and multi-language (`i18n`, EN/ZH).
+- **Middle layer (`src/services`)** — service lifecycle and task scheduling
+    - **Two-phase initialization**: uniformly manages services: paths → settings → i18n → sync server → pipeline initialization.
+    - **Task scheduler**: manages queues, controls per-type concurrency, and pushes task-status snapshots to the UI.
+    - **Process manager**: owns all `QProcess` instances, assigns runner IDs, merges output, and flushes periodically.
+    - **Standalone pipelines** (`AutoRechartPipeline` / `MediaPipeline`): validate params with **pydantic**, assemble CLI argv, and submit tasks to the scheduler.
+    - Subtasks run as separate **worker subprocesses** (rechart, audio alignment, model conversion, hardware checks, etc), scheduled by the process manager.
+    - **Video sync server**: bridges MajdataEdit / MajdataView over UDP (play / pause / seek) with time-tolerance and debounce handling.
+    - **Watchdog**: a subprocess cleans up orphaned Majdata processes on exit.
+    - Built-in GitHub Releases update checker.
+- **Core layer (`src/core`)** — the auto-rechart pipeline runs in three stages, `standardize → detect → analyze`:
+    - **Video standardization**
+        - **OpenCV** detects the outer circle and computes perspective-correction params.
+        - **FFmpeg** performs the crop, resolution normalization, and re-encoding.
+    - **Detection & tracking**:
+        - **Object Detection**: YOLO (ultralytics) runs `detect` and `obb` models as parallel multiprocess streaming workers.
+        - **Variant classification**: ex / break classification uses a producer-consumer pipeline (decode thread + GPU inference, double-buffered) for CPU/GPU overlap.
+        - **Path tracking**: fuses **BOTSORT** + a custom **OCSort**, with optional re-id.
+    - **Note analysis**: per-type preprocess → speed estimation → timing/duration inference (tap / touch / hold / touch-hold / slide) → slide movement syntax analyze.
+    - **simai conversion**: outputs `maidata.txt`.
+    - **Audio processing**: librosa + scipy cross-correlation audio matching & sync, confirmation-click detection, arcade-timing inference.
+    - **BPM measurement**: connects to the external `Bpm-Measurer`.
+    - **Data models**: **pydantic** schemas for config and data models.
+    - **Error handling**: Rust-style `OpResult` (`ok` / `err`) uniformly wraps every operation result.
 
-
-
-
-## 🚧 Known Issues
-
-- **Touch / Touch-Hold**
-    - Overlapping notes at the same spot are not supported.
-    - Fireworks effects (`f`) are not supported.
-
- - Fake jumps (`` ` ``) are not supported.
-
-- Camera-captured footage (off-screen recordings) may suffer from angle, color cast, or exposure issues. This hurts accuracy for ex/break classification.
 
 
 
@@ -104,10 +125,10 @@ Code lives in `src/`, organized in three layers:
 
 - Option A: Extract [`embedded Python`](src/resources/for_release_only/python%20portable/py3.13.11.zip) to the project root and use `./python/python.exe` to run scripts.
 - Option B: Install Python and create a virtual environment (venv).
-  > This project uses **Python 3.13.11**; Python 3.10+ may work, but this is only a rough guess and has not been verified.
+  > This project uses **Python 3.13.11**; Python 3.10+ may work, but this has not been verified.
 
   > **Note (2026.05.09):**<br>
-  > NVIDIA TensorRT currently does not support Python 3.14. When using `DirectML` or `PyTorch` inference, Python 3.14 works fine. For `TensorRT`, Python 3.13 is the highest supported version.
+  > NVIDIA TensorRT currently does not support Python 3.14.
 
 ### 2. Extract resource files
 
