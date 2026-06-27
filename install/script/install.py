@@ -55,7 +55,9 @@ Please select an option:
 
 2. Undo Ultralytics DirectML Modification
 
-3. Exit
+3. Uninstall torch & torchvision
+
+4. Exit
 
 Please don't choose "2" if you don't know what it is.
 
@@ -67,9 +69,11 @@ Please don't choose "2" if you don't know what it is.
 
 2. 撤销 Ultralytics DirectML 修改
 
-3. 退出
+3. 删除 torch & torchvision
 
-如果你不清楚选项 2 是什么，请不要选择此选项。
+4. 退出
+
+如果你不清楚选项 2/3 是什么，请不要选择此选项。
 
 -> """
     print("\n-----")
@@ -87,12 +91,44 @@ Please don't choose "2" if you don't know what it is.
             info_zh = "尝试恢复 ultralytics 时发生错误。"
             print(f"{info_en if LANGUAGE == 'en' else info_zh}")
     elif choice == "3":
+        uninstall_torch_torchvision()
+    elif choice == "4":
         sys.exit(0)
     else:
         print("Defaulting to Install HachimiDX.")
         install()
 
 
+
+
+
+def uninstall_torch_torchvision():
+    info_en = "Uninstalling torch and torchvision..."
+    info_zh = "正在删除 torch 和 torchvision..."
+    print(f"\n-----\n{info_en if LANGUAGE == 'en' else info_zh}\n")
+    cmd = [sys.executable, "-m", "pip", "uninstall", "torch", "torchvision", "-y"]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        combined = result.stdout + result.stderr
+        print(combined)
+        # 检查是否两个包都显示 "not installed"
+        torch_not_installed = "Skipping torch as it is not installed" in combined
+        torchvision_not_installed = "Skipping torchvision as it is not installed" in combined
+        if torch_not_installed and torchvision_not_installed:
+            info_en = "torch and torchvision are not installed. Nothing to uninstall."
+            info_zh = "torch 和 torchvision 均未安装，无需删除。"
+        elif torch_not_installed:
+            info_en = "torch was not installed. torchvision has been uninstalled."
+            info_zh = "torch 未安装，torchvision 已删除。"
+        elif torchvision_not_installed:
+            info_en = "torchvision was not installed. torch has been uninstalled."
+            info_zh = "torchvision 未安装，torch 已删除。"
+        else:
+            info_en = "torch and torchvision have been uninstalled."
+            info_zh = "torch 和 torchvision 已删除。"
+        print(f"\n-----\n{info_en if LANGUAGE == 'en' else info_zh}\n")
+    except Exception as e:
+        print(f"\n-----\nError: {e}\n")
 
 
 
