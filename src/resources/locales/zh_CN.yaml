@@ -335,7 +335,7 @@ zh_CN:
         ui_manual_mode_hint: " 请在下方手动选择 BPM 配置文件和音频"
 
         ui_block2_divider: "对齐"
-        ui_select_chart_video_button: "选择谱面确认视频"
+        ui_select_chart_video_button: "选择 maimai 谱面确认视频"
         ui_offset_label: "Offset (ms): "
         ui_offset_help: |
           测量音频相对于谱面确认视频的时间偏移（毫秒）。
