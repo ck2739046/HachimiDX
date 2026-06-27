@@ -259,6 +259,8 @@ zh_CN:
           建议仅用于 MajdataView 播放的视频。
         ui_delete_audio_label: "删除音频: "
         ui_delete_audio_help: "如果启用，输出视频将不包含音频轨道。"
+        ui_delete_video_label: "删除视频: "
+        ui_delete_video_help: "如果启用，将从视频中提取音频，输出为音频文件（.ogg/.mp3）。"
 
         # ---- 音频设置 ----
         ui_audio_format_label: "编码: "

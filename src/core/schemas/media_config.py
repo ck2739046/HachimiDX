@@ -245,6 +245,13 @@ class MediaConfig_Definitions:
         default=False
     )
 
+    delete_video = MediaConfig_Definition(
+        key="delete_video",
+        type="bool",
+        group="video",
+        default=False
+    )
+
     video_crop_x = MediaConfig_Definition(
         key="video_crop_x",
         type="int",

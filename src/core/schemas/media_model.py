@@ -83,6 +83,8 @@ class MediaModel(BaseModel):
     video_gop_optimize: Optional[bool] = Field(default=M_Defs.video_gop_optimize.default)
 
     delete_audio: Optional[bool] = Field(default=M_Defs.delete_audio.default)
+
+    delete_video: Optional[bool] = Field(default=M_Defs.delete_video.default)
     
     video_crop_x: Optional[int] = Field(default=M_Defs.video_crop_x.default)
     video_crop_y: Optional[int] = Field(default=M_Defs.video_crop_y.default)
@@ -206,15 +208,20 @@ class MediaModel(BaseModel):
     def validate_audio_format_bitrate(self):
         """根据 media_type 检验 audio_format 和 audio_bitrate"""
 
+        # 实际输出类型：删视频时视频按音频输出处理
+        effective_type = self.media_type
+        if self.media_type == MediaType.VIDEO_WITH_AUDIO and self.delete_video:
+            effective_type = MediaType.AUDIO
+
         # 获取 audio_format 的默认值和可选项
-        result = M_Defs.get_audio_format_by_media_type(self.media_type)
+        result = M_Defs.get_audio_format_by_media_type(effective_type)
         if not result.is_ok:
             raise ValueError(result.error_msg)
         audio_format_default, audio_format_options = result.value
         # 校验 audio_format
         if not self.audio_format:
             # 音频文件：如果输入是 .mp3 则默认 mp3，否则按 media_type 默认值
-            if self.media_type == MediaType.AUDIO and self.input_path.suffix.lower() == ".mp3":
+            if effective_type == MediaType.AUDIO and self.input_path.suffix.lower() == ".mp3":
                 self.audio_format = "mp3"
             else:
                 self.audio_format = audio_format_default
@@ -237,17 +244,30 @@ class MediaModel(BaseModel):
 
         ext = self.output_path.suffix.lower()
 
-        if self.media_type in (MediaType.VIDEO_WITH_AUDIO, MediaType.VIDEO_WITHOUT_AUDIO):
+        # 实际是否输出视频：删视频时不按视频处理
+        is_video_output = self.media_type in (MediaType.VIDEO_WITH_AUDIO, MediaType.VIDEO_WITHOUT_AUDIO) \
+            and not self.delete_video
+
+        if is_video_output:
             if ext != ".mp4":
                 raise ValueError(
                     f"Video output must use .mp4 extension, got {ext}"
                 )
-        elif self.media_type == MediaType.AUDIO:
+        elif self.media_type == MediaType.AUDIO or self.delete_video:
             expected = f".{self.audio_format}"
             if ext != expected:
                 raise ValueError(
                     f"Audio output must use {expected} extension, got {ext}"
                 )
+
+        return self
+
+    @model_validator(mode='after')
+    def validate_delete_mutex(self):
+        """delete_audio 与 delete_video 不能同时启用"""
+
+        if self.delete_audio and self.delete_video:
+            raise ValueError("'delete_audio' and 'delete_video' cannot both be enabled.")
 
         return self
 

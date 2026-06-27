@@ -38,6 +38,7 @@ class RunFFmpegPage(BaseOutputPage):
         self.audio_bitrate_combo_box = None
         self.audio_sample_rate_combo_box = None
         self.audio_volume_line_edit = None
+        self.delete_video_check_box = None
         self.audio_overlay = None
         # common widgets
         self.common_adjust_start_line_edit = None
@@ -108,11 +109,13 @@ class RunFFmpegPage(BaseOutputPage):
         audio_bitrate_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_audio_bitrate_label"))
         audio_sample_rate_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_audio_sample_rate_label"))
         audio_volume_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_audio_volume_label"))
+        delete_video_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_delete_video_label"))
         # help icons
         audio_format_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_audio_format_help"))
         audio_bitrate_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_audio_bitrate_help"))
         audio_sample_rate_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_audio_sample_rate_help"))
         audio_volume_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_audio_volume_help"))
+        delete_video_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_delete_video_help"))
         # create audio panel + row
         audio_panel = QWidget()
         audio_layout = QVBoxLayout(audio_panel)
@@ -121,6 +124,7 @@ class RunFFmpegPage(BaseOutputPage):
                           audio_bitrate_label, self.audio_bitrate_combo_box, audio_bitrate_help,
                           audio_sample_rate_label, self.audio_sample_rate_combo_box, audio_sample_rate_help,
                           audio_volume_label, self.audio_volume_line_edit, audio_volume_help,
+                          delete_video_label, self.delete_video_check_box, delete_video_help,
                           add_stretch=True)
         audio_layout.addWidget(row)
         self.content_layout.addWidget(audio_panel)
@@ -170,7 +174,8 @@ class RunFFmpegPage(BaseOutputPage):
 
 
         
-        self.delete_audio_check_box.toggled.connect(self.update_media_panel_state)
+        self.delete_audio_check_box.toggled.connect(self._on_delete_option_toggled)
+        self.delete_video_check_box.toggled.connect(self._on_delete_option_toggled)
 
         self.output_filename_line_edit.textChanged.connect(self.update_output_full_path_display)
 
@@ -203,6 +208,9 @@ class RunFFmpegPage(BaseOutputPage):
         self.delete_audio_check_box.blockSignals(True)
         self.delete_audio_check_box.setChecked(False)
         self.delete_audio_check_box.blockSignals(False)
+        self.delete_video_check_box.blockSignals(True)
+        self.delete_video_check_box.setChecked(False)
+        self.delete_video_check_box.blockSignals(False)
         self.video_overlay.show()
         self.audio_overlay.show()
         # 根据媒体类型和删除音频状态刷新启用关系。
@@ -220,15 +228,20 @@ class RunFFmpegPage(BaseOutputPage):
 
 
     def update_media_panel_state(self) -> None:
-        """根据 media_type 和 delete_audio 刷新 video/audio 参数区可用状态。"""
+        """根据 media_type 和 delete_audio/delete_video 刷新 video/audio 参数区可用状态。"""
 
         media_type = self.media_input.selected_file_type
 
         enable_video = media_type in (MediaType.VIDEO_WITH_AUDIO, MediaType.VIDEO_WITHOUT_AUDIO)
         enable_audio = media_type in (MediaType.VIDEO_WITH_AUDIO, MediaType.AUDIO)
 
+        # 删除音频时禁用 audio 参数区
         if enable_video and self.delete_audio_check_box.isChecked():
             enable_audio = False
+
+        # 删除视频时禁用 video 参数区
+        if enable_video and self.delete_video_check_box.isChecked():
+            enable_video = False
 
         if enable_video:
             self.video_overlay.hide()
@@ -239,6 +252,26 @@ class RunFFmpegPage(BaseOutputPage):
             self.audio_overlay.hide()
         else:
             self.audio_overlay.show()
+
+
+    def _on_delete_option_toggled(self) -> None:
+        """delete_audio / delete_video 互斥联动，并刷新受影响的 UI 状态。"""
+
+        sender = self.sender()
+
+        # 互斥：勾选一方时取消另一方
+        if sender is self.delete_video_check_box and self.delete_video_check_box.isChecked():
+            self.delete_audio_check_box.blockSignals(True)
+            self.delete_audio_check_box.setChecked(False)
+            self.delete_audio_check_box.blockSignals(False)
+        elif sender is self.delete_audio_check_box and self.delete_audio_check_box.isChecked():
+            self.delete_video_check_box.blockSignals(True)
+            self.delete_video_check_box.setChecked(False)
+            self.delete_video_check_box.blockSignals(False)
+
+        self.update_media_panel_state()
+        # 删除视频会改变音频格式可选项 (aac -> mp3/ogg)
+        self.update_audio_format_combo_box()
 
 
 
@@ -276,15 +309,12 @@ class RunFFmpegPage(BaseOutputPage):
 
         # audio format combo box
         self.audio_format_combo_box = create_combo_box(length=62)
-
         # audio bitrate combo box
         self.audio_bitrate_combo_box = self._create_ffmpeg_widget(
             widget_type="combo_box", param=M_Defs.audio_bitrate, length=70)
-
         # audio sample_rate combo box
         self.audio_sample_rate_combo_box = self._create_ffmpeg_widget(
             widget_type="combo_box", param=M_Defs.audio_sample_rate, length=80)
-        
         # audio volume line edit
         min, max, default = (
             M_Defs.audio_volume.constraints["ge"],
@@ -292,6 +322,9 @@ class RunFFmpegPage(BaseOutputPage):
             M_Defs.audio_volume.default)
         self.audio_volume_line_edit = create_line_edit(
             default_text=str(default), placeholder=f"{min}~{max}", length=60, validator='int')
+        # delete video check box
+        self.delete_video_check_box = self._create_ffmpeg_widget(
+            widget_type="check_box", param=M_Defs.delete_video)
 
 
         # common adjust_start line edit (正数=pad_start, 负数=trim_start)
@@ -340,10 +373,15 @@ class RunFFmpegPage(BaseOutputPage):
         """根据媒体类型，更新音频格式"""
 
         media_type = self.media_input.selected_file_type
+        # 删除视频时按音频输出处理（aac → ogg/mp3）
+        effective_type = media_type
+        if media_type == MediaType.VIDEO_WITH_AUDIO and self.delete_video_check_box.isChecked():
+            effective_type = MediaType.AUDIO
+
         self.audio_format_combo_box.blockSignals(True)
         self.audio_format_combo_box.clear()
 
-        result = M_Defs.get_audio_format_by_media_type(media_type)
+        result = M_Defs.get_audio_format_by_media_type(effective_type)
         if not result.is_ok:
             show_notify_dialog("app.media_subpages.run_ffmpeg", result.error_msg)
             self.audio_format_combo_box.blockSignals(False)
@@ -353,6 +391,10 @@ class RunFFmpegPage(BaseOutputPage):
         self.audio_format_combo_box.addItems(options)
         self.audio_format_combo_box.setCurrentText(default)
         self.audio_format_combo_box.blockSignals(False)
+
+        # audio_format 决定输出扩展名，变化后自动同步输出路径
+        self.update_output_full_path_display()
+
 
 
     def update_output_full_path_display(self, use_empty: bool = False) -> OpResult[str]:
@@ -480,6 +522,7 @@ class RunFFmpegPage(BaseOutputPage):
                 M_Defs.video_fps.key: self.transfer_fps(self.video_fps_combo_box.currentText().strip()),
                 M_Defs.video_gop_optimize.key: self.video_gop_optimize_check_box.isChecked(),
                 M_Defs.delete_audio.key: self.delete_audio_check_box.isChecked(),
+                M_Defs.delete_video.key: self.delete_video_check_box.isChecked(),
                 # audio stream
                 M_Defs.audio_format.key: self.audio_format_combo_box.currentText().strip(),
                 M_Defs.audio_bitrate.key: self.audio_bitrate_combo_box.currentText().strip(),

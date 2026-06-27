@@ -258,6 +258,8 @@ en_US:
           Recommended only for videos that need to be played in MajdataView.
         ui_delete_audio_label: "Delete Audio: "
         ui_delete_audio_help: "If enabled, the output video will not contain an audio track."
+        ui_delete_video_label: "Delete Video: "
+        ui_delete_video_help: "If enabled, extracts the audio from the video and outputs an audio file (.ogg/.mp3)."
         
         # ---- Audio Settings ----
         ui_audio_format_label: "Codec: "

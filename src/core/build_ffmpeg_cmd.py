@@ -141,6 +141,10 @@ def _build_video_args(data: MediaModel) -> OpResult[list[str]]:
     if not(data.media_type == MediaType.VIDEO_WITH_AUDIO or \
            data.media_type == MediaType.VIDEO_WITHOUT_AUDIO):
         return ok(args)  # 非视频类型，无需视频参数
+
+    # 删除视频：不输出任何视频参数
+    if data.delete_video:
+        return ok(args)
     
     encoder_res = _resolve_video_encoder()
     if not encoder_res.is_ok:
@@ -318,7 +322,9 @@ def _build_audio_args(data: MediaModel) -> OpResult[list[str]]:
     args = []
 
     # 音频导出任务强制仅保留音频流，避免把封面图/字幕/数据流写进输出容器。
-    if data.media_type == MediaType.AUDIO:
+    # 删除视频时同样仅保留音频流（视频转音频）。
+    if data.media_type == MediaType.AUDIO or \
+       (data.media_type == MediaType.VIDEO_WITH_AUDIO and data.delete_video):
         args.extend(["-vn", "-sn", "-dn", "-map", "0:a:0"])
 
     # 有音频时考虑删除音频
