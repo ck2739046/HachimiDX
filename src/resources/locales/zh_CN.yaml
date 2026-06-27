@@ -549,6 +549,8 @@ zh_CN:
       ui_general_divider: "通用设置"
       ui_language_label: "语言: "
       ui_check_update_label: "  每日检查更新: "
+      ui_check_update_now_label: "  立即检查更新: "
+      ui_check_update_now_button: "检查"
 
       ui_window_divider: "窗口设置"
       ui_default_size_label: "默认窗口尺寸 (W x H): "

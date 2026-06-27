@@ -12,7 +12,7 @@ from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Def
 from src.core.schemas.op_result import print_op_result, ok, err
 from src.core.tools import show_notify_dialog
 from src.core.build_worker_cmd import build_cmd_head_python_exe
-from src.services import PathManage, SettingsManage, process_manager_api
+from src.services import PathManage, SettingsManage, process_manager_api, check_update
 
 I18N_Prefix = "app.settings_page"
 
@@ -54,6 +54,7 @@ class SettingsPage(BaseOutputPage):
         self._show_convert_model_button = False
 
         self.check_update_checkbox = None
+        self.check_update_now_button = None
         self.language_combo_box = None
 
         self.default_width_line_edit = None
@@ -150,12 +151,17 @@ class SettingsPage(BaseOutputPage):
 
         check_update_label = create_label(i18n.t(f"{I18N_Prefix}.ui_check_update_label"))
         self.check_update_checkbox = create_check_box()
-        
+        check_update_now_label = create_label(i18n.t(f"{I18N_Prefix}.ui_check_update_now_label"))
+        self.check_update_now_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_check_update_now_button"))
+
         self.create_row(
             language_label, self.language_combo_box,
             check_update_label, self.check_update_checkbox,
+            check_update_now_label, self.check_update_now_button,
             add_stretch=True,
         )
+
+        self.check_update_now_button.clicked.connect(self._on_check_update_now_clicked)
 
 
 
@@ -694,6 +700,11 @@ class SettingsPage(BaseOutputPage):
         self._show_convert_model_button = False
         self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_convert_success", backend=backend))
         self._sync_ui_state()
+
+
+
+    def _on_check_update_now_clicked(self) -> None:
+        check_update(force=True)
 
 
 

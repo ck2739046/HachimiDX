@@ -12,8 +12,9 @@ from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 
 from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
+from src.core.schemas.op_result import OpResult, ok, err
 from .settings_manage import SettingsManage
-from src.core.tools.popup_dialog import show_confirm_dialog
+from src.core.tools.popup_dialog import show_confirm_dialog, show_notify_dialog
 
 # Transfer timeout: abort if no data for 10 seconds.
 REQUEST_TIMEOUT_MS = 10_000
@@ -35,49 +36,52 @@ def _parse_semver(raw: str) -> Optional[tuple[int, ...]]:
         return None
 
 
-def _extract_tag_and_body(reply: QNetworkReply) -> tuple[str, str]:
-    """Safely extract tag_name and body from a GitHub release JSON reply."""
+def _extract_tag_name(reply: QNetworkReply) -> OpResult[str]:
+    """Safely extract tag_name from a GitHub release JSON reply."""
     try:
         data = json.loads(bytes(reply.readAll()).decode("utf-8"))
     except (json.JSONDecodeError, UnicodeDecodeError) as e:
-        print(i18n.t("check_update.notice_fetch_failed",
-                     status=200, error=f"JSON parse: {e}"))
-        return "", ""
-    return data.get("tag_name", ""), data.get("body", "")
+        return err(f"JSON parse: {e}")
+    tag = data.get("tag_name", "")
+    if not tag:
+        return err("tag_name is empty")
+    return ok(tag)
 
 
 # ---------------------------------------------------------------------------
 # public entry point
 # ---------------------------------------------------------------------------
 
-def check_update() -> None:
+def check_update(force: bool = False) -> None:
     """
-    Entry point called from main_window.
+    Main Entry point
 
     Reads the 'check_update' and 'last_check_update_time' settings internally.
-    If enabled and today's date is greater than last_check_update_time,
-    fires an async HTTP request via QNetworkAccessManager.
+    If force=True (manual trigger), skips the enabled-setting and daily-already-checked guards.
+    Otherwise only runs when enabled and not yet checked today.
     Only on a successful check (network OK + valid response) will it persist
     today's date to last_check_update_time, preventing retries on failure.
-    If disabled or already checked today, prints a notice and returns.
     """
     try:
-        # 先查看设置项，决定是否检查更新
-        result = SettingsManage.get(S_Defs.check_update.key)
-        if not result.is_ok:
-            print(i18n.t("check_update.notice_check_failed", error=result.error_msg))
-            return
-        if not result.value:
-            print(i18n.t("check_update.notice_skipped"))
-            return
-
-        # 检查今天是否已经检查过更新
-        today_str = date.today().isoformat()
-        last_result = SettingsManage.get(S_Defs.last_check_update_time.key)
-        if last_result.is_ok and last_result.value:
-            if str(last_result.value) >= today_str:
-                print(i18n.t("check_update.notice_already_checked_today"))
+        if not force:
+            # 先查看设置项，决定是否检查更新
+            result = SettingsManage.get(S_Defs.check_update.key)
+            if not result.is_ok:
+                print(i18n.t("check_update.notice_check_failed", error=result.error_msg))
                 return
+            if not result.value:
+                print(i18n.t("check_update.notice_skipped"))
+                return
+
+            # 检查今天是否已经检查过更新
+            today_str = date.today().isoformat()
+            last_result = SettingsManage.get(S_Defs.last_check_update_time.key)
+            if last_result.is_ok and last_result.value:
+                if str(last_result.value) >= today_str:
+                    print(i18n.t("check_update.notice_already_checked_today"))
+                    return
+        else:
+            today_str = date.today().isoformat()
 
         from src.main import API_RELEASE_LATEST  # 避免循环依赖
 
@@ -91,38 +95,56 @@ def check_update() -> None:
         def _on_reply_finished(reply: QNetworkReply) -> None:
             """Handle the completed network reply — compare versions, optionally show dialog."""
             from src.main import REPO, VERSION  # 避免循环依赖
+            dialog_title = i18n.t("check_update.dialog_title")
             try:
                 # 1. Network-level error (DNS, timeout, connection refused, etc.)
                 error = reply.error()
                 if error != QNetworkReply.NetworkError.NoError:
-                    print(i18n.t("check_update.notice_network_error"))
+                    msg = i18n.t("check_update.notice_network_error")
+                    print(msg)
+                    if force:
+                        show_notify_dialog(dialog_title, msg)
                     return
 
                 # 2. HTTP status
                 status = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
                 if status != 200:
-                    print(i18n.t("check_update.notice_fetch_failed",
+                    msg = i18n.t("check_update.notice_fetch_failed",
                                  status=status or 0,
-                                 error=reply.reasonPhrase() or "unknown"))
+                                 error=reply.reasonPhrase() or "unknown")
+                    print(msg)
+                    if force:
+                        show_notify_dialog(dialog_title, msg)
                     return
 
                 # 3. Parse JSON body
-                latest_tag, _ = _extract_tag_and_body(reply)
-                if not latest_tag:
-                    # _extract_tag_and_body already printed its own error
+                tag_result = _extract_tag_name(reply)
+                if not tag_result.is_ok:
+                    msg = i18n.t("check_update.notice_fetch_failed",
+                                 status=200, error=tag_result.error_msg)
+                    print(msg)
+                    if force:
+                        show_notify_dialog(dialog_title, msg)
                     return
+                latest_tag = tag_result.value
 
                 # 4. Compare versions
                 latest_ver = _parse_semver(latest_tag)
                 current_ver = _parse_semver(VERSION)
 
                 if latest_ver is None or current_ver is None:
-                    print(i18n.t("check_update.notice_parse_failed",
-                                 current=VERSION, latest=latest_tag))
+                    msg = i18n.t("check_update.notice_parse_failed",
+                                 current=VERSION, latest=latest_tag)
+                    print(msg)
+                    if force:
+                        show_notify_dialog(dialog_title, msg)
                     return
 
                 if latest_ver <= current_ver:
-                    print(i18n.t("check_update.notice_is_latest", version=VERSION))
+                    msg = i18n.t("check_update.notice_is_latest", version=VERSION)
+                    print(msg)
+                    if force:
+                        show_notify_dialog(dialog_title, msg)
                     SettingsManage.set(S_Defs.last_check_update_time.key, today_str)
                     return
 
@@ -156,4 +178,7 @@ def check_update() -> None:
 
     except Exception as e:
         # 此处静默捕获并打印错误，不影响上级调用方
-        print(i18n.t("check_update.notice_check_failed", error=str(e)))
+        msg = i18n.t("check_update.notice_check_failed", error=str(e))
+        print(msg)
+        if force:
+            show_notify_dialog(i18n.t("check_update.dialog_title"), msg)

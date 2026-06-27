@@ -556,6 +556,8 @@ en_US:
       ui_general_divider: "General"
       ui_language_label: "Language: "
       ui_check_update_label: "  Check for updates daily: "
+      ui_check_update_now_label: "  Check for updates now: "
+      ui_check_update_now_button: "Check"
 
       ui_window_divider: "Window"
       ui_default_size_label: "Default Window Size (W x H): "
