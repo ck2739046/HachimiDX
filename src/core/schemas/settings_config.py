@@ -81,7 +81,9 @@ class SettingsConfig_Definitions:
             return err(f"Unknown model backend: {backend}")
         for path in paths.values():
             if not path.exists():
-                return err(f"Model file not found for backend {backend}: {path}")
+                import i18n # 避免循环导入
+                hint = i18n.t("app.settings_page.warning_model_not_found_for_backend")
+                return err(f"Model file not found for backend {backend}: {path}\n\n{hint}")
         return ok(paths)
 
 

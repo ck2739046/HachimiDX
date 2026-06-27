@@ -572,6 +572,11 @@ en_US:
       warning_reset_failed: "Reset failed\n%{error}"
       warning_check_failed: "Runtime check failed: %{backend}"
       warning_model_missing: "2. Models check failed: %{backend}\n%{error}"
+      warning_model_not_found_for_backend: |
+        If you haven't completed the "Convert Models" step, this error may occur.
+        
+        Please refer to the "Installation_Guide.txt" for detailed instructions.
+        -- (located in the project root directory, easy to find)
       warning_cpu_model_missing: "CPU model files are missing and cannot be converted.\n%{error}"
       warning_convert_failed: "Model conversion failed: %{backend}"
       warning_cuda_driver_outdated: |

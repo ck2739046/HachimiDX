@@ -565,6 +565,11 @@ zh_CN:
       warning_reset_failed: "重置失败\n%{error}"
       warning_check_failed: "运行环境检测失败: %{backend}"
       warning_model_missing: "2. 模型检查未通过: %{backend}\n%{error}"
+      warning_model_not_found_for_backend: |
+        如果尚未执行「转换模型」步骤，可能会触发此错误。
+
+        具体操作方法请参阅「安装指南.txt」。
+        -- (位于项目根目录，很容易找到)
       warning_cpu_model_missing: "CPU 模型文件缺失，无法转换。\n%{error}"
       warning_convert_failed: "模型转换失败: %{backend}"
       warning_cuda_driver_outdated: |
