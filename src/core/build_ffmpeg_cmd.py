@@ -186,7 +186,7 @@ def _build_video_args(data: MediaModel) -> OpResult[list[str]]:
     if vf:
         args.extend(["-vf", vf])
 
-    # video_mute 在 audio 部分处理
+    # delete_audio 在 audio 部分处理
 
     return ok(args)
 
@@ -321,9 +321,9 @@ def _build_audio_args(data: MediaModel) -> OpResult[list[str]]:
     if data.media_type == MediaType.AUDIO:
         args.extend(["-vn", "-sn", "-dn", "-map", "0:a:0"])
 
-    # 有音频考虑 video mute
+    # 有音频时考虑删除音频
     if data.media_type == MediaType.VIDEO_WITH_AUDIO:
-        if data.video_mute:
+        if data.delete_audio:
             args.extend(["-an"])  # 无音频输出
             return ok(args)
     
@@ -355,7 +355,7 @@ def _build_audio_args(data: MediaModel) -> OpResult[list[str]]:
     # audio filter
     af = _build_audio_filters(volume=data.audio_volume,
                               media_type=data.media_type,
-                              mute=data.video_mute,
+                              delete_audio=data.delete_audio,
                               pad=data.pad_start,
                               start=data.start,
                               end=data.end)
@@ -369,7 +369,7 @@ def _build_audio_args(data: MediaModel) -> OpResult[list[str]]:
 
 def _build_audio_filters(volume: Optional[int],
                          media_type: MediaType,
-                         mute: Optional[bool],
+                         delete_audio: Optional[bool],
                          pad: Optional[float],
                          start: Optional[float],
                          end: Optional[float]
@@ -397,8 +397,8 @@ def _build_audio_filters(volume: Optional[int],
     if volume and volume != 100:
         filters.append(f"volume={(volume / 100.0):.2f}")
 
-    # 音频同步
-    if media_type == MediaType.VIDEO_WITH_AUDIO and not mute:
+    # 音频同步（未删除音频时启用）
+    if media_type == MediaType.VIDEO_WITH_AUDIO and not delete_audio:
         filters.append("aresample=async=1")
 
     return ",".join(filters) if filters else None

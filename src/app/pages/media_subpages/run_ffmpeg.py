@@ -31,7 +31,7 @@ class RunFFmpegPage(BaseOutputPage):
         self.video_resolution_combo_box = None
         self.video_fps_combo_box = None
         self.video_gop_optimize_check_box = None
-        self.video_mute_check_box = None
+        self.delete_audio_check_box = None
         self.video_overlay = None
         # audio widgets
         self.audio_format_combo_box = None
@@ -78,13 +78,13 @@ class RunFFmpegPage(BaseOutputPage):
         video_resolution_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_video_resolution_label"))
         video_fps_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_video_fps_label"))
         video_gop_optimize_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_video_gop_optimize_label"))
-        video_mute_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_video_mute_label"))
+        delete_audio_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_delete_audio_label"))
         # help icons
         video_quality_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_video_quality_help"))
         video_resolution_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_video_resolution_help"))
         video_fps_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_video_fps_help"))
         video_gop_optimize_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_video_gop_optimize_help"))
-        video_mute_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_video_mute_help"))
+        delete_audio_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_delete_audio_help"))
         # create video panel + row
         video_panel = QWidget()
         video_layout = QVBoxLayout(video_panel)
@@ -93,7 +93,7 @@ class RunFFmpegPage(BaseOutputPage):
                           video_resolution_label, self.video_resolution_combo_box, video_resolution_help,
                           video_fps_label, self.video_fps_combo_box, video_fps_help,
                           video_gop_optimize_label, self.video_gop_optimize_check_box, video_gop_optimize_help,
-                          video_mute_label, self.video_mute_check_box, video_mute_help,
+                          delete_audio_label, self.delete_audio_check_box, delete_audio_help,
                           add_stretch=True)
         video_layout.addWidget(row)
         self.content_layout.addWidget(video_panel)
@@ -170,7 +170,7 @@ class RunFFmpegPage(BaseOutputPage):
 
 
         
-        self.video_mute_check_box.toggled.connect(self.update_media_panel_state)
+        self.delete_audio_check_box.toggled.connect(self.update_media_panel_state)
 
         self.output_filename_line_edit.textChanged.connect(self.update_output_full_path_display)
 
@@ -200,12 +200,12 @@ class RunFFmpegPage(BaseOutputPage):
             show_notify_dialog("app.media_subpages.run_ffmpeg", err_msg)
 
         # reset first
-        self.video_mute_check_box.blockSignals(True)
-        self.video_mute_check_box.setChecked(False)
-        self.video_mute_check_box.blockSignals(False)
+        self.delete_audio_check_box.blockSignals(True)
+        self.delete_audio_check_box.setChecked(False)
+        self.delete_audio_check_box.blockSignals(False)
         self.video_overlay.show()
         self.audio_overlay.show()
-        # 根据媒体类型和 mute 状态刷新启用关系。
+        # 根据媒体类型和删除音频状态刷新启用关系。
         self.update_media_panel_state()
 
         # 更新音频codec/bitrate可选项
@@ -220,14 +220,14 @@ class RunFFmpegPage(BaseOutputPage):
 
 
     def update_media_panel_state(self) -> None:
-        """根据 media_type 和 mute 刷新 video/audio 参数区可用状态。"""
+        """根据 media_type 和 delete_audio 刷新 video/audio 参数区可用状态。"""
 
         media_type = self.media_input.selected_file_type
 
         enable_video = media_type in (MediaType.VIDEO_WITH_AUDIO, MediaType.VIDEO_WITHOUT_AUDIO)
         enable_audio = media_type in (MediaType.VIDEO_WITH_AUDIO, MediaType.AUDIO)
 
-        if enable_video and self.video_mute_check_box.isChecked():
+        if enable_video and self.delete_audio_check_box.isChecked():
             enable_audio = False
 
         if enable_video:
@@ -269,9 +269,9 @@ class RunFFmpegPage(BaseOutputPage):
         # gop_optimize check box
         self.video_gop_optimize_check_box = self._create_ffmpeg_widget(
             widget_type="check_box", param=M_Defs.video_gop_optimize)
-        # video mute check box
-        self.video_mute_check_box = self._create_ffmpeg_widget(
-            widget_type="check_box", param=M_Defs.video_mute)
+        # delete audio check box
+        self.delete_audio_check_box = self._create_ffmpeg_widget(
+            widget_type="check_box", param=M_Defs.delete_audio)
         
 
         # audio format combo box
@@ -479,7 +479,7 @@ class RunFFmpegPage(BaseOutputPage):
                 M_Defs.video_side_resolution.key: self.transfer_res(self.video_resolution_combo_box.currentText().strip()),
                 M_Defs.video_fps.key: self.transfer_fps(self.video_fps_combo_box.currentText().strip()),
                 M_Defs.video_gop_optimize.key: self.video_gop_optimize_check_box.isChecked(),
-                M_Defs.video_mute.key: self.video_mute_check_box.isChecked(),
+                M_Defs.delete_audio.key: self.delete_audio_check_box.isChecked(),
                 # audio stream
                 M_Defs.audio_format.key: self.audio_format_combo_box.currentText().strip(),
                 M_Defs.audio_bitrate.key: self.audio_bitrate_combo_box.currentText().strip(),

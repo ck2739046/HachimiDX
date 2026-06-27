@@ -257,8 +257,8 @@ zh_CN:
           启用后，视频在 MajdataView 中播放会显著更流畅。
           代价是会增加输出文件大小。
           建议仅用于 MajdataView 播放的视频。
-        ui_video_mute_label: "静音: "
-        ui_video_mute_help: "如果启用，输出文件将不包含音频流。"
+        ui_delete_audio_label: "删除音频: "
+        ui_delete_audio_help: "如果启用，输出视频将不包含音频轨道。"
 
         # ---- 音频设置 ----
         ui_audio_format_label: "编码: "

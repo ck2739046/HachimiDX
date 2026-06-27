@@ -82,7 +82,7 @@ class MediaModel(BaseModel):
     
     video_gop_optimize: Optional[bool] = Field(default=M_Defs.video_gop_optimize.default)
 
-    video_mute: Optional[bool] = Field(default=M_Defs.video_mute.default)
+    delete_audio: Optional[bool] = Field(default=M_Defs.delete_audio.default)
     
     video_crop_x: Optional[int] = Field(default=M_Defs.video_crop_x.default)
     video_crop_y: Optional[int] = Field(default=M_Defs.video_crop_y.default)

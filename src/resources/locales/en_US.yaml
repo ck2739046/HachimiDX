@@ -256,8 +256,8 @@ en_US:
           When enabled, video playback in MajdataView will be significantly smoother.
           However, it will increase the output file size.
           Recommended only for videos that need to be played in MajdataView.
-        ui_video_mute_label: "Mute: "
-        ui_video_mute_help: "If Enabled, the output file will not contain audio stream."
+        ui_delete_audio_label: "Delete Audio: "
+        ui_delete_audio_help: "If enabled, the output video will not contain an audio track."
         
         # ---- Audio Settings ----
         ui_audio_format_label: "Codec: "

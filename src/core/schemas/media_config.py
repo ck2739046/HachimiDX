@@ -238,8 +238,8 @@ class MediaConfig_Definitions:
         default=False
     )
 
-    video_mute = MediaConfig_Definition(
-        key="video_mute",
+    delete_audio = MediaConfig_Definition(
+        key="delete_audio",
         type="bool",
         group="video",
         default=False
