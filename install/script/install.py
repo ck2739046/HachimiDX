@@ -293,7 +293,12 @@ def _get_cuda_and_driver_version() -> tuple[str, str]:
         output = result.stdout
 
         # 使用正则表达式提取 CUDA 版本
-        match_cuda = re.search(r"CUDA Version:\s+(\d+\.\d+)", output)
+        # NVIDIA 600 系列新驱动输出格式变更：CUDA UMD Version（优先匹配）
+        # 兼容旧驱动格式：CUDA Version
+        match_cuda = (
+            re.search(r"CUDA UMD Version:\s+(\d+\.\d+)", output)
+            or re.search(r"CUDA Version:\s+(\d+\.\d+)", output)
+        )
         if not match_cuda:
             info_en = "Could not detect CUDA version from nvidia-smi output."
             info_zh = "无法从 nvidia-smi 输出中检测到 CUDA 版本。"
@@ -306,7 +311,12 @@ def _get_cuda_and_driver_version() -> tuple[str, str]:
         print(f"{info_en if LANGUAGE == 'en' else info_zh}")
 
         # 使用正则表达式提取驱动版本
-        match_driver = re.search(r"Driver Version:\s+(\d+)\.(\d+)", output)
+        # NVIDIA 600 系列新驱动格式变更：KMD Version（优先匹配）
+        # 兼容旧驱动格式：Driver Version
+        match_driver = (
+            re.search(r"KMD Version:\s+(\d+)\.(\d+)", output)
+            or re.search(r"Driver Version:\s+(\d+)\.(\d+)", output)
+        )
         if not match_driver:
             info_en = "Could not detect Driver Version from nvidia-smi output."
             info_zh = "无法从 nvidia-smi 输出中检测到显卡驱动版本。"
