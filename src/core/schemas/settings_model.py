@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -18,7 +19,8 @@ class SettingsModel(BaseModel):
     ffmpeg_hw_encoder: str = Field(default=S_Defs.ffmpeg_hw_encoder.default)
     # 应用通用设置
     language: str = Field(default=S_Defs.language.default)
-    check_update_on_startup: bool = Field(default=S_Defs.check_update_on_startup.default)
+    check_update: bool = Field(default=S_Defs.check_update.default)
+    last_check_update_time: str = Field(default=S_Defs.last_check_update_time.default)
     # 窗口大小
     main_app_w_default: Annotated[int, Field(ge=S_Defs.main_app_w_default.constraints["ge"], le=S_Defs.main_app_w_default.constraints["le"])] = S_Defs.main_app_w_default.default
     main_app_h_default: Annotated[int, Field(ge=S_Defs.main_app_h_default.constraints["ge"], le=S_Defs.main_app_h_default.constraints["le"])] = S_Defs.main_app_h_default.default
@@ -64,6 +66,21 @@ class SettingsModel(BaseModel):
         allowed = S_Defs.language.constraints["options"]
         if v not in allowed:
             raise ValueError(f"language must be one of {allowed}")
+        return v
+
+
+
+    @field_validator("last_check_update_time")
+    @classmethod
+    def validate_last_check_update_time_format(cls, v: str) -> str:
+        if not v:
+            return v
+        try:
+            date.fromisoformat(v)
+        except (ValueError, TypeError):
+            raise ValueError(
+                f"last_check_update_time is invalid, expect yyyy-mm-dd format, got '{v}'"
+            )
         return v
 
 

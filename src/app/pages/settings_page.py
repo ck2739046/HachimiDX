@@ -70,7 +70,7 @@ class SettingsPage(BaseOutputPage):
             S_Defs.model_backend.key,
             S_Defs.ffmpeg_hw_encoder.key,
             S_Defs.language.key,
-            S_Defs.check_update_on_startup.key,
+            S_Defs.check_update.key,
             S_Defs.main_app_w_default.key,
             S_Defs.main_app_h_default.key,
             S_Defs.main_app_ui_scale.key,
@@ -301,7 +301,7 @@ class SettingsPage(BaseOutputPage):
         self._set_combo_value(self.model_backend_combo_box, settings[S_Defs.model_backend.key])
         self._set_combo_value(self.ffmpeg_hw_encoder_combo_box, settings[S_Defs.ffmpeg_hw_encoder.key])
         self._set_combo_value(self.language_combo_box, settings[S_Defs.language.key])
-        self.check_update_checkbox.setChecked(bool(settings[S_Defs.check_update_on_startup.key]))
+        self.check_update_checkbox.setChecked(bool(settings[S_Defs.check_update.key]))
 
         self.default_width_line_edit.setText(str(settings[S_Defs.main_app_w_default.key]))
         self.default_height_line_edit.setText(str(settings[S_Defs.main_app_h_default.key]))
@@ -317,7 +317,7 @@ class SettingsPage(BaseOutputPage):
             S_Defs.model_backend.key: self.model_backend_combo_box.currentText().strip(),
             S_Defs.ffmpeg_hw_encoder.key: self.ffmpeg_hw_encoder_combo_box.currentText().strip(),
             S_Defs.language.key: self.language_combo_box.currentText().strip(),
-            S_Defs.check_update_on_startup.key: self.check_update_checkbox.isChecked(),
+            S_Defs.check_update.key: self.check_update_checkbox.isChecked(),
             S_Defs.main_app_w_default.key: self.default_width_line_edit.text().strip(),
             S_Defs.main_app_h_default.key: self.default_height_line_edit.text().strip(),
             S_Defs.main_app_ui_scale.key: str(self.ui_scale_slider.value()),

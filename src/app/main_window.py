@@ -23,7 +23,7 @@ from .pages.settings_page import SettingsPage
 import i18n
 from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
 from src.core.schemas.settings_config import MAIN_APP_W_MIN, MAIN_APP_W_MAX, MAIN_APP_H_MIN, MAIN_APP_H_MAX
-from src.services import SettingsManage, PathManage, MajdataSession, VideoSyncServer, check_update_on_startup
+from src.services import SettingsManage, PathManage, MajdataSession, VideoSyncServer, check_update
 
 
 class _CallbackEmitter(QObject):
@@ -276,7 +276,7 @@ class MainWindow(QMainWindow):
         #     print(f"--Warning: MajdataSession.start failed: {result.error_msg}")
 
         # 检查更新 (延迟1s)
-        QTimer.singleShot(1000, check_update_on_startup)
+        QTimer.singleShot(1000, check_update)
 
 
 

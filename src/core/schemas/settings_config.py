@@ -153,11 +153,18 @@ class SettingsConfig_Definitions:
         constraints={"options": ["zh_CN", "en_US"]},
     )
 
-    check_update_on_startup = SettingsConfig_Definition(
-        key="check_update_on_startup",
+    check_update = SettingsConfig_Definition(
+        key="check_update",
         type="bool",
         group="general",
         default=True,
+    )
+
+    last_check_update_time = SettingsConfig_Definition(
+        key="last_check_update_time",
+        type="str",
+        group="general",
+        default="",
     )
 
     # window

@@ -90,7 +90,8 @@ zh_CN:
   check_update:
     notice_checking: "正在检查更新..."
     notice_skipped: |
-      "启动时检查更新" 选项已关闭，跳过。
+      "每日检查更新" 选项已关闭，跳过。
+    notice_already_checked_today: "--今天已检查过更新，跳过。"
     notice_is_latest: "--当前已是最新版本 (%{version})。"
     notice_new_version: "--发现新版本: %{latest} (当前 %{current})"
 
@@ -548,7 +549,7 @@ zh_CN:
 
       ui_general_divider: "通用设置"
       ui_language_label: "语言: "
-      ui_check_update_label: "  启动时检查更新: "
+      ui_check_update_label: "  每日检查更新: "
 
       ui_window_divider: "窗口设置"
       ui_default_size_label: "默认窗口尺寸 (W x H): "

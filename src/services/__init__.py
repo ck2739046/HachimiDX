@@ -27,7 +27,7 @@ _LAZY_MAP: dict[str, str] = {
     "MediaPipeline":       ".pipeline.media_pipeline",
 
     # 更新检查
-    "check_update_on_startup": ".check_update",
+    "check_update": ".update_checker",
 }
 
 
@@ -56,5 +56,5 @@ __all__ = [
     "TaskInfo", "TaskStatus",
     "process_manager_api",
     "task_scheduler_api",
-    "check_update_on_startup",
+    "check_update",
 ]

@@ -1,7 +1,8 @@
-"""Check for updates from GitHub on startup — async, non-blocking via QNetworkAccessManager."""
+"""Check for updates from GitHub daily — async, non-blocking via QNetworkAccessManager."""
 
 import json
 import re
+from datetime import date
 from typing import Optional
 
 import i18n
@@ -48,23 +49,34 @@ def _extract_tag_and_body(reply: QNetworkReply) -> tuple[str, str]:
 # public entry point
 # ---------------------------------------------------------------------------
 
-def check_update_on_startup() -> None:
+def check_update() -> None:
     """
     Entry point called from main_window.
 
-    Reads the 'check_update_on_startup' setting internally.
-    If enabled, fires an async HTTP request via QNetworkAccessManager.
-    If disabled or setting unavailable, prints a notice and returns.
+    Reads the 'check_update' and 'last_check_update_time' settings internally.
+    If enabled and today's date is greater than last_check_update_time,
+    fires an async HTTP request via QNetworkAccessManager.
+    Only on a successful check (network OK + valid response) will it persist
+    today's date to last_check_update_time, preventing retries on failure.
+    If disabled or already checked today, prints a notice and returns.
     """
     try:
         # 先查看设置项，决定是否检查更新
-        result = SettingsManage.get(S_Defs.check_update_on_startup.key)
+        result = SettingsManage.get(S_Defs.check_update.key)
         if not result.is_ok:
             print(i18n.t("check_update.notice_check_failed", error=result.error_msg))
             return
         if not result.value:
             print(i18n.t("check_update.notice_skipped"))
             return
+
+        # 检查今天是否已经检查过更新
+        today_str = date.today().isoformat()
+        last_result = SettingsManage.get(S_Defs.last_check_update_time.key)
+        if last_result.is_ok and last_result.value:
+            if str(last_result.value) >= today_str:
+                print(i18n.t("check_update.notice_already_checked_today"))
+                return
 
         from src.main import API_RELEASE_LATEST  # 避免循环依赖
 
@@ -110,11 +122,13 @@ def check_update_on_startup() -> None:
 
                 if latest_ver <= current_ver:
                     print(i18n.t("check_update.notice_is_latest", version=VERSION))
+                    SettingsManage.set(S_Defs.last_check_update_time.key, today_str)
                     return
 
                 # 5. New version available — notify
                 print(i18n.t("check_update.notice_new_version",
                              latest=latest_tag, current=VERSION))
+                SettingsManage.set(S_Defs.last_check_update_time.key, today_str)
                 show_notify_dialog(
                     i18n.t("check_update.dialog_title"),
                     i18n.t("check_update.dialog_prompt",

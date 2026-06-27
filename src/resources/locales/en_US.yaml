@@ -89,7 +89,8 @@ en_US:
   check_update:
     notice_checking: "Checking for updates..."
     notice_skipped: |
-      "Check for updates on startup" is disabled, skipping.
+      "Check for updates daily" is disabled, skipping.
+    notice_already_checked_today: "--Already checked for updates today, skipping."
     notice_is_latest: "--Already up to date (%{version})."
     notice_new_version: "--New version found: %{latest} (current %{current})"
 
@@ -555,7 +556,7 @@ en_US:
 
       ui_general_divider: "General"
       ui_language_label: "Language: "
-      ui_check_update_label: "  Check for updates on startup: "
+      ui_check_update_label: "  Check for updates daily: "
 
       ui_window_divider: "Window"
       ui_default_size_label: "Default Window Size (W x H): "
