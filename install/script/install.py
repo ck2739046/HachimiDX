@@ -4,10 +4,12 @@ import subprocess
 from pathlib import Path
 import shutil
 
+import en_us
+import zh_cn
 
 # 全局变量
-LANGUAGE = ""
 USE_PyPI_Mirror = ""
+T = None  # locale module, set after language selection
 
 QingHua_PyPI_Mirror = ["-i", "https://pypi.tuna.tsinghua.edu.cn/simple"]
 
@@ -28,7 +30,6 @@ CUDA_DRIVER_REQUIREMENTS = [
 
 
 def main():
-    global LANGUAGE
 
     # generate by https://patorjk.com/software/taag using font "Terrace"
     logo = """
@@ -46,56 +47,25 @@ def main():
     print(logo)
 
     # ask language
-    LANGUAGE = ask_language()
+    global T
+    T = ask_language()
 
-    main_menu_en = """
-Please select an option:
-
-1. Install HachimiDX (Default)
-
-2. Undo Ultralytics DirectML Modification
-
-3. Uninstall torch & torchvision
-
-4. Exit
-
-Please don't choose "2" if you don't know what it is.
-
--> """
-    main_menu_zh = """
-请选择：
-
-1. 安装 HachimiDX (默认)
-
-2. 撤销 Ultralytics DirectML 修改
-
-3. 删除 torch & torchvision
-
-4. 退出
-
-如果你不清楚选项 2/3 是什么，请不要选择此选项。
-
--> """
     print("\n-----")
-    choice = input(main_menu_en if LANGUAGE == "en" else main_menu_zh).strip()
+    choice = input(T.MAIN_MENU).strip()
     if choice == "1":
         install()
     elif choice == "2":
         success = modify_ultralytics_for_dml(recover=True)
         if success:
-            info_en = "Ultralytics has been restored to its original state."
-            info_zh = "Ultralytics 已恢复到原始状态。"
-            print(f"{info_en if LANGUAGE == 'en' else info_zh}")
+            print(T.RESTORE_SUCCESS)
         else:
-            info_en = "An error occurred while trying to restore ultralytics."
-            info_zh = "尝试恢复 ultralytics 时发生错误。"
-            print(f"{info_en if LANGUAGE == 'en' else info_zh}")
+            print(T.RESTORE_ERROR)
     elif choice == "3":
         uninstall_torch_torchvision()
     elif choice == "4":
         sys.exit(0)
     else:
-        print("Defaulting to Install HachimiDX.")
+        print(T.DEFAULTING_TO_INSTALL)
         install()
 
 
@@ -103,9 +73,7 @@ Please don't choose "2" if you don't know what it is.
 
 
 def uninstall_torch_torchvision():
-    info_en = "Uninstalling torch and torchvision..."
-    info_zh = "正在删除 torch 和 torchvision..."
-    print(f"\n-----\n{info_en if LANGUAGE == 'en' else info_zh}\n")
+    print(f"\n-----\n{T.UNINSTALL_TORCH_START}\n")
     cmd = [sys.executable, "-m", "pip", "uninstall", "torch", "torchvision", "-y"]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True)
@@ -115,18 +83,14 @@ def uninstall_torch_torchvision():
         torch_not_installed = "Skipping torch as it is not installed" in combined
         torchvision_not_installed = "Skipping torchvision as it is not installed" in combined
         if torch_not_installed and torchvision_not_installed:
-            info_en = "torch and torchvision are not installed. Nothing to uninstall."
-            info_zh = "torch 和 torchvision 均未安装，无需删除。"
+            msg = T.UNINSTALL_TORCH_NONE
         elif torch_not_installed:
-            info_en = "torch was not installed. torchvision has been uninstalled."
-            info_zh = "torch 未安装，torchvision 已删除。"
+            msg = T.UNINSTALL_TORCH_ONLY_NOT
         elif torchvision_not_installed:
-            info_en = "torchvision was not installed. torch has been uninstalled."
-            info_zh = "torchvision 未安装，torch 已删除。"
+            msg = T.UNINSTALL_TORCHVISION_ONLY_NOT
         else:
-            info_en = "torch and torchvision have been uninstalled."
-            info_zh = "torch 和 torchvision 已删除。"
-        print(f"\n-----\n{info_en if LANGUAGE == 'en' else info_zh}\n")
+            msg = T.UNINSTALL_TORCH_DONE
+        print(f"\n-----\n{msg}\n")
     except Exception as e:
         print(f"\n-----\nError: {e}\n")
 
@@ -191,61 +155,25 @@ def install():
 
 
 
-def ask_language() -> str:
-    info = """
-Please select your language:
-1. Simplified Chinese (Default)
-2. English
-3. Exit
-
-请选择语言：
-1. 简体中文 (默认)
-2. 英语
-3. 退出
-
--> """
+def ask_language():
     print("\n-----")
-    language = input(info).strip()
+    language = input(en_us.LANGUAGE_PROMPT).strip()
     if language == "1":
-        return "zh"
+        return zh_cn
     elif language == "2":
-        return "en"
+        return en_us
     elif language == "3":
         sys.exit(0)
     else:
-        print("Defaulting to Simplified Chinese.")
-        return "zh"
+        print(en_us.LANGUAGE_DEFAULT)
+        return zh_cn
     
 
 
 
 def ask_use_pypi_mirror() -> bool:
-    info_zh = """
-清华/阿里云的 PyPI 镜像可以显著加速国内的下载和安装。
-你是否想使用 PyPI 镜像?
-
-如果你在中国大陆，强烈建议选择"是"。
-如果你在其他地区，请选择"否"。
-
-1. 是 (默认)
-2. 否
-3. 退出
-
--> """
-    info_en = """
-THU/Aliyun PyPI mirrors can significantly speed up downloads and installations in China.
-Do you want to use PyPI mirror?
-
-If you are in mainland China, it is highly recommended to choose "Yes".
-If you are in other regions, please choose "No".
-
-1. Yes (Default)
-2. No
-3. Exit
-
--> """
     print("\n-----")
-    use_mirror = input(info_en if LANGUAGE == "en" else info_zh).strip()
+    use_mirror = input(T.PYPI_MIRROR_PROMPT).strip()
     if use_mirror == "1":
         return True
     elif use_mirror == "2":
@@ -253,39 +181,15 @@ If you are in other regions, please choose "No".
     elif use_mirror == "3":
         sys.exit(0)
     else:
-        print("Defaulting to Yes.")
+        print(T.DEFAULTING_YES)
         return True
 
 
 
 
 def ask_install_trt() -> bool:
-    info_zh = """
-NVIDIA TensorRT 能够调用 NVIDIA GPU 进行推理加速，显著提升推理速度。
-你是否想安装 NVIDIA TensorRT ?
-
-如果你有 NVIDIA GPU，强烈建议选择"是"。
-其他情况请选择"否"。
-
-1. 是 (默认)
-2. 否
-3. 退出
-
--> """
-    info_en = """
-NVIDIA TensorRT can leverage NVIDIA GPUs for inference acceleration, significantly improving inference speed.
-Do you want to install NVIDIA TensorRT?
-
-If you have an NVIDIA GPU, it is highly recommended to choose "Yes".
-In other cases, please choose "No".
-
-1. Yes (Default)
-2. No
-3. Exit
-
--> """
     print("\n-----")
-    install_trt = input(info_en if LANGUAGE == "en" else info_zh).strip()
+    install_trt = input(T.TRT_PROMPT).strip()
     if install_trt == "1":
         return True
     elif install_trt == "2":
@@ -293,7 +197,7 @@ In other cases, please choose "No".
     elif install_trt == "3":
         sys.exit(0)
     else:
-        print("Defaulting to Yes.")
+        print(T.DEFAULTING_YES)
         return True
 
 
@@ -307,14 +211,10 @@ def _get_installed_nvidia_gpu_name() -> str | None:
         )
         gpu_name = result.stdout.strip()
         if gpu_name:
-            info_en = f"Detected GPU: {gpu_name}"
-            info_zh = f"检测到显卡: {gpu_name}"
-            print(f"{info_en if LANGUAGE == 'en' else info_zh}")
+            print(T.GPU_DETECTED.format(gpu_name=gpu_name))
             return gpu_name
         else:
-            info_en = "No NVIDIA GPU detected."
-            info_zh = "未检测到 NVIDIA 显卡。"
-            print(f"{info_en if LANGUAGE == 'en' else info_zh}")
+            print(T.GPU_NOT_DETECTED)
             return None
     except Exception as e:
         print(f"Error running nvidia-smi: {e}")
@@ -336,15 +236,11 @@ def _get_cuda_and_driver_version() -> tuple[str, str]:
             or re.search(r"CUDA Version:\s+(\d+\.\d+)", output)
         )
         if not match_cuda:
-            info_en = "Could not detect CUDA version from nvidia-smi output."
-            info_zh = "无法从 nvidia-smi 输出中检测到 CUDA 版本。"
-            print(f"{info_en if LANGUAGE == 'en' else info_zh}")
+            print(T.CUDA_NOT_DETECTED)
             return (None, None)
 
         cuda_version = match_cuda.group(1).strip()
-        info_en = f"CUDA version: {cuda_version}"
-        info_zh = f"CUDA 版本: {cuda_version}"
-        print(f"{info_en if LANGUAGE == 'en' else info_zh}")
+        print(T.CUDA_VERSION.format(cuda_version=cuda_version))
 
         # 使用正则表达式提取驱动版本
         # NVIDIA 600 系列新驱动格式变更：KMD Version（优先匹配）
@@ -354,15 +250,11 @@ def _get_cuda_and_driver_version() -> tuple[str, str]:
             or re.search(r"Driver Version:\s+(\d+)\.(\d+)", output)
         )
         if not match_driver:
-            info_en = "Could not detect Driver Version from nvidia-smi output."
-            info_zh = "无法从 nvidia-smi 输出中检测到显卡驱动版本。"
-            print(f"{info_en if LANGUAGE == 'en' else info_zh}")
+            print(T.DRIVER_NOT_DETECTED)
             return (None, None)
 
         driver_full = f"{match_driver.group(1)}.{match_driver.group(2)}"
-        info_en = f"Driver version: {driver_full}"
-        info_zh = f"显卡驱动版本: {driver_full}"
-        print(f"{info_en if LANGUAGE == 'en' else info_zh}")
+        print(T.DRIVER_VERSION.format(driver_full=driver_full))
 
     except Exception as e:
         print(f"Error running nvidia-smi: {e}")
@@ -399,18 +291,10 @@ def _find_compatible_cuda(input_cuda: str, input_driver: str) -> str | None:
     print('')
 
     if final_cuda:
-        info_en = f"-> Compatible PyTorch CUDA version found: {final_cuda}"
-        info_zh = f"-> 找到兼容的 PyTorch CUDA 版本: {final_cuda}"
-        print(f"{info_en if LANGUAGE == 'en' else info_zh}")
+        print(T.COMPATIBLE_CUDA_FOUND.format(final_cuda=final_cuda))
     else:
         min_cuda, min_driver = CUDA_DRIVER_REQUIREMENTS[0]
-        info_en = f"-> No compatible PyTorch CUDA version found.\n" + \
-                  f"   Minimum supported: CUDA >= {min_cuda}, Driver >= {min_driver}.x\n" + \
-                  f"   Falling back to PyTorch CPU version"
-        info_zh = f"-> 未找到兼容的 PyTorch CUDA 版本。\n" + \
-                  f"   最低支持: CUDA >= {min_cuda}，驱动 >= {min_driver}.x\n" + \
-                  f"   回退到 PyTorch CPU 版本。"
-        print(f"{info_en if LANGUAGE == 'en' else info_zh}")
+        print(T.COMPATIBLE_CUDA_NOT_FOUND.format(min_cuda=min_cuda, min_driver=min_driver))
 
     return final_cuda
 
@@ -531,32 +415,8 @@ def install_tensorrt(torch_version) -> bool:
 
 
 def ask_install_dml() -> bool:
-    info_zh = """
-DirectML 能够调用多个品牌的 GPU（如 AMD、Intel、NVIDIA 等）进行硬件加速。
-你是否想安装 DirectML ?
-
-如果你有支持 DirectML 的 GPU，并且性能显著优于 CPU，强烈建议选择"是"。
-其他情况请选择"否"。
-
-1. 是 (默认)
-2. 否
-3. 退出
-
--> """
-    info_en = """
-DirectML can leverage GPUs from multiple brands (such as AMD, Intel, NVIDIA, etc.) for hardware acceleration.
-Do you want to install DirectML?
-
-If you have a GPU that supports DirectML and offers significantly better performance than CPU, it is highly recommended to choose "Yes".
-In other cases, please choose "No".
-
-1. Yes (Default)
-2. No
-3. Exit
-
--> """
     print("\n-----")
-    install_dml = input(info_en if LANGUAGE == "en" else info_zh).strip()
+    install_dml = input(T.DML_PROMPT).strip()
     if install_dml == "1":
         return True
     elif install_dml == "2":
@@ -564,7 +424,7 @@ In other cases, please choose "No".
     elif install_dml == "3":
         sys.exit(0)
     else:
-        print("Defaulting to Yes.")
+        print(T.DEFAULTING_YES)
         return True
     
 
@@ -602,9 +462,7 @@ def modify_ultralytics_for_dml(recover = False) -> bool:
     # ckech file exists
     for file in [target_path_onnx, target_path_exporter, modified_onnx, modified_exporter, original_onnx, original_exporter]:
         if not file.exists() or not file.is_file():
-            info_en = f"modify_ultralytics_for_dml(): Error: Target file {file} does not exist."
-            info_zh = f"modify_ultralytics_for_dml(): 错误: 目标文件 {file} 不存在。。"
-            print(f"{info_en if LANGUAGE == 'en' else info_zh}")
+            print(T.MODIFY_TARGET_NOT_EXIST.format(file=file))
             return False
 
     if not recover:  
@@ -613,9 +471,7 @@ def modify_ultralytics_for_dml(recover = False) -> bool:
             shutil.copyfile(modified_onnx, target_path_onnx)
             shutil.copyfile(modified_exporter, target_path_exporter)
         except Exception as e:
-            info_en = f"modify_ultralytics_for_dml(): Error replacing with modified files: {e}"
-            info_zh = f"modify_ultralytics_for_dml(): 替换为修改后的文件时发生错误: {e}"
-            print(f"{info_en if LANGUAGE == 'en' else info_zh}")
+            print(T.MODIFY_REPLACE_MODIFIED_ERROR.format(e=e))
             return False
     else:
         # replace target files with original files
@@ -623,9 +479,7 @@ def modify_ultralytics_for_dml(recover = False) -> bool:
             shutil.copyfile(original_onnx, target_path_onnx)
             shutil.copyfile(original_exporter, target_path_exporter)
         except Exception as e:
-            info_en = f"modify_ultralytics_for_dml(): Error replacing with original files: {e}"
-            info_zh = f"modify_ultralytics_for_dml(): 替换为原始文件时发生错误: {e}"
-            print(f"{info_en if LANGUAGE == 'en' else info_zh}")
+            print(T.MODIFY_REPLACE_ORIGINAL_ERROR.format(e=e))
             return False
 
     return True
@@ -637,24 +491,18 @@ def general_pip_install(package_name, cmd: list[str]) -> bool:
     # 执行安装命令
     print("\n-----\n")
     cmd_text = subprocess.list2cmdline(cmd)
-    info_en = f"Installing {package_name}...\n\n{cmd_text}"
-    info_zh = f"正在安装 {package_name}...\n\n{cmd_text}"
-    print(f"{info_en if LANGUAGE == 'en' else info_zh}")
+    print(f"{T.PIP_INSTALLING.format(package_name=package_name)}\n\n{cmd_text}")
     print("\n-----\n")
 
     try:
         subprocess.run(cmd, check=True)
         print("\n-----\n")
-        info_en = f"{package_name} installation completed successfully."
-        info_zh = f"{package_name} 安装成功完成。"
-        print(f"{info_en if LANGUAGE == 'en' else info_zh}")
+        print(T.PIP_SUCCESS.format(package_name=package_name))
         return True
 
     except Exception as e:
         print("\n-----\n")
-        info_en = f"Error occurred while installing {package_name}: {e}"
-        info_zh = f"安装 {package_name} 时发生错误: {e}"
-        print(f"{info_en if LANGUAGE == 'en' else info_zh}")
+        print(T.PIP_ERROR.format(package_name=package_name, e=e))
         return False
 
 
