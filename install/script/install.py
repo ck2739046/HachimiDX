@@ -86,14 +86,7 @@ def reinstall_backend():
     print("\n-----")
     confirm = input(T.REINSTALL_BACKEND_PROMPT).strip()
     
-    if confirm == "1":
-        pass
-    elif confirm == "2":
-        print(T.REINSTALL_BACKEND_ABORT)
-        return
-    elif confirm == "3":
-        sys.exit(0)
-    else:
+    if confirm != "1":
         print(T.REINSTALL_BACKEND_ABORT)
         return
 
@@ -115,7 +108,7 @@ def reinstall_backend():
 
 
 def uninstall_torch_torchvision():
-    print(f"\n-----\n{T.UNINSTALL_TORCH_START}\n")
+    print(f"\n-----\n\n{T.UNINSTALL_TORCH_START}\n")
     cmd = [sys.executable, "-m", "pip", "uninstall", "torch", "torchvision", "-y"]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True)
@@ -132,15 +125,17 @@ def uninstall_torch_torchvision():
             msg = T.UNINSTALL_TORCHVISION_ONLY_NOT
         else:
             msg = T.UNINSTALL_TORCH_DONE
-        print(f"\n-----\n{msg}\n")
+        print(msg)
     except Exception as e:
-        print(f"\n-----\nError: {e}\n")
+        print(f"Error: {e}")
 
 
 
 def install():
     global USE_PyPI_Mirror
-    
+
+    print(f"\n-----\n\n{T.INSTALL_STARTING}")
+
     # ask if use PyPI Mirror
     USE_PyPI_Mirror = ask_use_pypi_mirror()
 
@@ -151,6 +146,11 @@ def install():
         new_torch_version = detect_cuda_version_for_torch()
         if new_torch_version:
             torch_version = new_torch_version
+        else:
+            print("\n-----")
+            cuda_fallback = input(T.CUDA_FALLBACK_PROMPT).strip()
+            if cuda_fallback == "2":
+                sys.exit(0)
 
     # install pytorch
     is_success = install_pytorch(torch_version)
@@ -359,12 +359,12 @@ def detect_cuda_version_for_torch() -> str | None:
 
 def install_pytorch(torch_version) -> bool:
 
-    # 清华源没有 pytorch cuda 本体，但是有其他的包
-    # 阿里源仅有 pytorch cuda 本体，但没有其他的包
+    # 清华大学源缺 pytorch cuda 本体，但是有其他的包
+    # 南京大学源有 pytorch cuda 本体，作为补充
     # 两者结合使用
     if USE_PyPI_Mirror:
         index_args = [*QingHua_PyPI_Mirror, "--find-links"]
-        base_url = "https://mirrors.aliyun.com/pytorch-wheels"
+        base_url = "https://mirrors.nju.edu.cn/pytorch/whl"
     else:
         index_args = ["--index-url"]
         base_url = "https://download.pytorch.org/whl"
@@ -378,7 +378,9 @@ def install_pytorch(torch_version) -> bool:
 
     index_target = f"{base_url}/{torch_version}"
 
-    cmd = [sys.executable, "-m", "pip", "install", *packages, *index_args, index_target, "--no-warn-script-location"]
+    cmd = [sys.executable, "-m", "pip", "install",
+           *packages, *index_args, index_target,
+           "--no-warn-script-location"]
     
     return general_pip_install(f"PyTorch ({torch_version})", cmd)
 
@@ -490,7 +492,7 @@ def install_directml_onnx() -> bool:
 
 def modify_ultralytics_for_dml(recover = False) -> bool:
 
-    print("")
+    print("\n-----\n")
     ultralytics = ROOT / "python" / "Lib" / "site-packages" / "ultralytics"
     target_path_onnx = ultralytics / "nn" / "backends" / "onnx.py"
     target_path_exporter = ultralytics / "engine" / "exporter.py"

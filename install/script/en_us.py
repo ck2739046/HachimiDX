@@ -26,9 +26,7 @@ MAIN_MENU = """
 Please select an option:
 
 1. Install HachimiDX (Default)
-
 2. Switch model inference backend
-
 3. Exit
 
 Please don't choose option "2" if you don't know what it is.
@@ -56,7 +54,6 @@ Are you sure you want to continue?
 
 1. Yes
 2. No (Default)
-3. Exit
 
 -> """
 REINSTALL_BACKEND_ABORT = "Aborted. No changes were made."
@@ -65,9 +62,30 @@ REINSTALL_BACKEND_ABORT = "Aborted. No changes were made."
 
 
 
+# ===== install =====
+INSTALL_STARTING = "Starting HachimiDX installation..."
+
+
+
+
+
+# ===== CUDA fallback =====
+CUDA_FALLBACK_PROMPT = """
+No compatible PyTorch CUDA version detected, falling back to PyTorch CPU version.
+Do you want to continue the installation?
+
+1. Yes (Default)
+2. No (Exit)
+
+-> """
+
+
+
+
+
 # ===== ask_use_pypi_mirror =====
 PYPI_MIRROR_PROMPT = """
-THU/Aliyun PyPI mirrors can significantly speed up downloads and installations in China.
+THU/NJU PyPI mirrors can significantly speed up downloads and installations in China.
 Do you want to use PyPI mirror?
 
 If you are in mainland China, it is highly recommended to choose "Yes".

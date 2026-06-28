@@ -26,9 +26,7 @@ MAIN_MENU = """
 请选择：
 
 1. 安装 HachimiDX (默认)
-
 2. 切换模型推理后端
-
 3. 退出
 
 如果你不清楚选项 2 是什么，请不要选择此选项。
@@ -56,7 +54,6 @@ REINSTALL_BACKEND_PROMPT = """
 
 1. 是
 2. 否 (默认)
-3. 退出
 
 -> """
 REINSTALL_BACKEND_ABORT = "已取消，未做任何更改。"
@@ -65,9 +62,30 @@ REINSTALL_BACKEND_ABORT = "已取消，未做任何更改。"
 
 
 
+# ===== install =====
+INSTALL_STARTING = "开始安装 HachimiDX..."
+
+
+
+
+
+# ===== CUDA fallback =====
+CUDA_FALLBACK_PROMPT = """
+未检测到兼容的 PyTorch CUDA 版本，将回退到 PyTorch CPU 版本。
+是否继续安装？
+
+1. 是 (默认)
+2. 否 (退出)
+
+-> """
+
+
+
+
+
 # ===== ask_use_pypi_mirror =====
 PYPI_MIRROR_PROMPT = """
-清华/阿里云的 PyPI 镜像可以显著加速国内的下载和安装。
+清华大学/南京大学的 PyPI 镜像可以显著加速国内的下载和安装。
 你是否想使用 PyPI 镜像?
 
 如果你在中国大陆，强烈建议选择"是"。
