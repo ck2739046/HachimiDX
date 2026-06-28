@@ -20,8 +20,8 @@ class MajdataSession(QObject):
     Launche/End MajdataView/MajdataEdit and provides their window handles for embedding.
 
     Notes:
-    1. 先启动 majdataview 再启动 majdataedit
-    2. 先强杀 majdataview 再通过 control file 请求 majdataedit 退出，最后超时强杀 majdataedit
+    1. 同时启动 majdataview 和 majdataedit
+    2. 先通过 control file 请求 majdataedit 退出，轮询等待/超时强杀，再强杀 majdataview
     3. 通过轮询方式获取两个程序的窗口句柄（hwnd），通过信号通知调用方
     """
 
@@ -222,41 +222,12 @@ class MajdataSession(QObject):
         # Stop polling to avoid late emits during teardown.
         self._poll_timer.stop()
 
-        # 1) 先停止 majdata
-        stop_majdata()
+        # 1) 暂停 view，关闭 edit
+        stop_majdata(exit=True)
 
-        # 因为 MajdataEdit ControlFileWatcher 有延时，所以延迟 500ms 后再继续
-        QTimer.singleShot(500, self._continue_shutdown)
-
-
-    def _continue_shutdown(self) -> None:
-        """shutdown() 的后半段，由 QTimer.singleShot 异步调度，避免阻塞主线程。"""
-
-        # majdataedit 退出时会弹窗提示是否要关闭 majdataview
-        # 为了避免弹窗，先退出 majdataview 再退出 majdataedit
-
-        # 2) Kill MajdataView first (force).
-        proc = self._majdataview_proc
-        if proc:
-            proc.kill()
-            proc.waitForFinished(500)
-
-        # 3) Request MajdataEdit exit via control file.
-        try:
-            if self._majdataedit_proc:
-                control_txt = PathManage.MajdataEdit_CONTROL_TXT_PATH
-                control_txt.write_text("exit", encoding="utf-8")
-        except Exception:
-            pass
-
-        # 4) 启动非阻塞轮询 MajdataEdit 退出，如果超时会强制退出
+        # 2) 非阻塞轮询 MajdataEdit 退出，超时强制杀掉
         self._shutdown_started_at = time.time()
         self._shutdown_timer.start()
-
-
-
-
-
 
 
     def _poll_majdataedit_exit(self) -> None:
@@ -271,7 +242,15 @@ class MajdataSession(QObject):
             
             # 超时，强制杀掉
             proc.kill()
-            proc.waitForFinished(500)
+            proc.waitForFinished(200)
+
+        # MajdataEdit 已退出（或超时强杀）
+        # 3) 关闭 MajdataView
+        view_proc = self._majdataview_proc
+        if view_proc:
+            view_proc.kill()
+            view_proc.waitForFinished(200)
+
 
 
         # cleanup
@@ -300,9 +279,10 @@ class MajdataSession(QObject):
 
 
 # static method
-def stop_majdata() -> None:
+def stop_majdata(exit=False) -> None:
     try:
         text = "folder: ---\nmaidata: ---\ntrack: ---"
+        if exit: text += "\nexit" # Request MajdataEdit exit via control file
         control_txt = PathManage.MajdataEdit_CONTROL_TXT_PATH
         control_txt.write_text(text, encoding="utf-8")
     except Exception as e:
