@@ -574,7 +574,12 @@ en_US:
       warning_load_failed: "Failed to load setting: %{item_key}\n%{error}"
       warning_save_item_failed: "Failed to save setting item: %{item_key}\n%{error}"
       warning_reset_failed: "Reset failed\n%{error}"
-      warning_check_failed: "Runtime check failed: %{backend}"
+      warning_check_failed: |
+        Runtime check failed: %{backend}
+
+        This error may occur because the backend selected during installation differs from the currently selected one.
+        To switch backends, please refer to "Installation_Guide.txt".
+        -- (located in the project root directory, easy to find)
       warning_model_missing: "2. Models check failed: %{backend}\n%{error}"
       warning_model_not_found_for_backend: |
         If you haven't completed the "Convert Models" step, this error may occur.

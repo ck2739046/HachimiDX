@@ -10,7 +10,10 @@ Step 1: Install Dependencies (One-time Setup)
 3. Follow the on-screen prompts to complete the installation
 4. Close the window when installation is finished
 
-Note: Installation only needs to be done once, no need to run it again
+Note: Installation only needs to be done once.
+
+If you later want to switch the model inference backend,
+plz re-run install.bat and select option "2. Switch model inference backend."
 
 
 --------------------------------------------------------------------------------

@@ -567,7 +567,12 @@ zh_CN:
       warning_load_failed: "读取设置失败: %{item_key}\n%{error}"
       warning_save_item_failed: "保存配置项失败: %{item_key}\n%{error}"
       warning_reset_failed: "重置失败\n%{error}"
-      warning_check_failed: "运行环境检测失败: %{backend}"
+      warning_check_failed: |
+        运行环境检测失败: %{backend}
+
+        这可能是因为安装时所选的后端与当前所选的后端不一致。
+        如需切换后端，请参阅「安装指南.txt」。
+        -- (位于项目根目录，很容易找到)
       warning_model_missing: "2. 模型检查未通过: %{backend}\n%{error}"
       warning_model_not_found_for_backend: |
         如果尚未执行「转换模型」步骤，可能会触发此错误。
