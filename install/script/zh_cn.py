@@ -27,18 +27,39 @@ MAIN_MENU = """
 
 1. 安装 HachimiDX (默认)
 
-2. 撤销 Ultralytics DirectML 修改
+2. 切换模型推理后端
 
-3. 删除 torch & torchvision
+3. 退出
 
-4. 退出
-
-如果你不清楚选项 2/3 是什么，请不要选择此选项。
+如果你不清楚选项 2 是什么，请不要选择此选项。
 
 -> """
 RESTORE_SUCCESS = "Ultralytics 已恢复到原始状态。"
 RESTORE_ERROR = "尝试恢复 ultralytics 时发生错误。"
 DEFAULTING_TO_INSTALL = "默认选择安装 HachimiDX。"
+
+
+
+
+
+# ===== reinstall backend =====
+REINSTALL_BACKEND_PROMPT = """
+即将执行以下操作：
+
+(1) 撤销 Ultralytics DirectML 修改
+(2) 删除 torch & torchvision
+(3) 进入安装流程，选择新的后端
+
+此操作会清理当前已安装的后端，之后你可以在安装流程中选择新的后端。
+
+你确定要继续吗？
+
+1. 是
+2. 否 (默认)
+3. 退出
+
+-> """
+REINSTALL_BACKEND_ABORT = "已取消，未做任何更改。"
 
 
 

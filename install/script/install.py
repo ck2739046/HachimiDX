@@ -55,18 +55,45 @@ def main():
     if choice == "1":
         install()
     elif choice == "2":
-        success = modify_ultralytics_for_dml(recover=True)
-        if success:
-            print(T.RESTORE_SUCCESS)
-        else:
-            print(T.RESTORE_ERROR)
+        reinstall_backend()
     elif choice == "3":
-        uninstall_torch_torchvision()
-    elif choice == "4":
         sys.exit(0)
     else:
         print(T.DEFAULTING_TO_INSTALL)
         install()
+
+
+
+
+
+def reinstall_backend():
+    # 确认
+    print("\n-----")
+    confirm = input(T.REINSTALL_BACKEND_PROMPT).strip()
+    
+    if confirm == "1":
+        pass
+    elif confirm == "2":
+        print(T.REINSTALL_BACKEND_ABORT)
+        return
+    elif confirm == "3":
+        sys.exit(0)
+    else:
+        print(T.REINSTALL_BACKEND_ABORT)
+        return
+
+    # 1. 撤销 Ultralytics DirectML 修改
+    success = modify_ultralytics_for_dml(recover=True)
+    if success:
+        print(T.RESTORE_SUCCESS)
+    else:
+        print(T.RESTORE_ERROR)
+
+    # 2. 删除 torch & torchvision
+    uninstall_torch_torchvision()
+
+    # 3. 进入安装流程
+    install()
 
 
 

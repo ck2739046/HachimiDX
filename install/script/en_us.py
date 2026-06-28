@@ -27,18 +27,39 @@ Please select an option:
 
 1. Install HachimiDX (Default)
 
-2. Undo Ultralytics DirectML Modification
+2. Switch model inference backend
 
-3. Uninstall torch & torchvision
+3. Exit
 
-4. Exit
-
-Please don't choose option "2/3" if you don't know what it is.
+Please don't choose option "2" if you don't know what it is.
 
 -> """
 RESTORE_SUCCESS = "Ultralytics has been restored to its original state."
 RESTORE_ERROR = "An error occurred while trying to restore ultralytics."
 DEFAULTING_TO_INSTALL = "Defaulting to Install HachimiDX."
+
+
+
+
+
+# ===== reinstall backend =====
+REINSTALL_BACKEND_PROMPT = """
+The following actions will be performed:
+
+(1) Undo Ultralytics DirectML Modification
+(2) Uninstall torch & torchvision
+(3) Start the installation flow to choose a new backend
+
+This will clean up the currently installed backend so you can choose a new one during the installation.
+
+Are you sure you want to continue?
+
+1. Yes
+2. No (Default)
+3. Exit
+
+-> """
+REINSTALL_BACKEND_ABORT = "Aborted. No changes were made."
 
 
 
