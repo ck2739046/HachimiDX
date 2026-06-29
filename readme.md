@@ -19,7 +19,7 @@ A tool built specifically for the rhythm game `maimai`. Feed it a chart confirma
 - **Powerful recharting capabilities**
     - Supports recognition and duration inference for all note types: `tap` `slide` `touch` `hold` `touch-hold`.
     - Supports all note variants classification: `ex` `break` `ex-break`.
-    - Supports all simai slide movement syntax: `-` `><` `pq` `ppqq` `sz` `v`.
+    - Supports all simai slide movement syntax: `-` `V` `><` `pq` `ppqq` `sz` `v`.
 
 - **Custom vision models**
     - Optimized specifically for maimai gameplay, with robust performance in complex scenes.

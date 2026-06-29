@@ -86,13 +86,65 @@ def analyze_slide_tail_movement_syntax(input_shared_context, note_path, start_po
     if not merged_tokens:
         return None
 
+    # 两个连续 straight slide 合并为 V slide
+    merged_tokens = _try_merge_to_V_slide(merged_tokens, start_pos)
+
     movement_syntax = ''.join(merged_tokens)
 
     return movement_syntax
 
 
-  
+
+
+def _try_merge_to_V_slide(merged_tokens: list, start_pos: str) -> list:
+    """两个连续 straight slide 合并为 V slide"""
+
+    # 长度严格为 2
+    if len(merged_tokens) != 2:
+        return merged_tokens
     
+    # token 均为 '-N' 形式 (N ∈ 1~8)
+    for token in merged_tokens:
+        if len(token) != 2:
+            return merged_tokens
+        if token[0] != '-':
+            return merged_tokens
+        if not token[1].isdigit():
+            return merged_tokens
+        if not (1 <= int(token[1]) <= 8):
+            return merged_tokens
+
+    x = int(start_pos[1])
+    y = int(merged_tokens[0][1])
+    z = int(merged_tokens[1][1])
+
+    if is_V_slide(x, y, z):
+        return [f"V{y}{z}"]
+    else:
+        return merged_tokens
+
+
+def is_V_slide(x: int, y: int, z: int) -> bool:
+    """
+    判定 <x> V <y> <z> 是否合法
+    """
+    # x -> y
+    if (y - x) % 8 not in (2, 6):
+        return False
+    
+    # y -> z
+    dz = (z - y) % 8  # 0~7
+    # 3/4/5 合法
+    if dz in (3, 4, 5):
+        return True
+    # 2/6 有条件
+    if dz in (2, 6):
+        # 需要 x 是 z 的对点
+        required_x = (z + 4 - 1) % 8 + 1
+        return x == required_x
+    # 0/1/7 非法
+    return False
+
 
 
 
