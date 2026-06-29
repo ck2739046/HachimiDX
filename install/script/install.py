@@ -363,10 +363,8 @@ def install_pytorch(torch_version) -> bool:
     # 南京大学源有 pytorch cuda 本体，作为补充
     # 两者结合使用
     if USE_PyPI_Mirror:
-        index_args = [*QingHua_PyPI_Mirror, "--find-links"]
         base_url = "https://mirrors.nju.edu.cn/pytorch/whl"
     else:
-        index_args = ["--index-url"]
         base_url = "https://download.pytorch.org/whl"
 
     # cuda 11.8 使用旧版 2.7.1
@@ -379,7 +377,7 @@ def install_pytorch(torch_version) -> bool:
     index_target = f"{base_url}/{torch_version}"
 
     cmd = [sys.executable, "-m", "pip", "install",
-           *packages, *index_args, index_target,
+           *packages, "--index-url", index_target,
            "--no-warn-script-location"]
     
     return general_pip_install(f"PyTorch ({torch_version})", cmd)
