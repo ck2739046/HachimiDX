@@ -80,9 +80,40 @@ def parse_config(config_path: str | Path, *, timeout: float | None = 60.0) -> Op
 
 
 
+
+
+
+
+
 def load_timing_points(notify_path: str | Path) -> OpResult[list[list]]:
     """
     读取 Bpm-Measurer 输出的 notify JSON，计算每个 bpm 段的起始绝对时间(ms)。
+
+    Args:
+        notify_path: notify JSON 文件路径（通常由 parse_config 生成）。
+
+    Returns:
+        OpResult[list[list]]:
+            成功 → value = 每段 [beat_index, bpm, start_ms]
+    """
+    res = _load_notify(notify_path)
+    if not res.is_ok:
+        return err("failed to load notify JSON", inner=res)
+    global_offset_sec, timing_points = res.value
+
+    # 计算各段起始时间
+    res = _compute_segment_starts(global_offset_sec, timing_points)
+    if not res.is_ok:
+        return err("failed to compute segment starts", inner=res)
+
+    return ok(res.value)
+
+
+
+
+def _load_notify(notify_path: str | Path) -> OpResult[tuple[float, list[dict]]]:
+    """
+    读取 Bpm-Measurer notify JSON
 
     notify JSON 格式（见 Bpm-Measurer/App.HeadlessExport.cs）：
         {
@@ -97,8 +128,8 @@ def load_timing_points(notify_path: str | Path) -> OpResult[list[list]]:
         notify_path: notify JSON 文件路径（通常由 parse_config 生成）。
 
     Returns:
-        OpResult[list[list]]:
-            成功 → value = 每段 [beat_index, bpm, start_ms]
+        OpResult[tuple[float, list[dict]]]:
+            成功 → (global_offset_sec, timing_points)
     """
 
     path = Path(notify_path)
@@ -126,14 +157,7 @@ def load_timing_points(notify_path: str | Path) -> OpResult[list[list]]:
     except (KeyError, TypeError, ValueError) as e:
         return err(f"invalid beat_index in timing_points: {e}", error_raw=e)
 
-    # 计算各段起始时间
-    res = _compute_segment_starts(global_offset_sec, timing_points)
-    if not res.is_ok:
-        return err("failed to compute segment starts", inner=res)
-
-    return ok(res.value)
-
-
+    return ok((global_offset_sec, timing_points))
 
 
 
@@ -189,3 +213,102 @@ def _compute_segment_starts(global_offset_sec: float, timing_points: list[dict])
         segments.append([beat_index, bpm, time_sec * 1000.0]) # 转成毫秒
 
     return ok(segments)
+
+
+
+
+
+
+
+
+
+
+def compute_aligned_global_offset(notify_json_path: str | Path,
+                                  first_note_time_ms: float,
+                                  beat_index: float) -> OpResult[float]:
+    """
+    根据 first_note_time 与 beat_index 反推 global_offset_sec
+
+    先用 beat_index 算出 first_note 在 bpm 配置中的原始时间。
+    将这个时间和 first_note 的实际出现时间的差值，
+    应用到原始 global_offset 上，得到新的 global_offset。
+
+    Args:
+        notify_json_path
+        first_note_time_ms
+        beat_index
+
+    Returns:
+        OpResult[float]: 成功 → 新 global_offset_sec
+    """
+
+    # 读取并解析 notify JSON
+    res = _load_notify(notify_json_path)
+    if not res.is_ok:
+        return err("failed to load notify JSON", inner=res)
+    old_global_offset_sec, timing_points = res.value
+
+    # 校验输入数值
+    try:
+        new_first_note_time_sec = float(first_note_time_ms) / 1000.0
+    except (TypeError, ValueError):
+        return err(f"first_note_time must be a number, got: {first_note_time_ms!r}")
+    if new_first_note_time_sec < 0:
+        return err(f"first_note_time must be non-negative, got: {first_note_time_ms}")
+    try:
+        beat_index = float(beat_index)
+    except (TypeError, ValueError):
+        return err(f"beat_index must be a number, got: {beat_index!r}")
+    if beat_index < 0:
+        return err(f"beat_index must be non-negative, got: {beat_index}")
+
+    # 获取 beat_index 在原始 global_offset 下应出现的时间
+    res = beat_to_time_sec(beat_index, old_global_offset_sec, timing_points)
+    if not res.is_ok:
+        return err("failed to compute beat time", inner=res)
+    old_first_note_time_sec = res.value
+
+    # 计算新的
+    g_new = old_global_offset_sec + new_first_note_time_sec - old_first_note_time_sec
+    return ok(g_new)
+
+
+
+
+def beat_to_time_sec(target_beat_index: float,
+                     global_offset_sec: float,
+                     timing_points: list[dict]) -> OpResult[float]:
+    """
+    给定 global_offset 与 timing_points，返回指定 beat 对应的绝对时间
+
+    Args:
+        target_beat_index
+        global_offset_sec
+        timing_points
+
+    Returns:
+        OpResult[float]: 成功 → 该 beat 的绝对时间
+    """
+    try:
+        target_beat = float(target_beat_index)
+    except (TypeError, ValueError):
+        return err(f"target_beat_index must be a number, got: {target_beat_index!r}")
+    if target_beat < 0:
+        return err(f"target_beat_index must be non-negative, got: {target_beat_index!r}")
+
+    res = _compute_segment_starts(global_offset_sec, timing_points)
+    if not res.is_ok:
+        return err("failed to compute segment starts", inner=res)
+    segments = res.value
+
+    # 找到 beat 落在哪段：最后一个 beat_index <= beat
+    target_idx = 0
+    for i, (seg_beat_index, _, _) in enumerate(segments):
+        if seg_beat_index <= target_beat:
+            target_idx = i
+        else:
+            break
+
+    seg_beat_index, seg_bpm, seg_start_sec = segments[target_idx]
+    time_sec = seg_start_sec + (target_beat - seg_beat_index) * (60.0 / seg_bpm)
+    return ok(time_sec)
