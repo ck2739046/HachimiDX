@@ -48,10 +48,15 @@ def main(std_video_path: Path,
         # 统一解析 bpm 一次（供 slide 与 generate_maidata 共用，避免 slide 重复解析）
         # timing_points: [[beat_index, bpm, start_ms], ...]，首段返回真实 global_offset
         if bpm_config is not None:
-            tp_res = load_timing_points(bpm_config)
-            if not tp_res.is_ok:
-                return err(f"failed to load timing_points: {tp_res.error_msg}", inner=tp_res)
-            timing_points = tp_res.value
+            try:
+                tp_res = load_timing_points(bpm_config)
+                if not tp_res.is_ok:
+                    return err(f"failed to load timing_points: {tp_res.error_msg}", inner=tp_res)
+                timing_points = tp_res.value
+            finally:
+                # 清理 notify 文件
+                try: Path(bpm_config).unlink(missing_ok=True)
+                except: pass
         elif static_bpm is not None:
             timing_points = [[0, static_bpm, 0]]
         else:

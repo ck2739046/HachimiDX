@@ -93,10 +93,6 @@ def load_timing_points(notify_path: str | Path) -> OpResult[list[list]]:
           ]
         }
 
-    段起始绝对时间计算（复刻 Bpm-Measurer/TimingEngine.cs RecalculateTiming，单位秒）：
-        time_sec[0] = global_offset
-        time_sec[i] = time_sec[i-1] + (beat_index[i] - beat_index[i-1]) * 60.0 / bpm[i-1]
-
     Args:
         notify_path: notify JSON 文件路径（通常由 parse_config 生成）。
 
@@ -104,6 +100,7 @@ def load_timing_points(notify_path: str | Path) -> OpResult[list[list]]:
         OpResult[list[list]]:
             成功 → value = 每段 [beat_index, bpm, start_ms]
     """
+
     path = Path(notify_path)
     if not path.is_file():
         return err(f"notify file not found: {path}")
@@ -119,19 +116,49 @@ def load_timing_points(notify_path: str | Path) -> OpResult[list[list]]:
     except (TypeError, ValueError) as e:
         return err(f"invalid global_offset: {e}", error_raw=e)
 
-    raw_points = data.get("timing_points")
-    if not raw_points:
+    raw_timing_points = data.get("timing_points")
+    if not raw_timing_points:
         return err(f"notify json has no timing_points: {path}")
 
     # 按 beat_index 升序排序（C# 端已保证严格递增，稳妥再排一次）
     try:
-        points = sorted(raw_points, key=lambda p: float(p["beat_index"]))
+        timing_points = sorted(raw_timing_points, key=lambda p: float(p["beat_index"]))
     except (KeyError, TypeError, ValueError) as e:
         return err(f"invalid beat_index in timing_points: {e}", error_raw=e)
 
-    segments: list[list] = []
-    time_sec = global_offset_sec
-    for i, point in enumerate(points):
+    # 计算各段起始时间
+    res = _compute_segment_starts(global_offset_sec, timing_points)
+    if not res.is_ok:
+        return err("failed to compute segment starts", inner=res)
+
+    return ok(res.value)
+
+
+
+
+
+
+def _compute_segment_starts(global_offset_sec: float, timing_points: list[dict]) -> OpResult[list[list[float, float, float]]]:
+    """
+    段起始绝对时间计算（复刻 Bpm-Measurer/TimingEngine.cs RecalculateTiming)
+        time_sec[0] = global_offset
+        time_sec[i] = time_sec[i-1] + (beat_index[i] - beat_index[i-1]) * 60.0 / bpm[i-1]
+
+    Args:
+        global_offset_sec, timing_points
+
+    Returns:
+        OpResult[list[list[float, float, float]]]: 成功 → [[beat_index, bpm, start_ms], ...]
+    """
+
+    if not timing_points:
+        return err("timing_points is empty")
+
+    base_sec = float(global_offset_sec)
+    segments: list[tuple[float, float, float]] = []
+    time_sec = base_sec
+
+    for i, point in enumerate(timing_points):
         try:
             bpm = float(point["bpm"])
             beat_index = float(point["beat_index"])
@@ -143,10 +170,10 @@ def load_timing_points(notify_path: str | Path) -> OpResult[list[list]]:
                 return err(
                     f"first timing_point beat_index must be 0, got {beat_index}"
                 )
-            time_sec = global_offset_sec
+            time_sec = base_sec
         else:
-            prev_beat_index = float(points[i - 1]["beat_index"])
-            prev_bpm = float(points[i - 1]["bpm"])
+            prev_beat_index = float(timing_points[i - 1]["beat_index"])
+            prev_bpm = float(timing_points[i - 1]["bpm"])
             beat_diff = beat_index - prev_beat_index
             if beat_diff <= 0:
                 return err(
@@ -160,11 +187,5 @@ def load_timing_points(notify_path: str | Path) -> OpResult[list[list]]:
             return err(f"bpm must be positive, got {bpm}")
 
         segments.append([beat_index, bpm, time_sec * 1000.0]) # 转成毫秒
-
-    # 解析成功，删除临时 notify 文件
-    try:
-        path.unlink(missing_ok=True)
-    except OSError:
-        pass
 
     return ok(segments)
