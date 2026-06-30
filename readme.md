@@ -1,16 +1,32 @@
-# <img src="src/resources/icon.ico" width="60px"> HachimiDX: Maimai auto rechart tool 🐱
+**English** | [**中文**](readme_zh_cn.md)
 
-📄 [**中文 README**](readme_zh_cn.md)
+<h1 align="center">
+  <img src="src/resources/icon.ico" width="110" alt="logo">
+  <br>HachimiDX
+</h1>
 
----
+<h3 align="center">
+  🐱 Maimai auto rechart tool 🐱
+</h3>
 
-🔗 [**Project URL**](https://github.com/ck2739046/HachimiDX) &nbsp;•&nbsp; 📥︎ [**Download**](https://github.com/ck2739046/HachimiDX/releases/latest) &nbsp;•&nbsp; ▶️ [**Demo Video**](https://www.bilibili.com/video/BV1Rz5c6vEQH)
+<br>
+
+A tool for the rhythm game **maimai** that automatically converts chart confirmation videos into simai format (`maidata.txt`).
+
+<br>
+
+![](https://img.shields.io/github/stars/ck2739046/HachimiDX?label=Stars)
+![](https://img.shields.io/github/downloads/ck2739046/HachimiDX/total?label=Downloads)
+
+🔗 [**GitHub Repo**](https://github.com/ck2739046/HachimiDX)
+&nbsp;•&nbsp;
+📥︎ [**Download Release**](https://github.com/ck2739046/HachimiDX/releases/latest)
+&nbsp;•&nbsp;
+▶️ [**Tutorial Video**](https://www.bilibili.com/video/BV1Rz5c6vEQH)
 
 > <img src="src/resources/doc/images/qq_icon.svg" width="20px" style="vertical-align: middle;"> Run into issues, need a hand, want to report bugs, share suggestions, or talk development? Join our QQ group chat **`868888361`**.
 
----
-
-A tool built specifically for the rhythm game `maimai`. Feed it a chart confirmation video, and it will fully automatically rechart — faithfully reproducing the official maimai chart and outputting it in simai format (`maidata.txt`).
+<br>
 
 
 

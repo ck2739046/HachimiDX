@@ -1,18 +1,34 @@
-# <img src="src/resources/icon.ico" width="60px"> HachimiDX: 舞萌自动抄谱工具 🐱
+[**English**](readme.md) | **中文**
 
-📄 [**English README**](readme.md)
+<h1 align="center">
+  <img src="src/resources/icon.ico" width="110" alt="logo">
+  <br>HachimiDX
+</h1>
 
----
+<h3 align="center">
+  🐱 舞萌自动抄谱工具 🐱
+</h3>
 
-🔗 [**项目地址**](https://github.com/ck2739046/HachimiDX) &nbsp;•&nbsp; 📥︎ [**软件下载**](https://github.com/ck2739046/HachimiDX/releases/latest) &nbsp;•&nbsp; ▶️ [**演示视频**](https://www.bilibili.com/video/BV1Rz5c6vEQH)
+<br>
+
+**小团体不拉我，拿不到最新最热，所以自己抄谱** 😡😡😡😭😭😭🤔🤔🤔😋😋😋
+
+为音乐游戏 **maimai** 设计的工具，自动将谱面确认视频转换为 simai 格式 (`maidata.txt`)。
+
+<br>
+
+![](https://img.shields.io/github/stars/ck2739046/HachimiDX?label=Stars)
+![](https://img.shields.io/github/downloads/ck2739046/HachimiDX/total?label=下载次数)
+
+🔗 [**项目地址**](https://github.com/ck2739046/HachimiDX)
+&nbsp;•&nbsp;
+📥︎ [**软件下载**](https://github.com/ck2739046/HachimiDX/releases/latest)
+&nbsp;•&nbsp;
+▶️ [**教程视频**](https://www.bilibili.com/video/BV1Rz5c6vEQH)
 
 > <img src="src/resources/doc/images/qq_icon.svg" width="20px" style="vertical-align: middle;"> 如果在使用中遇到问题、需要帮助、想反馈 Bug 或提出建议，亦或参与开发讨论，欢迎加入 QQ 交流群 **`868888361`**。
 
----
-
-**小团体不拉我，拿不到最新最热，所以自己抄谱😡😡😡😭😭😭🤔🤔🤔😋😋😋**
-
-专为音乐游戏 `maimai` 设计的工具。输入谱面确认视频，执行全自动抄谱，复刻官方 maimai 谱面，输出为 simai 格式 (`maidata.txt`)。
+<br>
 
 
 
