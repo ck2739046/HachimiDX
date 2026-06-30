@@ -513,16 +513,6 @@ zh_CN:
 
         是否仍要继续？
 
-      ui_start_sec_fix_dialog_title: "BPM 配置时值修正"
-      ui_start_sec_fix_dialog_text: |
-        检测到视频标准化模组已启用，并且设置了 "起始时间" = %{start_sec}s。
-        
-        需要更新 BPM 配置的 global_offset 值以保持时值对齐，将生成一份修正后的 BPM 配置。
-
-        是否继续？
-      ui_start_sec_fix_failed_title: "BPM 配置修正失败"
-      ui_start_sec_fix_failed_text: "修正 BPM 配置时值失败：%{error}"
-
       ui_reset_page_confirm_title: "重置确认"
       ui_reset_page_confirm_text: "当前已在自动抄谱页面（auto rechart）选择了谱面确认视频或谱面文件夹，确定要重置页面吗？所有输入内容将被清空。"
       ui_overwrite_bpm_confirm_title: "BPM 覆盖确认"
