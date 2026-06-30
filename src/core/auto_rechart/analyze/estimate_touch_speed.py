@@ -19,9 +19,19 @@ def collect_touch_paths(shared_context, touch_data, touch_hold_data):
         track_id = key[0]
         final_paths.append((track_id, path, shared_context.touch_travel_dist))
 
+    # touch_hold 可能 -1 或长时间聚拢不动，导致流速计算异常
+    tolerance = shared_context.touch_hold_travel_dist * 0.1
+    valid_end = 0 + tolerance
+    valid_start = shared_context.touch_hold_travel_dist - tolerance
+
     for key, path in touch_hold_data.items():
-        track_id = key[0]
-        final_paths.append((track_id, path, shared_context.touch_hold_travel_dist))
+        filtered = []
+        for p in path:
+            if valid_end <= p['dist'] <= valid_start:
+                filtered.append(p) # 此处不用 reformat
+        if filtered:
+            track_id = key[0]
+            final_paths.append((track_id, filtered, shared_context.touch_hold_travel_dist))
 
     return final_paths
 

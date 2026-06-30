@@ -7,7 +7,8 @@ from .shared_context import *
 def _collect_note_approach_paths(shared_context, tap_data, slide_head_data, hold_data):
     """
     汇总所有音符路径用于计算流速
-    仅收集 tap / hold_head / slide_head
+
+    tap / slide_head 直接加入; hold 头尾视为两个独立 tap 分别加入
 
     返回: list[list[dict]]，每个 dict 形如 {'frame': int, 'dist': float}
     """
@@ -18,10 +19,19 @@ def _collect_note_approach_paths(shared_context, tap_data, slide_head_data, hold
         for path in data.values():
             final_paths.append(path)
 
+    # hold 头尾可能长时间停在判定线，导致流速计算异常
+    tolerance = shared_context.note_travel_dist * 0.1
+    valid_start = shared_context.judgeline_start + tolerance
+    valid_end = shared_context.judgeline_end - tolerance
+
     for path in hold_data.values():
-        final_paths.append([
-            {'frame': p['frame'], 'dist': p['dist-head']} for p in path
-        ])
+        for dist_key in ('dist-head', 'dist-tail'):
+            filtered = []
+            for p in path:
+                if valid_start <= p[dist_key] <= valid_end:
+                    filtered.append({'frame': p['frame'], 'dist': p[dist_key]})
+            if filtered:
+                final_paths.append(filtered)
 
     return final_paths
 
