@@ -93,22 +93,16 @@ def load_timing_points(notify_path: str | Path) -> OpResult[list[list]]:
           ]
         }
 
-    global_offset 固定减 110ms 因为 maimai 谱面会提早开始播放
-
     段起始绝对时间计算（复刻 Bpm-Measurer/TimingEngine.cs RecalculateTiming，单位秒）：
         time_sec[0] = global_offset
         time_sec[i] = time_sec[i-1] + (beat_index[i] - beat_index[i-1]) * 60.0 / bpm[i-1]
-    全程用浮点秒累加，最后一次性 ×1000 取整，避免逐段 round 累积误差。
 
     Args:
         notify_path: notify JSON 文件路径（通常由 parse_config 生成）。
 
     Returns:
         OpResult[list[list]]:
-            成功 → value = 每段 [bpm, start_ms]；bpm 为 float，start_ms 为 int。
-                   示例: [[180.0, 0], [200.0, 129000]]
-            失败 → 文件不存在 / JSON 解析失败 / timing_points 为空 / beat_index 非法等，
-                   error_msg 描述原因，error_raw 存原始异常。
+            成功 → value = 每段 [beat_index, bpm, start_ms]
     """
     path = Path(notify_path)
     if not path.is_file():
@@ -121,7 +115,7 @@ def load_timing_points(notify_path: str | Path) -> OpResult[list[list]]:
         return err(f"failed to read notify json {path}: {e}", error_raw=e)
 
     try:
-        global_offset_sec = float(data.get("global_offset", 0.0)) - 0.110  # 固定减 110ms 因为 maimai 谱面会提早开始播放
+        global_offset_sec = float(data.get("global_offset", 0.0))
     except (TypeError, ValueError) as e:
         return err(f"invalid global_offset: {e}", error_raw=e)
 
@@ -165,8 +159,7 @@ def load_timing_points(notify_path: str | Path) -> OpResult[list[list]]:
         if bpm <= 0:
             return err(f"bpm must be positive, got {bpm}")
 
-        # 所有段返回真实 start_ms（含 global_offset）
-        segments.append([beat_index, bpm, round(time_sec * 1000)])
+        segments.append([beat_index, bpm, time_sec * 1000.0]) # 转成毫秒
 
     # 解析成功，删除临时 notify 文件
     try:
