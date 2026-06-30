@@ -16,8 +16,8 @@ class MediaToolsPage(QWidget):
     包含内部导航栏和子页面 Stack
     """
 
-    # (video_path, bpm_config_path) — 透传到 RightPanel，用于填入 Auto Rechart 页
-    request_send_to_auto_rechart = pyqtSignal(str, str)
+    # (bpm_config_path,) — 透传到 RightPanel，用于填入 Auto Rechart 页
+    request_send_to_auto_rechart = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)

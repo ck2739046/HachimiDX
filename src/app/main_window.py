@@ -178,9 +178,9 @@ class RightPanel(QWidget):
         self.nav_bar.currentChanged.connect(self.stack.setCurrentIndex)
 
 
-    def _on_send_to_auto_rechart(self, video_path: str, bpm_config_path: str) -> None:
+    def _on_send_to_auto_rechart(self, bpm_config_path: str) -> None:
         """处理 Measure Bpm 的一键填入请求：填入 Auto Rechart 并跳转。"""
-        success = self.auto_rechart_page.set_measure_bpm_result(video_path, bpm_config_path)
+        success = self.auto_rechart_page.set_measure_bpm_result(bpm_config_path)
         if success:
             self.nav_bar.setCurrentIndex(1)  # 切到 Auto Rechart
 

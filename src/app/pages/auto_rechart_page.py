@@ -112,21 +112,36 @@ class AutoRechartPage(BaseOutputPage):
 
 
 
-    def set_measure_bpm_result(self, video_path: str, bpm_config_path: str) -> bool:
+    def set_measure_bpm_result(self, bpm_config_path: str) -> bool:
         """
-        接收 Measure Bpm 页导出的视频与最终 BPM 配置，自动填入。
-        会先调用 reset_page()（用户可在确认弹窗中取消）。
+        接收 Measure Bpm 页导出的最终 BPM 配置，填入 BPM 设置。
+        仅覆盖 BPM 设置，不动页面其他内容。
+
+        若当前已设置静态或动态 BPM，弹窗确认覆盖；用户取消则不做任何修改。
 
         Returns:
-            True if filled successfully; False if user cancelled the reset.
+            True if filled successfully; False if user cancelled the confirmation.
         """
-        if not self.reset_page():
+        if not bpm_config_path:
             return False
-        if video_path:
-            self.chart_confirm_video_input.set_path(video_path)
-        if bpm_config_path:
-            self.bpm_type_combo_box.setCurrentIndex(1)  # 动态 BPM
-            self.bpm_config_path_display.setText(bpm_config_path)
+
+        # 检测是否已设置 BPM（静态数值或动态配置）
+        is_static = self.bpm_type_combo_box.currentIndex() == 0
+        has_bpm = (
+            (is_static and self.static_bpm_line_edit.text().strip())
+            or (not is_static and self.bpm_config_path_display.text().strip())
+        )
+
+        # 已设置 → 弹窗确认覆盖
+        if has_bpm:
+            title = i18n.t(f"{I18N_Prefix}.ui_overwrite_bpm_confirm_title")
+            text = i18n.t(f"{I18N_Prefix}.ui_overwrite_bpm_confirm_text")
+            if not show_confirm_dialog(title, text):
+                return False
+
+        # 仅覆盖 BPM 设置（切到动态 BPM + 填入 config 路径）
+        self.bpm_type_combo_box.setCurrentIndex(1)  # 动态 BPM
+        self.bpm_config_path_display.setText(bpm_config_path)
         return True
 
 

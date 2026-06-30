@@ -532,6 +532,8 @@ en_US:
 
       ui_reset_page_confirm_title: "Reset Confirmation"
       ui_reset_page_confirm_text: "A chart confirmation video or chart folder is currently selected in the Auto Rechart page. Are you sure you want to reset the page? All inputs will be cleared."
+      ui_overwrite_bpm_confirm_title: "Overwrite BPM"
+      ui_overwrite_bpm_confirm_text: "The Auto Rechart page already has a BPM set (static value or dynamic config). Overwrite the BPM setting with the new config? Other settings are not affected."
 
 
     # ---- settings page ----

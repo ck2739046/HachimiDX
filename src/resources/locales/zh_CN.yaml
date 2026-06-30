@@ -525,6 +525,8 @@ zh_CN:
 
       ui_reset_page_confirm_title: "重置确认"
       ui_reset_page_confirm_text: "当前已在自动抄谱页面（auto rechart）选择了谱面确认视频或谱面文件夹，确定要重置页面吗？所有输入内容将被清空。"
+      ui_overwrite_bpm_confirm_title: "BPM 覆盖确认"
+      ui_overwrite_bpm_confirm_text: "自动抄谱页面已设置 BPM（静态数值或动态配置），是否用新配置覆盖 BPM 设置？其他设置不受影响。"
 
 
     # ---- settings 页面 ----
