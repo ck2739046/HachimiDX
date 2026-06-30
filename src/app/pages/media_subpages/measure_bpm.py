@@ -9,9 +9,10 @@ from ...widgets import *
 
 from src.services import PathManage, process_manager_api
 from src.core.schemas.op_result import print_op_result
-from src.core.tools import show_notify_dialog, generate_uid
+from src.core.tools import show_notify_dialog
 from src.core.build_bpm_measurer_cmd import build_launch_cmd
 from src.core.measure_bpm.edit_config import export_aligned_config
+from src.core.measure_bpm.parse_config import generate_notify_path
 
 import i18n
 
@@ -136,7 +137,7 @@ class MeasureBpmPage(BaseOutputPage):
         self.enable_bpm_measurer_check_box.setEnabled(False)
         self.open_bpm_measurer_button.setEnabled(False)
         # 构建 notify path
-        self._notify_path = PathManage.TEMP_DIR / f"bpm_notify_{generate_uid()}.json"
+        self._notify_path = generate_notify_path()
         if self._notify_path.exists():
             try:
                 self._notify_path.unlink()

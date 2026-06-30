@@ -19,38 +19,40 @@ _EXIT_CODE_REASON: dict[int, str] = {
 }
 
 
-def parse_config(config_path: str | Path, *, timeout: float | None = 60.0) -> OpResult[Path]:
-    """
-    同步调用 Bpm-Measurer 的 --parse_config 无头模式，解析 bpm 配置文件。
 
-    流程：
-        1. 校验 config_path 存在。
-        2. 生成 uuid notify 路径：TEMP_DIR / bpm_parse_notify_<uuid>.json
-           （沿用 measure_bpm_page 的 notify 命名约定；若已存在先删，避免读到旧结果）。
-        3. build_parse_config_cmd 拼命令，subprocess.run 阻塞等待退出码。
-        4. 按退出码归类：成功返回 notify_path，失败返回带退出码与原因的 err。
+def generate_notify_path() -> Path:
+    return PathManage.TEMP_DIR / f"bpm_parse_notify_{generate_uid()}.json"
+
+
+
+
+def parse_config(config_path: str | Path, timeout: float | None = 60.0) -> OpResult[Path]:
+    """
+    同用 Bpm-Measurer 的 --parse_config 模式，生成 bpm notify 文件。
 
     Bpm-Measurer 退出码语义（详见 App.HeadlessExport.cs）：
-        0   = 成功：notify_path 已写入 JSON（global_offset + timing_points）
+        0   = 成功：notify_path 已写入 JSON
         1   = 读取或解析配置失败
         2   = 写 notify 文件失败
         3   = 其他未预期异常
         None= 进程崩溃（非正常退出）
 
     Args:
-        config_path: bpm 配置文件路径（.txt）。
-        timeout: subprocess.run 超时秒数（None 表示不限时）。默认 60s。
+        config_path: bpm 配置文件路径
+        timeout: subprocess.run 超时秒数 (默认 60s)
 
     Returns:
         OpResult[Path]:
-            成功（exit_code == 0）→ value = notify_path，可读取其中的 JSON。
-            失败 → config 不存在 / 清理旧 notify 失败 / 启动失败 / 退出码非 0（error_raw 存退出码）。
+            成功 → notify_path
     """
+
+    if timeout is None or timeout <= 0: timeout = 60
+
     cfg = Path(config_path)
     if not cfg.is_file():
         return err(f"bpm config not found: {cfg}")
 
-    notify_path = PathManage.TEMP_DIR / f"bpm_parse_notify_{generate_uid()}.json"
+    notify_path = generate_notify_path()
     if notify_path.exists():
         try:
             notify_path.unlink()
@@ -70,9 +72,8 @@ def parse_config(config_path: str | Path, *, timeout: float | None = 60.0) -> Op
     reason = _EXIT_CODE_REASON.get(exit_code, "unknown error")
     stderr_tail = proc.stderr.decode("utf-8", errors="replace").strip()
     return err(
-        f"Bpm-Measurer parse_config failed (exit={exit_code}): {reason}"
-        + (f"\nstderr: {stderr_tail}" if stderr_tail else ""),
-        error_raw=exit_code,
+        f"Bpm-Measurer parse_config failed (exit={exit_code}): {reason}",
+        error_raw=f"stderr: {stderr_tail}" if stderr_tail else ""
     )
 
 
