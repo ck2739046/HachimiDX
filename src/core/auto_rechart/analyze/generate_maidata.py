@@ -74,7 +74,7 @@ def generate_maidata(shared_context: SharedContext,
                      notes_info,
                      note_speed: float, touch_speed: float):
     
-    # timing_points = [[beat_index, bpm, start_ms], ...]
+    # timing_points = [(beat_index, bpm, start_ms), ...]
 
     # 准备输出txt文件
     output_dir = shared_context.std_video_path.parent

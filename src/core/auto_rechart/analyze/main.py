@@ -46,7 +46,7 @@ def main(std_video_path: Path,
         print('开始音符分析...')
 
         # 统一解析 bpm 一次（供 slide 与 generate_maidata 共用，避免 slide 重复解析）
-        # timing_points: [[beat_index, bpm, start_ms], ...]，首段返回真实 global_offset
+        # timing_points: [(beat_index, bpm, start_ms), ...]，首段返回真实 global_offset
         if bpm_config is not None:
             try:
                 tp_res = load_timing_points(bpm_config)
@@ -58,7 +58,7 @@ def main(std_video_path: Path,
                 try: Path(bpm_config).unlink(missing_ok=True)
                 except: pass
         elif static_bpm is not None:
-            timing_points = [[0, static_bpm, 0]]
+            timing_points = [(0.0, static_bpm, 0.0)]
         else:
             return err("no bpm source: neither static_bpm nor bpm_config is provided")
 
