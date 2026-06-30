@@ -3,7 +3,31 @@ import numpy as np
 from .shared_context import *
 
 
-def estimate_touch_DefaultMsec(shared_context, touch_data):
+def collect_touch_paths(shared_context, touch_data, touch_hold_data):
+    """
+    汇总所有音符路径用于计算流速
+    touch 基于 touch_travel_dist
+    touch_hold 基于 touch_hold_travel_dist
+
+    返回: list[tuple[track_id, path, travel_dist]]
+
+        path: list[dict]，每个 dict 形如 {'frame': int, 'dist': float}
+    """
+    final_paths = []
+
+    for key, path in touch_data.items():
+        track_id = key[0]
+        final_paths.append((track_id, path, shared_context.touch_travel_dist))
+
+    for key, path in touch_hold_data.items():
+        track_id = key[0]
+        final_paths.append((track_id, path, shared_context.touch_hold_travel_dist))
+
+    return final_paths
+
+
+
+def estimate_touch_DefaultMsec(shared_context, touch_data, touch_hold_data):
     '''
     正向：
     根据 time_progress = (current_time - move_start_time) / DefaultMsec 获得 time_progress
@@ -30,6 +54,12 @@ def estimate_touch_DefaultMsec(shared_context, touch_data):
     计算多个数据点对的 DefaultMsec 然后取平均值
     '''
 
+    touch_paths = collect_touch_paths(shared_context, touch_data, touch_hold_data)
+
+    if not touch_paths:
+        print_info = "touch speed not estimated (no data)"
+        return None, None, None, print_info
+
     def reverse_function(y, tolerance=0.001):
         # 二分查找求解 y = 3.5x⁴ - 3.75x³ + 1.45x² - 0.05x + 0.0005 的反函数
         low, high = 0.0, 1.0
@@ -49,14 +79,14 @@ def estimate_touch_DefaultMsec(shared_context, touch_data):
 
     DefaultMsecs = []
 
-    for (track_id, note_type, note_variant, note_position), path in touch_data.items():
+    for track_id, path, travel_dist in touch_paths:
 
         # 过滤掉斜率较小的轨迹点
         big_slope_points = []
         for point in path:
             # 反推 location_progress (保留15%-85%的点)
             cur_dist = point['dist']
-            location_progress = 1 - cur_dist / shared_context.touch_travel_dist
+            location_progress = 1 - cur_dist / travel_dist
             if location_progress < 0.15 or location_progress > 0.85:
                 continue
             # 反推 time_progress
@@ -82,7 +112,7 @@ def estimate_touch_DefaultMsec(shared_context, touch_data):
 
 
     if not DefaultMsecs:
-        print_info = "estimate_touch_DefaultMsec: no valid touch data"
+        print_info = "estimate_touch_DefaultMsec: no valid data"
         return 0, 0, 0, print_info
     
     length = len(DefaultMsecs)

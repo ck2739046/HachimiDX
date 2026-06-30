@@ -4,15 +4,44 @@ from .shared_context import *
 
 
 
-def estimate_tap_DefaultMsec(shared_context, tap_data):
+def _collect_note_approach_paths(shared_context, tap_data, slide_head_data, hold_data):
+    """
+    汇总所有音符路径用于计算流速
+    仅收集 tap / hold_head / slide_head
+
+    返回: list[list[dict]]，每个 dict 形如 {'frame': int, 'dist': float}
+    """
+
+    final_paths = []
+
+    for data in (tap_data, slide_head_data):
+        for path in data.values():
+            final_paths.append(path)
+
+    for path in hold_data.values():
+        final_paths.append([
+            {'frame': p['frame'], 'dist': p['dist-head']} for p in path
+        ])
+
+    return final_paths
+
+
+
+def estimate_tap_DefaultMsec(shared_context, tap_data, slide_head_data, hold_data):
     """
     音符从起点移动到判定线需要耗时 DefaultMsec (ms)
     采样4个点（0%、25%、50%、100%）计算三个阶段性速度
     """
 
+    note_paths = _collect_note_approach_paths(shared_context, tap_data, slide_head_data, hold_data)
+
+    if not note_paths:
+        print_info = "tap speed not estimated (no data)"
+        return None, None, None, print_info
+
     note_speeds = []
 
-    for path in tap_data.values():
+    for path in note_paths:
 
         # 获取4个采样点的索引
         path_length = len(path)

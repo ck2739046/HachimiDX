@@ -63,8 +63,6 @@ def main(std_video_path: Path,
             return err("no bpm source: neither static_bpm nor bpm_config is provided")
 
         shared_context = create_shared_context(std_video_path, is_big_touch)
-        tap_speed_print_info = "tap speed not estimated (no tap data)"
-        touch_speed_print_info = "touch speed not estimated (no touch data)"
 
         note_SpeedIndex = None
         touch_SpeedIndex = None
@@ -88,22 +86,30 @@ def main(std_video_path: Path,
         slide_head_data, slide_tail_data = preprocess_slide_data(shared_context)
 
         # 分析音符流速
-        if tap_data:
-            shared_context.note_DefaultMsec, shared_context.note_OptionNotespeed, note_SpeedIndex, tap_speed_print_info = estimate_tap_DefaultMsec(shared_context, tap_data)
-        if touch_data:
-            shared_context.touch_DefaultMsec, shared_context.touch_OptionNotespeed, touch_SpeedIndex, touch_speed_print_info = estimate_touch_DefaultMsec(shared_context, touch_data)
+        ( shared_context.note_DefaultMsec, shared_context.note_OptionNotespeed,
+          note_SpeedIndex, tap_speed_print_info
+        ) = estimate_tap_DefaultMsec(
+          shared_context, tap_data, slide_head_data, hold_data)
+        
+        ( shared_context.touch_DefaultMsec, shared_context.touch_OptionNotespeed,
+          touch_SpeedIndex, touch_speed_print_info
+        ) = estimate_touch_DefaultMsec(
+          shared_context, touch_data, touch_hold_data)
 
         # 分析音符时间
-        tap_info = analyze_tap_time(shared_context, tap_data)    
-        touch_info = analyze_touch_time(shared_context, touch_data)
-        hold_info = analyze_hold_time(shared_context, hold_data)
-        touch_hold_info = analyze_touch_hold_time(shared_context, touch_hold_data)
-        slide_info = analyze_slide_time(
-            shared_context, slide_head_data, slide_tail_data,
-            timing_points,
-            cls_ex_model_path, cls_break_model_path,
-            inference_device, batch_cls
-        )
+        tap_info, slide_info, touch_info, hold_info, touch_hold_info = {}, {}, {}, {}, {}
+        if shared_context.touch_DefaultMsec is not None:
+            touch_info = analyze_touch_time(shared_context, touch_data)
+            touch_hold_info = analyze_touch_hold_time(shared_context, touch_hold_data)
+        if shared_context.note_DefaultMsec is not None:
+            tap_info = analyze_tap_time(shared_context, tap_data)    
+            hold_info = analyze_hold_time(shared_context, hold_data)
+            slide_info = analyze_slide_time(
+                shared_context, slide_head_data, slide_tail_data,
+                timing_points,
+                cls_ex_model_path, cls_break_model_path,
+                inference_device, batch_cls
+            )
 
         # merge/sort/save preprocess info
         final_note_info = merge_preprocess_info(std_video_path, tap_info, slide_info, touch_info, hold_info, touch_hold_info)

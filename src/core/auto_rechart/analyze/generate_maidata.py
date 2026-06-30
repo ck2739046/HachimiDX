@@ -440,7 +440,7 @@ def parse_note_duration(one_beat_Msec, note_type, note_length, base_denominator,
         denominator_to_use = duration_denominator
     else:
         # hold -> base_denominator
-        # 因为 hold 头尾视为两个 tap，所以时值按照 base_denominator 处理
+        # 因为 hold 移动模式与 tap 相同，所以时值与 tap 一样用 base_denominator 处理
         denominator_to_use = base_denominator
     
     # 将 duration 变为分数形式
