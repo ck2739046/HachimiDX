@@ -32,16 +32,17 @@ class MediaToolsPage(QWidget):
         layout.addSpacing(UI_Style.widget_spacing)
 
         # 1. 内部导航栏
-        nav_items = ["Arcade Timing",
-                     "Simply Align",
-                     "Run FFmpeg",
-                     "Measure Bpm"]
+        nav_items = [
+            i18n.t("app.sub_nav_bar.arcade_timing_label"),
+            i18n.t("app.sub_nav_bar.simply_align_label"),
+            i18n.t("app.sub_nav_bar.run_ffmpeg_label"),
+            i18n.t("app.sub_nav_bar.measure_bpm_label"),
+        ]
         nav_tooltips = [
             i18n.t("app.sub_nav_bar.arcade_timing_desc"),
             i18n.t("app.sub_nav_bar.simply_align_desc"),
             i18n.t("app.sub_nav_bar.run_ffmpeg_desc"),
             i18n.t("app.sub_nav_bar.measure_bpm_desc"),
-            i18n.t("app.sub_nav_bar.others_desc"),
         ]
         self.nav_bar = SegmentedNavBar(nav_items,
                                        height=UI_Style.sub_navbar_height,

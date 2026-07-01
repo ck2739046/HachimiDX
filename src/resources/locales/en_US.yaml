@@ -114,6 +114,11 @@ en_US:
   app:
 
     nav_bar:
+      majdata_label: "MajdataEdit"
+      auto_rechart_label: "Auto Rechart"
+      media_tools_label: "Media Tools"
+      tasks_label: "Tasks"
+      settings_label: "Settings"
       majdata_desc: "Embed MajdataEdit"
       auto_rechart_desc: "Auto recharting tool"
       media_tools_desc: "Media processing toolkit"
@@ -121,11 +126,18 @@ en_US:
       settings_desc: "Application settings"
 
     sub_nav_bar:
+      arcade_timing_label: "Arcade Timing"
+      simply_align_label: "Simply Align"
+      run_ffmpeg_label: "Run FFmpeg"
+      measure_bpm_label: "Measure Bpm"
       arcade_timing_desc: "Analyze startup audio delay to align with official audio"
       simply_align_desc: "Quick alignment tool to sync audio and video"
       run_ffmpeg_desc: "FFmpeg transcoding tool"
       measure_bpm_desc: "BPM measurement tool"
-      others_desc: "---"
+
+    tasks_page:
+      auto_rechart_panel_title: "Auto Rechart Tasks"
+      media_panel_title: "Media Tasks"
 
     widgets:
 

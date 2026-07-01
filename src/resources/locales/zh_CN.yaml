@@ -115,6 +115,11 @@ zh_CN:
   app:
 
     nav_bar:
+      majdata_label: "MajdataEdit"
+      auto_rechart_label: "自动抄谱"
+      media_tools_label: "媒体工具"
+      tasks_label: "任务队列"
+      settings_label: "应用设置"
       majdata_desc: "内嵌 MajdataEdit"
       auto_rechart_desc: "自动抄谱工具"
       media_tools_desc: "多媒体处理工具集"
@@ -122,11 +127,18 @@ zh_CN:
       settings_desc: "应用设置"
 
     sub_nav_bar:
+      arcade_timing_label: "开头延时分析"
+      simply_align_label: "快速对齐"
+      run_ffmpeg_label: "FFmpeg"
+      measure_bpm_label: "BPM 测速"
       arcade_timing_desc: "分析开头音频延时工具，与官方音频对齐"
       simply_align_desc: "快速对齐工具，同步音频与视频"
       run_ffmpeg_desc: "FFmpeg 转码工具"
       measure_bpm_desc: "BPM 测量工具"
-      others_desc: "---"
+
+    tasks_page:
+      auto_rechart_panel_title: "自动抄谱任务"
+      media_panel_title: "媒体处理任务"
 
     widgets:
 

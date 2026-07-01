@@ -53,8 +53,8 @@ class TasksPage(BaseOutputPage):
         self._media_scroll = None
         self._media_list_layout = None
 
-        auto_rechart_panel, self._auto_rechart_scroll, self._auto_rechart_list_layout = self._create_queue_panel("Auto Rechart")
-        media_panel, self._media_scroll, self._media_list_layout = self._create_queue_panel("Media")
+        auto_rechart_panel, self._auto_rechart_scroll, self._auto_rechart_list_layout = self._create_queue_panel(i18n.t("app.tasks_page.auto_rechart_panel_title"))
+        media_panel, self._media_scroll, self._media_list_layout = self._create_queue_panel(i18n.t("app.tasks_page.media_panel_title"))
 
         self.content_layout.addWidget(auto_rechart_panel)
         self.content_layout.addWidget(media_panel)
