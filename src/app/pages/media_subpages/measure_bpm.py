@@ -86,18 +86,17 @@ class MeasureBpmPage(BaseOutputPage):
     def _build_block1(self) -> None:
         self.content_layout.addWidget(create_divider(_t("ui_block1_divider")))
 
-        # row1: 是否启用测量工具 + 启动按钮
+        # row1: 是否启用测量工具
         self.enable_bpm_measurer_label = create_label(_t("ui_enable_bpm_measurer_label"))
         self.enable_bpm_measurer_check_box = create_check_box(default_checked=True)
         self.open_bpm_measurer_button = create_stated_button(_t("ui_open_bpm_measurer_button"))
         self.manual_mode_hint_label = create_label(_t("ui_manual_mode_hint"))
         self.create_row(self.enable_bpm_measurer_label,
                         self.enable_bpm_measurer_check_box,
-                        self.open_bpm_measurer_button,
                         self.manual_mode_hint_label,
                         add_stretch=True)
 
-        # row2: 选择 bpm config
+        # row2: 启动按钮 + 选择 bpm config
         self.config_path_label = create_label(_t("ui_config_path_label"))
         (self.config_select_button,
          self.config_path_display,
@@ -108,8 +107,9 @@ class MeasureBpmPage(BaseOutputPage):
             button_length=130,
             name_filter=f"bpm config (*.txt)",
         )
-        self.create_row(self.config_path_label, self.config_select_button,
-                        self.config_help, self.config_path_display)
+        self.create_row(self.open_bpm_measurer_button,
+                        self.config_path_label, self.config_select_button, self.config_help,
+                        self.config_path_display)
 
         # connect
         self.enable_bpm_measurer_check_box.stateChanged.connect(self._on_enable_bpm_changed)
