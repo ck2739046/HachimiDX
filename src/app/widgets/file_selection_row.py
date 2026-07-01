@@ -69,7 +69,8 @@ def create_file_selection_row(button_text: str,
         """默认处理: 打开文件选择界面，更新 LineEdit 显示所选择的文件路径"""
         resolved_filter = _FILTER_MAP.get(name_filter, name_filter) or MEDIA_FILTER
 
-        file_dialog = QFileDialog()
+        parent_window = button.window()
+        file_dialog = QFileDialog(parent_window)
         file_dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
         file_dialog.setNameFilter(resolved_filter)
         file_dialog.setViewMode(QFileDialog.ViewMode.Detail)
@@ -83,6 +84,10 @@ def create_file_selection_row(button_text: str,
                 # 闭包保存自定义处理函数的引用
                 if on_button_clicked_handler:
                     on_button_clicked_handler(selected_file_path)
+        # 对话框关闭后，确保主窗口回到前台
+        if parent_window:
+            parent_window.raise_()
+            parent_window.activateWindow()
 
     # 连接按钮点击事件
     button.clicked.connect(_default_file_select_handler)
@@ -122,13 +127,18 @@ def create_directory_selection_row(button_text: str,
 
     def _default_directory_select_handler():
         """默认处理: 打开文件选择界面，更新 LineEdit 显示所选择的文件路径"""
+        parent_window = button.window()
         start_dir = line_edit.text().strip() or os.getcwd()
         selected_dir = QFileDialog.getExistingDirectory(
-            None,
+            parent_window,
             button_text,
             start_dir,
             QFileDialog.Option.ShowDirsOnly
         )
+        # 对话框关闭后，确保主窗口回到前台
+        if parent_window:
+            parent_window.raise_()
+            parent_window.activateWindow()
         if not selected_dir:
             return
 

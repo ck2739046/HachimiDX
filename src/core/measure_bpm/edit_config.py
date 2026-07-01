@@ -141,6 +141,10 @@ def export_aligned_config(
     default_name = src.stem + "_aligned.txt"
     default_dir = src.parent / default_name
     out_path, _ = QFileDialog.getSaveFileName(parent, "save bpm config", str(default_dir), "bpm config (*.txt)")
+    # 对话框关闭后，确保主窗口回到前台
+    if parent:
+        parent.window().raise_()
+        parent.window().activateWindow()
     if not out_path:
         return err("user cancelled save dialog")
 

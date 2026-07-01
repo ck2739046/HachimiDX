@@ -386,6 +386,9 @@ class SettingsPage(BaseOutputPage):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
+        # 对话框关闭后，确保主窗口回到前台
+        self.window().raise_()
+        self.window().activateWindow()
         if reply != QMessageBox.StandardButton.Yes:
             return
 
