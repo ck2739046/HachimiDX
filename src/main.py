@@ -25,7 +25,7 @@ from src.services import AllServices
 author = "ck2739046"
 repo_name = "HachimiDX"
 
-VERSION = "1.4.2"
+VERSION = "1.4.3"
 REPO = f"https://github.com/{author}/{repo_name}"
 API_RELEASE_LATEST = f"https://api.github.com/repos/{author}/{repo_name}/releases/latest"
 
