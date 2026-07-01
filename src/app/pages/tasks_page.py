@@ -324,12 +324,15 @@ class TasksPage(BaseOutputPage):
 
         for rid in added:
             fp = new_by_id[rid]
-            self.output_widget.append_text(f"[+] {rid} type={fp[1]} status={fp[2]} name=\"{fp[3]}\" accepted_at={fp[4]}")
+            text = f"[+] ({rid}) type = {fp[1]}, status = {fp[2]}, accepted_at = {fp[4]}"
+            if fp[3]:
+                text += f'\n{" "*(6+len(rid))} name = "{fp[3]}"'
+            self.output_widget.append_text(text)
 
         for rid in removed:
             fp = self._last_by_id.get(rid)
             last_status = fp[2] if fp else "?"
-            self.output_widget.append_text(f"[-] {rid} last_status={last_status}")
+            self.output_widget.append_text(f"[-] ({rid}) last_status = {last_status}")
 
         for rid in sorted(new_ids & old_ids):
             old_fp = self._last_by_id.get(rid)
@@ -339,18 +342,18 @@ class TasksPage(BaseOutputPage):
 
             changes = []
             if old_fp[2] != new_fp[2]:
-                changes.append(f"status {old_fp[2]} -> {new_fp[2]}")
+                changes.append(f"status: {old_fp[2]} -> {new_fp[2]}")
             if old_fp[3] != new_fp[3]:
-                changes.append(f"name \"{old_fp[3]}\" -> \"{new_fp[3]}\"")
+                changes.append(f"name: \"{old_fp[3]}\" -> \"{new_fp[3]}\"")
             if old_fp[4] != new_fp[4]:
-                changes.append(f"accepted_at {old_fp[4]} -> {new_fp[4]}")
+                changes.append(f"accepted_at: {old_fp[4]} -> {new_fp[4]}")
             if old_fp[1] != new_fp[1]:
-                changes.append(f"type {old_fp[1]} -> {new_fp[1]}")
+                changes.append(f"type: {old_fp[1]} -> {new_fp[1]}")
             if old_fp[5] != new_fp[5] and new_fp[5]:
-                changes.append(f"error {new_fp[5]}")
+                changes.append(f"error: {new_fp[5]}")
 
             if changes:
-                self.output_widget.append_text(f"[*] {rid} " + "; ".join(changes))
+                self.output_widget.append_text(f"[*] ({rid}) " + ", ".join(changes))
 
         self._last_by_id = new_by_id
 
