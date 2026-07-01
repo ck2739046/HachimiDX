@@ -128,7 +128,7 @@ en_US:
     sub_nav_bar:
       arcade_timing_label: "Arcade Timing"
       simply_align_label: "Simply Align"
-      run_ffmpeg_label: "Run FFmpeg"
+      run_ffmpeg_label: "FFmpeg"
       measure_bpm_label: "Measure Bpm"
       arcade_timing_desc: "Analyze startup audio delay to align with official audio"
       simply_align_desc: "Quick alignment tool to sync audio and video"
@@ -293,7 +293,7 @@ en_US:
           100% = original volume.
 
         # ---- Common Settings ----
-        ui_adjust_start_label: "Start Offset: "
+        ui_adjust_start_label: "Start TTime: "
         ui_adjust_start_help: |
           Controls the starting position of the output file.
 

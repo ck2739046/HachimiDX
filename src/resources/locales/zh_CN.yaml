@@ -294,7 +294,7 @@ zh_CN:
           100% = 原始音量。
 
         # ---- 通用设置 ----
-        ui_adjust_start_label: "起始偏移: "
+        ui_adjust_start_label: "起始时间: "
         ui_adjust_start_help: |
           控制输出文件的起始位置
 
