@@ -5,6 +5,7 @@ import math
 import numpy as np
 from collections import defaultdict
 import subprocess
+import atexit
 from pathlib import Path
 
 from ...schemas.op_result import OpResult, ok, err
@@ -12,6 +13,20 @@ from .note_definition import *
 from .track import _load_track_results
 from ..analyze.tool import catmull_rom_spline
 from .custom_oc_sort.oc_sort import _KalmanBoxTracker
+
+
+def _terminate_ffmpeg_on_exit(proc: "subprocess.Popen") -> None:
+    """atexit 兜底: 进程退出时确保 ffmpeg 子进程被终止, 避免孤儿进程"""
+    try:
+        if proc.poll() is None:
+            proc.kill()
+            try:
+                proc.wait(timeout=5)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
 
 
 # 是否绘制 Kalman 预测框（灰色，仅 SLIDE）
@@ -129,6 +144,8 @@ def main(std_video_path: Path,
         )
         if ffmpeg_process.stdin is None:
             raise Exception("FFmpeg stdin pipe is unavailable")
+        # 注册 atexit 兜底
+        atexit.register(_terminate_ffmpeg_on_exit, ffmpeg_process)
         
         # 逐帧处理
         start_time = time.time()
@@ -315,6 +332,8 @@ def main(std_video_path: Path,
 
         cap.release()
         cap = None
+        # ffmpeg 已正常结束, 注销 atexit
+        atexit.unregister(_terminate_ffmpeg_on_exit, ffmpeg_process)
         ffmpeg_process = None
 
         elapsed_time = time.time() - start_time
@@ -343,6 +362,8 @@ def main(std_video_path: Path,
                     ffmpeg_process.kill()
             except Exception:
                 pass
+            # ffmpeg 已被 kill, 注销 atexit
+            atexit.unregister(_terminate_ffmpeg_on_exit, ffmpeg_process)
 
             if ffmpeg_process.stderr is not None:
                 try:
