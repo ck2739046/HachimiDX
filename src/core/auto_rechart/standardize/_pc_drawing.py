@@ -125,6 +125,35 @@ class DrawingMixin:
 
 
 
+    def _draw_center_handle(self, panel: np.ndarray, panel_side: str) -> None:
+        """左右面板通用: 在面板中心绘制可拖动的中心点"""
+        if self.center_drag_panel == panel_side and self._center_drag_mouse is not None:
+            cx = int(round(self._center_drag_mouse[0]))
+            cy = int(round(self._center_drag_mouse[1]))
+        else:
+            cx = self.FRAME_PREVIEW_SIZE // 2
+            cy = self.FRAME_PREVIEW_SIZE // 2
+
+        cv2.circle(panel, (cx, cy),
+                   self.PERSPECTIVE_POINT_RADIUS,
+                   self.POINT_COLOR, 1)
+        cv2.circle(panel, (cx, cy),
+                   self.PERSPECTIVE_POINT_RADIUS + self.OUTER_RADIUS_PLUS,
+                   (255, 255, 255), 1)
+        cv2.putText(
+            panel, "C",
+            (cx + 10, cy - 10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
+
+
+
+
+
     def _draw_quad_overlay(self, panel: np.ndarray, meta: Dict[str, float]) -> None:
         """在左面板绘制四边形透视框"""
         if self.quad_points is None:

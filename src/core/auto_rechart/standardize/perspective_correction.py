@@ -85,6 +85,17 @@ class PerspectiveCorrection(DrawingMixin, TransformMixin, InteractionMixin):
         # 正在拖动的滑块名称，None表示没有
         self.dragging_slider_name: Optional[str] = None
 
+        # 正在拖动的中心点面板，None表示没有
+        self.center_drag_panel: Optional[str] = None  # None / "left" / "right"
+        self._center_drag_mouse: Optional[Tuple[float, float]] = None
+        self._center_drag_start_mouse: Optional[Tuple[float, float]] = None
+        self._center_drag_start_offset_x: int = 0
+        self._center_drag_start_offset_y: int = 0
+
+        # 左面板的输入偏移
+        self.input_offset_x_px = self.OFFSET_DEFAULT_PX
+        self.input_offset_y_px = self.OFFSET_DEFAULT_PX
+
         self.input_zoom_percent = self.SCALE_DEFAULT_PERCENT
         self.output_zoom_percent = self.SCALE_DEFAULT_PERCENT
         self.output_stretch_x_percent = self.STRETCH_DEFAULT_PERCENT
@@ -232,10 +243,14 @@ class PerspectiveCorrection(DrawingMixin, TransformMixin, InteractionMixin):
 
                 # 绘制画面
                 left_panel, left_meta = self._compose_panel(
-                    raw_frame, current_input_zoom_percent)
+                    raw_frame, current_input_zoom_percent,
+                    offset_x=self.input_offset_x_px,
+                    offset_y=self.input_offset_y_px)
                 # 绘制四边形透视点
                 self.left_panel_meta = left_meta
                 self._draw_quad_overlay(left_panel, left_meta)
+                # 绘制中心拖拽点
+                self._draw_center_handle(left_panel, "left")
 
 
 
@@ -256,6 +271,8 @@ class PerspectiveCorrection(DrawingMixin, TransformMixin, InteractionMixin):
                 )
                 # 绘制固定参考标记
                 self._draw_reference_marks(right_panel)
+                # 绘制中心拖拽点
+                self._draw_center_handle(right_panel, "right")
 
 
 

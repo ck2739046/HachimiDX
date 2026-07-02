@@ -8,10 +8,58 @@ from typing import Dict
 class InteractionMixin:
 
 
+    def _is_center_hit(self, px: float, py: float) -> bool:
+        """判断点击是否命中面板中心点 (容差 = 中心点半径)"""
+        cx = float(self.FRAME_PREVIEW_SIZE // 2)
+        cy = float(self.FRAME_PREVIEW_SIZE // 2)
+        dist = float(np.hypot(px - cx, py - cy))
+        return dist <= float(self.PERSPECTIVE_POINT_RADIUS + self.OUTER_RADIUS_PLUS)
+
+
+    def _begin_center_drag(self, panel_side: str, px: float, py: float) -> None:
+        """开始拖动中心点: 记录起始鼠标位置与对应面板的当前 offset 快照"""
+        self.center_drag_panel = panel_side
+        self._center_drag_start_mouse = (px, py)
+        self._center_drag_mouse = (px, py)
+        if panel_side == "left":
+            self._center_drag_start_offset_x = self.input_offset_x_px
+            self._center_drag_start_offset_y = self.input_offset_y_px
+        else:
+            self._center_drag_start_offset_x = self.output_offset_x_px
+            self._center_drag_start_offset_y = self.output_offset_y_px
+
+
+    def _handle_center_drag_move(self, x: int, y: int) -> None:
+        """拖动中心点时按鼠标增量更新对应面板 offset, 并刷新手柄显示位置"""
+        if self.center_drag_panel == "left":
+            px, py = float(x), float(y)
+        else:
+            px, py = float(x - self.FRAME_PREVIEW_SIZE), float(y)
+
+        self._center_drag_mouse = (px, py)
+        sx, sy = self._center_drag_start_mouse  # type: ignore[misc]
+        delta_x = int(round(px - sx))
+        delta_y = int(round(py - sy))
+
+        new_offset_x = self._center_drag_start_offset_x + delta_x
+        new_offset_y = self._center_drag_start_offset_y + delta_y
+
+        if self.center_drag_panel == "left":
+            self.input_offset_x_px = self._clamp_value(new_offset_x, self.OFFSET_MIN_PX, self.OFFSET_MAX_PX)
+            self.input_offset_y_px = self._clamp_value(new_offset_y, self.OFFSET_MIN_PX, self.OFFSET_MAX_PX)
+        else:
+            self.output_offset_x_px = self._clamp_value(new_offset_x, self.OFFSET_MIN_PX, self.OFFSET_MAX_PX)
+            self.output_offset_y_px = self._clamp_value(new_offset_y, self.OFFSET_MIN_PX, self.OFFSET_MAX_PX)
+
+
+
+
+
+
     def _on_mouse_event(self, event, x, y, flags, param) -> None:
         """
         鼠标事件总入口
-        依次分发到滑块拖拽、四边形透视点拖拽 (左面板四点)
+        依次分发到滑块拖拽、中心点拖拽、四边形点拖拽 (左面板四点优先级最高)
         """
         _ = flags
         _ = param
@@ -21,32 +69,57 @@ class InteractionMixin:
         if self._handle_slider_event(event, x, y):
             return
 
-        # 超出左面板区域: 仅清理状态
-        if y >= self.FRAME_PREVIEW_SIZE or x >= self.FRAME_PREVIEW_SIZE:
+        # 正在拖动中心点
+        if self.center_drag_panel is not None:
+            if event in (cv2.EVENT_MOUSEMOVE, cv2.EVENT_LBUTTONUP):
+                self._handle_center_drag_move(x, y)
             if event == cv2.EVENT_LBUTTONUP:
-                self.dragging_point_index = -1
+                self.center_drag_panel = None
             return
 
-        # 左面板: 四边形透视点拖拽
-        if event == cv2.EVENT_LBUTTONDOWN:
-            min_dist = float("inf")
-            min_idx = -1
-            for idx, frame_pt in enumerate(self.quad_points):
-                panel_pt = self._frame_to_panel(frame_pt, self.left_panel_meta)
-                dist = float(np.hypot(panel_pt[0] - x, panel_pt[1] - y))
-                if dist < min_dist:
-                    min_dist = dist
-                    min_idx = idx
-            if min_dist <= float(self.PERSPECTIVE_POINT_RADIUS + self.OUTER_RADIUS_PLUS):
-                self.dragging_point_index = min_idx
+        # 超出面板区域: 仅清理状态
+        if y >= self.FRAME_PREVIEW_SIZE:
+            if event == cv2.EVENT_LBUTTONUP:
+                self.dragging_point_index = -1
+                self.center_drag_panel = None
+            return
 
-        elif event == cv2.EVENT_MOUSEMOVE:
-            if self.dragging_point_index >= 0:
-                new_point = self._panel_to_frame(float(x), float(y), self.left_panel_meta)
-                self.quad_points[self.dragging_point_index] = new_point
+        # 确定当前面板与面板内 x 坐标
+        is_left = x < self.FRAME_PREVIEW_SIZE
+        panel_side = "left" if is_left else "right"
+        panel_x = x if is_left else x - self.FRAME_PREVIEW_SIZE
 
-        elif event == cv2.EVENT_LBUTTONUP:
+        # 鼠标抬起: 左右面板统一清理
+        if event == cv2.EVENT_LBUTTONUP:
             self.dragging_point_index = -1
+            return
+
+        # 鼠标按下
+        if event == cv2.EVENT_LBUTTONDOWN:
+
+            # 左面板: 四边形透视点优先
+            if is_left:
+                min_dist = float("inf")
+                min_idx = -1
+                for idx, frame_pt in enumerate(self.quad_points):
+                    panel_pt = self._frame_to_panel(frame_pt, self.left_panel_meta)
+                    dist = float(np.hypot(panel_pt[0] - x, panel_pt[1] - y))
+                    if dist < min_dist:
+                        min_dist = dist
+                        min_idx = idx
+                if min_dist <= float(self.PERSPECTIVE_POINT_RADIUS + self.OUTER_RADIUS_PLUS):
+                    self.dragging_point_index = min_idx
+                    return
+                
+            # 左右面板通用: 鼠标按下时处理中心点拖拽
+            if self._is_center_hit(float(panel_x), float(y)):
+                self._begin_center_drag(panel_side, float(panel_x), float(y))
+            return
+
+        # 鼠标移动: 左面板四边形透视点拖拽
+        if event == cv2.EVENT_MOUSEMOVE and is_left and self.dragging_point_index >= 0:
+            new_point = self._panel_to_frame(float(x), float(y), self.left_panel_meta)
+            self.quad_points[self.dragging_point_index] = new_point
 
 
 
