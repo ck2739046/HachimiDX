@@ -40,6 +40,7 @@ def main(std_video_path: Path,
          cls_ex_model_path: Path = None,
          static_bpm: float = None,
          bpm_config: Path = None,
+         app_version: str = ''
         ) -> OpResult[None]:
     
     try:
@@ -121,7 +122,8 @@ def main(std_video_path: Path,
         # generate maidata
         generate_maidata(shared_context, timing_points, chart_lv,
                          base_denominator, duration_denominator, final_note_info,
-                         note_SpeedIndex, touch_SpeedIndex)
+                         note_SpeedIndex, touch_SpeedIndex,
+                         app_version)
 
         print(tap_speed_print_info)
         print(touch_speed_print_info)

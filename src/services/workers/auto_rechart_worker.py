@@ -33,6 +33,7 @@ from src.core.auto_rechart.detect.main import main as detect_main
 from src.core.auto_rechart.analyze.main import main as analyze_main
 from src.core.schemas.media_config import MediaType
 from src.core.schemas.op_result import print_op_result
+from src.main import VERSION
 
 
 
@@ -127,6 +128,7 @@ def main(args: list[str]) -> bool:
                 batch_cls=_get_cfg(cfg, "predict_batch_size_classify", int),
                 cls_break_model_path=_get_cfg(cfg, "cls_break_model_path", Path),
                 cls_ex_model_path=_get_cfg(cfg, "cls_ex_model_path", Path),
+                app_version=VERSION
             )
             if not result.is_ok:
                 return _fail(print_op_result(result))
