@@ -146,6 +146,17 @@ class ProcessManager(QObject):
 
 
 
+    def kill_all_running(self) -> None:
+        """
+        同步强杀所有正在运行的子进程
+        直接对每个进程的整棵进程树执行 taskkill /F /T
+        """
+        for rid in list(self._procs.keys()):
+            self._force_kill_if_running(rid)
+
+
+
+
     # -------------------
     # Internal helpers
     # -------------------  

@@ -8,6 +8,7 @@ from .i18n_manage import I18nManage
 from .pipeline.auto_rechart_pipeline import AutoRechartPipeline
 from .pipeline.media_pipeline import MediaPipeline
 from .majdata_sync_server import VideoSyncServer
+from .process_manager import ProcessManager
 import i18n
 
 
@@ -119,7 +120,11 @@ class AllServices:
 
         print(i18n.t("all_services.notice_shutting_down_all"))
 
-        # 关闭顺序要反着来
+        # 强杀所有仍在运行的子进程任务
+        try:
+            ProcessManager.get_instance().kill_all_running()
+        except Exception:
+            pass
 
         # Stop Majdata sync server
         try:
