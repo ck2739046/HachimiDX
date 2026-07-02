@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 import subprocess
@@ -60,6 +61,8 @@ def shutdown_majdata() -> None:
 
 
 
+
+
 def _parent_alive(pid: int, expected_create_time: float) -> bool:
     """检测父进程是否存活"""
     try:
@@ -67,6 +70,73 @@ def _parent_alive(pid: int, expected_create_time: float) -> bool:
         return proc.create_time() == expected_create_time
     except (psutil.NoSuchProcess, psutil.AccessDenied):
         return False
+
+
+
+
+
+
+
+
+
+
+def _find_descendant_pids(root_pid: int) -> list[int]:
+    """
+    返回所有以 root_pid 为祖先的进程 PID
+    不含 root 本身、不含 watchdog 自身
+    """
+    self_pid = os.getpid()
+    pid_to_ppid: dict[int, int] = {}
+    for proc in psutil.process_iter(['pid', 'ppid']):
+        try:
+            info = proc.info
+            pid = info['pid']
+            ppid = info['ppid']
+            if pid is None or ppid is None:
+                continue
+            pid_to_ppid[pid] = ppid
+        except Exception:
+            pass
+
+    descendants: list[int] = []
+    for pid in pid_to_ppid:
+        if pid == root_pid or pid == self_pid:
+            continue
+        cur = pid_to_ppid.get(pid, 0)
+        seen: set[int] = set()
+        is_desc = False
+        while cur > 0 and cur not in seen:
+            if cur == root_pid:
+                is_desc = True
+                break
+            seen.add(cur)
+            cur = pid_to_ppid.get(cur, 0)
+        if is_desc:
+            descendants.append(pid)
+    return descendants
+
+
+
+def shutdown_orphaned_subprocesses(parent_pid: int) -> None:
+    """强杀主进程派生的所有残留子进程"""
+    pids = _find_descendant_pids(parent_pid)
+    if not pids:
+        return
+    print(f"[watchdog] Found {len(pids)} orphaned descendant process(es): {pids}, force killing...")
+    for pid in pids:
+        try:
+            # 强杀每个进程的整棵进程树
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)],
+                            timeout=5, capture_output=True)
+        except Exception:
+            pass
+
+
+
+
+
+
+
 
 
 def main() -> int:
@@ -88,10 +158,11 @@ def main() -> int:
     while True:
         if not _parent_alive(parent_pid, parent_create_time):
             print(f"[watchdog] Parent PID {parent_pid} is gone, cleaning up...")
+            shutdown_orphaned_subprocesses(parent_pid)
             shutdown_majdata()
             print("[watchdog] Cleanup done, exiting.")
             return 0
-        time.sleep(0.1)
+        time.sleep(0.02)
 
 
 if __name__ == "__main__":
