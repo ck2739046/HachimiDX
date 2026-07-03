@@ -225,22 +225,26 @@ class DrawingMixin:
         self._draw_right_fine_offset_sliders(canvas)
         self._draw_left_offset_readout(canvas)
 
+        hint_text = "SPACE: pause/play  ESC: exit"
+        hint_y = self.WINDOW_HEIGHT - 15
+        hint_x = 12
         cv2.putText(
             canvas,
-            "SPACE: pause/play  ESC: exit",
-            (12, self.WINDOW_HEIGHT - 15),
+            hint_text,
+            (hint_x, hint_y),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.6,
             (255, 255, 255),
-            2,
+            1,
             cv2.LINE_AA,
         )
 
         if not is_playing:
+            # PAUSED 放到 hint 行右侧
             cv2.putText(
                 canvas,
                 "PAUSED",
-                (12, self.WINDOW_HEIGHT - 40),
+                (hint_x + 300, hint_y),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.6,
                 (0, 255, 255), # yellow
