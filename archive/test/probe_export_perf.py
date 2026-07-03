@@ -53,7 +53,10 @@ def probe(std_video_path: Path, no_draw: bool, preset: str,
     fps = cap.get(cv2.CAP_PROP_FPS)
     fps_for_calc = float(fps) if fps and fps > 0 else 30.0
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    frame_size = video_width * video_height * 3
+    # yuv420p 直传: 数据量减半 (1.5 B/px), 跳过 ffmpeg 内部 bgr->yuv 转换
+    yuv = args.yuv
+    bytes_per_pixel = 1.5 if yuv else 3
+    frame_size = int(video_width * video_height * bytes_per_pixel)
     print(f"视频: {video_width}x{video_height} @ {fps_for_calc:.1f}fps, 共 {total_frames} 帧")
 
     # 纯解码上限: 只 cap.read, 不绘制不编码, 得到 decode 理论天花板
@@ -92,6 +95,8 @@ def probe(std_video_path: Path, no_draw: bool, preset: str,
         tag += '_par'
     if args.hwenc:
         tag += '_nvenc'
+    if args.yuv:
+        tag += '_yuv'
     if synthetic_draw:
         tag += f'_syn{synthetic_draw}'
     out_path = std_video_path.parent / f"_probe_{tag}.mp4"
@@ -101,7 +106,7 @@ def probe(std_video_path: Path, no_draw: bool, preset: str,
     ffmpeg_cmd = [
         str(PathManage.FFMPEG_EXE_PATH),
         '-y', '-hide_banner', '-loglevel', 'error',
-        '-f', 'rawvideo', '-pix_fmt', 'bgr24',
+        '-f', 'rawvideo', '-pix_fmt', 'yuv420p' if yuv else 'bgr24',
         '-s', f'{video_width}x{video_height}', '-r', str(fps_for_calc),
         '-i', '-',
     ]
@@ -132,6 +137,7 @@ def probe(std_video_path: Path, no_draw: bool, preset: str,
     batch_mv = memoryview(batch)
 
     # 解码源: parallel=True 时后台线程解码, 主线程从队列取帧; 否则串行 cap.read
+    # 注: cvtColor 不放此线程 —— 解码线程已是较慢方, 加 cvt 会反成瓶颈 (实测 58s > 47s)
     decode_thread = None
     if parallel:
         import threading as _threading
@@ -160,7 +166,7 @@ def probe(std_video_path: Path, no_draw: bool, preset: str,
     builders: dict = {}
     last_seen: dict = {}
 
-    t_decode = t_draw = t_write = 0.0
+    t_decode = t_draw = t_write = t_cvt = 0.0
     off = 0
     count_in_batch = 0
 
@@ -220,6 +226,13 @@ def probe(std_video_path: Path, no_draw: bool, preset: str,
                             0.6, (255, 255, 255), 2)
             t_draw += time.perf_counter() - ts
 
+        # yuv420p 直传: BGR -> YUV_I420 (内存布局即 yuv420p), 数据量减半
+        # 始终在主线程做: 解码线程已满载 (decode 33s > 主线程无 cvt 18s), 放它那更慢
+        if yuv:
+            ts = time.perf_counter()
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2YUV_I420)
+            t_cvt += time.perf_counter() - ts
+
         batch_mv[off:off + frame_size] = frame.reshape(-1)
         off += frame_size
         count_in_batch += 1
@@ -257,10 +270,14 @@ def probe(std_video_path: Path, no_draw: bool, preset: str,
         mode += " +并行解码"
     if synthetic_draw:
         mode += f" +合成绘制x{synthetic_draw}"
+    if yuv:
+        mode += " +yuv420p直传"
     print(f"\n===== {mode}  preset={preset} =====")
     print(f"总耗时(主循环+wait): {t_total:.2f}s   平均 {fps:.1f} fps")
     print(f"  T_get    (取帧/阻塞): {_fmt_pct(t_decode, t_total)}  <- 并行模式下接近0=解码跑赢, 大=解码是瓶颈")
     print(f"  T_draw   (绘制)     : {_fmt_pct(t_draw, t_total)}")
+    if yuv:
+        print(f"  T_cvt    (BGR->YUV) : {_fmt_pct(t_cvt, t_total)}")
     print(f"  T_write  (反压)     : {_fmt_pct(t_write, t_total)}")
     print(f"  T_wait   (收尾)     : {_fmt_pct(t_wait, t_total)}")
     print(f"输出: {out_path}")
@@ -292,6 +309,7 @@ if __name__ == "__main__":
     ap.add_argument("--parallel", action="store_true", help="后台线程解码, 与绘制并行 (模拟改后的 main)")
     ap.add_argument("--synthetic-draw", type=int, default=0, help="每帧合成绘制 N 个框+标签, 模拟真实绘制负载")
     ap.add_argument("--hwenc", action="store_true", help="用 h264_nvenc 硬件编码 (GPU) 代替 libx264")
+    ap.add_argument("--yuv", action="store_true", help="直传 yuv420p (Python 侧 cvtColor, 数据量减半)")
     ap.add_argument("--preset", default="veryfast", help="x264 preset (veryfast/fast/ultrafast...)")
     args = ap.parse_args()
     if args.real_main:

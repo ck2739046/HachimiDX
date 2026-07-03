@@ -403,12 +403,13 @@ def main(std_video_path: Path, total_frames: int) -> OpResult[Path]:
 
         # FFmpeg 管道
         ffmpeg_exe = str(PathManage.FFMPEG_EXE_PATH)
-        frame_size = video_width * video_height * 3
+        # yuv420p 直传: Python 侧预先 cvtColor 将 bgr24 转成 yuv420p  
+        frame_size = video_width * video_height * 3 // 2
         ffmpeg_cmd = [
             ffmpeg_exe,
             '-y', '-hide_banner', '-loglevel', 'error',
             '-f', 'rawvideo',
-            '-pix_fmt', 'bgr24',
+            '-pix_fmt', 'yuv420p',
             '-s', f'{video_width}x{video_height}',
             '-r', str(fps_for_calc),
             '-i', '-',
@@ -510,6 +511,9 @@ def main(std_video_path: Path, total_frames: int) -> OpResult[Path]:
             # 绘制 Kalman 预测框
             if _DRAW_KALMAN_PREDICTION:
                 _draw_kalman_predictions(frame, kalman_predictions, frame_number, {})
+
+            # BGR -> YUV_I420
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2YUV_I420)
 
             # 写入批量缓冲
             batch_mv[off:off + frame_size] = frame.reshape(-1)
