@@ -6,6 +6,8 @@ import numpy as np
 from collections import defaultdict, deque
 import subprocess
 import atexit
+import queue
+import threading
 from dataclasses import dataclass
 from typing import Optional
 from pathlib import Path
@@ -50,6 +52,9 @@ _MAX_TRACK_HISTORY_LEN = 3000
 # FFmpeg 批量写入帧数
 _BATCH_FRAMES = 30
 
+# 后台解码线程的队列上限 (帧)
+_DECODE_QUEUE_SIZE = 30
+
 # Catmull-Rom 样条参数
 _SPLINE_SAMPLES = 4
 _SPLINE_TENSION = 1.5
@@ -76,6 +81,18 @@ def _terminate_ffmpeg_on_exit(proc: "subprocess.Popen") -> None:
                 pass
     except Exception:
         pass
+
+
+def _decode_worker(cap, out_queue) -> None:
+    """后台解码线程: 持续 cap.read, 把 (ret, frame) 推入队列"""
+    try:
+        while True:
+            ret, frame = cap.read()
+            out_queue.put((ret, frame))
+            if not ret:
+                return
+    except Exception:
+        out_queue.put((False, None))
 
 
 
@@ -352,7 +369,9 @@ def main(std_video_path: Path, total_frames: int) -> OpResult[Path]:
     print("开始导出视频模块...")
     cap = None
     ffmpeg_process = None
-    
+    decode_thread = None
+    decode_queue = None
+
     try:
         # 读取追踪结果
         track_results = _load_track_results(std_video_path.parent)
@@ -434,8 +453,15 @@ def main(std_video_path: Path, total_frames: int) -> OpResult[Path]:
         off = 0
         count_in_batch = 0
 
+        # 后台解码线程: cap.read 在独立线程跑, 主线程只 queue.get + 绘制
+        # 队列上限 _DECODE_QUEUE_SIZE, 满队列时, 解码线程暂停解码节省性能
+        decode_queue: "queue.Queue" = queue.Queue(maxsize=_DECODE_QUEUE_SIZE)
+        decode_thread = threading.Thread(
+            target=_decode_worker, args=(cap, decode_queue), daemon=True)
+        decode_thread.start()
+
         for frame_number in range(total_frames):
-            ret, frame = cap.read()
+            ret, frame = decode_queue.get()
             if not ret:
                 break
 
@@ -505,6 +531,9 @@ def main(std_video_path: Path, total_frames: int) -> OpResult[Path]:
                 off = 0
                 count_in_batch = 0
 
+        # 回收解码线程
+        decode_thread.join()
+
         # 写入剩余缓冲
         if off > 0:
             stdin.write(batch_mv[:off])
@@ -537,6 +566,18 @@ def main(std_video_path: Path, total_frames: int) -> OpResult[Path]:
         return ok(Path(final_track_video_path))
 
     except Exception as e:
+        # 排空解码队列: 解除解码线程在满队列上的阻塞, 让其读到 EOF 自然退出
+        if decode_queue is not None:
+            try:
+                while True:
+                    ret, _ = decode_queue.get_nowait()
+                    if not ret:
+                        break
+            except Exception:
+                pass
+        if decode_thread is not None:
+            decode_thread.join(timeout=2)
+
         if cap is not None:
             try:
                 cap.release()
