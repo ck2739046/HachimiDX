@@ -118,3 +118,71 @@ class TransformMixin:
         adjusted = frame.astype(np.float32) + brightness * 255.0
         adjusted = np.clip(adjusted, 0, 255)
         return adjusted.astype(np.uint8)
+
+
+    def _compute_output_panel_matrix(self) -> np.ndarray:
+        """
+        右面板坐标 的复合 3×3 透视矩阵。
+
+        数学等价于渲染链的正向映射:
+            M_warp (透视矫正, 帧→帧)
+          × S      (stretch 拉伸, diag(sx, sy, 1))
+          × T      (zoom 缩放 + 面板左上角偏移)
+
+        默认 quad / stretch=1 / zoom=1 / offset=0 时
+        退化为 identity, 与原默认渲染等价
+        """
+        fw = float(self.frame_width)
+        fh = float(self.frame_height)
+
+        # M_warp: 透视矫正
+        if self.quad_points is None or fw <= 0.0 or fh <= 0.0:
+            m_warp = np.eye(3, dtype=np.float32)
+        else:
+            src_quad = self.quad_points.astype(np.float32)
+            default_quad = self._build_default_quad(int(round(fw)), int(round(fh)))
+            if np.array_equal(src_quad, default_quad):
+                m_warp = np.eye(3, dtype=np.float32)
+            else:
+                dst_quad = self._build_target_quad(src_quad)
+                m_warp = cv2.getPerspectiveTransform(src_quad, dst_quad)
+
+        # S: stretch 拉伸
+        sx = self.output_stretch_x_percent / 100.0
+        sy = self.output_stretch_y_percent / 100.0
+        s = np.array([[sx, 0.0, 0.0],
+                      [0.0, sy, 0.0],
+                      [0.0, 0.0, 1.0]], dtype=np.float32)
+
+        # T: 先 zoom 缩放, 再应用面板左上角偏移
+        z = self.output_zoom_percent / 100.0
+        scaled_w = fw * sx * z
+        scaled_h = fh * sy * z
+        tlx = (self.FRAME_PREVIEW_SIZE - scaled_w) * 0.5 \
+            + (self.output_offset_x_px + self.output_fine_offset_x_px)
+        tly = (self.FRAME_PREVIEW_SIZE - scaled_h) * 0.5 \
+            + (self.output_offset_y_px + self.output_fine_offset_y_px)
+        t = np.array([[z, 0.0, tlx],
+                      [0.0, z, tly],
+                      [0.0, 0.0, 1.0]], dtype=np.float32)
+
+        return (t @ s @ m_warp).astype(np.float32)
+
+
+
+    def _render_output_panel(self, raw_frame: np.ndarray) -> np.ndarray:
+        """透视 → 拉伸 → 缩放 → 位移 → 亮度"""
+
+        # 单次 cv2.warpPerspective 直接实现 透视+拉伸+位移+缩放
+        matrix = self._compute_output_panel_matrix()
+        panel = cv2.warpPerspective(
+            raw_frame,
+            matrix,
+            (self.FRAME_PREVIEW_SIZE, self.FRAME_PREVIEW_SIZE),
+            flags=cv2.INTER_LINEAR,
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=(0, 0, 0),
+        )
+        # 调整亮度
+        panel = self._apply_output_brightness(panel)
+        return panel

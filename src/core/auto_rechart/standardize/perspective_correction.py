@@ -262,19 +262,8 @@ class PerspectiveCorrection(DrawingMixin, TransformMixin, InteractionMixin):
 
                 # 5c. 右面板
 
-                # 透视矫正
-                corrected_frame = self._apply_perspective_correction(raw_frame)
-                # 拉伸
-                corrected_frame = self._apply_output_stretch(corrected_frame)
-                # 调整亮度
-                corrected_frame = self._apply_output_brightness(corrected_frame)
-                # 绘制画面
-                right_panel, _ = self._compose_panel(
-                    corrected_frame,
-                    current_output_zoom_percent,
-                    offset_x=self.output_offset_x_px + self.output_fine_offset_x_px,
-                    offset_y=self.output_offset_y_px + self.output_fine_offset_y_px,
-                )
+                # 右面板: 透视 → 拉伸 → 缩放 → 位移 → 亮度
+                right_panel = self._render_output_panel(raw_frame)
                 # 绘制固定参考标记
                 self._draw_reference_marks(right_panel)
                 # 绘制中心拖拽点
