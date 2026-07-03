@@ -197,11 +197,19 @@ class PerspectiveCorrection(DrawingMixin, TransformMixin, InteractionMixin):
             is_playing = True
             raw_frame = None
 
+            # 高帧率跳帧: fps > 70 时目标帧率减半, 主循环每隔一帧 cap.read() 丢弃
+            # 最多跳一帧 (不递归减半): 110fps→55fps, 200fps→100fps
+            skip_frame = fps > 70.0
+            effective_fps = fps / 2.0 if skip_frame else fps
+
             # 动态delay保证播放时接近目标fps
             delay = 1
             last_time = time.time() * 1000
-            target_delay_ms = max(1, int(1000 / fps))
+            target_delay_ms = max(1, int(1000 / effective_fps))
             delay_when_paused_ms = 50 # 暂停时视为 20 fps，省点性能
+
+            # 跳帧 toggle: 0=保留本帧, 1=跳过下一帧 (仅播放时生效)
+            skip_toggle = 0
 
             # 从 start_frame 开始播放
             cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
@@ -224,7 +232,14 @@ class PerspectiveCorrection(DrawingMixin, TransformMixin, InteractionMixin):
 
                 # 5a. 读取下一帧
                 if is_playing or raw_frame is None:
-                    ret, raw_frame = cap.read()
+                    # 高帧率跳帧: toggle=1 时本帧将被丢弃, 用 cap.grab() 仅推进帧指针, 跳过解码
+                    will_skip = skip_frame and is_playing and skip_toggle == 1
+
+                    if will_skip:
+                        ret = cap.grab()
+                    else:
+                        ret, raw_frame = cap.read()
+
                     if not ret or current_frame_idx > end_frame:
                         # 播放到 末尾或 end_frame 后循环回 start_frame
                         cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
@@ -232,10 +247,19 @@ class PerspectiveCorrection(DrawingMixin, TransformMixin, InteractionMixin):
                         continue
                     current_frame_idx += 1
 
+                    # 跳过的帧: 不解码就不更新 raw_frame, 保持上一渲染帧, 直接进入下一轮
+                    if will_skip:
+                        skip_toggle = 0
+                        continue
+
                     self.frame_height, self.frame_width = raw_frame.shape[:2]
                     # 如果没有透视四点，生成默认的透视四点
                     if self.quad_points is None:
                         self.quad_points = self._build_default_quad(self.frame_width, self.frame_height)
+
+                    # 本帧将渲染, 置 toggle=1 让下一帧走 grab 跳过
+                    if skip_frame and is_playing:
+                        skip_toggle = 1
 
                 
 
