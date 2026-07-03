@@ -127,12 +127,26 @@ class DrawingMixin:
 
     def _draw_center_handle(self, panel: np.ndarray, panel_side: str) -> None:
         """左右面板通用: 在面板中心绘制可拖动的中心点"""
+        # 面板几何中心 (固定参考红点)
+        fixed_cx = self.FRAME_PREVIEW_SIZE // 2
+        fixed_cy = self.FRAME_PREVIEW_SIZE // 2
+
         if self.center_drag_panel == panel_side and self._center_drag_mouse is not None:
             cx = int(round(self._center_drag_mouse[0]))
             cy = int(round(self._center_drag_mouse[1]))
         else:
-            cx = self.FRAME_PREVIEW_SIZE // 2
-            cy = self.FRAME_PREVIEW_SIZE // 2
+            cx = fixed_cx
+            cy = fixed_cy
+
+        # 直线连接 固定中心红点 -> 当前拖拽点
+        if (cx, cy) != (fixed_cx, fixed_cy):
+            cv2.line(panel, (fixed_cx, fixed_cy), (cx, cy),
+                     self.CENTER_REF_LINE_COLOR, self.CENTER_REF_LINE_THICK)
+
+        # 固定中心: 实心小红点
+        cv2.circle(panel, (fixed_cx, fixed_cy),
+                   self.CENTER_REF_RADIUS,
+                   self.CENTER_REF_COLOR, -1)
 
         cv2.circle(panel, (cx, cy),
                    self.PERSPECTIVE_POINT_RADIUS,

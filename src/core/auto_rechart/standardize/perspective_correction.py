@@ -30,6 +30,12 @@ class PerspectiveCorrection(DrawingMixin, TransformMixin, InteractionMixin):
     OUTER_RADIUS_PLUS = 3
     POINT_COLOR = (0, 128, 255) # 橘色
 
+    # 面板中心固定参考红点 (用于可视化中心拖拽点的偏移)
+    CENTER_REF_RADIUS = 4
+    CENTER_REF_COLOR = (0, 0, 255)   # 实心小红点 (BGR 红)
+    CENTER_REF_LINE_THICK = 1
+    CENTER_REF_LINE_COLOR = (0, 0, 255)
+
     SCALE_MIN_PERCENT = 20
     SCALE_MAX_PERCENT = 300
     SCALE_DEFAULT_PERCENT = 100
