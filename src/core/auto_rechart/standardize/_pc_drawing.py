@@ -223,6 +223,7 @@ class DrawingMixin:
         self._draw_right_stretch_sliders(canvas)
         self._draw_right_offset_sliders(canvas)
         self._draw_right_fine_offset_sliders(canvas)
+        self._draw_left_offset_readout(canvas)
 
         cv2.putText(
             canvas,
@@ -345,6 +346,37 @@ class DrawingMixin:
             percent_value=self.output_brightness_percent,
             min_percent=geo["min"],
             max_percent=geo["max"],
+        )
+
+
+    def _draw_left_offset_readout(self, canvas: np.ndarray) -> None:
+        """左面板控制区常态化显示 input offset (纯文本, 无滑块)"""
+        geo = self._get_slider_geometries()
+        # 高度: 与第三行 (offset) 滑块同高
+        text_y = geo["offset_x"]["y"]
+        # x 位置: H 与 Scale 滑块 label 对齐 (最左); V 在面板 1/4 处
+        h_x = geo["input"]["x1"]
+        v_x = self.FRAME_PREVIEW_SIZE // 4
+
+        cv2.putText(
+            canvas,
+            f"H offset: {self.input_offset_x_px}px",
+            (h_x, text_y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.46,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            canvas,
+            f"V offset: {self.input_offset_y_px}px",
+            (v_x, text_y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.46,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
         )
 
 
