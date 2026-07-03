@@ -25,7 +25,7 @@ from .tool import calculate_all_position
 from .shared_context import SharedContext
 
 
-SEEK_THRESHOLD = 10
+SEEK_THRESHOLD = 200
 
 TOUCH_HOLD_CLASS_TOUCH = 0
 TOUCH_HOLD_CLASS_PROGRESS = 1
@@ -124,13 +124,13 @@ def _producer(std_video_path, frame_plan, crop_size, batch_touch_hold, batch_que
         last_frame_number = -1
 
         for frame_number in sorted_frames:
-            # seek 优化：小跳用 cap.read() 逐帧读，大跳用 cap.set()
+            # seek 优化：小跳用 cap.grab() 仅推进指针（不解码），大跳用 cap.set()
             gap = frame_number - last_frame_number
             if gap == 1:
                 pass
             elif gap <= SEEK_THRESHOLD:
                 for _ in range(gap - 1):
-                    cap.read()
+                    cap.grab()
             else:
                 cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
 

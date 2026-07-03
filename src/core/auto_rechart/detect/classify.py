@@ -12,7 +12,7 @@ from .note_definition import *
 from .track import _save_track_results, _load_track_results
 
 
-SEEK_THRESHOLD = 10
+SEEK_THRESHOLD = 200
 
 
 
@@ -126,15 +126,15 @@ def _producer(std_video_path, sampling_plan,
 
             # 速度优化
             # cap.read() 读取下一帧 比 cap.set() 跳转到指定帧 更快
-            # 如果目标帧和当前帧差距不大, 直接循环读取下一帧直到目标帧，减少 seek 调用
+            # 如果目标帧和当前帧差距不大, 循环推进到目标帧以减少 seek 调用
             gap = frame_number - last_frame_number
             # 如果目标帧就是下一帧，直接读取
             if gap == 1:
                 pass
-            # 如果目标帧不远，循环读取
+            # 如果目标帧不远，循环 grab 跳过中间帧
             elif gap <= SEEK_THRESHOLD:
                 for _ in range(gap - 1):
-                    cap.read()
+                    cap.grab()
             # 如果目标帧较远，使用 seek 跳转
             else:
                 cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
@@ -570,15 +570,15 @@ def classify_note_path(
 
         # 速度优化
         # cap.read() 读取下一帧 比 cap.set() 跳转到指定帧 更快
-        # 如果目标帧和当前帧差距不大, 直接循环读取下一帧直到目标帧，减少 seek 调用
+        # 如果目标帧和当前帧差距不大, 循环推进到目标帧以减少 seek 调用
         gap = frame_number - last_frame_number
         # 如果目标帧就是下一帧，直接读取
         if gap == 1:
             pass
-        # 如果目标帧不远，循环读取
+        # 如果目标帧不远，循环 grab 跳过中间帧
         elif gap <= SEEK_THRESHOLD:
             for _ in range(gap - 1):
-                cap.read()
+                cap.grab()
         # 如果目标帧较远，使用 seek 跳转
         else:
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
