@@ -3,9 +3,11 @@ import cv2
 import time
 import math
 import numpy as np
-from collections import defaultdict
+from collections import defaultdict, deque
 import subprocess
 import atexit
+from dataclasses import dataclass
+from typing import Optional
 from pathlib import Path
 
 from ...schemas.op_result import OpResult, ok, err
@@ -13,6 +15,54 @@ from .note_definition import *
 from .track import _load_track_results
 from ..analyze.tool import catmull_rom_spline
 from .custom_oc_sort.oc_sort import _KalmanBoxTracker
+
+from src.services import PathManage
+
+
+
+
+_COLOR_PALETTE = [
+    (0, 0, 190),    # RED
+    (190, 0, 0),    # BLUE
+    (0, 170, 0),    # GREEN
+    (0, 100, 200),  # ORANGE
+    (200, 0, 150),  # PURPLE
+    (180, 130, 0),  # TEAL
+    (160, 0, 210),  # MAGENTA
+    (0, 150, 160),  # OLIVE
+    (40, 80, 160),  # SIENNA
+]
+
+_LABEL_FONT = cv2.FONT_HERSHEY_SIMPLEX
+_LABEL_SCALE = 0.6
+_LABEL_THICK = 2
+_LABEL_COLOR = (255, 255, 255)
+_BOX_THICK = 2
+_TRAIL_THICK = 3
+_CIRCLE_RADIUS = 3
+
+# SLIDE 候选框去重：坐标精确到 N 位小数相同视为同一框
+_BOX_KEY_PRECISION = 2
+
+# 轨迹历史长度上限，超过则前端裁剪
+_MAX_TRACK_HISTORY_LEN = 3000
+
+# FFmpeg 批量写入帧数
+_BATCH_FRAMES = 30
+
+# Catmull-Rom 样条参数
+_SPLINE_SAMPLES = 4
+_SPLINE_TENSION = 1.5
+
+# 是否绘制 Kalman 预测框（灰色，仅 SLIDE）
+_DRAW_KALMAN_PREDICTION = False
+
+# 占位的空数组
+_EMPTY_POLY = np.empty((0, 1, 2), dtype=np.int32)
+
+
+def _color_for_id(track_id: int) -> tuple:
+    return _COLOR_PALETTE[track_id % len(_COLOR_PALETTE)]
 
 
 def _terminate_ffmpeg_on_exit(proc: "subprocess.Popen") -> None:
@@ -29,15 +79,275 @@ def _terminate_ffmpeg_on_exit(proc: "subprocess.Popen") -> None:
 
 
 
-# 是否绘制 Kalman 预测框（灰色，仅 SLIDE）
-_DRAW_KALMAN_PREDICTION = False
 
 
 
 
-def main(std_video_path: Path,
-     total_frames: int,
-    ) -> OpResult[Path]:
+# 单段 Catmull-Rom：增量构建器的基础算子
+# 给定一段的 4 个控制点 P0..P3
+# 返回该段 t∈[0,1) 的 num_samples 个采样点 (num_samples,2) int32
+def _catmull_segment(p0, p1, p2, p3,
+                     num_samples: int = _SPLINE_SAMPLES,
+                     s: float = _SPLINE_TENSION) -> np.ndarray:
+    t = np.arange(num_samples, dtype=np.float32) / np.float32(num_samples)
+    t2 = t * t
+    t3 = t2 * t
+    c0 = s * (-t + 2.0 * t2 - t3)
+    c1 = 2.0 + (s - 6.0) * t2 + (4.0 - s) * t3
+    c2 = s * t + (6.0 - 2.0 * s) * t2 + (s - 4.0) * t3
+    c3 = s * (-t2 + t3)
+    x = 0.5 * (c0 * p0[0] + c1 * p1[0] + c2 * p2[0] + c3 * p3[0])
+    y = 0.5 * (c0 * p0[1] + c1 * p1[1] + c2 * p2[1] + c3 * p3[1])
+    return np.stack([np.round(x), np.round(y)], axis=1).astype(np.int32)
+
+# 增量轨迹构建器
+#   核心：Catmull-Rom 第 i 段依赖控制点 i-1,i,i+1,i+2。
+#   新增一个点时，只有 “上一段（原本 p3 被钳位，现可用真点 finalize）”
+#   与 “新增的末段” 两段需要重算，其余段已定型存入 frozen。
+class _TrailBuilder:
+    __slots__ = ("is_slide", "pts", "frozen", "pending", "last_pt",
+                 "n", "is_linear", "start_pt", "_overflow")
+
+    def __init__(self, is_slide: bool):
+        self.is_slide = is_slide
+        self.pts: deque = deque(maxlen=_MAX_TRACK_HISTORY_LEN)
+        self.frozen: np.ndarray = _EMPTY_POLY.reshape(-1, 2)  # 已定型段采样 (M,2)
+        self.pending: Optional[np.ndarray] = None             # 末段(临时)采样 (k,2)
+        self.last_pt: Optional[np.ndarray] = None             # 末控制点 (1,2)
+        self.n = 0
+        self.is_linear = False
+        self.start_pt: Optional[tuple] = None
+        # 轨迹超过 maxlen 后 deque 前端裁剪，索引对应关系被破坏，
+        # 退化为每帧全量重算
+        self._overflow = False
+
+    def add_point(self, cx: float, cy: float) -> None:
+        pt = (int(round(cx)), int(round(cy)))
+        pts = self.pts
+        pts.append(pt)
+        if self.start_pt is None:
+            self.start_pt = pt
+        self.last_pt = np.array([[pt[0], pt[1]]], dtype=np.int32)
+        self.n += 1
+        n = self.n
+
+        # 检测 maxlen 裁剪：长度不再增长
+        if len(pts) < n:
+            self._overflow = True
+
+        if not self.is_slide:
+            # 非 SLIDE：直线 polyline，仅保留原始点，绘制时直接转数组
+            return
+
+        if self._overflow:
+            # 罕见长轨迹：退化为全量重算（等价于原实现）
+            self.pending = catmull_rom_spline(list(pts)).reshape(-1, 2)
+            self.frozen = _EMPTY_POLY.reshape(-1, 2)
+            self.is_linear = False
+            return
+
+        if n == 1:
+            return
+        if n == 2:
+            # 2 点：线性插值（与 catmull_rom_spline 的 n==2 分支一致）
+            a = np.asarray(pts[0], dtype=np.float32)
+            b = np.asarray(pts[1], dtype=np.float32)
+            t = np.linspace(0.0, 1.0, _SPLINE_SAMPLES + 1, endpoint=True, dtype=np.float32)
+            interp = a + (b - a) * t[:, None]
+            self.pending = np.asarray(np.round(interp), dtype=np.int32)
+            self.frozen = _EMPTY_POLY.reshape(-1, 2)
+            self.is_linear = True
+            return
+
+        # n >= 3
+        self.is_linear = False
+        if n == 3:
+            # 2→3 转换：丢弃线性结果，重建 seg0(frozen)+seg1(pending)
+            self.frozen = _catmull_segment(pts[0], pts[0], pts[1], pts[2])
+            self.pending = _catmull_segment(pts[0], pts[1], pts[2], pts[2])
+            return
+
+        # n >= 4：finalize 旧末段(seg n-3，用新点作真 p3)并入 frozen；算新末段(seg n-2，p3 钳位)
+        p0 = pts[0] if n - 4 < 0 else pts[n - 4]
+        finalized = _catmull_segment(p0, pts[n - 3], pts[n - 2], pts[n - 1])
+        self.frozen = np.concatenate([self.frozen, finalized], axis=0)
+        self.pending = _catmull_segment(pts[n - 3], pts[n - 2], pts[n - 1], pts[n - 1])
+
+    def current_polyline(self) -> Optional[np.ndarray]:
+        """返回当前完整 polyline (N,1,2) int32；不足 2 点返回 None。"""
+        if self.n < 2:
+            return None
+        if not self.is_slide:
+            arr = np.asarray(self.pts, dtype=np.int32)
+            return arr.reshape(-1, 1, 2)
+        if self._overflow or self.is_linear:
+            arr = self.pending
+        else:
+            arr = np.concatenate([self.frozen, self.pending, self.last_pt], axis=0)
+        return arr.reshape(-1, 1, 2)
+
+
+
+
+
+
+
+
+# 预计算的绘制记录（主循环只读，零计算）
+@dataclass(slots=True)
+class _NoteDraw:
+    color: tuple
+    is_obb: bool
+    obb_pts: Optional[np.ndarray]   # (4,1,2) int32
+    rect: Optional[tuple]           # (x1,y1,x2,y2)
+    label: str
+    label_org: tuple                # putText 起点
+    label_bg: tuple                 # ((x1,y1),(x2,y2))
+
+
+def _build_note_draw(rep_id: int, note_type: "NoteType", note: "Note_Geometry",
+                     display_id: str) -> _NoteDraw:
+    """预计算一个音符的绘制数据: 颜色，标签，矩形坐标等"""
+    color = _color_for_id(rep_id)
+    is_obb_note = is_obb(note_type)  # NoteType.HOLD
+    label = f'{note_type.name}.{note.note_variant.name} ID:{display_id}'
+    label_size = cv2.getTextSize(label, _LABEL_FONT, _LABEL_SCALE, _LABEL_THICK)[0]
+    lw, lh = label_size[0], label_size[1]
+
+    if is_obb_note:
+        obb_pts = np.array([
+            [note.x1, note.y1],
+            [note.x2, note.y2],
+            [note.x3, note.y3],
+            [note.x4, note.y4],
+        ], dtype=np.int32).reshape(-1, 1, 2)
+        ip = [
+            (int(note.x1), int(note.y1)),
+            (int(note.x2), int(note.y2)),
+            (int(note.x3), int(note.y3)),
+            (int(note.x4), int(note.y4)),
+        ]
+        lx, ly = min(ip, key=lambda p: (p[1], p[0]))  # 最上，并列 x 最小
+        return _NoteDraw(color, True, obb_pts, None, label, (lx, ly - 5),
+                         ((lx, ly - lh - 10), (lx + lw, ly)))
+    else:
+        x1, y1 = int(note.x1), int(note.y1)
+        x2, y2 = int(note.x3), int(note.y3)
+        return _NoteDraw(color, False, None, (x1, y1, x2, y2), label, (x1, y1 - 5),
+                         ((x1, y1 - lh - 10), (x1 + lw, y1)))
+
+
+def _compute_center(note: "Note_Geometry", is_obb_note: bool) -> tuple:
+    if is_obb_note:
+        return (int(round((note.x1 + note.x2 + note.x3 + note.x4) / 4.0)),
+                int(round((note.y1 + note.y2 + note.y3 + note.y4) / 4.0)))
+    else:
+        return (int(round((note.x1 + note.x3) / 2.0)),
+                int(round((note.y1 + note.y3) / 2.0)))
+
+
+def _dedup_slide_notes(current_tracks: list) -> list:
+    """
+    SLIDE many-to-one 去重
+
+    同一帧内, 坐标精确到 _BOX_KEY_PRECISION 位小数相同的 SLIDE 框视为同一框
+    label 合并显示 ID 为 'id1/id2/...' 形式
+    非 SLIDE 音符原样保留
+
+    Args:
+        current_tracks: [(track_id, note_type, note), ...] 单帧内全部音符
+
+    Returns:
+        [(rep_id, note_type, rep_note, ids, display_id), ...]
+        其中 ids 为该框覆盖的所有 track_id, display_id 为合并后的显示文本。
+    """
+    slide_groups: dict = {}
+    other: list = []
+    for (track_id, note_type, note) in current_tracks:
+        if note_type == NoteType.SLIDE:
+            key = (
+                round(note.x1, _BOX_KEY_PRECISION), round(note.y1, _BOX_KEY_PRECISION),
+                round(note.x2, _BOX_KEY_PRECISION), round(note.y2, _BOX_KEY_PRECISION),
+                round(note.x3, _BOX_KEY_PRECISION), round(note.y3, _BOX_KEY_PRECISION),
+                round(note.x4, _BOX_KEY_PRECISION), round(note.y4, _BOX_KEY_PRECISION),
+            )
+            slide_groups.setdefault(key, []).append((track_id, note_type, note))
+        else:
+            other.append((track_id, note_type, note))
+
+    dedup: list = []
+    for group in slide_groups.values():
+        rep_id = group[0][0]
+        rep_type = group[0][1]
+        rep_note = group[0][2]
+        ids = [g[0] for g in group]
+        display_id = '/'.join(str(i) for i in ids)
+        dedup.append((rep_id, rep_type, rep_note, ids, display_id))
+    for (track_id, note_type, note) in other:
+        dedup.append((track_id, note_type, note, [track_id], str(track_id)))
+    return dedup
+
+
+def _build_manifests(track_results: dict, total_frames: int) -> tuple:
+    """
+    进入主循环前的一次性预扫描。
+
+    返回 (note_manifest, center_manifest):
+    - note_manifest[frame]: 该帧静态音符绘制记录列表（主循环只读 blit）。
+    - center_manifest[frame]: 该帧要追加进轨迹构建器的中心点列表
+      [(track_id, is_slide, cx, cy), ...]，仅几个标量、无 ndarray。
+
+    轨迹本身不在此处构建/快照, 它在主循环里用 _TrailBuilder 增量维护
+    """
+    # 按帧组织音符
+    frame_tracks: defaultdict = defaultdict(list)
+    for (track_id, note_type), geo_list in track_results.items():
+        if not geo_list:
+            continue
+        for note in geo_list:
+            frame_tracks[note.frame].append((track_id, note_type, note))
+
+    note_manifest: list = [[] for _ in range(total_frames)]
+    center_manifest: list = [[] for _ in range(total_frames)]
+
+    for frame_number in range(total_frames):
+        current_tracks = frame_tracks.get(frame_number)
+        if not current_tracks:
+            continue
+
+        # SLIDE many-to-one 去重
+        dedup = _dedup_slide_notes(current_tracks)
+
+        # 音符绘制数据（静态，主循环只读）
+        note_manifest[frame_number] = [
+            _build_note_draw(rep_id, note_type, note, display_id)
+            for (rep_id, note_type, note, _ids, display_id) in dedup
+        ]
+
+        # 中心点数据（轻量，喂给主循环的轨迹构建器）
+        centers: list = []
+        for (_rep_id, note_type, note, ids, _display_id) in dedup:
+            is_obb_note = is_obb(note_type)
+            cx, cy = _compute_center(note, is_obb_note)
+            is_slide = (note_type == NoteType.SLIDE)
+            for tid in ids:
+                centers.append((tid, is_slide, cx, cy))
+        center_manifest[frame_number] = centers
+
+    return note_manifest, center_manifest
+
+
+
+
+
+
+
+
+
+
+
+# 主入口
+def main(std_video_path: Path, total_frames: int) -> OpResult[Path]:
 
     print("开始导出视频模块...")
     cap = None
@@ -47,18 +357,24 @@ def main(std_video_path: Path,
         # 读取追踪结果
         track_results = _load_track_results(std_video_path.parent)
 
-        # 预计算全部 Kalman 预测
+        # 预计算全部 Kalman 预测（默认关闭）
         if _DRAW_KALMAN_PREDICTION:
             kalman_predictions = _compute_kalman_predictions(track_results)
         else:
-            kalman_predictions: dict[int, list[dict]] = {}
+            kalman_predictions: dict = {}
 
         # 获取视频信息
-        cap = cv2.VideoCapture(std_video_path)
+        cap = cv2.VideoCapture(str(std_video_path))
         video_width = round(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         video_height = round(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fps = cap.get(cv2.CAP_PROP_FPS)
-        
+
+        fps_for_calc = float(fps) if fps and fps > 0 else 30.0
+        timeout_frames = max(1, int(round(fps_for_calc / 2.0)))
+
+        # 预计算
+        note_manifest, center_manifest = _build_manifests(track_results, total_frames)
+
         # 输出视频设置
         output_dir = std_video_path.parent
         video_name = output_dir.name
@@ -66,58 +382,9 @@ def main(std_video_path: Path,
         if os.path.exists(final_track_video_path):
             os.remove(final_track_video_path)
 
-        # 为不同ID生成不同颜色
-        def get_color_for_id(track_id):
-            color_palette = [
-                (0, 0, 190),   # RED
-                (190, 0, 0),   # BLUE
-                (0, 170, 0),   # GREEN
-                (0, 100, 200), # ORANGE
-                (200, 0, 150), # PURPLE
-                (180, 130, 0), # TEAL
-                (160, 0, 210), # MAGENTA
-                (0, 150, 160), # OLIVE
-                (40, 80, 160)  # SIENNA
-            ]
-            # 使用track_id对颜色池长度取模来选择颜色
-            color_index = track_id % len(color_palette)
-            return color_palette[color_index]
-        
-        # 按帧号组织轨迹点
-        frame_tracks = defaultdict(list)
-        for key, value in track_results.items():
-            track_id, note_type = key
-            note_geometry_list = value
-            if len(note_geometry_list) <= 0: continue
-            for note in note_geometry_list:
-                frame_tracks[note.frame].append({
-                    'track_id': track_id,
-                    'note_type': note_type,
-                    'note_variant': note.note_variant,
-                    'x1': note.x1,
-                    'y1': note.y1,
-                    'x2': note.x2,
-                    'y2': note.y2,
-                    'x3': note.x3,
-                    'y3': note.y3,
-                    'x4': note.x4,
-                    'y4': note.y4
-                })
-        
-        # 存储轨迹历史用于绘制轨迹线
-        track_history = defaultdict(list)
-        track_last_seen = defaultdict(int)  # 记录轨迹最后出现的帧号
-        track_note_type: dict[int, NoteType] = {}  # 记录轨迹对应的音符类型，用于区分 SLIDE 样条绘制
-        label_size_cache: dict[str, tuple[int, int]] = {}
-
-        # 轨迹清理和绘制长度使用同一套 fps 计算，避免长视频后期轨迹过长拖慢绘制
-        fps_for_calc = float(fps) if fps and fps > 0 else 30.0
-        timeout_frames = max(1, int(round(fps_for_calc / 2.0)))
-        max_track_history_len = 3000
-
-        # 使用 FFmpeg 管道直接编码视频并映射原视频音频，避免临时文件二次编码
-        from src.services import PathManage
+        # FFmpeg 管道
         ffmpeg_exe = str(PathManage.FFMPEG_EXE_PATH)
+        frame_size = video_width * video_height * 3
         ffmpeg_cmd = [
             ffmpeg_exe,
             '-y', '-hide_banner', '-loglevel', 'error',
@@ -127,7 +394,8 @@ def main(std_video_path: Path,
             '-r', str(fps_for_calc),
             '-i', '-',
             '-i', str(std_video_path),
-            '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-pix_fmt', 'yuv420p',
+            '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23',
+            '-pix_fmt', 'yuv420p',
             '-c:a', 'aac', '-b:a', '192k',
             '-map', '0:v:0',
             '-map', '1:a:0?',
@@ -141,174 +409,91 @@ def main(std_video_path: Path,
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
+            bufsize=_BATCH_FRAMES * frame_size,
         )
         if ffmpeg_process.stdin is None:
             raise Exception("FFmpeg stdin pipe is unavailable")
         # 注册 atexit 兜底
         atexit.register(_terminate_ffmpeg_on_exit, ffmpeg_process)
-        
-        # 逐帧处理
+
+        # 批量写入缓冲（memoryview 零拷贝）
+        batch = bytearray(_BATCH_FRAMES * frame_size)
+        batch_mv = memoryview(batch)
+        stdin = ffmpeg_process.stdin
+
+        # 轨迹状态（主循环增量维护）
+        builders: dict = {}
+        last_seen: dict = {}
+
+
+
+
         start_time = time.time()
         last_start_time = start_time
         last_frame_number = 0
-        
+        off = 0
+        count_in_batch = 0
+
         for frame_number in range(total_frames):
             ret, frame = cap.read()
             if not ret:
                 break
-            
-            # 获取当前帧的轨迹点
-            current_tracks = frame_tracks.get(frame_number, [])
-            
-            # 更新当前帧中存在的轨迹
-            current_track_ids = set()
 
-            # --- SLIDE 候选框 many-to-one 去重 ---
-            # 同帧内坐标完全一致的 SLIDE 框合并为一个绘制单元，
-            # 用 "/" 连接多个 track_id 显示。
-            _box_key_precision = 2 # 如果坐标精确到2位小数相同，视为同一个框
+            if not frame.flags['C_CONTIGUOUS']:
+                frame = np.ascontiguousarray(frame)
 
-            def _slide_box_key(t):
-                """用全部 8 个坐标值生成去重键。"""
-                return (
-                    round(t['x1'], _box_key_precision), round(t['y1'], _box_key_precision),
-                    round(t['x2'], _box_key_precision), round(t['y2'], _box_key_precision),
-                    round(t['x3'], _box_key_precision), round(t['y3'], _box_key_precision),
-                    round(t['x4'], _box_key_precision), round(t['y4'], _box_key_precision),
-                )
+            # 追加本帧中心点 + 标记活跃
+            active_now: set = set()
+            for (tid, is_slide, cx, cy) in center_manifest[frame_number]:
+                b = builders.get(tid)
+                if b is None:
+                    b = _TrailBuilder(is_slide)
+                    builders[tid] = b
+                b.add_point(cx, cy)
+                last_seen[tid] = frame_number
+                active_now.add(tid)
 
-            slide_tracks = [t for t in current_tracks if t['note_type'] == NoteType.SLIDE]
-            other_tracks = [t for t in current_tracks if t['note_type'] != NoteType.SLIDE]
+            # 清理过期轨迹（连续缺席 > timeout_frames 轨迹随之消失）
+            evict = [tid for tid in builders
+                     if tid not in active_now
+                     and (frame_number - last_seen[tid]) > timeout_frames]
+            for tid in evict:
+                del builders[tid]
+                del last_seen[tid]
 
-            slide_groups: dict[tuple, list] = {}
-            for t in slide_tracks:
-                slide_groups.setdefault(_slide_box_key(t), []).append(t)
-
-            dedup_items: list = []
-            for group_tracks in slide_groups.values():
-                merged_ids = '/'.join(str(t['track_id']) for t in group_tracks)
-                rep = dict(group_tracks[0])
-                rep['_display_track_id'] = merged_ids
-                rep['_group_track_ids'] = [t['track_id'] for t in group_tracks]
-                # 使用第一个 track_id 作为颜色代表
-                rep['_color_track_id'] = group_tracks[0]['track_id']
-                dedup_items.append(rep)
-
-            for t in other_tracks:
-                t['_display_track_id'] = str(t['track_id'])
-                t['_group_track_ids'] = [t['track_id']]
-                t['_color_track_id'] = t['track_id']
-                dedup_items.append(t)
-
-            # 绘制当前帧的音符
-            for track in dedup_items:
-                track_id_display = track['_display_track_id']
-                note_type = track['note_type']
-                note_variant = track['note_variant']
-                is_obb_note = is_obb(note_type)
-                color = get_color_for_id(track['_color_track_id'])
-
-                # 记录当前帧中存在的轨迹
-                for tid in track['_group_track_ids']:
-                    current_track_ids.add(tid)
-
-                # 根据note_type绘制不同类型的音符
-                if is_obb_note:
-                    points = np.array([
-                        [track['x1'], track['y1']],
-                        [track['x2'], track['y2']],
-                        [track['x3'], track['y3']],
-                        [track['x4'], track['y4']]
-                    ], dtype=np.int32)
-                    cv2.polylines(frame, [points], True, color, 2)
-                else:
-                    x1, y1, x2, y2 = int(track['x1']), int(track['y1']), int(track['x3']), int(track['y3'])
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-
-                # 绘制标签（SLIDE 去重后 track_id 用 "/" 连接）
-                label = f'{note_type.name}.{note_variant.name} ID:{track_id_display}'
-                label_size = label_size_cache.get(label)
-                if label_size is None:
-                    label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)[0]
-                    label_size_cache[label] = label_size
-                
-                if is_obb_note:
-                    # 找到OBB四个点中最上方的点作为标签位置；若y相同则选择x最小
-                    points = [
-                        (int(track['x1']), int(track['y1'])),
-                        (int(track['x2']), int(track['y2'])),
-                        (int(track['x3']), int(track['y3'])),
-                        (int(track['x4']), int(track['y4']))
-                    ]
-                    label_x, label_y = min(points, key=lambda p: (p[1], p[0])) # 先选y最小，再选x最小
-                else:
-                    label_x = x1
-                    label_y = y1
-                
-                cv2.rectangle(frame, (label_x, label_y - label_size[1] - 10), 
-                            (label_x + label_size[0], label_y), color, -1)
-                
-                cv2.putText(frame, label, (label_x, label_y - 5), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-                
-                # 更新轨迹历史
-                # 计算中心点：OBB 使用四点平均，其他类型使用矩形中心
-                if is_obb_note:
-                    center_x = int(round((track['x1'] + track['x2'] + track['x3'] + track['x4']) / 4.0))
-                    center_y = int(round((track['y1'] + track['y2'] + track['y3'] + track['y4']) / 4.0))
-                else:
-                    center_x = int(round((track['x1'] + track['x3']) / 2.0))
-                    center_y = int(round((track['y1'] + track['y3']) / 2.0))
-
-                for tid in track['_group_track_ids']:
-                    history_points = track_history[tid]
-                    history_points.append((center_x, center_y))
-                    track_last_seen[tid] = frame_number
-                    track_note_type[tid] = note_type
-
-                    if len(history_points) > max_track_history_len:
-                        del history_points[:-max_track_history_len]
-
-            # 绘制 Kalman 预测框（灰色，仅 SLIDE）
-            if _DRAW_KALMAN_PREDICTION:
-                _draw_kalman_predictions(frame, kalman_predictions, frame_number, label_size_cache)
-
-            # 清理过期的轨迹（超过0.5秒未出现）
-            tracks_to_remove = []
-            for track_id in list(track_history.keys()):
-                if track_id not in current_track_ids:
-                    frames_since_last_seen = frame_number - track_last_seen.get(track_id, frame_number)
-                    if frames_since_last_seen > timeout_frames:  # 超过0.5秒未出现，清理轨迹
-                        tracks_to_remove.append(track_id)
-            
-            for track_id in tracks_to_remove:
-                if track_id in track_history:
-                    del track_history[track_id]
-                if track_id in track_last_seen:
-                    del track_last_seen[track_id]
-                if track_id in track_note_type:
-                    del track_note_type[track_id]
-            
             # 绘制轨迹线
-            for track_id, points in track_history.items():
-                if len(points) > 1:
-                    color = get_color_for_id(track_id)
-                    note_type_for_trail = track_note_type.get(track_id)
-                    if note_type_for_trail is NoteType.SLIDE:
-                        polyline_points = catmull_rom_spline(points)
-                    else:
-                        polyline_points = np.array(points, dtype=np.int32).reshape((-1, 1, 2))
-                    cv2.polylines(frame, [polyline_points], False, color, 3)
-                    
-                    # 在轨迹起点绘制小圆点
-                    cv2.circle(frame, points[0], 3, color, -1)
-            
-            # 写入输出视频（FFmpeg stdin rawvideo）
-            frame_to_write = frame if frame.flags['C_CONTIGUOUS'] else np.ascontiguousarray(frame)
-            ffmpeg_process.stdin.write(frame_to_write.tobytes())
-            
-            # 显示进度
-            if frame_number % 30 == 0:
+            for tid, b in builders.items():
+                poly = b.current_polyline()
+                if poly is not None and len(poly) > 1:
+                    color = _color_for_id(tid)
+                    cv2.polylines(frame, [poly], False, color, _TRAIL_THICK)
+                    cv2.circle(frame, b.start_pt, _CIRCLE_RADIUS, color, -1)
+
+            # 绘制音符框
+            for nd in note_manifest[frame_number]:
+                if nd.is_obb:
+                    cv2.polylines(frame, [nd.obb_pts], True, nd.color, _BOX_THICK)
+                else:
+                    r = nd.rect
+                    cv2.rectangle(frame, (r[0], r[1]), (r[2], r[3]), nd.color, _BOX_THICK)
+                bg = nd.label_bg
+                cv2.rectangle(frame, bg[0], bg[1], nd.color, -1)
+                cv2.putText(frame, nd.label, nd.label_org, _LABEL_FONT,
+                            _LABEL_SCALE, _LABEL_COLOR, _LABEL_THICK)
+
+            # 绘制 Kalman 预测框
+            if _DRAW_KALMAN_PREDICTION:
+                _draw_kalman_predictions(frame, kalman_predictions, frame_number, {})
+
+            # 写入批量缓冲
+            batch_mv[off:off + frame_size] = frame.reshape(-1)
+            off += frame_size
+            count_in_batch += 1
+
+            if count_in_batch == _BATCH_FRAMES:
+                # 将这一批缓冲写入 FFmpeg stdin
+                stdin.write(batch_mv[:off])
+                # 打印进度
                 progress = (frame_number / total_frames) * 100
                 end_time = time.time()
                 elapsed_time = end_time - last_start_time
@@ -317,7 +502,14 @@ def main(std_video_path: Path,
                 last_frame_number = frame_number # 重置帧数给下一轮
                 fps_rate = elapsed_frame / elapsed_time if elapsed_time > 0 else 0
                 print(f"导出进度: {frame_number}/{total_frames} ({progress:.1f}%) {fps_rate:.1f}fps", end="\r", flush=True)
-        
+                off = 0
+                count_in_batch = 0
+
+        # 写入剩余缓冲
+        if off > 0:
+            stdin.write(batch_mv[:off])
+            print()
+
         if ffmpeg_process.stdin is not None:
             ffmpeg_process.stdin.close()
 
@@ -333,12 +525,13 @@ def main(std_video_path: Path,
         cap.release()
         cap = None
         # ffmpeg 已正常结束, 注销 atexit
-        atexit.unregister(_terminate_ffmpeg_on_exit, ffmpeg_process)
+        atexit.unregister(_terminate_ffmpeg_on_exit)
         ffmpeg_process = None
 
         elapsed_time = time.time() - start_time
         average_fps = total_frames / elapsed_time if elapsed_time > 0 else 0
-        print(f"追踪视频导出完成，耗时{elapsed_time:.1f}s, 平均{average_fps:.2f}fps               ")
+        print(f"追踪视频导出完成，耗时{elapsed_time:.1f}s, 平均{average_fps:.2f}fps"
+              f"               ")
         print(f"追踪视频已保存到：{final_track_video_path}")
 
         return ok(Path(final_track_video_path))
@@ -363,7 +556,7 @@ def main(std_video_path: Path,
             except Exception:
                 pass
             # ffmpeg 已被 kill, 注销 atexit
-            atexit.unregister(_terminate_ffmpeg_on_exit, ffmpeg_process)
+            atexit.unregister(_terminate_ffmpeg_on_exit)
 
             if ffmpeg_process.stderr is not None:
                 try:
@@ -379,7 +572,7 @@ def main(std_video_path: Path,
 
 
 
-
+# Kalman 预测
 def _compute_kalman_predictions(track_results) -> dict[int, list[dict]]:
     """对每条 SLIDE 轨迹逐帧重跑 Kalman 滤波器，返回 {frame: [pred_dict, ...]}"""
     kalman_predictions: dict[int, list[dict]] = defaultdict(list)
@@ -447,9 +640,9 @@ def _draw_kalman_predictions(frame, kalman_predictions, frame_number, label_size
         kp_label = f'{NoteType.SLIDE.name}.{kp["note_variant"].name} ID:{kp["track_id"]}'
         kp_label_size = label_size_cache.get(kp_label)
         if kp_label_size is None:
-            kp_label_size = cv2.getTextSize(kp_label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)[0]
+            kp_label_size = cv2.getTextSize(kp_label, _LABEL_FONT, _LABEL_SCALE, 1)[0]
             label_size_cache[kp_label] = kp_label_size
         cv2.rectangle(frame, (kp_x1, kp_y1 - kp_label_size[1] - 10),
-                    (kp_x1 + kp_label_size[0], kp_y1), kalman_grey, -1)
+                      (kp_x1 + kp_label_size[0], kp_y1), kalman_grey, -1)
         cv2.putText(frame, kp_label, (kp_x1, kp_y1 - 5),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+                    _LABEL_FONT, _LABEL_SCALE, _LABEL_COLOR, 1)
