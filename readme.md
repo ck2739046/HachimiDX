@@ -11,7 +11,7 @@
 
 <br>
 
-A tool for the rhythm game **maimai** that automatically converts chart confirmation videos into simai format (`maidata.txt`).
+A tool for the rhythm game **maimai** that converts chart confirmation videos into simai format (`maidata.txt`).
 
 <br>
 
@@ -26,7 +26,7 @@ A tool for the rhythm game **maimai** that automatically converts chart confirma
 
 </div>
 
-> <img src="src/resources/doc/images/qq_icon.svg" width="20px" style="vertical-align: middle;"> Run into issues, need a hand, want to report bugs, share suggestions, or talk development? Join our QQ group chat **`868888361`**.
+> <img src="src/resources/doc/images/qq_icon.svg" width="12px" style="vertical-align: middle;"> Run into issues, want to report bugs, share suggestions, or talk development? Join our QQ group chat **`868888361`**.
 
 <br>
 
