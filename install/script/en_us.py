@@ -85,7 +85,7 @@ Do you want to continue the installation?
 
 # ===== ask_use_pypi_mirror =====
 PYPI_MIRROR_PROMPT = """
-THU/NJU PyPI mirrors can significantly speed up downloads and installations in China.
+PyPI mirrors can significantly speed up downloads and installations in China.
 Do you want to use PyPI mirror?
 
 If you are in mainland China, it is highly recommended to choose "Yes".
@@ -185,3 +185,11 @@ MODIFY_REPLACE_ORIGINAL_ERROR = "modify_ultralytics_for_dml(): Error replacing w
 PIP_INSTALLING = "Installing {package_name}..."
 PIP_SUCCESS = "{package_name} installation completed successfully."
 PIP_ERROR = "Error occurred while installing {package_name}: {e}"
+MIRROR_NAMES = {
+    "tsinghua": "TUNA",
+    "tencent": "Tencent Cloud",
+    "huawei": "Huawei Cloud",
+    "aliyun": "Alibaba Cloud",
+}
+MIRROR_SWITCHING = 'Mirror "{old}" failed, switching to mirror "{new}" and retrying...'
+MIRROR_EXHAUSTED = "All mirrors failed to install {package_name}."

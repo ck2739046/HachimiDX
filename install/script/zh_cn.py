@@ -85,7 +85,7 @@ CUDA_FALLBACK_PROMPT = """
 
 # ===== ask_use_pypi_mirror =====
 PYPI_MIRROR_PROMPT = """
-清华大学/南京大学的 PyPI 镜像可以显著加速国内的下载和安装。
+PyPI 镜像可以显著加速国内的下载和安装。
 你是否想使用 PyPI 镜像?
 
 如果你在中国大陆，强烈建议选择"是"。
@@ -185,3 +185,11 @@ MODIFY_REPLACE_ORIGINAL_ERROR = "modify_ultralytics_for_dml(): 替换为原始�
 PIP_INSTALLING = "正在安装 {package_name}..."
 PIP_SUCCESS = "{package_name} 安装成功完成。"
 PIP_ERROR = "安装 {package_name} 时发生错误: {e}"
+MIRROR_NAMES = {
+    "tsinghua": "清华源",
+    "tencent": "腾讯云",
+    "huawei": "华为云",
+    "aliyun": "阿里云",
+}
+MIRROR_SWITCHING = "镜像「{old}」安装失败，正在切换到镜像「{new}」重试..."
+MIRROR_EXHAUSTED = "所有镜像均无法安装 {package_name}。"

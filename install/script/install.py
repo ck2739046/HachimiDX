@@ -26,7 +26,14 @@ zh_cn = _load_locale("zh_cn")
 USE_PyPI_Mirror = ""
 T = None  # locale module, set after language selection
 
-QingHua_PyPI_Mirror = ["-i", "https://pypi.tuna.tsinghua.edu.cn/simple"]
+# PyPI 镜像列表（key, args_list）优先级从上到下，首选清华源
+PYPI_MIRRORS = [
+    ("tsinghua", ["-i", "https://pypi.tuna.tsinghua.edu.cn/simple"]),
+    ("tencent",  ["-i", "https://mirrors.cloud.tencent.com/pypi/simple"]),
+    ("huawei",   ["-i", "https://repo.huaweicloud.com/repository/pypi/simple"]),
+    ("aliyun",   ["-i", "https://mirrors.aliyun.com/pypi/simple"]),
+]
+
 
 ROOT = Path(__file__).resolve().parents[2] # 往上三级目录
 
@@ -183,8 +190,6 @@ def install():
         "filterpy==1.4.5",
     ]
     cmd = [sys.executable, "-m", "pip", "install", *dependencies, "--no-warn-script-location"]
-    if USE_PyPI_Mirror:
-        cmd += QingHua_PyPI_Mirror
     is_success = general_pip_install("Other dependencies", cmd)
     if not is_success: sys.exit(1)
 
@@ -380,7 +385,8 @@ def install_pytorch(torch_version) -> bool:
            *packages, "--index-url", index_target,
            "--no-warn-script-location"]
     
-    return general_pip_install(f"PyTorch ({torch_version})", cmd)
+    return general_pip_install(f"PyTorch ({torch_version})", cmd,
+                               add_pypi_mirror=False) # 显式禁用镜像，已经指定了南京大学
 
 
 
@@ -392,16 +398,12 @@ def install_ultralytics_onnx(has_nvidia_gpu) -> bool:
     if has_nvidia_gpu:
         libs += ["onnxruntime-gpu==1.24.4"]
     cmd = [sys.executable, "-m", "pip", "install", *libs, "--no-warn-script-location"]
-    if USE_PyPI_Mirror:
-        cmd += QingHua_PyPI_Mirror
     is_success = general_pip_install("ONNX Runtime", cmd)
     if not is_success:
         return False
         
     # 安装 ultralytics
     cmd = [sys.executable, "-m", "pip", "install", "ultralytics==8.4.24", "--no-warn-script-location"]
-    if USE_PyPI_Mirror:
-        cmd += QingHua_PyPI_Mirror
     is_success = general_pip_install("Ultralytics 8.4.24", cmd)
     if not is_success:
         return False
@@ -409,8 +411,6 @@ def install_ultralytics_onnx(has_nvidia_gpu) -> bool:
     # 安装其他依赖
     libs = ["lap==0.5.13", "numpy==2.4.3"]
     cmd = [sys.executable, "-m", "pip", "install", *libs, "--no-warn-script-location"]
-    if USE_PyPI_Mirror:
-        cmd += QingHua_PyPI_Mirror
     is_success = general_pip_install("lap, numpy", cmd)
     if not is_success:
         return False
@@ -430,16 +430,12 @@ def install_tensorrt(torch_version) -> bool:
 
     # 先安装 wheel-stub
     cmd = [sys.executable, "-m", "pip", "install", "wheel-stub==0.4.2", "--no-warn-script-location"]
-    if USE_PyPI_Mirror:
-        cmd += QingHua_PyPI_Mirror
     is_success = general_pip_install("wheel-stub 0.4.2", cmd)
     if not is_success:
         return False
 
     # 再安装 TensorRT
     cmd = [sys.executable, "-m", "pip", "install", f"tensorrt=={tensorrt_version}", "--no-warn-script-location"]
-    if USE_PyPI_Mirror:
-        cmd += QingHua_PyPI_Mirror
     is_success = general_pip_install(f"NVIDIA TensorRT {tensorrt_version}", cmd)
     if not is_success:
         return False
@@ -474,8 +470,6 @@ def ask_install_dml() -> bool:
 def install_directml_onnx() -> bool:
 
     cmd = [sys.executable, "-m", "pip", "install", "onnxruntime-directml==1.24.4", "--no-warn-script-location"]
-    if USE_PyPI_Mirror:
-        cmd += QingHua_PyPI_Mirror
     is_success = general_pip_install("ONNX Runtime DirectML", cmd)
     if not is_success:
         return False
@@ -528,24 +522,55 @@ def modify_ultralytics_for_dml(recover = False) -> bool:
 
 
 
-def general_pip_install(package_name, cmd: list[str]) -> bool:
-    
-    # 执行安装命令
-    print("\n-----\n")
-    cmd_text = subprocess.list2cmdline(cmd)
-    print(f"{T.PIP_INSTALLING.format(package_name=package_name)}\n\n{cmd_text}")
-    print("\n-----\n")
+def general_pip_install(package_name, cmd: list[str], add_pypi_mirror: bool | None = None) -> bool:
+    """
+    执行一次 pip 安装，自动处理镜像切换。
 
-    try:
-        subprocess.run(cmd, check=True)
-        print("\n-----\n")
-        print(T.PIP_SUCCESS.format(package_name=package_name))
-        return True
+    add_pypi_mirror（可选）:
+      - None： 跟随全局 USE_PyPI_Mirror
+      - False：强制禁用 PyPI 镜像（即使全局启用）
+      - True： 不支持强制启用, 视为 None
+    """
 
-    except Exception as e:
+    use_mirror = bool(USE_PyPI_Mirror) and add_pypi_mirror is not False
+
+    # 构造使用每个镜像源的完整命令
+    if use_mirror:
+        attempts = [(name, cmd + mirror_args)
+                    for name, mirror_args in PYPI_MIRRORS]
+    else:
+        attempts = [("None", cmd)]
+
+    for idx, (mirror_key, full_cmd) in enumerate(attempts):
+        # 打印即将执行的指令
         print("\n-----\n")
-        print(T.PIP_ERROR.format(package_name=package_name, e=e))
-        return False
+        cmd_text = subprocess.list2cmdline(full_cmd)
+        print(f"{T.PIP_INSTALLING.format(package_name=package_name)}\n\n{cmd_text}")
+
+        try:
+            # 执行安装命令
+            print("\n-----\n")
+            subprocess.run(full_cmd, check=True)
+            # 安装成功
+            print("\n-----\n")
+            print(T.PIP_SUCCESS.format(package_name=package_name))
+            return True
+        except Exception as e:
+            # 安装失败
+            print("\n-----\n")
+            print(T.PIP_ERROR.format(package_name=package_name, e=e))
+            # 如果启用镜像, 尝试切换到下一个镜像
+            if use_mirror and idx < len(attempts) - 1:
+                # 显示名按 key 从当前 locale 的 MIRROR_NAMES 查表
+                current_name = T.MIRROR_NAMES.get(mirror_key, mirror_key) 
+                next_key = attempts[idx + 1][0]
+                next_name = T.MIRROR_NAMES.get(next_key, next_key)
+                print('\n' + T.MIRROR_SWITCHING.format(old=current_name, new=next_name))
+
+    # 全部失败
+    if use_mirror:
+        print(T.MIRROR_EXHAUSTED.format(package_name=package_name))
+    return False
 
 
 
