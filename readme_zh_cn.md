@@ -1,13 +1,13 @@
 [**English**](readme.md) | **中文**
 
-<h1 align="center">
+<div align="center">
+
+<h1>
   <img src="src/resources/icon.ico" width="110" alt="logo">
   <br>HachimiDX
 </h1>
 
-<h3 align="center">
-  🐱 舞萌自动抄谱工具 🐱
-</h3>
+<h3>🐱 舞萌自动抄谱工具 🐱</h3>
 
 <br>
 
@@ -25,6 +25,8 @@
 📥︎ [**软件下载**](https://github.com/ck2739046/HachimiDX/releases/latest)
 &nbsp;•&nbsp;
 ▶️ [**教程视频**](https://www.bilibili.com/video/BV1Rz5c6vEQH)
+
+</div>
 
 > <img src="src/resources/doc/images/qq_icon.svg" width="20px" style="vertical-align: middle;"> 如果在使用中遇到问题、需要帮助、想反馈 Bug 或提出建议，亦或参与开发讨论，欢迎加入 QQ 交流群 **`868888361`**。
 
@@ -65,7 +67,7 @@
 
 - **操作系统**：仅支持 Windows 10 / 11 (x64)
 - **显卡显存**：至少 3 GB（如使用纯 CPU 推理则无显存要求）
-- **内存**：至少 2 GB 可用
+- **内存**：至少 4 GB 可用
 - **硬盘**：至少 7 GB 可用空间
 
 

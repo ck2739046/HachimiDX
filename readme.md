@@ -1,13 +1,13 @@
 **English** | [**中文**](readme_zh_cn.md)
 
-<h1 align="center">
+<div align="center">
+
+<h1>
   <img src="src/resources/icon.ico" width="110" alt="logo">
   <br>HachimiDX
 </h1>
 
-<h3 align="center">
-  🐱 Maimai auto rechart tool 🐱
-</h3>
+<h3>🐱 Maimai auto rechart tool 🐱</h3>
 
 <br>
 
@@ -23,6 +23,8 @@ A tool for the rhythm game **maimai** that automatically converts chart confirma
 📥︎ [**Download Release**](https://github.com/ck2739046/HachimiDX/releases/latest)
 &nbsp;•&nbsp;
 ▶️ [**Tutorial Video**](https://www.bilibili.com/video/BV1Rz5c6vEQH)
+
+</div>
 
 > <img src="src/resources/doc/images/qq_icon.svg" width="20px" style="vertical-align: middle;"> Run into issues, need a hand, want to report bugs, share suggestions, or talk development? Join our QQ group chat **`868888361`**.
 
@@ -63,7 +65,7 @@ A tool for the rhythm game **maimai** that automatically converts chart confirma
 
 - **OS**: Windows 10 / 11 (x64) only
 - **GPU VRAM**: at least 3 GB (no VRAM requirement if using CPU-only inference)
-- **RAM**: at least 2 GB available
+- **RAM**: at least 4 GB available
 - **Disk**: at least 7 GB free
 
 
