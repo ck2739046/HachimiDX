@@ -116,22 +116,22 @@ en_US:
     nav_bar:
       majdata_label: "MajdataEdit"
       auto_rechart_label: "Auto Rechart"
-      media_tools_label: "Media Tools"
+      media_tools_label: "Multimedia Tools"
       tasks_label: "Tasks"
       settings_label: "Settings"
       majdata_desc: "Embed MajdataEdit"
       auto_rechart_desc: "Auto recharting tool"
-      media_tools_desc: "Media processing toolkit"
+      media_tools_desc: "Multimedia processing toolkit"
       tasks_desc: "View and manage task queue"
       settings_desc: "Application settings"
 
     sub_nav_bar:
       arcade_timing_label: "Arcade Timing"
-      simply_align_label: "Simply Align"
-      run_ffmpeg_label: "FFmpeg"
+      simply_align_label: "Align Audio"
+      run_ffmpeg_label: "Transcoding"
       measure_bpm_label: "Measure Bpm"
       arcade_timing_desc: "Analyze startup audio delay to align with official audio"
-      simply_align_desc: "Quick alignment tool to sync audio and video"
+      simply_align_desc: "Quick audio alignment tool"
       run_ffmpeg_desc: "FFmpeg transcoding tool"
       measure_bpm_desc: "BPM measurement tool"
 
@@ -419,7 +419,7 @@ en_US:
       ui_video_mode_label: "Video Mode: "
       ui_video_mode_source_tooltip: "native in-game footage"
       ui_video_mode_camera_tooltip: "camera directly filming the arcade screen"
-      ui_need_screen_rectification_label: "Screen Rectification: "
+      ui_need_screen_rectification_label: " Screen Rectification: "
       ui_need_screen_rectification_help: |
         Expected input: camera facing the screen directly, with content centered 
         and filling the entire frame.
@@ -457,7 +457,7 @@ en_US:
       ui_bpm_type_dynamic: "Dynamic"
       ui_input_static_bpm_label: " Input Static BPM: "
       ui_static_bpm_help: "Only static BPM is supported (no tempo changes).\nSupports integers or up to 3 decimal places"
-      ui_is_big_touch_label: "Larger Touch: "
+      ui_is_big_touch_label: " Larger Touch: "
       ui_is_big_touch_help: |
         In Basic/Advanced level,
         touch/touch-hold notes are usually larger in size.

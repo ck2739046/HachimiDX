@@ -117,7 +117,7 @@ zh_CN:
     nav_bar:
       majdata_label: "MajdataEdit"
       auto_rechart_label: "自动抄谱"
-      media_tools_label: "媒体工具"
+      media_tools_label: "多媒体工具"
       tasks_label: "任务队列"
       settings_label: "应用设置"
       majdata_desc: "内嵌 MajdataEdit"
@@ -128,11 +128,11 @@ zh_CN:
 
     sub_nav_bar:
       arcade_timing_label: "开头延时分析"
-      simply_align_label: "快速对齐"
-      run_ffmpeg_label: "FFmpeg"
-      measure_bpm_label: "BPM 测速"
+      simply_align_label: "快速对音"
+      run_ffmpeg_label: "素材转码"
+      measure_bpm_label: "BPM 测量"
       arcade_timing_desc: "分析开头音频延时工具，与官方音频对齐"
-      simply_align_desc: "快速对齐工具，同步音频与视频"
+      simply_align_desc: "快速音频对齐工具"
       run_ffmpeg_desc: "FFmpeg 转码工具"
       measure_bpm_desc: "BPM 测量工具"
 
@@ -418,7 +418,7 @@ zh_CN:
       ui_video_mode_label: "视频形式: "
       ui_video_mode_source_tooltip: "游戏原生画面"
       ui_video_mode_camera_tooltip: "相机直接拍摄街机屏幕"
-      ui_need_screen_rectification_label: "画面矫正: "
+      ui_need_screen_rectification_label: " 画面矫正: "
       ui_need_screen_rectification_help: |
         标准输入画面应满足：镜头正对屏幕、内容居中且铺满全屏。
         如果输入视频不满足要求，勾选此项可进行手动画面矫正。
@@ -452,7 +452,7 @@ zh_CN:
       ui_bpm_type_dynamic: "动态 BPM"
       ui_input_static_bpm_label: " 请输入静态 BPM: "
       ui_static_bpm_help: "仅支持静态 BPM (全程不变速)\n支持整数或最多三位小数"
-      ui_is_big_touch_label: "大尺寸 touch: "
+      ui_is_big_touch_label: " 大尺寸 touch: "
       ui_is_big_touch_help: |
         在 Basic/Advanced 难度中，
         touch/touch-hold 音符的尺寸通常会更大。
