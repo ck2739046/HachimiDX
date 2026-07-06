@@ -176,7 +176,7 @@ class SettingsPage(BaseOutputPage):
         self.create_row(
             default_label,
             self.default_width_line_edit,
-            create_label("x"),
+            create_label("×"),
             self.default_height_line_edit,
             add_stretch=True,
         )
@@ -502,7 +502,7 @@ class SettingsPage(BaseOutputPage):
 
         # 特例：cpu 不应该触发转换按钮
         if backend == "CPU":
-            self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_cpu_don't_need_convert_model"))
+            self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_cpu_does_not_need_convert_model"))
             return
 
         detect_batch_result = SettingsManage.get(S_Defs.predict_batch_size_detect_obb.key)
@@ -632,7 +632,7 @@ class SettingsPage(BaseOutputPage):
             self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_model_ready", backend=backend))
             # 特例 cpu 提示无需转换
             if backend == "CPU":
-                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_cpu_don't_need_convert_model"))
+                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_cpu_does_not_need_convert_model"))
                 self._sync_ui_state()
             return
 

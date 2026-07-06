@@ -42,10 +42,10 @@ class SettingsConfig_Definitions:
         type="str",
         group="model",
         default="TensorRT",
-        constraints={"options": ["CPU", "TensorRT", "DirectML"],
+        constraints={"options": ["CPU", "DirectML", "TensorRT"],
                      "options_tooltips": ["ui_model_backend_cpu_tooltip",
-                                          "ui_model_backend_tensorrt_tooltip",
-                                          "ui_model_backend_directml_tooltip"]},
+                                          "ui_model_backend_directml_tooltip",
+                                          "ui_model_backend_tensorrt_tooltip"]},
     )
 
     @staticmethod
@@ -150,7 +150,9 @@ class SettingsConfig_Definitions:
         type="str",
         group="general",
         default="en_US",
-        constraints={"options": ["zh_CN", "en_US"]},
+        constraints={"options": ["zh_CN", "en_US"],
+                     "options_tooltips": ["ui_language_zh_cn_tooltip",
+                                          "ui_language_en_us_tooltip"]},
     )
 
     check_update = SettingsConfig_Definition(

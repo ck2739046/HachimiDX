@@ -76,8 +76,8 @@ zh_CN:
   pydantic_models:
     run_ffmpeg:
       error_invalid_output_filename: "无效的输出文件名：不能包含字符：\\ / : * ? \" < > |"
-      empty_output_extension: "输出文件拓展名不能为空"
-      invalid_output_extension: "无效的输出文件拓展名：必须以 '.' 开头"
+      empty_output_extension: "输出文件扩展名不能为空"
+      invalid_output_extension: "无效的输出文件扩展名：必须以 '.' 开头"
       ui_prompt_delete_existing_output_file: |
         输出文件已存在：%{file_path}
         该文件将在任务开始时被删除。
@@ -130,7 +130,7 @@ zh_CN:
       arcade_timing_label: "开头延时分析"
       simply_align_label: "快速对音"
       run_ffmpeg_label: "素材转码"
-      measure_bpm_label: "BPM 测量"
+      measure_bpm_label: "测量 BPM"
       arcade_timing_desc: "分析开头音频延时工具，与官方音频对齐"
       simply_align_desc: "快速音频对齐工具"
       run_ffmpeg_desc: "FFmpeg 转码工具"
@@ -148,7 +148,7 @@ zh_CN:
         ui_select_input_file_button: "选择媒体文件"
         warning_ffprobe_inspect_failed: "媒体检测失败。错误信息：\n%{error_msg}"
         
-        ui_ffprobe_inspect_prefix: "媒体信息"
+        ui_ffprobe_inspect_prefix: "文件信息"
         ui_ffprobe_inspect_help: "使用 FFprobe 检测得到的信息。"
 
         ui_no_video_stream_info: "视频流:  未检测到视频流"
@@ -339,7 +339,6 @@ zh_CN:
 
         ui_block1_divider: "测量 BPM"
         ui_enable_bpm_measurer_label: "启用 BPM 测量工具: "
-        ui_config_path_label: "配置："
         ui_select_config_button: "选择 BPM 配置"
         ui_select_config_help: "BPM 测速工具导出的 timing_config.txt 配置文件。"
         ui_open_bpm_measurer_button: "打开 BPM 测量工具"
@@ -405,7 +404,7 @@ zh_CN:
       ui_analyze_divider: "音符分析"
       ui_common_divider: "通用设置"
 
-      ui_select_chart_confirm_video_button: "选择 maimai 谱面确认视频"
+      ui_select_chart_confirm_video_button: "选择谱面确认视频文件"
       ui_selected_output_dir_button: "选择文件夹"
       ui_selected_output_dir_help: |
         所选择的文件夹 <可能> 需要包含以下文件:
@@ -464,8 +463,8 @@ zh_CN:
       ui_chart_lv_6_tooltip: "宗师 Re:Master"
       ui_chart_lv_7_tooltip: "宴会场 Utage"
       ui_base_denominator_16_tooltip: "支持 x/12 分音符"
-      ui_base_denominator_32_tooltip: "支持 x/12 和 1/24 分音符"
-      ui_base_denominator_64_tooltip: "支持 x/12 和 1/24 分音符"
+      ui_base_denominator_32_tooltip: "支持 x/12 & 1/24 分音符"
+      ui_base_denominator_64_tooltip: "支持 x/12 & 1/24 分音符"
       ui_base_denominator_label: "音符间隔分辨率: "
       ui_base_denominator_help: |
         程序解析音符间隔的时间分辨率。
@@ -530,27 +529,29 @@ zh_CN:
       ui_model_divider: "模型推理"
       ui_model_backend_label: "模型后端: "
       ui_model_backend_cpu_tooltip: "最慢，不需要 GPU"
-      ui_model_backend_tensorrt_tooltip: "最快，需要 NVIDIA GPU"
       ui_model_backend_directml_tooltip: "中等，需要兼容的 GPU（NVIDIA、AMD、Intel）"
+      ui_model_backend_tensorrt_tooltip: "最快，需要 NVIDIA GPU"
       ui_check_model_button: "检测"
       ui_convert_model_button: "转换模型"
       ui_cancel_convert_model_button: "取消"
 
       ui_ffmpeg_divider: "FFmpeg 硬件加速"
-      ui_ffmpeg_encoder_label: "编码器: "
-      ui_ffmpeg_encoder_cpu_tooltip: "libx264 软件编码"
-      ui_ffmpeg_encoder_intel_tooltip: "Intel QSV (h264_qsv) 硬件编码"
-      ui_ffmpeg_encoder_nvidia_tooltip: "NVIDIA NVENC (h264_nvenc) 硬件编码"
-      ui_auto_detect_hw_button: "自动检测最佳设置"
+      ui_ffmpeg_encoder_label: "视频编码器: "
+      ui_ffmpeg_encoder_cpu_tooltip: "最慢，CPU 软件编码 (libx264)"
+      ui_ffmpeg_encoder_intel_tooltip: "中等，Intel GPU 硬件编码 (h264_qsv)"
+      ui_ffmpeg_encoder_nvidia_tooltip: "最快，NVIDIA GPU 硬件编码 (h264_nvenc)"
+      ui_auto_detect_hw_button: "自动检测最佳选项"
 
       ui_general_divider: "通用设置"
       ui_language_label: "语言: "
+      ui_language_zh_cn_tooltip: "简体中文"
+      ui_language_en_us_tooltip: "English"
       ui_check_update_label: "  每日检查更新: "
       ui_check_update_now_label: "  立即检查更新: "
       ui_check_update_now_button: "检查"
 
       ui_window_divider: "窗口设置"
-      ui_default_size_label: "默认窗口尺寸 (W x H): "
+      ui_default_size_label: "默认窗口尺寸 (宽×高): "
       ui_ui_scale_label: "界面缩放: "
 
       ui_save_button: "保存"
@@ -596,7 +597,7 @@ zh_CN:
       notice_convert_success: "模型转换完成并通过复检: %{backend}"
       notice_convert_cancelled: "模型转换已取消: %{backend}"
       notice_cancel_requested: "已发送取消请求，等待进程结束..."
-      notice_cpu_don't_need_convert_model: "-\n提示：CPU 不需要转换模型，可以直接使用。"
+      notice_cpu_does_not_need_convert_model: "-\n提示：CPU 不需要转换模型，可以直接使用。"
 
       notice_hw_detect_start: "开始检测 FFmpeg 硬件加速支持..."
       notice_hw_detect_result: "检测完成: 编码器=%{encoder}, 解码器=%{decoder}"

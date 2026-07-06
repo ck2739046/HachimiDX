@@ -45,7 +45,6 @@ class MeasureBpmPage(BaseOutputPage):
         self.open_bpm_measurer_button = None
         self.manual_mode_hint_label = None
 
-        self.config_path_label = None
         self.config_select_button = None
         self.config_help = None
         self.config_path_display = None
@@ -97,7 +96,6 @@ class MeasureBpmPage(BaseOutputPage):
                         add_stretch=True)
 
         # row2: 启动按钮 + 选择 bpm config
-        self.config_path_label = create_label(_t("ui_config_path_label"))
         (self.config_select_button,
          self.config_path_display,
          self.config_help
@@ -108,7 +106,7 @@ class MeasureBpmPage(BaseOutputPage):
             name_filter=f"bpm config (*.txt)",
         )
         self.create_row(self.open_bpm_measurer_button,
-                        self.config_path_label, self.config_select_button, self.config_help,
+                        self.config_select_button, self.config_help,
                         self.config_path_display)
 
         # connect
@@ -119,14 +117,11 @@ class MeasureBpmPage(BaseOutputPage):
 
     def _on_enable_bpm_changed(self) -> None:
         # 测量工具模式（勾选）
-        #   显示启动按钮 + config path_label
+        #   显示启动按钮
         #   隐藏 config select_button + help
-        # 手动模式（取消勾选）
-        #   反过来
         is_checked = self.enable_bpm_measurer_check_box.isChecked()
         self.open_bpm_measurer_button.setVisible(is_checked)
         self.manual_mode_hint_label.setVisible(not is_checked)
-        self.config_path_label.setVisible(is_checked)
         self.config_select_button.setVisible(not is_checked)
         self.config_help.setVisible(not is_checked)
 

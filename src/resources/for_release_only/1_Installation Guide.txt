@@ -5,15 +5,14 @@
 
 Step 1: Install Dependencies (One-time Setup)
 
-1. Open the "install" folder
-2. Double-click to run install.bat
-3. Follow the on-screen prompts to complete the installation
-4. Close the window when installation is finished
+1. Open the "install" folder.
+2. Double-click to run "install.bat".
+3. Follow the on-screen prompts to complete the installation.
+4. Close the window when installation is finished.
 
 Note: Installation only needs to be done once.
 
-If you later want to switch the model inference backend,
-plz re-run install.bat and select option "2. Switch model inference backend."
+If you later want to switch the model inference backend, plz re-run "install.bat" and select option "2. Switch model inference backend."
 
 
 --------------------------------------------------------------------------------
@@ -21,8 +20,8 @@ plz re-run install.bat and select option "2. Switch model inference backend."
 Step 2: Launch the Application
 
 
-1. Return to the project root directory
-2. Double-click HachimiDX.exe to launch the application
+1. Return to the project root directory.
+2. Double-click "HachimiDX.exe" to launch the application.
 
 
 --------------------------------------------------------------------------------
@@ -32,11 +31,11 @@ Step 3: Set Language (One-time Setup)
 
 It is recommended to set the interface language first:
 
-1. Go to the "Settings" page
-2. In the "General" section, find the "Language" option
-3. Select your preferred language (English / 简体中文)
-4. Click the "Save" button at the bottom of the page
-5. Restart HachimiDX for the language change to take effect
+1. Go to the "Settings" page.
+2. In the "General" section, find the "Language" option.
+3. Select your preferred language (English / 简体中文).
+4. Click the "Save" button at the bottom of the page.
+5. Restart HachimiDX for the language change to take effect.
 
 Note: You must restart the application after saving for the new language to appear.
 
@@ -48,34 +47,32 @@ Step 4: Model Configuration (One-time Setup)
 
 First-time setup requires configuring the model inference backend:
 
-1. Go to the "Settings" page
-2. In the "Model Inference" section, find the "Model Backend" option
+1. Go to the "Settings" page.
+2. In the "Model Inference" section, find the "Model Backend" option.
 3. Select an appropriate backend:
 
    - CPU:      Slowest, but no GPU required, works on any computer
+   - DirectML: Medium, requires compatible GPU (NVIDIA/AMD/Intel)
    - TensorRT: Fastest, requires NVIDIA GPU
-   - DirectML: Medium speed, requires compatible GPU (NVIDIA/AMD/Intel)
    
-4. Click the "Check" button to verify your environment
-5. Click the "Convert Model" button
-6. Wait for the conversion to complete  (this may take 10 minutes)
+4. Click the "Check" button to verify your environment.
+5. Click the "Convert Model" button.
+6. Wait for the conversion to complete (this may take 5-10 minutes).
 
-Note: This step only needs to be performed once. After successful model 
-conversion, you can use the software normally.
+Note: This step only needs to be performed once. After successful model conversion, you can use the software normally.
 
 
 --------------------------------------------------------------------------------
 
-Step 5: FFmpeg Hardware Acceleration Configuration (One-time Setup)
+Step 5: FFmpeg Video Encoder Configuration (One-time Setup)
 
 
-First-time setup requires configuring the FFmpeg Hardware Acceleration。
+First-time setup requires configuring the FFmpeg Video Encoder:
 
-1. Go to the "Settings" page
-2. In the "FFmpeg Hardware Acceleration" section, find the "Encoder" option,
-   select the appropriate option
-3. If you're not sure, click the "Auto-detect Best Configuration" button
-4. Remember to click the "Save" button at the bottom of the page
+1. Go to the "Settings" page.
+2. In the "FFmpeg Hardware Acceleration" section, find the "Video Encoder" option, select the appropriate option.
+3. If you're not sure, click the "Auto-detect Best Option" button.
+4. Remember to click the "Save" button at the bottom of the page.
 
 Note: This step only needs to be performed once.
 
@@ -83,3 +80,5 @@ Note: This step only needs to be performed once.
 --------------------------------------------------------------------------------
 
 Done!
+
+Run into issues, want to report bugs, share suggestions, or talk development? Join our QQ group chat 868888361.
