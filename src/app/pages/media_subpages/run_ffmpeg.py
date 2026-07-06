@@ -329,7 +329,7 @@ class RunFFmpegPage(BaseOutputPage):
             widget_type="check_box", param=M_Defs.delete_video)
 
 
-        # common adjust_start line edit (正数=pad_start, 负数=trim_start)
+        # common adjust_start line edit (正数=trim_start, 负数=pad_start)
         self.common_adjust_start_line_edit = create_line_edit(
             length=70, validator='float')
         # common end line edit
@@ -471,8 +471,8 @@ class RunFFmpegPage(BaseOutputPage):
 
 
 
-    def _resolve_adjust_start_pad(self) -> float | None:
-        """正数 → pad_start, 其他 → None"""
+    def _resolve_adjust_start_trim(self) -> float | None:
+        """正数 → start (trim), 其他 → None"""
         v = self.common_adjust_start_line_edit.text().strip()
         try:
             f = float(v)
@@ -480,8 +480,8 @@ class RunFFmpegPage(BaseOutputPage):
         except Exception:
             return None
 
-    def _resolve_adjust_start_trim(self) -> float | None:
-        """负数 → start (绝对值), 其他 → None"""
+    def _resolve_adjust_start_pad(self) -> float | None:
+        """负数 → pad_start (绝对值), 其他 → None"""
         v = self.common_adjust_start_line_edit.text().strip()
         try:
             f = float(v)

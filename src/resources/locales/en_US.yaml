@@ -293,17 +293,17 @@ en_US:
           100% = original volume.
 
         # ---- Common Settings ----
-        ui_adjust_start_label: "Start TTime: "
+        ui_adjust_start_label: "Start Time: "
         ui_adjust_start_help: |
           Controls the starting position of the output file.
 
           Unit:     Seconds (up to 3 decimal places, e.g. 1.5)
           Empty(0): No adjustment.
-          Positive: Prepend a silent/black segment, shifting the content later.
-          Negative: Trim away the given duration from the beginning.
+          Positive: Trim away the given duration from the beginning.
+          Negative: Prepend a silent/black segment, shifting the content later.
 
-          Example: 1.5 → Adds 1.5s of silence or black frames at the start.
-                  -2.0 → Cuts off the first 2 seconds.
+          Example: 2.0 → Cuts off the first 2 seconds.
+                  -1.5 → Adds 1.5s of silence or black frames at the start.
         ui_trim_end_label: "End Time: "
         ui_trim_end_help: |
           Controls the ending position of the output file.
