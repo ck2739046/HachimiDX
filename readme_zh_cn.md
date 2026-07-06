@@ -28,7 +28,7 @@
 
 </div>
 
-> <img src="src/resources/doc/images/qq_icon.svg" width="12px" style="vertical-align: middle;"> 如果在使用中遇到问题、需要帮助、想反馈 Bug 或提出建议，亦或参与开发讨论，欢迎加入 QQ 交流群 **`868888361`**。
+> <img src="src/resources/doc/images/qq_icon.svg" width="14px" style="vertical-align: middle;"> 如果在使用中遇到问题、需要帮助、想反馈 Bug 或提出建议，亦或参与开发讨论，欢迎加入 QQ 交流群 **`868888361`**。
 
 <br>
 
