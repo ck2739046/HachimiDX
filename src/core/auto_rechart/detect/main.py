@@ -104,5 +104,6 @@ def main(std_video_path,
         
     except KeyboardInterrupt:
         print("\n中断")
+        return err("用户中断 (KeyboardInterrupt)")
     except Exception as e:
         return err("Unexcepted error in auto_rechart > detect > main", e)
