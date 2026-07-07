@@ -49,7 +49,7 @@ def main(std_video_path: Path,
         sampling_plan, total_cls_quantity = _build_sampling_plan(track_results)
         if not sampling_plan:
             print("没有需要分类的轨迹")
-            return None
+            return ok()
 
         # 加载模型
         cls_ex_model = YOLO(cls_ex_model_path, task="classify")
