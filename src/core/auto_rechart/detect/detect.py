@@ -100,7 +100,7 @@ def _send_eof(q, stop_event, timeout=_PUT_TIMEOUT):
 
 def _inference_worker(model_path, task_name,
                       frame_queue, batch_detect, inference_device,
-                      results_queue, progress_val):
+                      results_queue, progress_val, coord_scale):
     """
     模型推理进程（消费共享解码队列）：
     - 从 frame_queue 攒 batch_detect → predict
@@ -121,14 +121,16 @@ def _inference_worker(model_path, task_name,
         buffer.append(frame)
         if len(buffer) >= batch_detect:
             _run_batch(model, task_name, imgsz_val, buffer, next_frame_idx,
-                       batch_detect, inference_device, results_queue, progress_val)
+                       batch_detect, inference_device, results_queue, progress_val,
+                       coord_scale)
             next_frame_idx += len(buffer)
             buffer.clear()
 
     # flush 残余
     if buffer:
         _run_batch(model, task_name, imgsz_val, buffer, next_frame_idx,
-                   batch_detect, inference_device, results_queue, progress_val)
+                   batch_detect, inference_device, results_queue, progress_val,
+                   coord_scale)
         next_frame_idx += len(buffer)
         buffer.clear()
 
@@ -137,7 +139,8 @@ def _inference_worker(model_path, task_name,
 
 
 def _run_batch(model, task_name, imgsz_val, frames, start_idx,
-               batch_detect, inference_device, results_queue, progress_val):
+               batch_detect, inference_device, results_queue, progress_val,
+               coord_scale):
     """对一个 batch 的帧跑 predict 并解析结果；results 与 frames 输入顺序一一对应"""
     results = model.predict(
         source=frames,
@@ -150,7 +153,7 @@ def _run_batch(model, task_name, imgsz_val, frames, start_idx,
     )
     for i, result in enumerate(results):
         frame_number = start_idx + i
-        note_geometrys = _parse_detections_to_note_geometrys(result, frame_number, task_name)
+        note_geometrys = _parse_detections_to_note_geometrys(result, frame_number, task_name, coord_scale)
         if note_geometrys:
             for ng in note_geometrys:
                 results_queue.put((ng, task_name))
@@ -223,6 +226,14 @@ def main(std_video_path: Path,
         decode_imgsz = get_imgsz('detect')
         if get_imgsz('obb') != decode_imgsz:
             return err("detect/obb imgsz 不一致，共享解码需相同 imgsz", None)
+        if decode_imgsz <= 0:
+            return err("detect/obb imgsz 非正整数", None)
+        
+        # 坐标空间还原系数：解码时缩放到 decode_imgsz，解析时乘此系数还原到视频原始尺寸
+        cap = cv2.VideoCapture(str(std_video_path))
+        std_video_size = round(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        cap.release()
+        coord_scale = std_video_size / decode_imgsz
 
         # 跨进程共享对象（主进程创建，传递给子进程）
         progress_detect = multiprocessing.Value('i', 0)
@@ -254,13 +265,13 @@ def main(std_video_path: Path,
             target=_inference_worker,
             args=(detect_model_path, 'detect', q_detect,
                   batch_detect, inference_device,
-                  results_queue, progress_detect)
+                  results_queue, progress_detect, coord_scale)
         )
         p_obb = multiprocessing.Process(
             target=_inference_worker,
             args=(obb_model_path, 'obb', q_obb,
                   batch_detect, inference_device,
-                  results_queue, progress_obb)
+                  results_queue, progress_obb, coord_scale)
         )
         p_detect.start()
         p_obb.start()
@@ -410,7 +421,7 @@ def _cleanup_pipeline(decode_p, workers, printer_p,
 
 
 
-def _parse_detections_to_note_geometrys(result, frame_number, model_name):
+def _parse_detections_to_note_geometrys(result, frame_number, model_name, coord_scale):
     if model_name == 'detect':
         # 转换detect模型结果
         if result.boxes is None or len(result.boxes) == 0:
@@ -421,8 +432,12 @@ def _parse_detections_to_note_geometrys(result, frame_number, model_name):
         xywh = boxes.xywh    # shape: (N, 4)
         conf = boxes.conf    # shape: (N, 1)
         raw_cls = boxes.cls  # shape: (N, 1)
-        # 批量构建字典列表
 
+        # 坐标从 decode_imgsz 空间还原到 _STD_VIDEO_SIZE 空间
+        xyxy = xyxy * coord_scale
+        xywh = xywh * coord_scale
+
+        # 批量构建字典列表
         note_geometry_list = [
             Note_Geometry(
                 frame=frame_number,
@@ -456,6 +471,11 @@ def _parse_detections_to_note_geometrys(result, frame_number, model_name):
         xywhr = obb.xywhr        # (N, 5)    -> N个框，每个框(x_center, y_center, w, h, r)
         conf = obb.conf          # (N, 1)
         raw_cls = obb.cls        # (N, 1)
+
+        # 坐标从 decode_imgsz 空间还原到 _STD_VIDEO_SIZE 空间
+        xyxyxyxy = xyxyxyxy * coord_scale
+        xywhr[:, :4] = xywhr[:, :4] * coord_scale  # 旋转角 r 不缩放
+
         # 批量构建字典列表
         note_geometry_list = [
             Note_Geometry(
