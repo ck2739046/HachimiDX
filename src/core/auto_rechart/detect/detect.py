@@ -35,6 +35,9 @@ def _decode_worker(std_video_path, q_detect, q_obb,
             ret, frame = cap.read()
             if not ret:
                 break
+            # 解码时提前一次 resize
+            # 避免 detect/obb 两个模型各自 resize
+            # 推理结果基于 decode_imgsz, 后续解析需要还原到视频原始尺寸
             frame = cv2.resize(frame, (decode_imgsz, decode_imgsz),
                                interpolation=cv2.INTER_LINEAR)
             # 先 detect 再 obb
