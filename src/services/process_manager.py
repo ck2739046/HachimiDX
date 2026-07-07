@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import subprocess
 from dataclasses import dataclass
 from typing import Any, Optional
 import time
@@ -9,6 +8,7 @@ from PyQt6.QtCore import QObject, QProcess, QTimer, pyqtSignal
 
 from src.core.schemas.op_result import OpResult, ok, err
 from src.core.tools import generate_uid
+from src.services.watchdog import _kill_process_tree
 
 
 @dataclass(slots=True)
@@ -149,7 +149,7 @@ class ProcessManager(QObject):
     def kill_all_running(self) -> None:
         """
         同步强杀所有正在运行的子进程
-        直接对每个进程的整棵进程树执行 taskkill /F /T
+        对每个进程的整棵进程树执行 psutil kill
         """
         for rid in list(self._procs.keys()):
             self._force_kill_if_running(rid)
@@ -280,9 +280,8 @@ class ProcessManager(QObject):
             proc.kill()
             return
 
-        # /T: tree, /F: force
-        subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # 对每个进程的整棵进程树执行 psutil kill
+        _kill_process_tree(pid)
 
 
             

@@ -1,10 +1,32 @@
 import os
 import sys
 import time
-import subprocess
 from typing import Optional
 
 import psutil
+
+
+def _kill_process_tree(pid: int) -> None:
+    """强杀 pid 及其整棵子进程树"""
+    try:
+        root = psutil.Process(pid)
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return
+    # 先杀所有后代 (递归), 再杀自身
+    # children() 单独兜底: 即使枚举失败 (AccessDenied), 仍保证 root 被杀
+    try:
+        children = root.children(recursive=True)
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        children = []
+    for child in children:
+        try:
+            child.kill()
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+    try:
+        root.kill()
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        pass
 
 
 
@@ -34,11 +56,7 @@ def _force_kill_process_by_name(target: str) -> None:
     if result:
         print(f"Found {len(result)} '{target}' process(es): {result}, will force kill...")
         for pid in result:
-            try:
-                subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], 
-                                timeout=5, capture_output=True)
-            except Exception:
-                pass
+            _kill_process_tree(pid)
 
 
 
@@ -124,12 +142,8 @@ def shutdown_orphaned_subprocesses(parent_pid: int) -> None:
         return
     print(f"[watchdog] Found {len(pids)} orphaned descendant process(es): {pids}, force killing...")
     for pid in pids:
-        try:
-            # 强杀每个进程的整棵进程树
-            subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)],
-                            timeout=5, capture_output=True)
-        except Exception:
-            pass
+        # 强杀每个进程的整棵进程树
+        _kill_process_tree(pid)
 
 
 
