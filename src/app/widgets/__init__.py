@@ -20,6 +20,7 @@ from .floating_notification import create_floating_notification
 from .overlay_widget import OverlayWidget
 from .range_visualizer import RangeVisualizer
 from .slider import create_slider
+from .scrollable_image_label import ScrollableImageLabel
 
 __all__ = [
     'SquareWidget',
@@ -40,4 +41,5 @@ __all__ = [
     'OverlayWidget',
     'RangeVisualizer',
     'create_slider',
+    'ScrollableImageLabel',
 ]

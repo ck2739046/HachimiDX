@@ -2,7 +2,7 @@ from pathlib import Path
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import QLabel, QVBoxLayout
+from PyQt6.QtWidgets import QVBoxLayout
 
 from ..base_output_page import BaseOutputPage
 from .simply_align import parse_offset_ms, build_edit_media_raw_data
@@ -115,7 +115,7 @@ class ArcadeTimingPage(BaseOutputPage):
         self.video_align_button.hide()
         self.edit_target_button.hide()
         self.waveform_label.hide()
-        self.waveform_label.clear()
+        self.waveform_label.clear_image()
 
 
 
@@ -173,8 +173,7 @@ class ArcadeTimingPage(BaseOutputPage):
 
     def _build_preview_section(self) -> None:
 
-        self.waveform_label = QLabel()
-        self.waveform_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.waveform_label = ScrollableImageLabel()
         self.waveform_label.setMinimumHeight(210)
         self.waveform_label.hide()
         self.content_layout.addWidget(self.waveform_label)
@@ -337,8 +336,7 @@ class ArcadeTimingPage(BaseOutputPage):
             self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.warning_wave_load_failed"))
             return
 
-        self.waveform_label.setPixmap(pixmap)
-        self.waveform_label.show()
+        self.waveform_label.set_image(pixmap)
 
         try:
             if wave_path.is_file():
