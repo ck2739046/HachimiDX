@@ -78,8 +78,8 @@ def main(file_path, bpm, click_times, start_time_sec) -> OpResult[dict]:
         interval_ms = 60 / bpm * 1000
         # 往前一拍
         graph_range_start = match_time_ms - interval_ms
-        # 大部分歌曲开始前会等待 4 拍，此处留个 5 拍
-        graph_range_end = match_time_ms + interval_ms * (click_times + 5)
+        # 12+1 拍
+        graph_range_end = match_time_ms + interval_ms * (click_times + 13)
         graph_range_start = max(0, graph_range_start) # 不允许负数
         graph_range_end = max(graph_range_end, graph_range_start + 2000) # 至少显示2秒
 

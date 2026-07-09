@@ -42,7 +42,7 @@ def main(reference_audio,
         end_time = graph_range_end
         
         # 创建画布
-        fig = plt.figure(figsize=(8, 2), dpi=100)  # 800px × 200px
+        fig = plt.figure(figsize=(20, 2), dpi=100)  # 2000px × 200px
         
         # 设置背景颜色
         fig.patch.set_facecolor(UI_Style.COLORS['grey'])
