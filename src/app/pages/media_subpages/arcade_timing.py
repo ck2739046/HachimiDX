@@ -112,6 +112,7 @@ class ArcadeTimingPage(BaseOutputPage):
         self._offset_value_ms = None
         self.offset_label.setText("")
         self.offset_label.hide()
+        self.offset_help_icon.hide()
         self.video_align_button.hide()
         self.edit_target_button.hide()
         self.waveform_label.hide()
@@ -155,6 +156,9 @@ class ArcadeTimingPage(BaseOutputPage):
         self.offset_label = create_label(bold=True)
         self.offset_label.hide()
 
+        self.offset_help_icon = create_help_icon(i18n.t("app.media_subpages.simply_align.ui_offset_help"))
+        self.offset_help_icon.hide()
+
         self.edit_target_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_edit_target_button"))
         self.edit_target_button.clicked.connect(self.on_edit_target_clicked)
         self.edit_target_button.hide()
@@ -165,6 +169,7 @@ class ArcadeTimingPage(BaseOutputPage):
 
         self.create_row(self.run_button,
                         self.offset_label,
+                        self.offset_help_icon,
                         self.edit_target_button,
                         self.video_align_button,
                         add_stretch=True)
@@ -372,6 +377,7 @@ class ArcadeTimingPage(BaseOutputPage):
             self._offset_value_ms = value
             self.offset_label.setText(f"  Offset: trim {value} ms ")
         self.offset_label.show()
+        self.offset_help_icon.show()
         self.edit_target_button.show()
 
 
