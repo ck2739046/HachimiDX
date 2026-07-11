@@ -225,7 +225,9 @@ en_US:
         warning_negative_quick_offset: "Offset cannot be negative."
         warning_sync_file_exists: |
           Output file already exists:
-          \n%{path}\n
+
+          %{path}
+          
           Yes: Delete the existing file and regenerate it with the same filename.
           No:  Keep the existing file and generate a new file with a numbered suffix (e.g., sync_1)
         warning_video_generate_failed: "Failed to generate reference video:\n%{error}"

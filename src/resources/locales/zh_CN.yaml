@@ -226,7 +226,9 @@ zh_CN:
         warning_negative_quick_offset: "Offset 不能为负数。"
         warning_sync_file_exists: |
           输出文件已存在：
-          \n\n%{path}\n\n
+
+          %{path}
+          
           是：删除已存在文件，生成新文件，文件名不变。
           否：保留已存在文件，生成新文件，文件名带后缀（例如 sync_1）。
         warning_video_generate_failed: "生成参考视频失败：\n%{error}"
