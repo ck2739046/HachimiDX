@@ -238,6 +238,7 @@ zh_CN:
         warning_target_file_required: "请先选择目标文件。"
         warning_target_file_missing: "目标文件不存在，请重新选择。"
         warning_build_output_path_failed: "构建输出路径失败：\n%{error}"
+        ui_offset_help: "该偏移量为音频分析结果，仅供参考，实际可能需要手动修正。"
 
 
       run_ffmpeg:

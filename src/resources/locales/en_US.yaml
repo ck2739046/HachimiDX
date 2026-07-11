@@ -237,6 +237,7 @@ en_US:
         warning_target_file_required: "Please select a target file first."
         warning_target_file_missing: "Target file does not exist. Please select it again."
         warning_build_output_path_failed: "Failed to build output path:\n%{error}"
+        ui_offset_help: "This offset is derived from audio analysis. It is for reference only and may require manual adjustment."
 
 
       run_ffmpeg:

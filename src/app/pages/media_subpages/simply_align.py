@@ -210,8 +210,9 @@ class SimplyAlignPage(BaseOutputPage):
         # Action button + offset display
         self.run_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_run_button"), isbig=True)
         self.offset_label = create_label(bold=True)
+        self.offset_help_icon = create_help_icon(i18n.t(f"{I18N_Simply_Align_Prefix}.ui_offset_help"))
         self.content_layout.addSpacing(UI_Style.widget_spacing)
-        self.create_row(self.run_button, self.offset_label, add_stretch=True)
+        self.create_row(self.run_button, self.offset_label, self.offset_help_icon, add_stretch=True)
 
         # Quick export: divider
         self.quick_export_divider = create_divider(i18n.t(f"{I18N_Simply_Align_Prefix}.ui_quick_export_divider"))
@@ -398,6 +399,7 @@ class SimplyAlignPage(BaseOutputPage):
             self._offset_action = None
             self._offset_value_ms = None
             self.offset_label.hide()
+            self.offset_help_icon.hide()
             self._set_quick_export_visible(False)
             return
 
@@ -405,6 +407,7 @@ class SimplyAlignPage(BaseOutputPage):
             self._offset_action = "aligned"
             self._offset_value_ms = 0
             self.offset_label.hide()
+            self.offset_help_icon.hide()
             self._set_quick_export_visible(False)
             return
 
@@ -420,6 +423,7 @@ class SimplyAlignPage(BaseOutputPage):
             self.offset_label.setText(f"  Offset: trim {value} ms ")
             self.quick_trim_line_edit.setText(str(value))
         self.offset_label.show()
+        self.offset_help_icon.show()
         self._set_quick_export_visible(True)
 
 
@@ -430,6 +434,7 @@ class SimplyAlignPage(BaseOutputPage):
             if target_type not in (MediaType.VIDEO_WITH_AUDIO, MediaType.VIDEO_WITHOUT_AUDIO):
                 return
             self.offset_label.show()
+            self.offset_help_icon.show()
             self.quick_export_divider.show()
             self.generate_video_label.show()
             self.generate_video_button.show()
@@ -446,6 +451,7 @@ class SimplyAlignPage(BaseOutputPage):
                 self.quick_trim_line_edit.hide()
         else:
             self.offset_label.hide()
+            self.offset_help_icon.hide()
             self.quick_export_divider.hide()
             self.quick_trim_label.hide()
             self.quick_trim_line_edit.hide()
