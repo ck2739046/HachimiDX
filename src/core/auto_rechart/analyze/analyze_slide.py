@@ -134,7 +134,7 @@ def slide_head_tail_match_by_time(shared_context, slide_head_info, slide_tail_in
     delay = tail_start_time - head_end_time
     匹配规则1：一个tail最多只能匹配到一个head，但是一个head可以匹配多个tail
     匹配规则2：head_position = tail_start_position
-    匹配规则3：min_delay < delay < max_delay（delay 以 head 所在时间段 bpm 计算）
+    匹配规则3：min_delay < delay < max_delay（delay 以 tail_end_time 所在时间段 bpm 计算）
     匹配规则4：如果tail与多个head都符合匹配条件，选择delay与std_delay最接近的head
 
     返回:
@@ -175,10 +175,10 @@ def slide_head_tail_match_by_time(shared_context, slide_head_info, slide_tail_in
         best_head = None
         best_delay_diff = float('inf')
         for head_key, head_value in head_by_position[tail_start_position]:
-            # delay 以 head 所在时间段 bpm 动态计算
-            head_end_time = head_value
-            std_delay, min_delay, max_delay, _ = _delay_params_at(bpm_segments, head_end_time)
+            # delay 以 tail_end_time 所在时间段 bpm 计算
+            std_delay, min_delay, max_delay, _ = _delay_params_at(bpm_segments, tail_end_time)
             # 匹配规则3: min_delay < delay < max_delay
+            head_end_time = head_value
             delay = tail_start_time - head_end_time
             if not (min_delay < delay < max_delay):
                 continue
@@ -240,7 +240,7 @@ def try_split_slide_tail(shared_context, matched_tails_by_head: dict, unmatched_
         这样 later head 触发 tail 分割后，新的 tail 还能继续被 earlier head 触发分割
 
         规则1: 找到时间戳在 head_end_time + std_delay ± split_delay_tolerance 内的视频帧
-               std_delay / split_delay_tolerance 按 head 所在时间段 bpm 计算
+               std_delay / split_delay_tolerance 按 tail_end_time 所在时间段 bpm 计算
                tail 必须在这些视频帧内经过了 head_position A 区, 触发分割
         规则2: 如果一个 slide 触发多个 tail 分割, 则全部都分割
                因为一个 head 可以匹配多个 tail (对应 head_tail_match 匹配规则1)
@@ -274,19 +274,6 @@ def try_split_slide_tail(shared_context, matched_tails_by_head: dict, unmatched_
 
         head_position_A_zone = f"A{head_position[0]}"
 
-        # delay / split 容差按 head 所在时间段 bpm 动态计算
-        std_delay, _, _, split_delay_tolerance = _delay_params_at(bpm_segments, head_end_time)
-
-        # 规则1: 找到时间戳在 head_end_time + std_delay ± split_delay_tolerance 内的视频帧
-        target_time = head_end_time + std_delay
-        split_start_Msec = target_time - split_delay_tolerance
-        split_end_Msec = target_time + split_delay_tolerance
-        try:
-            target_frames = shared_context.get_frames_in_msec_range(split_start_Msec, split_end_Msec)
-        except Exception as e:
-            print(f"try_split_slide_tail: Error occurred while fetching frames: {e}")
-            continue
-
         # print(f"try_split_slide_tail: unmatched head {head_track_id} looking for tails in frames {target_frames[0]} to {target_frames[-1]}")
         
         # 遍历所有 tail
@@ -295,6 +282,20 @@ def try_split_slide_tail(shared_context, matched_tails_by_head: dict, unmatched_
             for matched_tail_key, matched_tail_value in tail_list:
                 tail_track_id, tail_note_type, tail_note_variant, tail_start_position_id, tail_end_position_id = matched_tail_key
                 tail_start_time, tail_end_time, note_path = matched_tail_value
+
+                # delay / split 容差以 tail_end_time 所在时间段 bpm 计算
+                # 因每个候选 tail 的 tail_end_time 不同，需要在循环内逐个计算
+                std_delay, _, _, split_delay_tolerance = _delay_params_at(bpm_segments, tail_end_time)
+
+                # 规则1: 找到时间戳在 head_end_time + std_delay ± split_delay_tolerance 内的视频帧
+                target_time = head_end_time + std_delay
+                split_start_Msec = target_time - split_delay_tolerance
+                split_end_Msec = target_time + split_delay_tolerance
+                try:
+                    target_frames = shared_context.get_frames_in_msec_range(split_start_Msec, split_end_Msec)
+                except Exception as e:
+                    print(f"try_split_slide_tail: Error occurred while fetching frames: {e}")
+                    continue
 
                 # 规则1: tail 必须在这些视频帧内经过了 head_position A 区, 才能触发分割
                 frame_num = None
