@@ -1212,7 +1212,7 @@ def _divide_path_by_A_zone(note_path, start_pos, end_pos) -> list:
         if i == len(note_path) - 1:
             current_segment.append(point)
             current_segment_end_A_zone = end_pos
-            if current_segment_start_A_zone != current_segment_end_A_zone:
+            if leave_start_A_zone or current_segment_start_A_zone != current_segment_end_A_zone:
                 note_path_segments.append((current_segment,
                                            current_segment_start_A_zone,
                                            current_segment_end_A_zone))
