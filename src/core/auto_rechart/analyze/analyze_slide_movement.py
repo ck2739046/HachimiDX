@@ -67,6 +67,18 @@ def analyze_slide_tail_movement_syntax(input_shared_context, note_path, start_po
 
             if pending_arc['end_id'] == start_id and pending_arc['direction'] == direction:
                 pending_arc['end_id'] = end_id
+                # 特殊情况:
+                # 如果从起点转了一整圈回到原地
+                # 立即输出这一整圈 token 并重置 pending_arc
+                # 避免继续延展导致整圈被吞
+                # e.g. 1-2-3-4-5-6-7-8-1-2 应产出 '>1>2' 而非仅 '>2'
+                if pending_arc['end_id'] == pending_arc['start_id']:
+                    merged_tokens.append(
+                        _get_arc_syntax(pending_arc['start_id'],
+                                        pending_arc['next_id'],
+                                        pending_arc['start_id'])
+                    )
+                    pending_arc = None
                 continue
 
             _flush_pending_arc()
