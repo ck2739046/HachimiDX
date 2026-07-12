@@ -167,7 +167,7 @@ def slide_head_tail_match_by_time(shared_context, slide_head_info, slide_tail_in
         # 匹配规则2: head_position = tail_start_position
         tail_start_position = str(tail_start_position_id)
         if tail_start_position not in head_by_position.keys():
-            print(f"[{tail_track_id}] Tail not match: No heads at position {tail_start_position}")
+            print(f"slide_head_tail_match: Tail {tail_track_id} not match: No heads at position {tail_start_position}")
             continue
 
         # 如果有在 tail_start_pos 有相同位置的 head
@@ -189,7 +189,7 @@ def slide_head_tail_match_by_time(shared_context, slide_head_info, slide_tail_in
                 best_head = (head_key, head_value)
 
         if best_head is None:
-            print(f"[{tail_track_id}] Tail not match: No heads match delay at position {tail_start_position}")
+            print(f"slide_head_tail_match: Tail {tail_track_id} not match: No heads match delay at position {tail_start_position}, std_delay={std_delay:.1f}ms")
             continue
 
         # 找到了匹配的head，写入匹配结果
@@ -257,7 +257,7 @@ def try_split_slide_tail(shared_context, matched_tails_by_head: dict, unmatched_
         unmatched_heads: list of (head_key, head_value)
     '''
     
-    print(f"try_split_slide_tail: trying to split tails for {len(unmatched_heads)} unmatched heads")
+    print(f"try_split_slide_tail: trying to split tails for {len(unmatched_heads)} unmatched heads:")
 
     # 加载模型
     cls_ex_model = YOLO(cls_ex_model_path, task="classify")
@@ -287,7 +287,7 @@ def try_split_slide_tail(shared_context, matched_tails_by_head: dict, unmatched_
             print(f"try_split_slide_tail: Error occurred while fetching frames: {e}")
             continue
 
-        print(f"try_split_slide_tail: unmatched head {head_track_id} looking for tails in frames {target_frames[0]} to {target_frames[-1]}")
+        # print(f"try_split_slide_tail: unmatched head {head_track_id} looking for tails in frames {target_frames[0]} to {target_frames[-1]}")
         
         # 遍历所有 tail
         is_head_matched = False
@@ -383,12 +383,16 @@ def try_split_slide_tail(shared_context, matched_tails_by_head: dict, unmatched_
                 matched_tails_by_head[(matched_head_key, matched_head_value)].append((new_tail_key_early, new_tail_value_early))
                 matched_tails_by_head[(unmatched_head_key, unmatched_head_value)].append((new_tail_key_late, new_tail_value_late))
                 is_head_matched = True
-                print(f"try_split_slide_tail: - split tail {tail_track_id} at frame {frame_num} triggered by head {head_track_id} -> {new_tail_track_id_early}/{new_tail_track_id_late}")
+                space_num = len("try_split_slide_tail: ")
+                print(f"{' ' * space_num}✓ " + \
+                      f"split tail {tail_track_id} -> {new_tail_track_id_early}/{new_tail_track_id_late} " + \
+                      f"at frame {frame_num} (triggered by head {head_track_id})")
 
         if is_head_matched:
             unmatched_heads.remove((unmatched_head_key, unmatched_head_value))
         else:
-            print(f"try_split_slide_tail: - unmatched head {head_track_id} not split any tail")
+            space_num = len("try_split_slide_tail: ")
+            print(f"{' ' * space_num}✗ no tail was split by head {head_track_id}")
 
     return matched_tails_by_head, unmatched_heads
 

@@ -206,8 +206,9 @@ def get_syntax(note_path, start_pos, end_pos):
 
         # 无法识别, syntax fallback to straight
         classified_segments.append((start_A_zone, end_A_zone, '?'))
-        print(f"get_syntax: unrecognized movement pattern for segment in track {track_id}, default to '?' syntax:")
-        print(f"start_A_zone: {start_A_zone}, end_A_zone: {end_A_zone}")
+        print(f"get_syntax: unrecognized movement pattern for segment in track {track_id}, default to '?' syntax.")
+        space_num = len("get_syntax: ")
+        print(f"{' ' * space_num}start_A_zone: {start_A_zone}, end_A_zone: {end_A_zone}")
         
         deduped: list[str] = []
         last_pos = None
@@ -215,7 +216,7 @@ def get_syntax(note_path, start_pos, end_pos):
             if note['position'] != last_pos:
                 deduped.append(note['position'])
                 last_pos = note['position']
-        print(" -> ".join(deduped))
+        print(f"{' ' * space_num}{" -> ".join(deduped)}")
 
 
     return classified_segments
