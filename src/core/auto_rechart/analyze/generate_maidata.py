@@ -327,7 +327,8 @@ def generate_maidata(shared_context: SharedContext,
 
 
 
-def get_best_numerator_denominator(diff_beat, input_denominator,enable_12, enable_24_1):
+def get_best_numerator_denominator(diff_beat, input_denominator,
+                                   enable_12, enable_24, enable_48_1):
     """在12/24和输入分母中选择误差最小的分母"""
 
     # 如果输入的分母 >=12，启用12作为备选分母
@@ -335,9 +336,11 @@ def get_best_numerator_denominator(diff_beat, input_denominator,enable_12, enabl
     candidates = [input_denominator]
     if input_denominator >= 12 and enable_12:
         candidates.append(12)
-    if input_denominator >= 24 and enable_24_1:
+    if input_denominator >= 24 and enable_24:
         candidates.append(24)
-    
+    if input_denominator >= 48 and enable_48_1:
+        candidates.append(48)
+
     # 选择误差最小的分母
     best_error = float('inf')
     best_total_numerator = 0
@@ -367,7 +370,7 @@ def get_best_numerator_denominator(diff_beat, input_denominator,enable_12, enabl
 
 
 def get_fraction(diff_beat, input_denominator,
-                 enable_12=True, enable_24_1=True):
+                 enable_12=True, enable_24=True, enable_48_1=True):
         
         # 将数字转为带分数形式
         # 返回格式：分子，分母，整数
@@ -377,13 +380,13 @@ def get_fraction(diff_beat, input_denominator,
         # 2.25  =  1/4 + 2  =  1, 4, 2
         
         raw_numerator, raw_denominator = get_best_numerator_denominator(
-            diff_beat, input_denominator, enable_12, enable_24_1)
+            diff_beat, input_denominator, enable_12, enable_24, enable_48_1)
         
-        # 有限度的支持 24 分音符: 仅限 1/24
-        # 如果不是 N+1/24，禁用 24 并重新计算
-        if enable_24_1 and raw_denominator == 24 and raw_numerator % 24 != 1:
+        # 有限度的支持 48 分音符: 仅限 1/48
+        # 如果不是 N+1/48，禁用 48 并重新计算
+        if enable_48_1 and raw_denominator == 48 and raw_numerator % 48 != 1:
             raw_numerator, raw_denominator = get_best_numerator_denominator(
-                diff_beat, input_denominator, enable_12, enable_24_1=False)
+                diff_beat, input_denominator, enable_12, enable_24, enable_48_1=False)
         
         if raw_numerator == 0: return 0, 1, 0 # 零间隔直接返回
         # 获取整数和余数部分
@@ -449,7 +452,7 @@ def parse_note_duration(one_beat_Msec, note_type, note_length, base_denominator,
     
     # 将 duration 变为分数形式
     numerator, denominator, one = get_fraction(
-        length_beat, denominator_to_use, enable_12=False, enable_24_1=False)
+        length_beat, denominator_to_use, enable_12=False, enable_24=False, enable_48_1=False)
     # 将整数部分加入分子
     if one > 0:
         numerator = numerator + one * denominator
