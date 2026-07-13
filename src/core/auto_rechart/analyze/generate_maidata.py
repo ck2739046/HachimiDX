@@ -38,7 +38,9 @@ class PassedBeatTracker:
 
     @staticmethod
     def calculate_lcm_denom(base_denominator: int) -> int:
-        if base_denominator >= 24:
+        if base_denominator >= 48:
+            return base_denominator * 48 // math.gcd(base_denominator, 48)
+        elif base_denominator >= 24:
             return base_denominator * 24 // math.gcd(base_denominator, 24)
         elif base_denominator >= 12:
             return base_denominator * 12 // math.gcd(base_denominator, 12)
