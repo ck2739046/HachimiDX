@@ -22,7 +22,7 @@ from .analyze_hold import analyze_hold_time
 from .analyze_touch_hold import analyze_touch_hold_time
 from .analyze_slide import analyze_slide_time
 
-from .generate_maidata import generate_maidata
+from .maidata_generate import generate_maidata
 
 
 
