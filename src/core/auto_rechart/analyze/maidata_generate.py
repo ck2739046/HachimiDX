@@ -1,10 +1,30 @@
 import numpy as np
-import os
 import math
+from dataclasses import dataclass
 
 from .shared_context import *
 from ..detect.note_definition import *
 from .maidata_parse import parse_note_info, calculate_one_beat_ms
+
+
+
+@dataclass
+class MaidataItem:
+    """
+    restructurer 的最小工作单元，对应 SimaiGenerator.cs 的 SimaiNote。
+
+    numerator:   音符总小节位置，分子
+    denominator: 音符总小节位置，分母
+    content:     音符语法文本
+    is_bpm:      是否为 BPM 变化点
+    each_group:  each 分组索引，因不支持伪 each, 所以始终为 0
+    """
+    numerator: int
+    denominator: int
+    content: str
+    is_bpm: bool = False
+    each_group: int = 0
+
 
 
 
@@ -84,16 +104,40 @@ class PassedBeatTracker:
         if idx + 1 in self._timing_points:
             next_beat, _ = self._timing_points[idx + 1]
             theory_total_beat = (next_beat - start_beat) / self.lcm_denom
-            cur_total_beat = min(actual_passed_beat, theory_total_beat)
             if actual_passed_beat > theory_total_beat:
                 print(f"get_total_elapsed_ms: Warning: note {self.cur_note_track_id}: actual_passed_beat {actual_passed_beat:.3f} exceeds theory_total_beat {theory_total_beat:.3f} for BPM segment {idx} {cur_bpm}, truncating to theory total.")
-        else:
-            cur_total_beat = actual_passed_beat
+                actual_passed_beat = theory_total_beat  # 截断
 
-        total_ms += cur_total_beat * calculate_one_beat_ms(cur_bpm)
+        total_ms += actual_passed_beat * calculate_one_beat_ms(cur_bpm)
 
         return total_ms
 
+
+    def get_total_elapsed_bar(self) -> tuple[int, int]:
+        """理论总播放时间 (小节位置)"""
+
+        total_beats = 0
+        idx = self.current_bpm_segment_index
+
+        # 过往段：使用该段的总 beat
+        for i in range(idx):
+            start_beat, _ = self._timing_points[i]
+            next_beat, _ = self._timing_points[i + 1]
+            total_beats += next_beat - start_beat
+
+        # 当前段：使用 passed_beat
+        actual_passed_beat = self.current_bpm_segment_passed_beat
+        # 检查: passed_beat 是否超过当前段理论总 beat，如果超过则截断
+        if idx + 1 in self._timing_points:
+            start_beat, _ = self._timing_points[idx]
+            next_beat, _ = self._timing_points[idx + 1]
+            theory_total_beat = next_beat - start_beat
+            if actual_passed_beat > theory_total_beat:
+                print(f"get_total_elapsed_bar: Warning: note {self.cur_note_track_id}: actual_passed_beat {actual_passed_beat} exceeds theory_total_beat {theory_total_beat} for BPM segment {idx}, truncating to theory total.")
+                actual_passed_beat = theory_total_beat  # 截断
+        total_beats += actual_passed_beat
+
+        return total_beats, self.lcm_denom*4  # 一小节=四拍
 
 
 
