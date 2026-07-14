@@ -27,14 +27,14 @@ def parse_note_info(key, value, timing_points,
     
     (track_id, note_type, note_variant, cur_position), time = key, value
 
-    cur_bpm_segment_index, raw_cur_note_time = _get_note_reach_time(time, track_id)
+    raw_cur_note_time = _get_note_reach_time(time, track_id)
     if raw_cur_note_time is None: return None
 
     # 可能需要吸附
     cur_note_time = _snap_note_time_to_bpm_segment(raw_cur_note_time, timing_points, base_denominator)
 
     # 获取这个音符的 bpm
-    cur_bpm = _get_bpm_by_note_time(cur_note_time, timing_points)
+    cur_bpm_segment_index, cur_bpm = _get_bpm_by_note_time(cur_note_time, timing_points)
     one_bar_ms = calculate_one_bar_ms(cur_bpm)
 
     # 对于 slide, hold, touch_hold 可能存在 duration 信息
