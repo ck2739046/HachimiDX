@@ -294,8 +294,13 @@ def calculate_beat_diff(last_note_time: float,
         # 不同段，起点时间为该段的起点时间
         start_time = timing_points[cur_bpm_seg_index][2]  # start_ms
 
-    # 计算时间差
-    time_diff = cur_note_time - start_time
-    numerator, denominator, one = get_fraction(time_diff, base_denominator)
+    # 计算时间差 beat
+    time_diff_ms = cur_note_time - start_time
+    cur_bpm = timing_points[cur_bpm_seg_index][1]  # bpm
+    one_beat_ms = calculate_one_beat_ms(cur_bpm)
+    diff_beat = time_diff_ms / one_beat_ms
+
+    # 约分
+    numerator, denominator, one = get_fraction(diff_beat, base_denominator)
 
     return cur_bpm_seg_index, numerator, denominator, one
