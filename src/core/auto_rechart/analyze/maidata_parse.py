@@ -68,7 +68,7 @@ def calculate_one_beat_ms(bpm):
     return 60 / bpm * 1000 * 4
 
 
-def get_bpm_segment_idx(note_time: float, timing_points: list):
+def _get_bpm_segment_idx(note_time: float, timing_points: list):
     """找到当前段索引（最后一个 start_ms <= note_time 的段）"""
     seg_idx = 0
     for i, tp in enumerate(timing_points):
@@ -81,7 +81,7 @@ def get_bpm_segment_idx(note_time: float, timing_points: list):
 
 def _get_bpm_by_note_time(note_time: float, timing_points: list) -> tuple[int, float]:
     """返回起始时间最大且 <= note_time 的那段 BPM 数值"""
-    seg_idx = get_bpm_segment_idx(note_time, timing_points)
+    seg_idx = _get_bpm_segment_idx(note_time, timing_points)
     return seg_idx, timing_points[seg_idx][1]
 
 
@@ -116,7 +116,7 @@ def _snap_note_time_to_bpm_segment(note_time, timing_points,
     if len(timing_points) <= 1:
         return note_time
 
-    seg_idx = get_bpm_segment_idx(note_time, timing_points)
+    seg_idx = _get_bpm_segment_idx(note_time, timing_points)
 
     # 后向吸附：当前段起点
     if seg_idx > 0: # 第一段不吸
