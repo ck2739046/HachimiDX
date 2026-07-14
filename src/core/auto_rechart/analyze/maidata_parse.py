@@ -62,8 +62,6 @@ def parse_note_info(key, value, timing_points,
 
 
 
-def calculate_one_beat_ms(bpm):
-    return 60 / bpm * 1000
 
 
 def calculate_one_bar_ms(bpm):

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from .shared_context import *
 from ..detect.note_definition import *
-from .maidata_parse import parse_note_info, calculate_one_beat_ms, calculate_one_bar_ms
+from .maidata_parse import parse_note_info, calculate_one_bar_ms
 
 
 
