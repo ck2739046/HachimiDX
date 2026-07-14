@@ -35,7 +35,7 @@ def parse_note_info(key, value, timing_points,
 
     # 获取这个音符的 bpm
     cur_bpm = _get_bpm_by_note_time(cur_note_time, timing_points)
-    one_beat_ms = calculate_one_beat_ms(cur_bpm)
+    one_bar_ms = calculate_one_bar_ms(cur_bpm)
 
     # 对于 slide, hold, touch_hold 可能存在 duration 信息
     # 更新 cur_position 添加时值文本
@@ -43,7 +43,7 @@ def parse_note_info(key, value, timing_points,
         if note_type == NoteType.SLIDE:
             # slide 可包含多个 duration
             cur_position = _append_slide_duration_syntax(
-                cur_position, list(time[1:]), one_beat_ms,
+                cur_position, list(time[1:]), one_bar_ms,
                 base_denominator, duration_denominator
             )
             # 特例：三段同头直线 slide 压缩为 w 语法
@@ -52,7 +52,7 @@ def parse_note_info(key, value, timing_points,
             # 特例: hold 时值为 0 时不添加时值文本
             pass
         else:
-            duration_syntax = _parse_note_duration(one_beat_ms, note_type, time[-1],
+            duration_syntax = _parse_note_duration(one_bar_ms, note_type, time[-1],
                                                    base_denominator, duration_denominator)
             cur_position += duration_syntax
 
@@ -62,10 +62,12 @@ def parse_note_info(key, value, timing_points,
 
 
 
-
-
 def calculate_one_beat_ms(bpm):
-    return 60 / bpm * 1000 * 4
+    return 60 / bpm * 1000
+
+
+def calculate_one_bar_ms(bpm):
+    return 60 / bpm * 1000 * 4  # 一小节=四拍
 
 
 def _get_bpm_segment_idx(note_time: float, timing_points: list):
@@ -123,9 +125,9 @@ def _snap_note_time_to_bpm_segment(note_time, timing_points,
         current_start_ms = timing_points[seg_idx][2]
         diff_ms = note_time - current_start_ms
         current_bpm = timing_points[seg_idx][1]
-        one_beat_ms = calculate_one_beat_ms(current_bpm)
-        diff_beat = diff_ms / one_beat_ms
-        numerator, denominator, one = get_fraction(diff_beat, base_denominator)
+        one_bar_ms = calculate_one_bar_ms(current_bpm)
+        diff_bar = diff_ms / one_bar_ms
+        numerator, denominator, one = get_fraction(diff_bar, base_denominator)
         if numerator == 0 and denominator == 1 and one == 0:
             return current_start_ms
 
@@ -134,9 +136,9 @@ def _snap_note_time_to_bpm_segment(note_time, timing_points,
         next_start_ms = timing_points[seg_idx + 1][2]
         diff_ms = next_start_ms - note_time
         current_bpm = timing_points[seg_idx][1]
-        one_beat_ms = calculate_one_beat_ms(current_bpm)
-        diff_beat = diff_ms / one_beat_ms
-        numerator, denominator, one = get_fraction(diff_beat, base_denominator)
+        one_bar_ms = calculate_one_bar_ms(current_bpm)
+        diff_bar = diff_ms / one_bar_ms
+        numerator, denominator, one = get_fraction(diff_bar, base_denominator)
         if numerator == 0 and denominator == 1 and one == 0:
             return next_start_ms
 
@@ -181,11 +183,11 @@ def _get_note_reach_time(time, track_id):
 
 
 
-def _parse_note_duration(one_beat_Msec, note_type, note_length, base_denominator, duration_denominator) -> str:
+def _parse_note_duration(one_bar_Msec, note_type, note_duration, base_denominator, duration_denominator) -> str:
 
     from .maidata_generate import get_fraction  # 避免循环导入
 
-    length_beat = note_length / one_beat_Msec
+    duration_in_bar = note_duration / one_bar_Msec
 
     # 分类处理
     if note_type == NoteType.TOUCH_HOLD or note_type == NoteType.SLIDE:
@@ -198,7 +200,7 @@ def _parse_note_duration(one_beat_Msec, note_type, note_length, base_denominator
     
     # 将 duration 变为分数形式
     numerator, denominator, one = get_fraction(
-        length_beat, denominator_to_use, enable_12=False, enable_24=False, enable_48_1=False)
+        duration_in_bar, denominator_to_use, enable_12=False, enable_24=False, enable_48_1=False)
     # 将整数部分加入分子
     if one > 0:
         numerator = numerator + one * denominator
@@ -216,7 +218,7 @@ def _parse_note_duration(one_beat_Msec, note_type, note_length, base_denominator
 
 def _append_slide_duration_syntax(position: str,
                                   durations,
-                                  one_beat_Msec,
+                                  one_bar_Msec,
                                   base_denominator,
                                   duration_denominator) -> str:
     """
@@ -230,7 +232,7 @@ def _append_slide_duration_syntax(position: str,
     # 单星星: 直接在末尾添加时值
     if '*' not in position:
         return position + _parse_note_duration(
-            one_beat_Msec,
+            one_bar_Msec,
             NoteType.SLIDE,
             durations[-1],
             base_denominator,
@@ -246,7 +248,7 @@ def _append_slide_duration_syntax(position: str,
         )
         # fallback: 如果分段数量与时值数量不匹配，直接在末尾添加时值
         return position + _parse_note_duration(
-            one_beat_Msec,
+            one_bar_Msec,
             NoteType.SLIDE,
             durations[-1],
             base_denominator,
@@ -256,7 +258,7 @@ def _append_slide_duration_syntax(position: str,
     output_segments = []
     for segment, duration in zip(segments, durations):
         duration_syntax = _parse_note_duration(
-            one_beat_Msec,
+            one_bar_Msec,
             NoteType.SLIDE,
             duration,
             base_denominator,

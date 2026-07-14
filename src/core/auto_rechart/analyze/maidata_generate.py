@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from .shared_context import *
 from ..detect.note_definition import *
-from .maidata_parse import parse_note_info, calculate_one_beat_ms
+from .maidata_parse import parse_note_info, calculate_one_beat_ms, calculate_one_bar_ms
 
 
 
@@ -37,7 +37,7 @@ class PassedBeatTracker:
 
     内部保存两个状态:
       - current_bpm_segment_index:       当前所处的 BPM 段索引
-      - current_bpm_segment_passed_beat: 当前段内已通过的 beat fraction
+      - current_bpm_segment_passed_beat: 当前段内已通过的 beat 分子 (基于384分母)
     """
 
     def __init__(self, timing_points: list):
@@ -137,7 +137,7 @@ class PassedBeatTracker:
                 actual_passed_beat = theory_total_beat  # 截断
         total_beats += actual_passed_beat
 
-        return total_beats, self.lcm_denom*4  # 一小节=四拍
+        return total_beats, self.lcm_denom*4  # beat -> bar, 一小节=四拍
 
 
 
@@ -237,7 +237,7 @@ def generate_maidata(notes_info, timing_points,
 
 
 
-def get_best_numerator_denominator(diff_beat, input_denominator,
+def get_best_numerator_denominator(diff_bar, input_denominator,
                                    enable_12, enable_24, enable_48_1):
     """在12/24和输入分母中选择误差最小的分母"""
 
@@ -257,10 +257,10 @@ def get_best_numerator_denominator(diff_beat, input_denominator,
     best_denominator = input_denominator
 
     for denom in candidates:
-        total_numerator = round(diff_beat * denom)
+        total_numerator = round(diff_bar * denom)
         # 零间隔
         if total_numerator == 0:
-            error = abs(diff_beat)
+            error = abs(diff_bar)
             if error < best_error:
                 best_error = error
                 best_total_numerator = 0
@@ -268,7 +268,7 @@ def get_best_numerator_denominator(diff_beat, input_denominator,
             continue
         # 计算误差
         fraction_value = total_numerator / denom
-        error = abs(diff_beat - fraction_value)
+        error = abs(diff_bar - fraction_value)
         if error < best_error:
             best_error = error
             best_total_numerator = total_numerator
@@ -279,7 +279,7 @@ def get_best_numerator_denominator(diff_beat, input_denominator,
 
 
 
-def get_fraction(diff_beat, input_denominator,
+def get_fraction(diff_bar, input_denominator,
                  enable_12=True, enable_24=True, enable_48_1=True):
         
         # 将数字转为带分数形式
@@ -290,13 +290,13 @@ def get_fraction(diff_beat, input_denominator,
         # 2.25  =  1/4 + 2  =  1, 4, 2
         
         raw_numerator, raw_denominator = get_best_numerator_denominator(
-            diff_beat, input_denominator, enable_12, enable_24, enable_48_1)
+            diff_bar, input_denominator, enable_12, enable_24, enable_48_1)
         
         # 有限度的支持 48 分音符: 仅限 1/48
         # 如果不是 N+1/48，禁用 48 并重新计算
         if enable_48_1 and raw_denominator == 48 and raw_numerator % 48 != 1:
             raw_numerator, raw_denominator = get_best_numerator_denominator(
-                diff_beat, input_denominator, enable_12, enable_24, enable_48_1=False)
+                diff_bar, input_denominator, enable_12, enable_24, enable_48_1=False)
         
         if raw_numerator == 0: return 0, 1, 0 # 零间隔直接返回
         # 获取整数和余数部分
@@ -326,6 +326,7 @@ def calculate_beat_diff(last_note_time: float,
     如果当前音符和旧音符位于不同 bpm 段，起点用该段的起点时间
 
     计算当前音符时间与起点的时间差，转为分数
+    返回的是 beat 而不是 bar
 
     return: tuple[cur_bpm_segment_index, numerator, denominator, one]
     """
@@ -338,13 +339,17 @@ def calculate_beat_diff(last_note_time: float,
         # 不同段，起点时间为该段的起点时间
         start_time = timing_points[cur_bpm_seg_index][2]  # start_ms
 
-    # 计算时间差 beat
+    # 计算时间差 bar
     time_diff_ms = cur_note_time - start_time
     cur_bpm = timing_points[cur_bpm_seg_index][1]  # bpm
-    one_beat_ms = calculate_one_beat_ms(cur_bpm)
-    diff_beat = time_diff_ms / one_beat_ms
+    one_bar_ms = calculate_one_bar_ms(cur_bpm)
+    diff_bar = time_diff_ms / one_bar_ms
 
     # 约分
-    numerator, denominator, one = get_fraction(diff_beat, base_denominator)
+    numerator, denominator, one = get_fraction(diff_bar, base_denominator)
+
+    # 将 bar 转为 beat, 一小节=四拍
+    numerator *= 4
+    one *= 4
 
     return cur_bpm_seg_index, numerator, denominator, one

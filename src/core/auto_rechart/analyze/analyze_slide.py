@@ -64,11 +64,11 @@ def _delay_params_at(bpm_segments: list[list], t_ms: float):
     t_ms: 查询时间戳(ms)
 
     返回 (std_delay, min_delay, max_delay, split_delay_tolerance)
-        one_beat_Msec = 60 / bpm * 1000 * 4
-        std_delay     = one_beat_Msec * 0.25
-        min_delay     = std_delay * 0.8
-        max_delay     = std_delay * 1.2
-        split_delay_tolerance = one_beat_Msec / 16  # 16分
+        one_bar_Msec = 60 / bpm * 1000 * 4
+        std_delay    = one_bar_Msec * 0.25
+        min_delay    = std_delay * 0.8
+        max_delay    = std_delay * 1.2
+        split_delay_tolerance = one_bar_Msec / 16  # 16分
     '''
     # 找最后一个 start_ms <= t_ms 的段；早于首段则 fallback 首段
     bpm = bpm_segments[0][0]
@@ -78,11 +78,11 @@ def _delay_params_at(bpm_segments: list[list], t_ms: float):
         else:
             break
 
-    one_beat_Msec = 60 / bpm * 1000 * 4
-    std_delay = one_beat_Msec * 0.25
+    one_bar_Msec = 60 / bpm * 1000 * 4
+    std_delay = one_bar_Msec * 0.25
     min_delay = std_delay * 0.8
     max_delay = std_delay * 1.2
-    split_delay_tolerance = one_beat_Msec / 16
+    split_delay_tolerance = one_bar_Msec / 16
     return std_delay, min_delay, max_delay, split_delay_tolerance
 
 
