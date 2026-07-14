@@ -24,7 +24,7 @@ def parse_note_info(key, value, timing_points,
     
     (track_id, note_type, note_variant, cur_position), time = key, value
 
-    raw_cur_note_time = _get_note_reach_time(time, track_id)
+    cur_bpm_segment_index, raw_cur_note_time = _get_note_reach_time(time, track_id)
     if raw_cur_note_time is None: return None
 
     # 可能需要吸附
@@ -53,7 +53,7 @@ def parse_note_info(key, value, timing_points,
                                                    base_denominator, duration_denominator)
             cur_position += duration_syntax
 
-    return raw_cur_note_time, cur_note_time, cur_position, cur_bpm
+    return raw_cur_note_time, cur_note_time, cur_position, cur_bpm_segment_index
 
 
 
@@ -76,10 +76,10 @@ def get_bpm_segment_idx(note_time: float, timing_points: list):
     return seg_idx
 
 
-def _get_bpm_by_note_time(note_time: float, timing_points: list) -> float:
+def _get_bpm_by_note_time(note_time: float, timing_points: list) -> tuple[int, float]:
     """返回起始时间最大且 <= note_time 的那段 BPM 数值"""
     seg_idx = get_bpm_segment_idx(note_time, timing_points)
-    return timing_points[seg_idx][1]
+    return seg_idx, timing_points[seg_idx][1]
 
 
 

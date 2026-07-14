@@ -11,49 +11,74 @@ from .maidata_parse import parse_note_info, get_bpm_segment_idx, calculate_one_b
 
 class PassedBeatTracker:
     """
-    按加入顺序追踪每个 BPM 段下已通过的 beat 数。
+    追踪理论播放时间
 
-    同一 BPM 可多次出现（视为不同段），每段的 passed_numerator 独立累加。
-    内部使用最小公倍数分母 (lcm_denom) 统一分数，避免浮点数误差。
+    仅追踪最新 BPM 段的数据，过往的 BPM 段直接视为已通过
+
+    内部保存两个状态:
+      - current_bpm_segment_index:       当前所处的 BPM 段索引
+      - current_bpm_segment_passed_beat: 当前段内已通过的 beat fraction
     """
 
-    def __init__(self, base_denominator: int):
-        self.lcm_denom = self.calculate_lcm_denom(base_denominator)
-        self._entries: list[dict] = []  # list of dict {bpm, passed_numerator}
+    def __init__(self, timing_points: list):
+        # 常量
+        self.lcm_denom = 384
+        self._timing_points = self.convert_timing_points(timing_points, self.lcm_denom)
+        # 变量
+        self.current_bpm_segment_index = 0
+        self.current_bpm_segment_passed_beat = 0  # 仅分子，基于 384
 
-    @property
-    def entries(self) -> list[dict]:
-        return self._entries
 
     @staticmethod
-    def calculate_lcm_denom(base_denominator: int) -> int:
-        if base_denominator >= 48:
-            return base_denominator * 48 // math.gcd(base_denominator, 48)
-        elif base_denominator >= 24:
-            return base_denominator * 24 // math.gcd(base_denominator, 24)
-        elif base_denominator >= 12:
-            return base_denominator * 12 // math.gcd(base_denominator, 12)
-        else:
-            return base_denominator
+    def convert_timing_points(timing_points: list, lcm_denom: int) -> dict[int, tuple[int, float]]:
+        """
+        将 timing_points 转换为字典形式，方便按段索引访问
+        key   = 段序号 (0, 1, 2, ...)
+        value = tuple[ beat_index(基于384的分子), bpm ]
+        """
+        converted = {}
+        for i, (beat_index, bpm, start_ms) in enumerate(timing_points):
+            converted[i] = (round(beat_index * lcm_denom), bpm)
+        return converted
 
-    def add(self, bpm: float, numerator: int, denominator: int, one: int = 0) -> None:
-        # 将分数统一转为 lcm_denom 当分母
-        # 假设分母不为 0，并且是 lcm_denom 的因数
+
+    def add(self, current_bpm_segment_index: int,
+                  numerator: int, denominator: int, one: int = 0) -> None:
+        # 如果输入的段索引更大，说明已经跨段了，直接更新索引并清空 passed_beat
+        if current_bpm_segment_index > self.current_bpm_segment_index:
+            self.current_bpm_segment_index = current_bpm_segment_index
+            self.current_bpm_segment_passed_beat = 0
+        # 如果输入的段索引更小，说明尝试添加到之前的 BPM 段，直接报错
+        elif current_bpm_segment_index < self.current_bpm_segment_index:
+            raise ValueError(f"Cannot add to a previous BPM segment: index {current_bpm_segment_index} < {self.current_bpm_segment_index}")
+
+        # 将分数统一转为 lcm_denom 为分母的形式
+        # 假设分母不为 0, 并且是 lcm_denom 的因数
         total_numerator = one * denominator + numerator
         scaled_numerator = total_numerator * (self.lcm_denom // denominator)
-        # 如果列表为空或最后一项的 BPM 不同，添加新段；否则累加到当前段
-        if not self._entries or self._entries[-1]['bpm'] != bpm:
-            self._entries.append({'bpm': bpm, 'passed_numerator': 0})
-        # 始终累加到最新段
-        self._entries[-1]['passed_numerator'] += scaled_numerator
+        self.current_bpm_segment_passed_beat += scaled_numerator
+
 
     def get_total_elapsed_ms(self) -> float:
-        total_ms = 0
-        for entry in self._entries:
-            one_beat_ms = calculate_one_beat_ms(entry['bpm'])
-            segment_ms = one_beat_ms * entry['passed_numerator'] / self.lcm_denom
-            total_ms += segment_ms
+        """理论总播放时间（毫秒）"""
+        total_ms = 0.0
+        idx = self.current_bpm_segment_index
+        # 过往段: 使用该段的总时间
+        for i in range(idx):
+            start_beat, cur_bpm = self._timing_points[i]
+            next_beat, _ = self._timing_points[i + 1]
+            cur_total_beat = (next_beat - start_beat) / self.lcm_denom
+            total_ms += cur_total_beat * calculate_one_beat_ms(cur_bpm)
+        # 当前段: passed_beat * one_beat_ms
+        _, cur_bpm = self._timing_points[idx]
+        cur_total_beat = self.current_bpm_segment_passed_beat / self.lcm_denom
+        total_ms += cur_total_beat * calculate_one_beat_ms(cur_bpm)
+
         return total_ms
+
+
+
+
 
 
 
@@ -73,7 +98,7 @@ def generate_maidata(shared_context: SharedContext,
 
     # 追踪理论时间
     init_time = None
-    passed_beat_tracker = PassedBeatTracker(base_denominator)
+    passed_beat_tracker = PassedBeatTracker(timing_points)
     
     # 核心: 追踪音符状态
     last_note_time = None
@@ -96,7 +121,7 @@ def generate_maidata(shared_context: SharedContext,
             result = parse_note_info(key, value, timing_points,
                                      base_denominator, duration_denominator)
             if result is None: continue
-            raw_cur_note_time, cur_note_time, cur_position, cur_bpm = result
+            raw_cur_note_time, cur_note_time, cur_position, cur_bpm_seg_index = result
             
             # 统计吸附到 bpm 段的差值
             if cur_note_time != raw_cur_note_time:
