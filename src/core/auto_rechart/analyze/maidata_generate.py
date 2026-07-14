@@ -41,20 +41,21 @@ class PassedBeatTracker:
         for i, (beat_index, bpm, start_ms) in enumerate(timing_points):
             converted[i] = (round(beat_index * lcm_denom), bpm)
         return converted
+    
+
+    def update_track_id(self, new_track_id: int) -> None:
+        self.cur_note_track_id = new_track_id
 
 
     def add(self, current_bpm_segment_index: int,
-                  numerator: int, denominator: int, one: int,
-                  cur_note_track_id: int) -> None:
+                  numerator: int, denominator: int, one: int) -> None:
         # 如果输入的段索引更大，说明已经跨段了，直接更新索引并清空 passed_beat
         if current_bpm_segment_index > self.current_bpm_segment_index:
             self.current_bpm_segment_index = current_bpm_segment_index
             self.current_bpm_segment_passed_beat = 0
         # 如果输入的段索引更小，说明尝试添加到之前的 BPM 段，直接报错
         elif current_bpm_segment_index < self.current_bpm_segment_index:
-            raise ValueError(f"Cannot add note {cur_note_track_id} to a previous BPM segment: index {current_bpm_segment_index} < {self.current_bpm_segment_index}")
-
-        self.cur_note_track_id = cur_note_track_id
+            raise ValueError(f"Cannot add note {self.cur_note_track_id} to a previous BPM segment: index {current_bpm_segment_index} < {self.current_bpm_segment_index}")
 
         # 将分数统一转为 lcm_denom 为分母的形式
         # 假设分母不为 0, 并且是 lcm_denom 的因数
@@ -113,7 +114,7 @@ def generate_maidata(notes_info, timing_points,
     last_theory_time = None
     last_bpm_seg_index = None
     
-    # 仅用于统计整体音符约分偏差
+    # 仅用于统计音符约分偏差
     time_deviations = []
     # 仅用于统计吸附到 bpm 段的差值
     snap_deltas = []
@@ -126,7 +127,7 @@ def generate_maidata(notes_info, timing_points,
         result = parse_note_info(key, value, timing_points,
                                  base_denominator, duration_denominator)
         if result is None: continue
-        raw_cur_note_time, cur_note_time, cur_position, cur_bpm_seg_index = result
+        raw_cur_note_time, cur_note_time, cur_position, cur_bpm_seg_index, cur_note_track_id = result
         
         # 统计吸附到 bpm 段的差值
         if cur_note_time != raw_cur_note_time:
@@ -141,39 +142,30 @@ def generate_maidata(notes_info, timing_points,
             print(f"first note appear at {cur_note_time:.1f} ms")
             continue
 
-        # 计算本音符的理论时间
-        cur_note_theory_time = calculate_note_theory_time(last_theory_time,
-                                                          cur_note_time,
-                                                          last_bpm_seg_index,
-                                                          cur_bpm_seg_index,
-                                                          timing_points, base_denominator)
+        # 计算当前音符的时间差
+        beat_diff = calculate_beat_diff(last_theory_time, cur_note_time,
+                                        last_bpm_seg_index, cur_bpm_seg_index,
+                                        timing_points, base_denominator)
+        # 更新 tracker
+        passed_beat_tracker.update_track_id(cur_note_track_id)
+        passed_beat_tracker.add(*beat_diff)
 
-
-        # update last_note_theory_time
+        # 得到当前音符的理论时间
         # 采用 init_time + 总 passed_beat
         # 这是精确的谱面播放到此处的时间点，避免了累加误差
-        for beat_diff in beat_diffs:
-            passed_beat_tracker.add(*beat_diff)
-        last_note_theory_time = init_time + passed_beat_tracker.get_total_elapsed_ms()
-        
-        # 统计误差
-        # note_time 是通过分析得到的音符实际时间
-        # last_time 是通过分数化处理后计算得到的理论时间
-        time_deviation = raw_cur_note_time - last_note_theory_time
+        cur_theory_time = init_time + passed_beat_tracker.get_total_elapsed_ms()
+
+        # 统计音符约分误差
+        # note_time   是音符原始到达时间
+        # theory_time 是分数化处理后的理论时间
+        time_deviation = raw_cur_note_time - cur_theory_time
         time_deviations.append(time_deviation)
 
+        # update status
+        last_theory_time = cur_theory_time
+        last_bpm_seg_index = cur_bpm_seg_index
 
 
-        
-        # 提前处理零间隔并行音符
-        if len(beat_diffs) == 1:
-            (bpm, numerator, denominator, one) = beat_diffs[0]
-            if numerator == 0 and one == 0:
-                # 零间隔，使用 '/' 与上一个音符连接 
-                cur_position = f'{last_position}/{cur_position}'
-                # 跳过后续的处理，直接 continue
-                last_position = cur_position
-                continue
 
 
 
@@ -278,22 +270,18 @@ def get_fraction(diff_beat, input_denominator,
 
 
 
-def calculate_note_theory_time(last_note_time: float,
-                               cur_note_time: float,
-                               last_bpm_seg_index: int,
-                               cur_bpm_seg_index: int,
-                               timing_points: list,
-                               base_denominator: int,
-                              ) -> tuple[int, int, int, int]:
+def calculate_beat_diff(last_note_time: float,
+                        cur_note_time: float,
+                        last_bpm_seg_index: int,
+                        cur_bpm_seg_index: int,
+                        timing_points: list,
+                        base_denominator: int,
+                       ) -> tuple[int, int, int, int]:
     """
-    计算当前音符的理论时间
-
     如果当前音符和旧音符位于相同 bpm 段，起点用 last_note_time
     如果当前音符和旧音符位于不同 bpm 段，起点用该段的起点时间
 
     计算当前音符时间与起点的时间差，转为分数
-
-    返回当前音符的理论时间，单位毫秒
 
     return: tuple[cur_bpm_segment_index, numerator, denominator, one]
     """

@@ -20,7 +20,10 @@ _WIFI_ENDPOINT_SEQ = {
 
 def parse_note_info(key, value, timing_points,
                     base_denominator, duration_denominator
-                   ) -> tuple[float, float, str, float] | None:
+                   ) -> tuple[float, float, str, int, int] | None:
+    """
+    return: raw_cur_note_time, cur_note_time, cur_position, cur_bpm_segment_index, cur_note_track_id
+    """
     
     (track_id, note_type, note_variant, cur_position), time = key, value
 
@@ -53,7 +56,7 @@ def parse_note_info(key, value, timing_points,
                                                    base_denominator, duration_denominator)
             cur_position += duration_syntax
 
-    return raw_cur_note_time, cur_note_time, cur_position, cur_bpm_segment_index
+    return raw_cur_note_time, cur_note_time, cur_position, cur_bpm_segment_index, track_id
 
 
 
