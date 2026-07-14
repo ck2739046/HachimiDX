@@ -27,6 +27,7 @@ class PassedBeatTracker:
         # 变量
         self.current_bpm_segment_index = 0
         self.current_bpm_segment_passed_beat = 0  # 仅分子，基于 384
+        self.cur_note_track_id = -1  # 用于报错输出
 
 
     @staticmethod
@@ -43,14 +44,17 @@ class PassedBeatTracker:
 
 
     def add(self, current_bpm_segment_index: int,
-                  numerator: int, denominator: int, one: int = 0) -> None:
+                  numerator: int, denominator: int, one: int,
+                  cur_note_track_id: int) -> None:
         # 如果输入的段索引更大，说明已经跨段了，直接更新索引并清空 passed_beat
         if current_bpm_segment_index > self.current_bpm_segment_index:
             self.current_bpm_segment_index = current_bpm_segment_index
             self.current_bpm_segment_passed_beat = 0
         # 如果输入的段索引更小，说明尝试添加到之前的 BPM 段，直接报错
         elif current_bpm_segment_index < self.current_bpm_segment_index:
-            raise ValueError(f"Cannot add to a previous BPM segment: index {current_bpm_segment_index} < {self.current_bpm_segment_index}")
+            raise ValueError(f"Cannot add note {cur_note_track_id} to a previous BPM segment: index {current_bpm_segment_index} < {self.current_bpm_segment_index}")
+
+        self.cur_note_track_id = cur_note_track_id
 
         # 将分数统一转为 lcm_denom 为分母的形式
         # 假设分母不为 0, 并且是 lcm_denom 的因数
@@ -61,17 +65,30 @@ class PassedBeatTracker:
 
     def get_total_elapsed_ms(self) -> float:
         """理论总播放时间（毫秒）"""
+        
         total_ms = 0.0
         idx = self.current_bpm_segment_index
+
         # 过往段: 使用该段的总时间
         for i in range(idx):
             start_beat, cur_bpm = self._timing_points[i]
             next_beat, _ = self._timing_points[i + 1]
             cur_total_beat = (next_beat - start_beat) / self.lcm_denom
             total_ms += cur_total_beat * calculate_one_beat_ms(cur_bpm)
+
         # 当前段: passed_beat * one_beat_ms
         start_beat, cur_bpm = self._timing_points[idx]
-        cur_total_beat = self.current_bpm_segment_passed_beat / self.lcm_denom
+        actual_passed_beat = self.current_bpm_segment_passed_beat / self.lcm_denom
+        # 检查: passed_beat 是否超过当前段理论总 beat，如果超过则截断
+        if idx + 1 in self._timing_points:
+            next_beat, _ = self._timing_points[idx + 1]
+            theory_total_beat = (next_beat - start_beat) / self.lcm_denom
+            cur_total_beat = min(actual_passed_beat, theory_total_beat)
+            if actual_passed_beat > theory_total_beat:
+                print(f"get_total_elapsed_ms: Warning: note {self.cur_note_track_id}: actual_passed_beat {actual_passed_beat:.3f} exceeds theory_total_beat {theory_total_beat:.3f} for BPM segment {idx} {cur_bpm}, truncating to theory total.")
+        else:
+            cur_total_beat = actual_passed_beat
+
         total_ms += cur_total_beat * calculate_one_beat_ms(cur_bpm)
 
         return total_ms
