@@ -29,15 +29,15 @@ class MaidataItem:
 
 
 
-class PassedBeatTracker:
+class PassedBarTracker:
     """
     追踪理论播放时间
 
     仅追踪最新 BPM 段的数据，过往的 BPM 段直接视为已通过
 
     内部保存两个状态:
-      - current_bpm_segment_index:       当前所处的 BPM 段索引
-      - current_bpm_segment_passed_beat: 当前段内已通过的 beat 分子 (基于384分母)
+      - current_bpm_segment_index:      当前所处的 BPM 段索引
+      - current_bpm_segment_passed_bar: 当前段内已通过的 bar 分子 (基于384分母)
     """
 
     def __init__(self, timing_points: list):
@@ -46,7 +46,7 @@ class PassedBeatTracker:
         self._timing_points = self.convert_timing_points(timing_points, self.lcm_denom)
         # 变量
         self.current_bpm_segment_index = 0
-        self.current_bpm_segment_passed_beat = 0  # 仅分子，基于 384
+        self.current_bpm_segment_passed_bar = 0  # 仅分子，基于 384
         self.cur_note_track_id = -1  # 用于报错输出
 
 
@@ -55,11 +55,12 @@ class PassedBeatTracker:
         """
         将 timing_points 转换为字典形式，方便按段索引访问
         key   = 段序号 (0, 1, 2, ...)
-        value = tuple[ beat_index(基于384的分子), bpm ]
+        value = tuple[ bar_index(基于384的分子), bpm ]
         """
         converted = {}
         for i, (beat_index, bpm, start_ms) in enumerate(timing_points):
-            converted[i] = (round(beat_index * lcm_denom), bpm)
+            bar_index = round(beat_index * 0.25 * lcm_denom)  # 将 beat 转为 bar
+            converted[i] = (bar_index, bpm)
         return converted
     
 
@@ -69,10 +70,10 @@ class PassedBeatTracker:
 
     def add(self, current_bpm_segment_index: int,
                   numerator: int, denominator: int, one: int) -> None:
-        # 如果输入的段索引更大，说明已经跨段了，直接更新索引并清空 passed_beat
+        # 如果输入的段索引更大，说明已经跨段了，直接更新索引并清空 passed_bar
         if current_bpm_segment_index > self.current_bpm_segment_index:
             self.current_bpm_segment_index = current_bpm_segment_index
-            self.current_bpm_segment_passed_beat = 0
+            self.current_bpm_segment_passed_bar = 0
         # 如果输入的段索引更小，说明尝试添加到之前的 BPM 段，直接报错
         elif current_bpm_segment_index < self.current_bpm_segment_index:
             raise ValueError(f"Cannot add note {self.cur_note_track_id} to a previous BPM segment: index {current_bpm_segment_index} < {self.current_bpm_segment_index}")
@@ -81,7 +82,7 @@ class PassedBeatTracker:
         # 假设分母不为 0, 并且是 lcm_denom 的因数
         total_numerator = one * denominator + numerator
         scaled_numerator = total_numerator * (self.lcm_denom // denominator)
-        self.current_bpm_segment_passed_beat += scaled_numerator
+        self.current_bpm_segment_passed_bar += scaled_numerator
 
 
     def get_total_elapsed_ms(self) -> float:
@@ -92,23 +93,23 @@ class PassedBeatTracker:
 
         # 过往段: 使用该段的总时间
         for i in range(idx):
-            start_beat, cur_bpm = self._timing_points[i]
-            next_beat, _ = self._timing_points[i + 1]
-            cur_total_beat = (next_beat - start_beat) / self.lcm_denom
-            total_ms += cur_total_beat * calculate_one_beat_ms(cur_bpm)
+            start_bar, cur_bpm = self._timing_points[i]
+            next_bar, _ = self._timing_points[i + 1]
+            cur_total_bar = (next_bar - start_bar) / self.lcm_denom
+            total_ms += cur_total_bar * calculate_one_bar_ms(cur_bpm)
 
-        # 当前段: passed_beat * one_beat_ms
-        start_beat, cur_bpm = self._timing_points[idx]
-        actual_passed_beat = self.current_bpm_segment_passed_beat / self.lcm_denom
-        # 检查: passed_beat 是否超过当前段理论总 beat，如果超过则截断
+        # 当前段: passed_bar * one_bar_ms
+        start_bar, cur_bpm = self._timing_points[idx]
+        actual_passed_bar = self.current_bpm_segment_passed_bar / self.lcm_denom
+        # 检查: passed_bar 是否超过当前段理论总 bar，如果超过则截断
         if idx + 1 in self._timing_points:
-            next_beat, _ = self._timing_points[idx + 1]
-            theory_total_beat = (next_beat - start_beat) / self.lcm_denom
-            if actual_passed_beat > theory_total_beat:
-                print(f"get_total_elapsed_ms: Warning: note {self.cur_note_track_id}: actual_passed_beat {actual_passed_beat:.3f} exceeds theory_total_beat {theory_total_beat:.3f} for BPM segment {idx} {cur_bpm}, truncating to theory total.")
-                actual_passed_beat = theory_total_beat  # 截断
+            next_bar, _ = self._timing_points[idx + 1]
+            theory_total_bar = (next_bar - start_bar) / self.lcm_denom
+            if actual_passed_bar > theory_total_bar:
+                print(f"get_total_elapsed_ms: Warning: note {self.cur_note_track_id}: actual_passed_bar {actual_passed_bar:.3f} exceeds theory_total_bar {theory_total_bar:.3f} for BPM segment {idx} {cur_bpm}, truncating to theory total.")
+                actual_passed_bar = theory_total_bar  # 截断
 
-        total_ms += actual_passed_beat * calculate_one_beat_ms(cur_bpm)
+        total_ms += actual_passed_bar * calculate_one_bar_ms(cur_bpm)
 
         return total_ms
 
@@ -116,28 +117,28 @@ class PassedBeatTracker:
     def get_total_elapsed_bar(self) -> tuple[int, int]:
         """理论总播放时间 (小节位置)"""
 
-        total_beats = 0
+        total_bars = 0
         idx = self.current_bpm_segment_index
 
-        # 过往段：使用该段的总 beat
+        # 过往段：使用该段的总 bar
         for i in range(idx):
-            start_beat, _ = self._timing_points[i]
-            next_beat, _ = self._timing_points[i + 1]
-            total_beats += next_beat - start_beat
+            start_bar, _ = self._timing_points[i]
+            next_bar, _ = self._timing_points[i + 1]
+            total_bars += next_bar - start_bar
 
-        # 当前段：使用 passed_beat
-        actual_passed_beat = self.current_bpm_segment_passed_beat
-        # 检查: passed_beat 是否超过当前段理论总 beat，如果超过则截断
+        # 当前段：使用 passed_bar
+        actual_passed_bar = self.current_bpm_segment_passed_bar
+        # 检查: passed_bar 是否超过当前段理论总 bar，如果超过则截断
         if idx + 1 in self._timing_points:
-            start_beat, _ = self._timing_points[idx]
-            next_beat, _ = self._timing_points[idx + 1]
-            theory_total_beat = next_beat - start_beat
-            if actual_passed_beat > theory_total_beat:
-                print(f"get_total_elapsed_bar: Warning: note {self.cur_note_track_id}: actual_passed_beat {actual_passed_beat} exceeds theory_total_beat {theory_total_beat} for BPM segment {idx}, truncating to theory total.")
-                actual_passed_beat = theory_total_beat  # 截断
-        total_beats += actual_passed_beat
+            start_bar, _ = self._timing_points[idx]
+            next_bar, _ = self._timing_points[idx + 1]
+            theory_total_bar = next_bar - start_bar
+            if actual_passed_bar > theory_total_bar:
+                print(f"get_total_elapsed_bar: Warning: note {self.cur_note_track_id}: actual_passed_bar {actual_passed_bar} exceeds theory_total_bar {theory_total_bar} for BPM segment {idx}, truncating to theory total.")
+                actual_passed_bar = theory_total_bar  # 截断
+        total_bars += actual_passed_bar
 
-        return total_beats, self.lcm_denom*4  # beat -> bar, 一小节=四拍
+        return total_bars, self.lcm_denom
 
 
 
@@ -154,7 +155,7 @@ def generate_maidata(notes_info, timing_points,
 
     # 追踪理论时间
     init_time = None
-    passed_beat_tracker = PassedBeatTracker(timing_points)
+    passed_bar_tracker = PassedBarTracker(timing_points)
     last_theory_time = None
     last_bpm_seg_index = None
     
@@ -187,17 +188,17 @@ def generate_maidata(notes_info, timing_points,
             continue
 
         # 计算当前音符的时间差
-        beat_diff = calculate_beat_diff(last_theory_time, cur_note_time,
-                                        last_bpm_seg_index, cur_bpm_seg_index,
-                                        timing_points, base_denominator)
+        bar_diff = calculate_bar_diff(last_theory_time, cur_note_time,
+                                      last_bpm_seg_index, cur_bpm_seg_index,
+                                      timing_points, base_denominator)
         # 更新 tracker
-        passed_beat_tracker.update_track_id(cur_note_track_id)
-        passed_beat_tracker.add(*beat_diff)
+        passed_bar_tracker.update_track_id(cur_note_track_id)
+        passed_bar_tracker.add(*bar_diff)
 
         # 得到当前音符的理论时间
-        # 采用 init_time + 总 passed_beat
+        # 采用 init_time + 总 passed_bar
         # 这是精确的谱面播放到此处的时间点，避免了累加误差
-        cur_theory_time = init_time + passed_beat_tracker.get_total_elapsed_ms()
+        cur_theory_time = init_time + passed_bar_tracker.get_total_elapsed_ms()
 
         # 统计音符约分误差
         # note_time   是音符原始到达时间
@@ -314,7 +315,7 @@ def get_fraction(diff_bar, input_denominator,
 
 
 
-def calculate_beat_diff(last_note_time: float,
+def calculate_bar_diff(last_note_time: float,
                         cur_note_time: float,
                         last_bpm_seg_index: int,
                         cur_bpm_seg_index: int,
@@ -326,7 +327,6 @@ def calculate_beat_diff(last_note_time: float,
     如果当前音符和旧音符位于不同 bpm 段，起点用该段的起点时间
 
     计算当前音符时间与起点的时间差，转为分数
-    返回的是 beat 而不是 bar
 
     return: tuple[cur_bpm_segment_index, numerator, denominator, one]
     """
@@ -347,9 +347,5 @@ def calculate_beat_diff(last_note_time: float,
 
     # 约分
     numerator, denominator, one = get_fraction(diff_bar, base_denominator)
-
-    # 将 bar 转为 beat, 一小节=四拍
-    numerator *= 4
-    one *= 4
 
     return cur_bpm_seg_index, numerator, denominator, one
