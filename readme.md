@@ -77,8 +77,6 @@ A tool for the rhythm game **maimai** that converts chart confirmation videos in
 
 - Fake jumps (`` ` ``) are not supported.
 
-- Frequent BPM changes may cause offset errors.
-
 - Camera-captured footage (off-screen recordings) may suffer from angle, color cast, or exposure issues. This may hurts accuracy of auto rechart.
 
 - Parallel slide notes with partially overlapping trajectories may cause some to be missed (e.g., `1v6[8:1]/3v6[8:1]`).
