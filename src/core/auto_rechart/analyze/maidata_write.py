@@ -33,19 +33,6 @@
 
 
 
-
-    # 添加结尾E
-    with open(txt_path, 'a', encoding='utf-8') as f:
-        if last_bpm != last_last_bpm and last_last_bpm is not None:
-            f.write(f'\n({last_bpm})')
-            # 换 bpm 后总是写入 denominator
-            f.write('\n{' + f'{last_denominator}' + '}')
-        f.write(f'{last_position},\n' + '{1},,,E\n') # 结尾默认 3 拍延迟
-
-
-
-
-
-            # 打印生成的 maidata.txt 路径
+    # 打印生成的 maidata.txt 路径
     print(f"\nmaidata.txt: {txt_path}")
 
