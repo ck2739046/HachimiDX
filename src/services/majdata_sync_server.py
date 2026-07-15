@@ -3,6 +3,7 @@ import socket
 import threading
 import time
 import traceback
+from datetime import datetime, timedelta
 from PyQt6.QtCore import QUrl
 
 
@@ -21,6 +22,10 @@ _DEBOUNCE_SEC = 0.06
 
 # 本程序监听的 UDP 端口
 _PORT = 8014
+
+# .NET DateTime.Now.Ticks 的纪元起点
+# MajdataEdit 发来的 startAt 是本地时间（DateTime.Now.Ticks），这里用本地 naive datetime 对齐
+_DOTNET_EPOCH = datetime(1, 1, 1)
 
 
 
@@ -66,6 +71,11 @@ class VideoSyncServer:
         self._setpos_pending_position: float = None    # 待发送的位置
         self._setpos_last_received_time: float = None  # 最后接收时间
         self._setpos_last_sent_pos: float = None       # 上次发送的 setPosition 位置
+
+        # 延迟播放调度：到 startAt 指定的未来时刻再播放，且可取消
+        self._pending_play_timer = None   # threading.Timer 引用
+        self._pending_play_token = 0      # 每次调度/取消自增，回调用它校验自己是否仍有效
+        self._play_timer_lock = threading.Lock()
 
 
 
@@ -162,15 +172,15 @@ class VideoSyncServer:
 
         control_value = data.get("control")
         try:
-            if control_value in (0, 4):   # Start or Continue
+            if control_value in (0, 2, 4):  # Start / OpStart / Continue
                 self._handle_play(data)
-            elif control_value == 1:      # Stop
+            elif control_value == 1:        # Stop
                 self._handle_stop(data)
-            elif control_value == 3:      # Pause
+            elif control_value == 3:        # Pause
                 self._handle_pause(data)
-            elif control_value == 273:    # Set Position
+            elif control_value == 273:      # Set Position
                 self._handle_set_position(data)
-            elif control_value == 274:    # Unload video
+            elif control_value == 274:      # Unload video
                 self._handle_unload_video(data)
 
         except Exception as e:
@@ -193,6 +203,56 @@ class VideoSyncServer:
 
 
 
+
+
+    def _cancel_pending_play(self) -> None:
+        """取消尚未触发的延迟播放（OpStart 倒计时期间收到 stop/pause/unload/setPosition 时调用）。"""
+        with self._play_timer_lock:
+            if self._pending_play_timer is not None:
+                self._pending_play_timer.cancel()
+                self._pending_play_timer = None
+            self._pending_play_token += 1
+
+
+    def _compute_play_delay(self, data) -> float:
+        """从 data.startAt（.NET ticks，本地时间）换算距现在还需等待的秒数"""
+        start_at_ticks = data.get("startAt")
+        if start_at_ticks is None:
+            return 0.0
+        try:
+            target_local = _DOTNET_EPOCH + timedelta(seconds=float(start_at_ticks) / 1e7)
+            return max(0.0, (target_local - datetime.now()).total_seconds())
+        except (TypeError, ValueError):
+            return 0.0
+
+
+    def _schedule_delayed_play(self, delay: float, play_action) -> None:
+        """延迟播放：threading.Timer 到点 dispatch，期间可被取消/取代"""
+        with self._play_timer_lock:
+            if self._pending_play_timer is not None:
+                self._pending_play_timer.cancel()
+            self._pending_play_token += 1
+            token = self._pending_play_token
+
+        def fire():
+            with self._play_timer_lock:
+                if token != self._pending_play_token:
+                    return  # 已被取消或被新的 play 取代
+                self._pending_play_timer = None
+            self._dispatch_ui(play_action)
+
+        timer = threading.Timer(delay, fire)
+        with self._play_timer_lock:
+            if token != self._pending_play_token:
+                # 加锁期间被并发取消/取代，丢弃本次调度
+                timer.cancel()
+                return
+            self._pending_play_timer = timer
+
+        timer.start()
+
+
+
     def _handle_play(self, data) -> None:
 
         start_time = float(data.get("startTime", 0.0))  # Audio position in seconds
@@ -201,9 +261,6 @@ class VideoSyncServer:
         # 清除未处理的 setPosition 请求
         self._setpos_pending_position = None
 
-        # 原本 play/continue 指令中有 startAt 字段，约定在未来的某个时间点开始播放
-        # 但实际上这个未来的时间点基本就是现在 (±2ms)
-        # 所以此处采取立即执行播放的策略，省事
         def play_action():
             try:
                 mp = self.media_player
@@ -223,7 +280,20 @@ class VideoSyncServer:
             except Exception as e:
                 print(f"[VideoSync] UI play_action error: {e}")
 
-        self._dispatch_ui(play_action)
+
+        # 解析 startAt 换算距现在的延迟
+        # OpStart 有 5 秒延迟，需延迟到点再播放
+        delay = self._compute_play_delay(data)
+
+        # 如果延迟小于等于 60ms，立即播放，否则延迟播放
+        if delay <= _TIME_TOLERANCE_SEC:
+            self._cancel_pending_play()
+            self._dispatch_ui(play_action)
+            return
+
+        # 延迟播放：threading.Timer 到点 dispatch，期间可被取消
+        self._schedule_delayed_play(delay, play_action)
+        print(f"[VideoSync] Play scheduled in {delay:.3f}s (position: {start_time:.3f}s)")
 
 
 
@@ -233,6 +303,9 @@ class VideoSyncServer:
     def _handle_pause(self, data) -> None:
 
         start_time = float(data.get("startTime", 0.0))
+
+        # 取消 OpStart 倒计时中尚未触发的延迟播放
+        self._cancel_pending_play()
 
         # 清除未处理的 setPosition 请求
         self._setpos_pending_position = None
@@ -264,6 +337,9 @@ class VideoSyncServer:
 
     def _handle_stop(self, data) -> None:
 
+        # 取消 OpStart 倒计时中尚未触发的延迟播放
+        self._cancel_pending_play()
+
         # 清除未处理的 setPosition 请求
         self._setpos_pending_position = None
 
@@ -288,6 +364,9 @@ class VideoSyncServer:
 
     def _handle_set_position(self, data) -> None:
 
+        # 取消 OpStart 倒计时中尚未触发的延迟播放
+        self._cancel_pending_play()
+
         position_time = float(data.get("position", 0.0))
 
         # 更新待发送位置和最后接收时间
@@ -302,6 +381,9 @@ class VideoSyncServer:
 
 
     def _handle_unload_video(self, data) -> None:
+
+        # 取消 OpStart 倒计时中尚未触发的延迟播放
+        self._cancel_pending_play()
 
         # 清除未处理的 setPosition 请求
         self._setpos_pending_position = None
