@@ -154,7 +154,7 @@ class _LayoutEngine:
         return result_div, should_fill_last_bar_first
 
     # ---- 移植自 Generate 第二阶段主循环 ----
-    def layout(self, items: list) -> str:
+    def layout(self, items: list[MaidataItem]) -> str:
         # 转换为内部视图 (time 为 Fraction, 单位=小节)
         self.buf = [
             {
