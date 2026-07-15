@@ -192,7 +192,11 @@ def _use_existing_standardized_video(file_path, data) -> bool:
         # 询问用户是否删除
         is_delete = show_confirm_dialog(
             title="Auto Rechart",
-            prompt_text=f"Standardized video already exists:\n\n{file_path}\n\nDo you want to delete it and generate a new one?"
+            prompt_text=(
+                f"Standardized video already exists:\n\n{file_path}\n\n"
+                f"Confirm: Delete it and generate a new one.\n"
+                f"Cancel: Disable the standardize module and use the existing standardized video directly."
+            )
         )
         if is_delete:
             # 用户选择删除文件
