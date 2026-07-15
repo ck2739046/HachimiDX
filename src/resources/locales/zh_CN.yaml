@@ -219,7 +219,7 @@ zh_CN:
         ui_quick_export_divider: "快速导出"
         ui_quick_trim_label: "裁切 (ms): "
         ui_quick_delay_label: "延迟 (ms): "
-        ui_generate_video_label: "生成 MajdataView 参考视频: "
+        ui_generate_video_label: " 生成 MajdataView 参考视频: "
         ui_generate_video_button: "生成"
         notice_video_generate_start: "开始生成参考视频..."
         notice_video_generate_success: "参考视频生成完成。\n输出文件：%{output_path}"
@@ -229,8 +229,8 @@ zh_CN:
 
           %{path}
           
-          是：删除已存在文件，生成新文件，文件名不变。
-          否：保留已存在文件，生成新文件，文件名带后缀（例如 sync_1）。
+          确认：删除已存在文件，生成新文件，文件名不变。
+          取消：保留已存在文件，生成新文件，文件名带后缀（例如 sync_1）。
         warning_video_generate_failed: "生成参考视频失败：\n%{error}"
         warning_video_generate_failed_log: "生成参考视频失败。"
         warning_offset_not_ready: "尚未解析到 offset，请先完成分析。"

@@ -218,7 +218,7 @@ en_US:
         ui_quick_export_divider: "Quick Export"
         ui_quick_trim_label: "Trim (ms): "
         ui_quick_delay_label: "Delay (ms): "
-        ui_generate_video_label: "Generate MajdataView Reference Video: "
+        ui_generate_video_label: " Generate MajdataView Reference Video: "
         ui_generate_video_button: "Generate"
         notice_video_generate_start: "Start generating reference video..."
         notice_video_generate_success: "Reference video generated.\nOutput file: %{output_path}"
@@ -228,8 +228,8 @@ en_US:
 
           %{path}
           
-          Yes: Delete the existing file and regenerate it with the same filename.
-          No:  Keep the existing file and generate a new file with a numbered suffix (e.g., sync_1)
+          Confirm: Delete the existing file and regenerate it with the same filename.
+          Cancel:  Keep the existing file and generate a new file with a numbered suffix (e.g., sync_1)
         warning_video_generate_failed: "Failed to generate reference video:\n%{error}"
         warning_video_generate_failed_log: "Failed to generate reference video."
         warning_offset_not_ready: "Offset is not ready yet. Please run Analyze first."
