@@ -234,6 +234,10 @@ def write_maidata(shared_context, items: list, timing_points: list,
     # 排版引擎生成谱面正文
     engine = _LayoutEngine()
     body = engine.layout(items)
+    # 从正文剥离出第一个 bpm 文本
+    first_bpm = items[0].content if items and items[0].is_bpm else ""
+    if first_bpm and body.startswith(first_bpm):
+        body = body[len(first_bpm):].lstrip('\n')
 
     # 写入文件: 元信息头 + 流速注释 + &inote 谱面正文
     note_speed_str = f"{note_speed:.2f}" if note_speed else "N/A"
@@ -248,7 +252,7 @@ def write_maidata(shared_context, items: list, timing_points: list,
         f.write(f'&des_{chart_lv}=default\n')
         f.write(f'&lv_{chart_lv}=15\n\n')
 
-        f.write(f'&inote_{chart_lv}=\n')
+        f.write(f'&inote_{chart_lv}={first_bpm}\n')
         f.write(f'|| note speed: {note_speed_str}, touch speed: {touch_speed_str}\n')
         f.write(body)
 
