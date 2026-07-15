@@ -212,7 +212,7 @@ class _LayoutEngine:
 
 
 
-def write_maidata(shared_context, items: list, timing_points: list,
+def write_maidata(shared_context, items: list,
                   chart_lv: int, app_version: str,
                   note_speed, touch_speed):
     """

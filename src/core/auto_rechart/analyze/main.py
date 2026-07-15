@@ -123,8 +123,7 @@ def main(std_video_path: Path,
         # generate maidata
         maidata_items = generate_maidata(final_note_info, timing_points,
                                          base_denominator, duration_denominator)
-        write_maidata(shared_context,
-                      maidata_items, timing_points,
+        write_maidata(shared_context, maidata_items,
                       chart_lv, app_version,
                       note_SpeedIndex, touch_SpeedIndex)
 
