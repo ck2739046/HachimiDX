@@ -169,6 +169,8 @@ def _compute_segment_starts(global_offset_sec: float, timing_points: list[dict])
         time_sec[0] = global_offset
         time_sec[i] = time_sec[i-1] + (beat_index[i] - beat_index[i-1]) * 60.0 / bpm[i-1]
 
+    连续相同 bpm 的段会被合并：仅保留该组首个段，后续相同数值的段不再作为独立段。
+
     Args:
         global_offset_sec, timing_points
 
@@ -210,6 +212,12 @@ def _compute_segment_starts(global_offset_sec: float, timing_points: list[dict])
 
         if bpm <= 0:
             return err(f"bpm must be positive, got {bpm}")
+
+        # 连续相同 bpm 段去重
+        # 如果与最新已保留段 bpm 数值相同, 跳过该段
+        # 等 time_sec 累加完成后再跳过 append 本段，不影响后续段
+        if segments and bpm == segments[-1][1]:
+            continue
 
         segments.append((beat_index, bpm, time_sec * 1000.0)) # 转成毫秒
 

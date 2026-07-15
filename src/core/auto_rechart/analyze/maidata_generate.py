@@ -1,307 +1,264 @@
 import numpy as np
-import os
 import math
+from dataclasses import dataclass
 
 from .shared_context import *
 from ..detect.note_definition import *
-
-
-_WIFI_ENDPOINT_SEQ = {
-    '1': '456',
-    '2': '567',
-    '3': '678',
-    '4': '781',
-    '5': '812',
-    '6': '123',
-    '7': '234',
-    '8': '345',
-}
+from .maidata_parse import parse_note_info, calculate_one_bar_ms
 
 
 
-
-class PassedBeatTracker:
+@dataclass
+class MaidataItem:
     """
-    按加入顺序追踪每个 BPM 段下已通过的 beat 数。
+    restructurer 的最小工作单元，对应 SimaiGenerator.cs 的 SimaiNote。
 
-    同一 BPM 可多次出现（视为不同段），每段的 passed_numerator 独立累加。
-    内部使用最小公倍数分母 (lcm_denom) 统一分数，避免浮点数误差。
+    numerator:   音符总小节位置，分子
+    denominator: 音符总小节位置，分母
+    content:     音符语法文本
+    is_bpm:      是否为 BPM 变化点
+    each_group:  each 分组索引，因不支持伪 each, 所以始终为 0
+    """
+    numerator: int
+    denominator: int
+    content: str
+    is_bpm: bool = False
+    each_group: int = 0
+
+
+
+
+
+class PassedBarTracker:
+    """
+    追踪理论播放时间
+
+    仅追踪最新 BPM 段的数据，过往的 BPM 段直接视为已通过
+
+    内部保存两个状态:
+      - current_bpm_segment_index:      当前所处的 BPM 段索引
+      - current_bpm_segment_passed_bar: 当前段内已通过的 bar 分子 (基于384分母)
     """
 
-    def __init__(self, base_denominator: int):
-        self.lcm_denom = self.calculate_lcm_denom(base_denominator)
-        self._entries: list[dict] = []  # list of dict {bpm, passed_numerator}
+    def __init__(self, timing_points: list):
+        # 常量
+        self.lcm_denom = 384
+        self._timing_points = self.convert_timing_points(timing_points, self.lcm_denom)
+        # 变量
+        self.current_bpm_segment_index = 0
+        self.current_bpm_segment_passed_bar = 0  # 仅分子，基于 384
+        self.cur_note_track_id = -1  # 用于报错输出
 
-    @property
-    def entries(self) -> list[dict]:
-        return self._entries
 
     @staticmethod
-    def calculate_lcm_denom(base_denominator: int) -> int:
-        if base_denominator >= 48:
-            return base_denominator * 48 // math.gcd(base_denominator, 48)
-        elif base_denominator >= 24:
-            return base_denominator * 24 // math.gcd(base_denominator, 24)
-        elif base_denominator >= 12:
-            return base_denominator * 12 // math.gcd(base_denominator, 12)
-        else:
-            return base_denominator
+    def convert_timing_points(timing_points: list, lcm_denom: int) -> dict[int, tuple[int, float]]:
+        """
+        将 timing_points 转换为字典形式，方便按段索引访问
+        key   = 段序号 (0, 1, 2, ...)
+        value = tuple[ bar_index(基于384的分子), bpm ]
+        """
+        converted = {}
+        for i, (beat_index, bpm, start_ms) in enumerate(timing_points):
+            bar_index = round(beat_index * 0.25 * lcm_denom)  # 将 beat 转为 bar
+            converted[i] = (bar_index, bpm)
+        return converted
+    
 
-    def add(self, bpm: float, numerator: int, denominator: int, one: int = 0) -> None:
-        # 将分数统一转为 lcm_denom 当分母
-        # 假设分母不为 0，并且是 lcm_denom 的因数
+    def update_track_id(self, new_track_id: int) -> None:
+        self.cur_note_track_id = new_track_id
+
+
+    def add(self, current_bpm_segment_index: int,
+                  numerator: int, denominator: int, one: int) -> None:
+        # 如果输入的段索引更大，说明已经跨段了，直接更新索引并清空 passed_bar
+        if current_bpm_segment_index > self.current_bpm_segment_index:
+            self.current_bpm_segment_index = current_bpm_segment_index
+            self.current_bpm_segment_passed_bar = 0
+        # 如果输入的段索引更小，说明尝试添加到之前的 BPM 段，直接报错
+        elif current_bpm_segment_index < self.current_bpm_segment_index:
+            raise ValueError(f"Cannot add note {self.cur_note_track_id} to a previous BPM segment: index {current_bpm_segment_index} < {self.current_bpm_segment_index}")
+
+        # 将分数统一转为 lcm_denom 为分母的形式
+        # 假设分母不为 0, 并且是 lcm_denom 的因数
         total_numerator = one * denominator + numerator
         scaled_numerator = total_numerator * (self.lcm_denom // denominator)
-        # 如果列表为空或最后一项的 BPM 不同，添加新段；否则累加到当前段
-        if not self._entries or self._entries[-1]['bpm'] != bpm:
-            self._entries.append({'bpm': bpm, 'passed_numerator': 0})
-        # 始终累加到最新段
-        self._entries[-1]['passed_numerator'] += scaled_numerator
+        self.current_bpm_segment_passed_bar += scaled_numerator
+
 
     def get_total_elapsed_ms(self) -> float:
-        total_ms = 0
-        for entry in self._entries:
-            one_beat_ms = calculate_one_beat_ms(entry['bpm'])
-            segment_ms = one_beat_ms * entry['passed_numerator'] / self.lcm_denom
-            total_ms += segment_ms
+        """理论总播放时间（毫秒）"""
+        
+        total_ms = 0.0
+        idx = self.current_bpm_segment_index
+
+        # 过往段: 使用该段的总时间
+        for i in range(idx):
+            start_bar, cur_bpm = self._timing_points[i]
+            next_bar, _ = self._timing_points[i + 1]
+            cur_total_bar = (next_bar - start_bar) / self.lcm_denom
+            total_ms += cur_total_bar * calculate_one_bar_ms(cur_bpm)
+
+        # 当前段: passed_bar * one_bar_ms
+        start_bar, cur_bpm = self._timing_points[idx]
+        actual_passed_bar = self.current_bpm_segment_passed_bar / self.lcm_denom
+        # 检查: passed_bar 是否超过当前段理论总 bar，如果超过则截断
+        if idx + 1 in self._timing_points:
+            next_bar, _ = self._timing_points[idx + 1]
+            theory_total_bar = (next_bar - start_bar) / self.lcm_denom
+            if actual_passed_bar > theory_total_bar:
+                print(f"get_total_elapsed_ms: Warning: note {self.cur_note_track_id}: actual_passed_bar {actual_passed_bar:.3f} exceeds theory_total_bar {theory_total_bar:.3f} for BPM segment {idx} {cur_bpm}, truncating to theory total.")
+                actual_passed_bar = theory_total_bar  # 截断
+
+        total_ms += actual_passed_bar * calculate_one_bar_ms(cur_bpm)
+
         return total_ms
 
 
+    def get_total_elapsed_bar(self) -> tuple[int, int]:
+        """理论总播放时间 (小节位置)"""
+
+        total_bars = 0
+        idx = self.current_bpm_segment_index
+
+        # 过往段：使用该段的总 bar
+        for i in range(idx):
+            start_bar, _ = self._timing_points[i]
+            next_bar, _ = self._timing_points[i + 1]
+            total_bars += next_bar - start_bar
+
+        # 当前段：使用 passed_bar
+        actual_passed_bar = self.current_bpm_segment_passed_bar
+        # 检查: passed_bar 是否超过当前段理论总 bar，如果超过则截断
+        if idx + 1 in self._timing_points:
+            start_bar, _ = self._timing_points[idx]
+            next_bar, _ = self._timing_points[idx + 1]
+            theory_total_bar = next_bar - start_bar
+            if actual_passed_bar > theory_total_bar:
+                print(f"get_total_elapsed_bar: Warning: note {self.cur_note_track_id}: actual_passed_bar {actual_passed_bar} exceeds theory_total_bar {theory_total_bar} for BPM segment {idx}, truncating to theory total.")
+                actual_passed_bar = theory_total_bar  # 截断
+        total_bars += actual_passed_bar
+
+        return total_bars, self.lcm_denom
 
 
 
-def generate_maidata(shared_context: SharedContext,
-                     timing_points, chart_lv,
+
+
+
+
+def _generate_bpm_items(passed_bar_tracker: PassedBarTracker, timing_points: list) -> list[MaidataItem]:
+    """
+    为每个 BPM 段生成一个 BPM 变化点 item
+    位置 = 该段起点相对首段起点的小节位置
+    """
+    init_bar_index = passed_bar_tracker._timing_points[0][0]  # 首段起点 bar_index
+    bpm_items = []
+    for i in range(len(timing_points)):
+        start_bar_index, bpm = passed_bar_tracker._timing_points[i]
+        relative_bar_index = start_bar_index - init_bar_index
+        item = MaidataItem(relative_bar_index, passed_bar_tracker.lcm_denom,
+                           f"({bpm:g})", is_bpm=True)
+        bpm_items.append(item)
+    return bpm_items
+
+
+
+
+
+
+
+
+
+def generate_maidata(notes_info, timing_points,
                      base_denominator, duration_denominator,
-                     notes_info,
-                     note_speed: float, touch_speed: float,
-                     app_version: str):
+                    ) -> list[MaidataItem]:
     
     # timing_points = [(beat_index, bpm, start_ms), ...]
 
-    # 准备输出txt文件
-    output_dir = shared_context.std_video_path.parent
-    txt_path = output_dir / "maidata.txt"
-    if os.path.exists(txt_path):
-        os.remove(txt_path)
-
-    # 写入文件头
-    video_name = output_dir.name
-    with open(txt_path, 'w', encoding='utf-8') as f:
-        f.write(f'&title={video_name}\n')
-        f.write(f'&artist=default\n')
-        f.write(f'&first=0\n')
-        f.write(f'&des=Generated by HachimiDX v{app_version}\n\n')
-
-        f.write(f'&des_{chart_lv}=default\n')
-        f.write(f'&lv_{chart_lv}=15\n\n')
-
-        f.write(f'&inote_{chart_lv}=({timing_points[0][1]})' + '{1},\n')
-        # 打印流速信息
-        note_speed_str = f"{note_speed:.2f}" if note_speed else "N/A"
-        touch_speed_str = f"{touch_speed:.2f}" if touch_speed else "N/A"
-        f.write(f"|| note speed: {note_speed_str}, touch speed: {touch_speed_str}")
-
-    # 打印基础信息
-    level_label = ['zero', 'easy', 'basic', 'advanced', 'expert', 'master', 'remaster', 'special']
-    print(f"\n{video_name} - {level_label[chart_lv]}")
-
-
-
+    items: list[MaidataItem] = []
 
     # 追踪理论时间
     init_time = None
-    passed_beat_tracker = PassedBeatTracker(base_denominator)
+    passed_bar_tracker = PassedBarTracker(timing_points)
+    last_theory_time = None
+    last_bpm_seg_index = None
+
+    is_single_bpm = len(timing_points) <= 1
     
-    # 核心: 追踪音符状态
-    last_note_time = None
-    last_position = None
-    last_denominator = None
-    last_last_bpm = None
-    last_bpm = None
-    
-    # 仅用于统计误差
+    # 仅用于统计音符约分偏差
     time_deviations = []
     # 仅用于统计吸附到 bpm 段的差值
     snap_deltas = []
 
 
 
+    for key, value in notes_info:
 
+        # 解析音符信息
+        result = parse_note_info(key, value, timing_points,
+                                 base_denominator, duration_denominator)
+        if result is None: continue
+        raw_cur_note_time, cur_note_time, cur_position, cur_bpm_seg_index, cur_note_track_id = result
+        
+        # 统计吸附到 bpm 段的差值
+        if cur_note_time != raw_cur_note_time:
+            snap_deltas.append(raw_cur_note_time - cur_note_time)
 
-    # 开始生成
-    with open(txt_path, 'a', encoding='utf-8') as f:
-        for (track_id, note_type, note_variant, cur_position), time in notes_info:
-
-            raw_cur_note_time = get_note_reach_time(time, track_id)
-            if raw_cur_note_time is None: continue
-
-            # 可能需要吸附
-            cur_note_time = snap_note_time_to_bpm_segment(raw_cur_note_time, timing_points, base_denominator)
-            # 记录吸附差值（仅当吸附到 bpm 段边界时）
-            if cur_note_time != raw_cur_note_time:
-                snap_deltas.append(raw_cur_note_time - cur_note_time)
-
-            # 获取这个音符的 bpm
-            cur_bpm = get_bpm_by_note_time(cur_note_time, timing_points)
-            one_beat_ms = calculate_one_beat_ms(cur_bpm)
-
-            # 对于 slide, hold, touch_hold 可能存在 duration 信息
-            if isinstance(time, tuple) and len(time) >= 2:
-                if note_type == NoteType.SLIDE:
-                    # slide 可包含多个 duration
-                    cur_position = _append_slide_duration_syntax(
-                        cur_position, list(time[1:]), one_beat_ms,
-                        base_denominator, duration_denominator)
-                    # 特例：三段同头直线 slide 压缩为 w 语法
-                    cur_position = _try_compress_wifi_special(cur_position)
-                elif note_type == NoteType.HOLD and time[-1] == 0:
-                    # 特例: hold 时值为 0 时不添加时值文本
-                    pass
-                else:
-                    duration_syntax = parse_note_duration(one_beat_ms, note_type, time[-1],
-                                                          base_denominator, duration_denominator)
-                    cur_position += duration_syntax
-
-
-
-
-
-            if last_note_time is None:
-                # 第一个音符
+        # 处理第一个音符
+        if last_theory_time is None:
+            if is_single_bpm:
+                # 单 BPM 谱面: init_time = 首音符时间，不计入 tracker
                 init_time = cur_note_time
-                last_note_time = cur_note_time
-                last_position = cur_position
-                last_bpm = cur_bpm
-                # 控制台打印
-                print(f"first note appear at {cur_note_time:.1f} ms")
-                continue
+                last_theory_time = cur_note_time
+                last_bpm_seg_index = cur_bpm_seg_index
+            else:
+                # 多 BPM: init_time = 首 BPM 段起点时间，首音符计入 tracker
+                init_time = timing_points[0][2]
+                passed_bar_tracker.update_track_id(cur_note_track_id)
+                bar_diff = calculate_bar_diff(0.0, cur_note_time,
+                                              -1, cur_bpm_seg_index,
+                                              timing_points, base_denominator)
+                passed_bar_tracker.add(*bar_diff)
+                cur_theory_time = init_time + passed_bar_tracker.get_total_elapsed_ms()
+                last_theory_time = cur_theory_time
+                last_bpm_seg_index = cur_bpm_seg_index
+            # 音符 item
+            numerator, denominator = passed_bar_tracker.get_total_elapsed_bar()
+            items.append(MaidataItem(numerator, denominator, cur_position))
+            # 控制台打印
+            print(f"first note appear at {cur_note_time:.1f} ms")
+            continue
+
+        # 计算当前音符的时间差
+        bar_diff = calculate_bar_diff(last_theory_time, cur_note_time,
+                                      last_bpm_seg_index, cur_bpm_seg_index,
+                                      timing_points, base_denominator)
+        # 更新 tracker
+        passed_bar_tracker.update_track_id(cur_note_track_id)
+        passed_bar_tracker.add(*bar_diff)
+
+        # 得到当前音符的理论时间
+        # 采用 init_time + 总 passed_bar
+        # 这是精确的谱面播放到此处的时间点，避免了累加误差
+        cur_theory_time = init_time + passed_bar_tracker.get_total_elapsed_ms()
+
+        # 音符 item
+        numerator, denominator = passed_bar_tracker.get_total_elapsed_bar()
+        items.append(MaidataItem(numerator, denominator, cur_position))
+
+        # 统计音符约分误差
+        # note_time   是音符原始到达时间
+        # theory_time 是分数化处理后的理论时间
+        time_deviation = raw_cur_note_time - cur_theory_time
+        time_deviations.append(time_deviation)
+
+        # update status
+        last_theory_time = cur_theory_time
+        last_bpm_seg_index = cur_bpm_seg_index
 
 
 
 
-            # 计算与上一个音符的时间差，转为分数形式
-            beat_diffs = calculate_beat_diff(last_note_time, cur_note_time,
-                                             timing_points, base_denominator)
-            if not beat_diffs:
-                print(f"Warning: empty beat_diffs between {last_note_time:.1f} and {cur_note_time:.1f}, skipping")
-                continue
-
-            # update last_note_time
-            # 采用 init_time + 总 passed_beat
-            # 这是精确的谱面播放到此处的时间点，避免了累加误差
-            for beat_diff in beat_diffs:
-                passed_beat_tracker.add(*beat_diff)
-            last_note_time = init_time + passed_beat_tracker.get_total_elapsed_ms()
-            
-            # 统计误差
-            # note_time 是通过分析得到的音符实际时间
-            # last_time 是通过分数化处理后计算得到的理论时间
-            time_deviation = raw_cur_note_time - last_note_time
-            time_deviations.append(time_deviation)
-
-
-
-
-
-            
-            # 提前处理零间隔并行音符
-            if len(beat_diffs) == 1:
-                (bpm, numerator, denominator, one) = beat_diffs[0]
-                if numerator == 0 and one == 0:
-                    # 零间隔，使用 '/' 与上一个音符连接 
-                    cur_position = f'{last_position}/{cur_position}'
-                    # 跳过后续的处理，直接 continue
-                    last_position = cur_position
-                    continue
-
-
-
-
-            
-
-            # 生成逗号部分
-            commas = ""
-            for idx, (bpm, numerator, denominator, one) in enumerate(beat_diffs):
-
-                if idx > 0:
-                    # 首个子段在下方处理，此处仅处理后续子段
-                    commas += f'\n({bpm})'
-                    # 换 bpm 后总是写入 denominator
-                    commas += '\n{' + f'{denominator}' + '}'
-
-                # 生成逗号部分
-                if numerator == 0 and denominator == 1 and one > 0:
-                    # 特殊情况1：时间间隔是整数
-                    # 逗号数量等于整数部分
-                    commas += f'{"," * one}'
-                elif one > 0:
-                    # 特殊情况2：时间间隔是小数，但是 > 1
-                    # 比如 11/4，正常来说是 {4},,,,,,,,,,, (x11)
-                    # 现在简写成 {4},,,{1},,
-                    # 使用带分数
-                    commas += f'{"," * numerator}' + '{1}' + f'{"," * one}'
-                else:
-                    # 普通情况: 时间间隔是小数，并且 < 1
-                    commas += f'{"," * numerator}'
-
-
-
-
-
-
-
-            # 将当前音符写入txt
-            cur_first_denominator = beat_diffs[0][2]
-
-            # bpm
-            if last_bpm != last_last_bpm and last_last_bpm is not None:
-                f.write(f'\n({last_bpm})')
-                # 换 bpm 后总是写入 denominator
-                # 此处仅考虑 denominator 不变的情况，改变的情况由下方处理
-                if cur_first_denominator == last_denominator:
-                    f.write('\n{' + f'{cur_first_denominator}' + '}')
-            
-            # denominator
-            if cur_first_denominator != last_denominator:
-                f.write('\n{' + f'{cur_first_denominator}' + '}')
-
-            # 音符本体
-            f.write(f'{last_position}{commas}')
-
-
-            
-            
-            # 更新状态
-
-            # 因为 commas 可能会变 denominator 和 bpm
-            # 始终使用最后一个子段的 denominator 来更新状态
-            (bpm_e, numerator_e, denominator_e, one_e) = beat_diffs[-1]
-            # 特殊情况, denominator 是带分数
-            if numerator_e > 0 and one_e > 0:
-                denominator_e = 1
-
-            last_denominator = denominator_e
-            last_last_bpm = bpm_e
-
-            last_bpm = cur_bpm
-            last_position = cur_position
-
-
-
-
-
-
-
-
-
-    # 添加结尾E
-    with open(txt_path, 'a', encoding='utf-8') as f:
-        if last_bpm != last_last_bpm and last_last_bpm is not None:
-            f.write(f'\n({last_bpm})')
-            # 换 bpm 后总是写入 denominator
-            f.write('\n{' + f'{last_denominator}' + '}')
-        f.write(f'{last_position},\n' + '{1},,,E\n') # 结尾默认 3 拍延迟
 
     # 打印offset统计信息（至少需要多个音符才有偏差数据）
     if len(time_deviations) > 10:
@@ -323,13 +280,26 @@ def generate_maidata(shared_context: SharedContext,
         forward_count = sum(1 for d in snap_deltas if d < 0)   # 前向吸附：吸附到下一段起点
         print(f"\nSnap deltas of {snap_count} notes (backward {backward_count} / forward {forward_count}): Mean {snap_mean:.3f}")
 
-    # 打印生成的 maidata.txt 路径
-    print(f"\nmaidata.txt: {txt_path}")
+    # 创建 BPM 变化点 item
+    bpm_items = _generate_bpm_items(passed_bar_tracker, timing_points)
+    # 与音符 item 合并
+    all_items = items + bpm_items
+    # 三重排序:
+    #   1. numerator 升序 (时间顺序)
+    #   2. is_bpm 项排在音符项之前 (同位置 BPM 先于音符)
+    #   3. content 升序 (按字母顺序对并行音符排序)
+    all_items.sort(key=lambda item: (item.numerator, 0 if item.is_bpm else 1, item.content))
+
+    return all_items
 
 
 
 
-def get_best_numerator_denominator(diff_beat, input_denominator,
+
+
+
+
+def get_best_numerator_denominator(diff_bar, input_denominator,
                                    enable_12, enable_24, enable_48_1):
     """在12/24和输入分母中选择误差最小的分母"""
 
@@ -349,10 +319,10 @@ def get_best_numerator_denominator(diff_beat, input_denominator,
     best_denominator = input_denominator
 
     for denom in candidates:
-        total_numerator = round(diff_beat * denom)
+        total_numerator = round(diff_bar * denom)
         # 零间隔
         if total_numerator == 0:
-            error = abs(diff_beat)
+            error = abs(diff_bar)
             if error < best_error:
                 best_error = error
                 best_total_numerator = 0
@@ -360,7 +330,7 @@ def get_best_numerator_denominator(diff_beat, input_denominator,
             continue
         # 计算误差
         fraction_value = total_numerator / denom
-        error = abs(diff_beat - fraction_value)
+        error = abs(diff_bar - fraction_value)
         if error < best_error:
             best_error = error
             best_total_numerator = total_numerator
@@ -371,7 +341,7 @@ def get_best_numerator_denominator(diff_beat, input_denominator,
 
 
 
-def get_fraction(diff_beat, input_denominator,
+def get_fraction(diff_bar, input_denominator,
                  enable_12=True, enable_24=True, enable_48_1=True):
         
         # 将数字转为带分数形式
@@ -382,13 +352,13 @@ def get_fraction(diff_beat, input_denominator,
         # 2.25  =  1/4 + 2  =  1, 4, 2
         
         raw_numerator, raw_denominator = get_best_numerator_denominator(
-            diff_beat, input_denominator, enable_12, enable_24, enable_48_1)
+            diff_bar, input_denominator, enable_12, enable_24, enable_48_1)
         
         # 有限度的支持 48 分音符: 仅限 1/48
         # 如果不是 N+1/48，禁用 48 并重新计算
         if enable_48_1 and raw_denominator == 48 and raw_numerator % 48 != 1:
             raw_numerator, raw_denominator = get_best_numerator_denominator(
-                diff_beat, input_denominator, enable_12, enable_24, enable_48_1=False)
+                diff_bar, input_denominator, enable_12, enable_24, enable_48_1=False)
         
         if raw_numerator == 0: return 0, 1, 0 # 零间隔直接返回
         # 获取整数和余数部分
@@ -406,354 +376,37 @@ def get_fraction(diff_beat, input_denominator,
 
 
 
-def get_note_reach_time(time, track_id):
+def calculate_bar_diff(last_note_time: float,
+                       cur_note_time: float,
+                       last_bpm_seg_index: int,
+                       cur_bpm_seg_index: int,
+                       timing_points: list,
+                       base_denominator: int,
+                      ) -> tuple[int, int, int, int]:
+    """
+    如果当前音符和旧音符位于相同 bpm 段，起点用 last_note_time
+    如果当前音符和旧音符位于不同 bpm 段，起点用该段的起点时间
 
-    if isinstance(time, (float, int)):
-        # check time
-        if math.isnan(time) or time < 0:
-            print(f"analyze_all_notes_info: get_note_reach_time: invalid time value for track_id {track_id}, time: {time}")
-            return None
-        # 赋值
-        return time
+    计算当前音符时间与起点的时间差，转为分数
 
-    elif isinstance(time, tuple):
-        # check time tuple
-        if len(time) == 0:
-            print(f"analyze_all_notes_info: get_note_reach_time: empty time tuple for track_id {track_id}")
-            return None
-        valid = True
-        for i, t in enumerate(time):
-            if not (isinstance(t, (float, int)) and not math.isnan(t) and t >= 0):
-                print(f"analyze_all_notes_info: get_note_reach_time: invalid time tuple element at index {i} for track_id {track_id}, value: {t}")
-                valid = False
-                break
-        if not valid:
-            return None
-        # 赋值
-        return time[0]
+    return: tuple[cur_bpm_segment_index, numerator, denominator, one]
+    """
 
+    # 根据 bpm 段决定起点时间
+    if cur_bpm_seg_index == last_bpm_seg_index:
+        # 同一段，起点时间为上一个音符的理论时间
+        start_time = last_note_time
     else:
-        print(f"analyze_all_notes_info: get_note_reach_time: invalid time format for track_id {track_id}, time: {time}")
-        return None
-
-
-
-
-def parse_note_duration(one_beat_Msec, note_type, note_length, base_denominator, duration_denominator) -> str:
-
-    length_beat = note_length / one_beat_Msec
-
-    # 分类处理
-    if note_type == NoteType.TOUCH_HOLD or note_type == NoteType.SLIDE:
-        # touch_hold / slide -> duration_denominator
-        denominator_to_use = duration_denominator
-    else:
-        # hold -> base_denominator
-        # 因为 hold 移动模式与 tap 相同，所以时值与 tap 一样用 base_denominator 处理
-        denominator_to_use = base_denominator
-    
-    # 将 duration 变为分数形式
-    numerator, denominator, one = get_fraction(
-        length_beat, denominator_to_use, enable_12=False, enable_24=False, enable_48_1=False)
-    # 将整数部分加入分子
-    if one > 0:
-        numerator = numerator + one * denominator
-    # 异常情况默认变为1/1 (时值不能为0)
-    if numerator == 0 and denominator == 1 and one == 0:
-        numerator = 1
-        denominator = 1
-
-    duration_syntax = f'[{denominator}:{numerator}]'
-
-    return duration_syntax
-
-
-
-
-
-def _append_slide_duration_syntax(position: str,
-                                  durations,
-                                  one_beat_Msec,
-                                  base_denominator,
-                                  duration_denominator) -> str:
-    """
-    插入 slide 的时值文本
-    - 单 slide: 1-2 -> 1-2[8:1]
-    - 多 slide: 1-2*-5 -> 1-2[8:1]*-5[8:1]
-    """
-    if not durations:
-        return position
-
-    # 单星星: 直接在末尾添加时值
-    if '*' not in position:
-        return position + parse_note_duration(
-            one_beat_Msec,
-            NoteType.SLIDE,
-            durations[-1],
-            base_denominator,
-            duration_denominator,
-        )
-
-    # 多段链式语法：按 '*' 分段填充时值
-    segments = position.split('*')
-    if len(segments) != len(durations):
-        print(
-            f"generate_maidata: slide segment/duration mismatch, "
-            f"segments={len(segments)}, durations={len(durations)}, position={position}"
-        )
-        # fallback: 如果分段数量与时值数量不匹配，直接在末尾添加时值
-        return position + parse_note_duration(
-            one_beat_Msec,
-            NoteType.SLIDE,
-            durations[-1],
-            base_denominator,
-            duration_denominator,
-        )
-
-    output_segments = []
-    for segment, duration in zip(segments, durations):
-        duration_syntax = parse_note_duration(
-            one_beat_Msec,
-            NoteType.SLIDE,
-            duration,
-            base_denominator,
-            duration_denominator,
-        )
-        output_segments.append(segment + duration_syntax)
-
-    return '*'.join(output_segments)
-
-
-
-
-
-
-
-
-
-def _try_compress_wifi_special(slide_position: str) -> str:
-    """
-    仅处理三段同头直线 slide 的特例：
-    1-4[2:1]*-5[2:1]*-6[2:1] -> 1w5[2:1]
-
-    约束：
-    - 恰好 3 段（由 '*' 连接）
-    - 三段都是 -x(varient) 直线段
-    - 三段时值文本完全一致
-    - 三段尾部变体完全一致
-    - 三段终点集合命中起点硬编码映射（顺序可乱）
-    - 同时保留头部与尾部变体
-    """
-
-    def check_varient(syntax) -> bool:
-        if not syntax[0].isdigit():
-            return False
-        varient = syntax[1:] if len(syntax) > 1 else ''
-        if varient not in ('', 'b', 'x', 'bx'):
-            return False
-        return True
-
-
-    if '*' not in slide_position:
-        return slide_position
-
-    # 按 * 分割
-    segments = slide_position.split('*')
-
-    # 必须严格是三段
-    if len(segments) != 3:
-        return slide_position
-    
-    # 每个段有且仅有一个 "-"
-    if not all(seg.count('-') == 1 for seg in segments):
-        return slide_position
-    
-    duration = None
-    start = None
-    end_syntax = None
-    end_pos_ids = None
-
-    # 第一段结构: 起点(变体) "-" 终点(变体) 时值
-    try:
-        # 提取时值
-        syntax, dur_part = segments[0].split('[')
-        # 提取起点终点
-        start, end = syntax.split('-')
-        if not check_varient(start):
-            return slide_position
-        if not check_varient(end):
-            return slide_position
-        # 通过
-        duration = '[' + dur_part # 补全括号
-        end_syntax = end[1:] if len(end) > 1 else ''
-        end_pos_ids = end[0]
-    except Exception:
-        return slide_position
-
-    # 第二/三段结构: "-" 终点(变体) 时值
-    for seg in segments[1:]:
-        try:
-            # 提取时值
-            syntax, dur_part = seg.split('[')
-            if '[' + dur_part != duration: # 时值一致性检查
-                return slide_position
-            # 提取终点
-            if not syntax.startswith('-'):
-                return slide_position
-            end = syntax[1:]
-            if not check_varient(end):
-                return slide_position
-            if end[1:] != end_syntax: # 变体一致性检查
-                return slide_position
-            end_pos_ids = end_pos_ids + end[0] # concat str
-        except Exception:
-            return slide_position
-
-    seq = _WIFI_ENDPOINT_SEQ.get(start[0])
-    if not seq:
-        return slide_position
-    
-    if sorted(end_pos_ids) != sorted(seq):
-        return slide_position
-    
-    return f"{start}w{seq[1]}{end_syntax}{duration}"
-
-
-
-
-
-
-
-
-def calculate_one_beat_ms(bpm):
-    return 60 / bpm * 1000 * 4
-
-
-def get_bpm_segment_idx(note_time: float, timing_points: list):
-    """找到当前段索引（最后一个 start_ms <= note_time 的段）"""
-    seg_idx = 0
-    for i, tp in enumerate(timing_points):
-        if tp[2] <= note_time:
-            seg_idx = i
-        else:
-            break
-    return seg_idx
-
-
-def get_bpm_by_note_time(note_time: float, timing_points: list) -> float:
-    """返回起始时间最大且 <= note_time 的那段 BPM 数值"""
-    seg_idx = get_bpm_segment_idx(note_time, timing_points)
-    return timing_points[seg_idx][1]
-
-
-def snap_note_time_to_bpm_segment(note_time, timing_points,
-                                  base_denominator) -> float:
-    """
-    双方向吸附：
-    1. 前向：note_time 足够接近下一段起点 → 吸附到下一段
-    2. 后向：note_time 足够接近当前段起点 → 吸附到当前段
-       （第一段不后向吸附）
-
-    判定标准：计算差值后用 get_fraction 判断是否返回 (0, 1, 0)。
-
-    吸附判定:
-        计算 note_time 到 BPM 段起始时间的差值,
-        如果 get_fraction 返回 (0, 1, 0),
-        说明此音符非常接近 bpm 段边界，执行吸附。
-
-    返回:
-        如果不用吸附，返回原始 note_time
-        如果需要吸附，返回 BPM 段的起始时间，视为新的 note_time
-    """
-
-    # 单段 BPM，无需吸附
-    if len(timing_points) <= 1:
-        return note_time
-
-    seg_idx = get_bpm_segment_idx(note_time, timing_points)
-
-    # 后向吸附：当前段起点
-    if seg_idx > 0: # 第一段不吸
-        current_start_ms = timing_points[seg_idx][2]
-        diff_ms = note_time - current_start_ms
-        current_bpm = timing_points[seg_idx][1]
-        one_beat_ms = calculate_one_beat_ms(current_bpm)
-        diff_beat = diff_ms / one_beat_ms
-        numerator, denominator, one = get_fraction(diff_beat, base_denominator)
-        if numerator == 0 and denominator == 1 and one == 0:
-            return current_start_ms
-
-    # 前向吸附：下一段起点
-    if seg_idx < len(timing_points) - 1: # 如果位于最后一段，没有新段可供吸附，直接返回
-        next_start_ms = timing_points[seg_idx + 1][2]
-        diff_ms = next_start_ms - note_time
-        current_bpm = timing_points[seg_idx][1]
-        one_beat_ms = calculate_one_beat_ms(current_bpm)
-        diff_beat = diff_ms / one_beat_ms
-        numerator, denominator, one = get_fraction(diff_beat, base_denominator)
-        if numerator == 0 and denominator == 1 and one == 0:
-            return next_start_ms
-
-    # 无需吸附
-    return note_time
-
-
-
-
-
-
-
-
-def calculate_beat_diff(last_note_time: float,
-                        cur_note_time: float,
-                        timing_points: list,
-                        base_denominator: int,
-                       ) -> list[tuple[float, int, int, int]]:
-    """
-    同时适配 非跨段 和 跨段
-    将 last_note_time → cur_note_time 按 BPM 段边界拆分。
-    跨越多个 BPM 段时，中间用段起始时间作为切分点。
-
-    返回列表: 每个子段的 (bpm, numerator, denominator, one)。
-    """
-    result: list[tuple[float, int, int, int]] = []
-
-    # 初始起点 = last_note_time
-    seg_start = last_note_time
-    # 初始起点段索引
-    seg_idx = get_bpm_segment_idx(seg_start, timing_points)
-
-    while True:
-        bpm = timing_points[seg_idx][1]
-
-        # 下一个 BPM 段起点
-        if seg_idx + 1 < len(timing_points):
-            next_boundary = timing_points[seg_idx + 1][2]
-        else:
-            next_boundary = float('inf')
-
-        if next_boundary >= cur_note_time:
-            # 最后一个子段：seg_start → cur_note_time
-            diff_ms = cur_note_time - seg_start
-            one_beat_ms = calculate_one_beat_ms(bpm)
-            diff_beat = diff_ms / one_beat_ms
-            numerator, denominator, one = get_fraction(diff_beat, base_denominator)
-            result.append((bpm, numerator, denominator, one))
-            break
-        else:
-            # 中间子段：seg_start → next_boundary
-            diff_ms = next_boundary - seg_start
-            one_beat_ms = calculate_one_beat_ms(bpm)
-            diff_beat = diff_ms / one_beat_ms
-            numerator, denominator, one = get_fraction(diff_beat, base_denominator)
-            # 过滤零长度碎段
-            # 产生的原因可能是 bpm config 的 global offset 没有精准对齐
-            # 或者 bpm config 的起始时间 / last_not_time 有精度误差
-            # 总之产生了到段边界有几 ms 的碎片
-            if (numerator, denominator, one) != (0, 1, 0):
-                result.append((bpm, numerator, denominator, one))
-            # 推进到下一段
-            seg_start = next_boundary
-            seg_idx += 1
-
-    return result
+        # 不同段，起点时间为该段的起点时间
+        start_time = timing_points[cur_bpm_seg_index][2]  # start_ms
+
+    # 计算时间差 bar
+    time_diff_ms = cur_note_time - start_time
+    cur_bpm = timing_points[cur_bpm_seg_index][1]  # bpm
+    one_bar_ms = calculate_one_bar_ms(cur_bpm)
+    diff_bar = time_diff_ms / one_bar_ms
+
+    # 约分
+    numerator, denominator, one = get_fraction(diff_bar, base_denominator)
+
+    return cur_bpm_seg_index, numerator, denominator, one

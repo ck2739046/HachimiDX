@@ -23,6 +23,7 @@ from .analyze_touch_hold import analyze_touch_hold_time
 from .analyze_slide import analyze_slide_time
 
 from .maidata_generate import generate_maidata
+from .maidata_write import write_maidata
 
 
 
@@ -120,10 +121,11 @@ def main(std_video_path: Path,
             return ok()
 
         # generate maidata
-        generate_maidata(shared_context, timing_points, chart_lv,
-                         base_denominator, duration_denominator, final_note_info,
-                         note_SpeedIndex, touch_SpeedIndex,
-                         app_version)
+        maidata_items = generate_maidata(final_note_info, timing_points,
+                                         base_denominator, duration_denominator)
+        write_maidata(shared_context, maidata_items,
+                      chart_lv, app_version,
+                      note_SpeedIndex, touch_SpeedIndex)
 
         print(tap_speed_print_info)
         print(touch_speed_print_info)
