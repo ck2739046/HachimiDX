@@ -143,9 +143,9 @@
 
 ### 1. 配置 Python 环境
 
-- 方式一：将 [`嵌入式 Python`](src/resources/for_release_only/python%20portable/py3.13.11.zip) 解压到项目根目录，用 `./python/python.exe` 运行脚本。
+- 方式一：参考这个 [`指南`](src/resources/for_release_only/python_portable/用conda创建py环境.md) 在项目根目录创建 `python/` 文件夹，用 `./python/python.exe` 运行脚本。
 - 方式二：自行安装 Python 并创建虚拟环境 (venv)。
-  > 本项目使用 **Python 3.13.11**；Python 3.10+ 应该也能运行，但未经实际验证。
+  > 本项目使用 **Python 3.13.14**；Python 3.10+ 应该也能运行，但未经实际验证。
 
   > **注意 (2026.05.09):**<br>
   > NVIDIA TensorRT 目前不支持 Python 3.14。

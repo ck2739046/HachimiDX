@@ -141,9 +141,9 @@ Code lives in `src/`, organized in three layers. The middle layer drives the cor
 
 ### 1. Set up the Python environment
 
-- Option A: Extract [`embedded Python`](src/resources/for_release_only/python%20portable/py3.13.11.zip) to the project root and use `./python/python.exe` to run scripts.
+- Option A: Follow this [`guide`](src/resources/for_release_only/python_portable/用conda创建py环境.md) to create a `python/` folder in the project root, then use `./python/python.exe` to run scripts.
 - Option B: Install Python and create a virtual environment (venv).
-  > This project uses **Python 3.13.11**; Python 3.10+ may work, but this has not been verified.
+  > This project uses **Python 3.13.14**; Python 3.10+ may work, but this has not been verified.
 
   > **Note (2026.05.09):**<br>
   > NVIDIA TensorRT currently does not support Python 3.14.
