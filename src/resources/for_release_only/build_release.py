@@ -57,7 +57,7 @@ def copy_app_resources():
         extract_with_bandizip(model_zip, target_dir, mode='file')
 
     # 解压 python 到目录
-    python_path = FOR_RELEASE_ONLY_DIR / "python portable" / "py3.13.11.zip"
+    python_path = FOR_RELEASE_ONLY_DIR / "python_portable" / "python.zip"
     python_target_path = RELEASE_DIR / "python"
     extract_with_bandizip(python_path, python_target_path, mode='dir')
 

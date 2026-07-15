@@ -10,6 +10,8 @@ src/resources/ffmpeg/
 src/resources/Bpm*
 src/resources/for_release_only/majdata/
 src/resources/for_release_only/Bpm*
+src/resources/for_release_only/python_portable/*.exe
+src/resources/for_release_only/python_portable/*.zip
 
 data/models/
 data/temp
