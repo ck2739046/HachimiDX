@@ -70,18 +70,26 @@ class _LayoutEngine:
 
     # ---- 移植自 WriteComma ----
     def _write_comma(self, length, force_as_is=False, auto_new_line=True, break_on_new_line=False):
-        if length == 0:
-            return
-        length = Fraction(length)   # Fraction 构造即自动最简 (CanonicalForm)
-        div = length.denominator
-        numer = length.numerator
+        # 对应 C# WriteComma: force_as_is 时保留原始 (numer, div) 不约分
+        # (Rationals 构造不自动约分, 而 Fraction 必约分; 故 force_as_is 路径改用裸数元组绕过约分,
+        #  以匹配 C# WriteBlank 快路径 value=new(numer, baseDiv) 传入非约分形式的语义)
+        if force_as_is and isinstance(length, tuple):
+            numer, div = length
+            if numer == 0:
+                return
+        else:
+            if length == 0:
+                return
+            length = Fraction(length)   # Fraction 构造即自动最简 (CanonicalForm)
+            div = length.denominator
+            numer = length.numerator
 
-        if not force_as_is:
-            direct_count = length * self.cur_div
-            # 若能用现有 cur_div 整除表示, 且逗号数不多 (或 cur_div 本身不大), 则复用 cur_div 省切换
-            if self.cur_div > 0 and direct_count.denominator == 1 and (direct_count <= 4 or self.cur_div <= 16):
-                div = self.cur_div
-                numer = direct_count.numerator
+            if not force_as_is:
+                direct_count = length * self.cur_div
+                # 若能用现有 cur_div 整除表示, 且逗号数不多 (或 cur_div 本身不大), 则复用 cur_div 省切换
+                if self.cur_div > 0 and direct_count.denominator == 1 and (direct_count <= 4 or self.cur_div <= 16):
+                    div = self.cur_div
+                    numer = direct_count.numerator
 
         if div != self.cur_div:
             self._change_div(div)
@@ -100,9 +108,8 @@ class _LayoutEngine:
         blank = Fraction(blank)
         t = Fraction(base_div, blank.denominator)
         if t >= 1 and t.denominator == 1:
-            # 空白能用 base_div 整除表示 -> 直接按 base_div 写
-            value = Fraction(blank.numerator * _whole(t), base_div)
-            self._write_comma(value, force_as_is=True)
+            # 空白能用 base_div 整除表示 -> 按 base_div 粒度写 (传裸数元组保留非约分形式, 与 C# WriteBlank 一致)
+            self._write_comma((blank.numerator * _whole(t), base_div), force_as_is=True)
             return
 
         # 不能整除: 拆成 零头(remain) + 大块(whole_aims), 零头先行容忍一次切换, 大块递归回 base_div
@@ -185,7 +192,9 @@ class _LayoutEngine:
                 # 补完整的空小节 (只有最后一个加换行)
                 whole_bar_to_fill = _whole(note['time'] - self.write_ptr)
                 for j in range(whole_bar_to_fill):
-                    self._write_comma(Fraction(1), force_as_is=True, break_on_new_line=(j == whole_bar_to_fill - 1))
+                    # 第 3 参数 auto_new_line 对应 C# WriteComma(1, true, j==wholeBarToFill-1):
+                    # 仅最后一个空小节在跨小节线时加换行, 其余同行; break_on_new_line 因 numer=1 不生效
+                    self._write_comma(Fraction(1), force_as_is=True, auto_new_line=(j == whole_bar_to_fill - 1))
 
             # 音符前空白 + 音符本体
             blank = note['time'] - self.write_ptr
