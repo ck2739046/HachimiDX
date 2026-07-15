@@ -146,12 +146,36 @@ class PassedBarTracker:
 
 
 
+def _generate_bpm_items(passed_bar_tracker: PassedBarTracker, timing_points: list) -> list[MaidataItem]:
+    """
+    为每个 BPM 段生成一个 BPM 变化点 item
+    位置 = 该段起点相对首段起点的小节位置
+    """
+    init_bar_index = passed_bar_tracker._timing_points[0][0]  # 首段起点 bar_index
+    bpm_items = []
+    for i in range(len(timing_points)):
+        start_bar_index, bpm = passed_bar_tracker._timing_points[i]
+        relative_bar_index = start_bar_index - init_bar_index
+        item = MaidataItem(relative_bar_index, passed_bar_tracker.lcm_denom,
+                           f"({bpm:.3f})", is_bpm=True)
+        bpm_items.append(item)
+    return bpm_items
+
+
+
+
+
+
+
+
 
 def generate_maidata(notes_info, timing_points,
                      base_denominator, duration_denominator,
-                    ):
+                    ) -> list[MaidataItem]:
     
     # timing_points = [(beat_index, bpm, start_ms), ...]
+
+    items: list[MaidataItem] = []
 
     # 追踪理论时间
     init_time = None
@@ -198,6 +222,9 @@ def generate_maidata(notes_info, timing_points,
                 cur_theory_time = init_time + passed_bar_tracker.get_total_elapsed_ms()
                 last_theory_time = cur_theory_time
                 last_bpm_seg_index = cur_bpm_seg_index
+            # 音符 item
+            numerator, denominator = passed_bar_tracker.get_total_elapsed_bar()
+            items.append(MaidataItem(numerator, denominator, cur_position))
             # 控制台打印
             print(f"first note appear at {cur_note_time:.1f} ms")
             continue
@@ -214,6 +241,10 @@ def generate_maidata(notes_info, timing_points,
         # 采用 init_time + 总 passed_bar
         # 这是精确的谱面播放到此处的时间点，避免了累加误差
         cur_theory_time = init_time + passed_bar_tracker.get_total_elapsed_ms()
+
+        # 音符 item
+        numerator, denominator = passed_bar_tracker.get_total_elapsed_bar()
+        items.append(MaidataItem(numerator, denominator, cur_position))
 
         # 统计音符约分误差
         # note_time   是音符原始到达时间
@@ -248,6 +279,18 @@ def generate_maidata(notes_info, timing_points,
         backward_count = sum(1 for d in snap_deltas if d > 0)  # 后向吸附：吸附到当前段起点
         forward_count = sum(1 for d in snap_deltas if d < 0)   # 前向吸附：吸附到下一段起点
         print(f"\nSnap deltas of {snap_count} notes (backward {backward_count} / forward {forward_count}): Mean {snap_mean:.3f}")
+
+    # 创建 BPM 变化点 item
+    bpm_items = _generate_bpm_items(passed_bar_tracker, timing_points)
+    # 与音符 item 合并
+    all_items = items + bpm_items
+    # 按分子升序; 同位置时 is_bpm 项排在音符项之前
+    all_items.sort(key=lambda item: (item.numerator, 0 if item.is_bpm else 1))
+
+    return all_items
+
+
+
 
 
 
