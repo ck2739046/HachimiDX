@@ -29,8 +29,8 @@ def _check_torch_installed() -> tuple[bool, object | None]:
         import torch
         print(f"PyTorch installed, version {torch.__version__}")
         return True, torch
-    except ImportError:
-        print("PyTorch is not installed")
+    except ImportError as e:
+        print(f"PyTorch is not installed: {e!r}")
         return False, None
 
 
@@ -67,8 +67,8 @@ def _check_cuda_or_tensorrt() -> bool:
     try:
         import tensorrt
         print(f"TensorRT installed, version {tensorrt.__version__}")
-    except ImportError:
-        print("TensorRT is not installed")
+    except ImportError as e:
+        print(f"TensorRT is not installed: {e!r}")
         return False
 
     # 列出所有 CUDA 设备
@@ -99,8 +99,8 @@ def _check_directml() -> bool:
     try:
         import onnxruntime as ort
         print(f"ONNX Runtime installed, version {ort.__version__}")
-    except ImportError:
-        print("ONNX Runtime is not installed")
+    except ImportError as e:
+        print(f"ONNX Runtime is not installed: {e!r}")
         return False
 
     # 检查 DirectML 支持
@@ -157,8 +157,8 @@ def _check_openvino() -> bool:
     try:
         import openvino
         print(f"OpenVINO installed, version {openvino.__version__}")
-    except ImportError:
-        print("OpenVINO is not installed")
+    except ImportError as e:
+        print(f"OpenVINO is not installed: {e!r}")
         return False
     
     # 列出可用设备
