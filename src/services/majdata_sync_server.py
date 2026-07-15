@@ -276,7 +276,7 @@ class VideoSyncServer:
 
                 mp.play()
 
-                print(f"[VideoSync] Play command executed (position: {start_time:.3f}s)")
+                print(f"[VideoSync] Play, at {start_time:.3f}s")
             except Exception as e:
                 print(f"[VideoSync] UI play_action error: {e}")
 
@@ -293,7 +293,7 @@ class VideoSyncServer:
 
         # 延迟播放：threading.Timer 到点 dispatch，期间可被取消
         self._schedule_delayed_play(delay, play_action)
-        print(f"[VideoSync] Play scheduled in {delay:.3f}s (position: {start_time:.3f}s)")
+        print(f"[VideoSync] Play scheduled in {delay:.3f}s, at {start_time:.3f}s")
 
 
 
@@ -321,7 +321,7 @@ class VideoSyncServer:
                 mp.setPosition(int(start_time * 1000))
                 self.last_position = start_time
 
-                print(f"[VideoSync] Pause command executed (position: {start_time:.3f}s)")
+                print(f"[VideoSync] Pause, at {start_time:.3f}s")
             except Exception as e:
                 print(f"[VideoSync] UI pause_action error: {e}")
 
@@ -350,7 +350,7 @@ class VideoSyncServer:
 
                 mp.pause() # 把 stop 当作 pause 处理
 
-                print(f"[VideoSync] Stop command executed")
+                print(f"[VideoSync] Stop")
             except Exception as e:
                 print(f"[VideoSync] UI stop_action error: {e}")
 
