@@ -158,6 +158,8 @@ def generate_maidata(notes_info, timing_points,
     passed_bar_tracker = PassedBarTracker(timing_points)
     last_theory_time = None
     last_bpm_seg_index = None
+
+    is_single_bpm = len(timing_points) <= 1
     
     # 仅用于统计音符约分偏差
     time_deviations = []
@@ -180,9 +182,22 @@ def generate_maidata(notes_info, timing_points,
 
         # 处理第一个音符
         if last_theory_time is None:
-            init_time = cur_note_time
-            last_theory_time = cur_note_time
-            last_bpm_seg_index = cur_bpm_seg_index
+            if is_single_bpm:
+                # 单 BPM 谱面: init_time = 首音符时间，不计入 tracker
+                init_time = cur_note_time
+                last_theory_time = cur_note_time
+                last_bpm_seg_index = cur_bpm_seg_index
+            else:
+                # 多 BPM: init_time = 首 BPM 段起点时间，首音符计入 tracker
+                init_time = timing_points[0][2]
+                passed_bar_tracker.update_track_id(cur_note_track_id)
+                bar_diff = calculate_bar_diff(0.0, cur_note_time,
+                                              -1, cur_bpm_seg_index,
+                                              timing_points, base_denominator)
+                passed_bar_tracker.add(*bar_diff)
+                cur_theory_time = init_time + passed_bar_tracker.get_total_elapsed_ms()
+                last_theory_time = cur_theory_time
+                last_bpm_seg_index = cur_bpm_seg_index
             # 控制台打印
             print(f"first note appear at {cur_note_time:.1f} ms")
             continue
@@ -316,12 +331,12 @@ def get_fraction(diff_bar, input_denominator,
 
 
 def calculate_bar_diff(last_note_time: float,
-                        cur_note_time: float,
-                        last_bpm_seg_index: int,
-                        cur_bpm_seg_index: int,
-                        timing_points: list,
-                        base_denominator: int,
-                       ) -> tuple[int, int, int, int]:
+                       cur_note_time: float,
+                       last_bpm_seg_index: int,
+                       cur_bpm_seg_index: int,
+                       timing_points: list,
+                       base_denominator: int,
+                      ) -> tuple[int, int, int, int]:
     """
     如果当前音符和旧音符位于相同 bpm 段，起点用 last_note_time
     如果当前音符和旧音符位于不同 bpm 段，起点用该段的起点时间
