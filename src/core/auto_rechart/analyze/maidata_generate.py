@@ -157,7 +157,7 @@ def _generate_bpm_items(passed_bar_tracker: PassedBarTracker, timing_points: lis
         start_bar_index, bpm = passed_bar_tracker._timing_points[i]
         relative_bar_index = start_bar_index - init_bar_index
         item = MaidataItem(relative_bar_index, passed_bar_tracker.lcm_denom,
-                           f"({bpm:.3f})", is_bpm=True)
+                           f"({bpm:g})", is_bpm=True)
         bpm_items.append(item)
     return bpm_items
 
