@@ -284,8 +284,11 @@ def generate_maidata(notes_info, timing_points,
     bpm_items = _generate_bpm_items(passed_bar_tracker, timing_points)
     # 与音符 item 合并
     all_items = items + bpm_items
-    # 按分子升序; 同位置时 is_bpm 项排在音符项之前
-    all_items.sort(key=lambda item: (item.numerator, 0 if item.is_bpm else 1))
+    # 三重排序:
+    #   1. numerator 升序 (时间顺序)
+    #   2. is_bpm 项排在音符项之前 (同位置 BPM 先于音符)
+    #   3. content 升序 (按字母顺序对并行音符排序)
+    all_items.sort(key=lambda item: (item.numerator, 0 if item.is_bpm else 1, item.content))
 
     return all_items
 
