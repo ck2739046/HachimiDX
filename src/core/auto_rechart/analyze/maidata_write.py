@@ -163,20 +163,36 @@ class _LayoutEngine:
             cur_layer = next_layer
         chosen = min(cur_layer.values(), key=lambda v: v[0])[1]   # [(gap_idx, segments)]
         seg_map = {gi: segs for (gi, segs) in chosen}
-        # 输出单行: 行首强制 {N} (= 首个非零 gap 的首段 div)
-        start_div = seg_map[active[0][0]][0][0]
-        line = f"{{{start_div}}}"
-        cur = start_div
-        for i, g in enumerate(gaps):
-            if g > 0:
-                for (N, k) in seg_map[i]:
-                    if N != cur:
-                        line += f"{{{N}}}"
-                        cur = N
-                    line += "," * k
-            if i < m:                              # gap i 后跟 event i (trailing gap m 无 event)
-                line += events[i][1]
-        return line + "\n"
+        # 输出单行。布局规则: div 声明 {N} 永远紧跟在逗号之后或行首, 绝不直接跟在音符后,
+        # 从而保证每个音符后至少有 1 个逗号 (避免 note{N} 形式)。
+        # 实现: note[i] 的 trailing gap[i+1] 的首段 div 在 note[i] 之前声明 (落在前一 gap 的逗号后),
+        #       其余段间 div 自然落在逗号后; 行首 {N} 由首个 emit_div 产生。
+        out = []
+        cur = None
+
+        def emit_div(D):
+            nonlocal cur
+            if D != cur:
+                out.append(f"{{{D}}}")
+                cur = D
+
+        # 行首 + leading gap[0] (首音符前的休止; 若存在则其首段 div 成为行首 {N})
+        if gaps[0] > 0:
+            for (N, k) in seg_map[0]:
+                emit_div(N)
+                out.append("," * k)
+        # 各音符: 先声明 trailing gap 首段 div, 再出音符, 再出 trailing 逗号
+        for i in range(m):
+            tg = i + 1                              # trailing gap index
+            has_trailing = tg < len(gaps) and gaps[tg] > 0
+            if has_trailing:
+                emit_div(seg_map[tg][0][0])         # 声明 div 在音符前 (避免 note{N})
+            out.append(events[i][1])
+            if has_trailing:
+                for (N, k) in seg_map[tg]:
+                    emit_div(N)
+                    out.append("," * k)
+        return "".join(out) + "\n"
 
 
 def write_maidata(shared_context, items: list[MaidataItem],
