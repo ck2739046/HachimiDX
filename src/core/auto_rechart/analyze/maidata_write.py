@@ -90,22 +90,15 @@ def _gap_configs(g: Fraction, R: int):
                 key = (nfirst, N)
                 newsegs = segs + [(N, k)]
                 cur = dp[nt].get(key)
-                new_commas = sum(k for _, _ in newsegs)
+                new_commas = sum(kk for _, kk in newsegs)
                 if cur is None or nsw < cur[0] or (nsw == cur[0] and new_commas < sum(kk for _, kk in cur[1])):
                     dp[nt][key] = (nsw, newsegs)
-    # 从 DP 终态收口: 对每个 (首段, 末段) 组合, 按"加权和"挑最优 (切换数优先, 逗号数次之)
+    # 收口: 把 DP 终态 (dp[tau]) 转成 configs 返回。
+    # 注意走到这里时 configs 必为空 (有单段候选的话函数已提前 return), 直接搬运即可。
     for key, val in dp[tau].items():
         if key == (None, None):
             continue
-        val_commas = sum(kk for _, kk in val[1])
-        if key not in configs:
-            configs[key] = val
-        else:
-            cur_c = configs[key]
-            cur_cost = cur_c[0] * _SWITCH_WEIGHT + sum(kk for _, kk in cur_c[1])
-            new_cost = val[0] * _SWITCH_WEIGHT + val_commas
-            if new_cost < cur_cost:
-                configs[key] = val
+        configs[key] = val
     return configs
 
 
