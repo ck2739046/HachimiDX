@@ -198,6 +198,7 @@ class _LayoutEngine:
             _, bpm, notes = events[i]
             if bpm:
                 out.append(bpm)                     # BPM 先于 {N}
+                cur = None                          # BPM 变化后强制重声明 {N} (即使 div 未变)
             if has_trailing:
                 emit_div(seg_map[tg][0][0])         # 声明 div 在音符前 (避免 note{N})
             if notes:
