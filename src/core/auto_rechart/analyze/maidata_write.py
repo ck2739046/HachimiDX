@@ -1,6 +1,7 @@
-# 排版引擎 (每小节独立 + 双层 DP, 2026-07-16 重构)
-# 早期版本移植自 MuConvert 的 SimaiGenerator.cs, 已完全重写:
+# 参考了 MuConvert 的 SimaiGenerator.cs:
 #   https://github.com/MuNET-OSS/MuConvert/blob/742355f50d7e53b5255cb951a1a16da8a4215b05/generator/mai/SimaiGenerator.cs
+# 仅参考部分策略或思路，具体代码实现完全独立
+
 
 import os
 from fractions import Fraction
@@ -12,21 +13,28 @@ from .maidata_generate import MaidataItem
 
 
 # 分音策略常量
-_MAX_DIV = 384   # 单段分音上限 (覆盖到 1/384, 保证 1/96 gap 的 4 倍对齐选项可用)
-_SWITCH_WEIGHT = 4   # 1 次 {N} 切换的"逗号等价成本"; cost = switches*W + commas, 让 commas 能 trade-off
+_MAX_DIV = 384       # 分音的最大值
+_SWITCH_WEIGHT = 4   # 1 次 {N} 切换相当于多少个逗号的代价 (用于在"少切换"与"少逗号"之间权衡)
 
 
 def _whole(f: Fraction) -> int:
-    """小节数 (floor, 仅用于非负数)。"""
+    """计算一个时间值落在第几小节 (向下取整)"""
     return f.numerator // f.denominator
 
 
 def _lcm_of_list(nums) -> int:
+    """求一组整数的最小公倍数"""
     return reduce(math.lcm, nums, 1)
 
 
 def _single_segments(tau: int, R: int):
-    """覆盖 tau ticks 的单段写法 (N, k): k 个逗号 @ 分音 N, k∈[1,4], N=k*R/tau 为整数, N≤_MAX_DIV。"""
+    """
+    找一个间隔的所有"单段写法" (N, k)
+
+    一个间隔在分辨率 R 下占 tau 个 tick。如果它恰好能用一个分音 {N} 的 k 个逗号表示
+    (即 k 个 1/N 相加 = tau/R, 且 1 ≤ k ≤ 4), 就是一种合法的单段写法。
+    返回所有这样的 (N, k)。
+    """
     res = []
     for k in range(1, 5):
         if (k * R) % tau == 0:
@@ -37,12 +45,16 @@ def _single_segments(tau: int, R: int):
 
 
 def _gap_configs(g: Fraction, R: int):
-    """gap g 在分辨率 R 下的所有 Pareto-最优分段配置。
+    """为一个间隔 g 求出所有"性价比最优"的写法。
 
-    返回 dict[(first_div, last_div)] = (switches, segments):
-      segments = [(N, k), ...] 每 k∈[1,4], 连续 N 不同, sum(k/N) == g;
-      switches = 段内 {N} 切换数 (首段不计, 由行首承担)。
-    最简分子 p≤4: 直接给单段对齐分音 (0 内切换, 已最优); p≥5: 走 tick DP 求最小切换拆分。
+    返回 dict[(首段分音, 末段分音)] = (段内切换次数, 分段列表):
+      分段列表 = [(N, k), ...] 每个 k∈[1,4], 相邻两段分音不同, 全部相加正好等于 g;
+      段内切换次数 = 这个间隔内部需要切 {N} 的次数 (第一段不计, 由行首或前一间隔承担)。
+
+    策略:
+      - 若 g 能用单段写完 (即它的最简分数分子 ≤ 4), 单段就一定最优 (0 内切换),
+        直接返回所有单段候选, 跳过 DP;
+      - 否则用 tick DP 找出"切换最少、其次逗号最少"的多段拆法。
     """
     tau = (g.numerator * R) // g.denominator
     if tau <= 0:
@@ -50,9 +62,10 @@ def _gap_configs(g: Fraction, R: int):
     configs = {}
     for (N, k) in _single_segments(tau, R):
         configs[(N, N)] = (0, [(N, k)])
-    if configs:                         # p≤4: 单段 0 内切换已最优, 跳过 DP
+    if configs:                         # 能用单段写完: 单段 0 内切换已是理论最优, 不必再拆
         return configs
-    # p≥5: 多段 DP (atoms = 所有覆盖 <tau ticks 的单段)
+    # 不能用单段写完: 用 tick DP 求最优多段拆法
+    # 先列出所有"占 tick 数少于 tau"的候选段, 作为 DP 的基本构件
     atoms = []
     for k in range(1, 5):
         for N in range(1, _MAX_DIV + 1):
@@ -69,7 +82,7 @@ def _gap_configs(g: Fraction, R: int):
                 if nt > tau:
                     continue
                 if last is not None and last == N:
-                    continue        # 禁止连续同 div: 否则合并成 >4 逗号串 (原则4)
+                    continue        # 不允许相邻两段用同一分音: 否则逗号会连成一串, 超过 4 个
                 nsw = sw + (0 if last is None or last == N else 1)
                 nfirst = N if first is None else first
                 key = (nfirst, N)
@@ -78,6 +91,7 @@ def _gap_configs(g: Fraction, R: int):
                 new_commas = sum(k for _, _ in newsegs)
                 if cur is None or nsw < cur[0] or (nsw == cur[0] and new_commas < sum(kk for _, kk in cur[1])):
                     dp[nt][key] = (nsw, newsegs)
+    # 从 DP 终态收口: 对每个 (首段, 末段) 组合, 按"加权和"挑最优 (切换数优先, 逗号数次之)
     for key, val in dp[tau].items():
         if key == (None, None):
             continue
@@ -94,15 +108,14 @@ def _gap_configs(g: Fraction, R: int):
 
 
 class _LayoutEngine:
-    """每小节独立排版引擎。
+    """simai 谱面排版引擎: 把一组音符 (带绝对小节位置) 转成谱面文本。
 
-    六原则:
-      1. 每小节完全独立, 不跨小节传递残余/cur_div;
-      2. 放弃 _TH_DIRECT/_DIRECT_MINVAL 阈值;
-      3. 每小节内部最小化 {N} 切换 (双层 DP);
-      4. 连续逗号 ≤4, 超过必拆;
-      5. 每小节行首强制写 {N};
-      6. trailing gap 填满到小节线, 保证下小节从干净边界开始。
+    设计要点:
+      - 每个小节独立排版, 小节之间互不影响;
+      - 每个小节内部尽量减少 {N} 切换次数 (用双层 DP 求最优);
+      - 连续的逗号不超过 4 个, 超过就拆成多段;
+      - 每个小节占一行, 行首固定写一次 {N};
+      - 每个小节末尾用逗号填满到小节线, 保证下一小节从干净的位置开始。
     """
 
     def layout(self, items: list[MaidataItem]) -> str:
@@ -117,7 +130,7 @@ class _LayoutEngine:
         for b in range(0, max_bar + 1):
             its = bars.get(b)
             if not its:
-                lines.append("{1},\n")
+                lines.append("{1},\n")          # 空小节: 一个逗号 = 整小节休止
                 continue
             its_sorted = sorted(its, key=lambda x: (x[0] - b, 0 if x[1].is_bpm else 1, x[1].content))
             events = []
@@ -130,12 +143,14 @@ class _LayoutEngine:
                     it2 = its_sorted[i][1]
                     (bpm_parts if it2.is_bpm else note_parts).append(it2.content)
                     i += 1
-                # BPM 与 notes 分离: BPM 作为零宽前缀, emit 时置于 {N} 之前 (见 _layout_bar)
+                # 同一时刻的项合并成一个"事件": BPM 文本和音符文本分开存
+                # (同时刻的多个音符用 / 连成 each; BPM 后续输出时单独处理)
                 events.append((rel, "".join(bpm_parts), "/".join(note_parts)))
             lines.append(self._layout_bar(events))
         return "".join(lines) + "{1},,,E"
 
     def _layout_bar(self, events) -> str:
+        """排版单个小节。每个事件是 (小节内位置, BPM文本, 音符文本)。返回一整行文本。"""
         m = len(events)
         times = [Fraction(t) for t, _, _ in events]
         gaps = []
@@ -143,13 +158,15 @@ class _LayoutEngine:
         for t in times:
             gaps.append(t - prev)
             prev = t
-        gaps.append(Fraction(1) - prev)            # trailing 填满到小节线
+        gaps.append(Fraction(1) - prev)            # 末尾间隔: 把小节填满到小节线
+        # 取所有间隔分母的最小公倍数作为本小节的分辨率 R, 这样每个间隔都是整数个 tick
         dens = [g.denominator for g in gaps if g > 0]
         R = _lcm_of_list(dens) if dens else 1
         cfgs = [_gap_configs(g, R) if g > 0 else None for g in gaps]
         active = [(idx, cfgs[idx]) for idx in range(len(gaps)) if cfgs[idx] is not None]
-        # 外层 DP: 跨 gap 最小化加权和 cost = switches*_SWITCH_WEIGHT + commas
-        # (加权和让 commas 能 trade-off: 不至于为省 1 switch 堆过多逗号)
+        # 外层 DP: 跨所有间隔, 让"相邻间隔的衔接处"尽量用同一分音 (省一次切换)。
+        # 总代价 = 切换次数*_SWITCH_WEIGHT + 逗号总数; 用加权和是为了让逗号数也能反过来
+        # 抵消"为省一次切换而堆一大堆逗号"的情况。
         first_idx, first_cfg = active[0]
         cur_layer = {}
         for (fd, ld), (sw, segs) in first_cfg.items():
@@ -170,37 +187,39 @@ class _LayoutEngine:
                 if ld not in next_layer or best[0] < next_layer[ld][0]:
                     next_layer[ld] = best
             cur_layer = next_layer
-        chosen = min(cur_layer.values(), key=lambda v: v[0])[1]   # [(gap_idx, segments)]
+        chosen = min(cur_layer.values(), key=lambda v: v[0])[1]   # [(间隔序号, 分段列表)]
         seg_map = {gi: segs for (gi, segs) in chosen}
-        # 输出单行。布局规则: div 声明 {N} 永远紧跟在逗号之后或行首, 绝不直接跟在音符后,
-        # 从而保证每个音符后至少有 1 个逗号 (避免 note{N} 形式)。
-        # 实现: note[i] 的 trailing gap[i+1] 的首段 div 在 note[i] 之前声明 (落在前一 gap 的逗号后),
-        #       其余段间 div 自然落在逗号后; 行首 {N} 由首个 emit_div 产生。
+
+        # ---- 拼接这一行的文本 ----
+        # 输出顺序的硬性规则: {N} 只能出现在"行首"或"逗号之后", 不能直接贴在音符后面。
+        # 这样能保证每个音符后面都至少跟一个逗号 (不会出现 note{N} 这种音符后没逗号的情况)。
+        # 做法: 每个音符 i 之后的间隔 i+1, 把它的第一段分音提到"音符 i 之前"来声明
+        #       (正好落在前一个间隔的逗号后面)。
         out = []
         cur = None
 
         def emit_div(D):
+            """必要时写一次 {D}; 只有 D 与当前分音不同时才写。"""
             nonlocal cur
             if D != cur:
                 out.append(f"{{{D}}}")
                 cur = D
 
-        # 行首 + leading gap[0] (首音符前的休止; 若存在则其首段 div 成为行首 {N})
+        # 行首 + 第一个间隔 (第一个音符前的休止): 若存在, 它的第一段分音成为行首的 {N}
         if gaps[0] > 0:
             for (N, k) in seg_map[0]:
                 emit_div(N)
                 out.append("," * k)
-        # 各音符: BPM 置于该音符 trailing-div 声明 {N} 之前 (bpm 始终在 {N} 前面),
-        # 再出 notes, 再出 trailing 逗号
+        # 逐个音符输出: 先写 BPM, 再声明它后一个间隔的分音, 再写音符, 再写间隔的逗号
         for i in range(m):
-            tg = i + 1                              # trailing gap index
+            tg = i + 1                              # 该音符后面的间隔序号
             has_trailing = tg < len(gaps) and gaps[tg] > 0
             _, bpm, notes = events[i]
             if bpm:
-                out.append(bpm)                     # BPM 先于 {N}
-                cur = None                          # BPM 变化后强制重声明 {N} (即使 div 未变)
+                out.append(bpm)                     # BPM 写在 {N} 前面
+                cur = None                          # 换过 BPM 后强制重新声明 {N}, 即使分音没变
             if has_trailing:
-                emit_div(seg_map[tg][0][0])         # 声明 div 在音符前 (避免 note{N})
+                emit_div(seg_map[tg][0][0])         # 先声明分音, 再出音符 (避免 note{N})
             if notes:
                 out.append(notes)
             if has_trailing:
@@ -216,7 +235,7 @@ def write_maidata(shared_context, items: list[MaidataItem],
     """
     主入口
 
-    消费 generate_maidata 产出的 list[MaidataItem], 排版后写入 maidata.txt
+    接收 generate_maidata 产出的音符列表, 排版成 simai 谱面, 写入 maidata.txt
     """
 
     # 准备输出文件
@@ -229,10 +248,10 @@ def write_maidata(shared_context, items: list[MaidataItem],
     level_label = ['zero', 'easy', 'basic', 'advanced', 'expert', 'master', 'remaster', 'special']
     print(f"\n{video_name} - {level_label[chart_lv]}")
 
-    # 排版引擎生成谱面正文
+    # 用排版引擎生成谱面正文
     engine = _LayoutEngine()
     body = engine.layout(items)
-    # 从正文剥离出第一个 bpm 文本
+    # 正文开头会带一个 BPM 文本 (如 "(120"), 它会单独写到 &inote 头部, 所以从正文里剥掉
     first_bpm = items[0].content if items and items[0].is_bpm else ""
     if first_bpm and body.startswith(first_bpm):
         body = body[len(first_bpm):].lstrip('\n')
