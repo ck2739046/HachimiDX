@@ -155,7 +155,7 @@ def _emit_bar_text(events, gaps, seg_map) -> str:
         # 1. 写 BPM
         if bpm:
             out.append(bpm)
-            cur_div = None  # 换 BPM 后强制重写 {N}, 即使分音没变
+            # cur_div = None  # 换 BPM 后强制重写 {N}, 即使分音没变
         
         # 2. 写分音 {N}
         emit_div(seg_map[gap_idx][0][0])
@@ -183,7 +183,6 @@ class _LayoutEngine:
       - 将谱面按小节分割，一行一个小节
       - 每个小节完全独立, 互不影响
       - 每个行首固定写一次 {N}
-      - 每次 bpm 切换后强制写一次 {N} (即使分音没变)
 
     分音策略:
       - 每个小节内部尽量减少 {N} 切换次数
