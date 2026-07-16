@@ -47,26 +47,38 @@ def _single_segments(numerator: int, denominator: int) -> list[tuple[int, int]]:
 
 def _gap_configs(g: Fraction, R: int):
     """
-    为一个间隔 g 求出所有"性价比最优"的写法。
+    为一个间隔 g 求出所有"性价比最优"的写法
 
-    返回 dict[(首段分音, 末段分音)] = (段内切换次数, 分段列表):
-      分段列表 = [(N, k), ...] 每个 k∈[1,4], 相邻两段分音不同, 全部相加正好等于 g;
-      段内切换次数 = 这个间隔内部需要切 {N} 的次数 (第一段不计, 由行首或前一间隔承担)。
+    输入:
+        g: 分数, 本间隔的长度 (以小节为单位)
+        R:i int, 本小节的所有间隔的分母的 lcm
+
+    返回:
+      dict[(首段分音, 末段分音)] = (段内切换次数, 分段列表):
+        分段列表 = [(N, k), ...] 每个 k∈[1,4]
+        段内切换次数 = 这个间隔内部需要切 {N} 的次数 (第一段不计, 由行首或前一间隔承担)
 
     策略:
-      - 若 g 能用单段写完 (即它的最简分数分子 ≤ 4), 单段就一定最优 (0 内切换),
-        直接返回所有单段候选, 跳过 DP;
-      - 否则用 tick DP 找出"切换最少、其次逗号最少"的多段拆法。
+      - 若 g 能用单段写完, 直接返回所有单段候选
+      - 否则找出"切换最少、其次逗号最少"的多段拆法
     """
+
+    # 将分子转为基于 R 的
     tau = (g.numerator * R) // g.denominator
-    if tau <= 0:
-        return {}
+    # 零间隔，直接返回
+    if tau <= 0: return {}
+
     configs = {}
+
+    # 单段就能写完，零次分音切换
     for (k, N) in _single_segments(tau, R):
         configs[(N, N)] = (0, [(N, k)])
-    if configs:                         # 能用单段写完: 单段 0 内切换已是理论最优, 不必再拆
+    if configs:
         return configs
+    
     # 不能用单段写完: 用 tick DP 求最优多段拆法
+
+    # 1. 枚举后选段
     # 先列出所有"占 tick 数少于 tau"的候选段, 作为 DP 的基本构件
     atoms = []
     for k in range(1, 5):
@@ -75,8 +87,12 @@ def _gap_configs(g: Fraction, R: int):
                 tk = (k * R) // N
                 if 0 < tk < tau:
                     atoms.append((N, k, tk))
+
+    # 2. DP 状态定义
     dp = [dict() for _ in range(tau + 1)]
     dp[0][(None, None)] = (0, [])
+
+    # 3. DP 状态转移
     for t in range(tau):
         for (first, last), (sw, segs) in list(dp[t].items()):
             for (N, k, tk) in atoms:
@@ -84,21 +100,22 @@ def _gap_configs(g: Fraction, R: int):
                 if nt > tau:
                     continue
                 if last is not None and last == N:
-                    continue        # 不允许相邻两段用同一分音: 否则逗号会连成一串, 超过 4 个
-                nsw = sw + (0 if last is None or last == N else 1)
+                    continue  # 1. 不允许相邻两段用同一分音: 否则逗号会连成一串, 超过 4 个
+                nsw = sw + (0 if last is None or last == N else 1)  # 2. 切换计数: 前一段的末段分音与当前段的首段分音不同就 +1
                 nfirst = N if first is None else first
                 key = (nfirst, N)
                 newsegs = segs + [(N, k)]
                 cur = dp[nt].get(key)
                 new_commas = sum(kk for _, kk in newsegs)
                 if cur is None or nsw < cur[0] or (nsw == cur[0] and new_commas < sum(kk for _, kk in cur[1])):
-                    dp[nt][key] = (nsw, newsegs)
+                    dp[nt][key] = (nsw, newsegs)  # 3. 代价比较: 切换数优先, 其次逗号总数
+
     # 收口: 把 DP 终态 (dp[tau]) 转成 configs 返回。
-    # 注意走到这里时 configs 必为空 (有单段候选的话函数已提前 return), 直接搬运即可。
     for key, val in dp[tau].items():
         if key == (None, None):
             continue
         configs[key] = val
+        
     return configs
 
 
