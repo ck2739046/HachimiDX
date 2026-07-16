@@ -6,6 +6,7 @@
 import os
 from fractions import Fraction
 from functools import reduce
+from itertools import groupby, tee
 import math
 
 from .shared_context import *
@@ -144,7 +145,7 @@ class _LayoutEngine:
         if not items:
             return "{1},,,E"
         
-        # 将所有音符按小节分组, 方便逐小节排版
+        # 将所有音符按小节分组, 方便后续逐小节排版
         bars = {}  # key: 小节序号, value: list[MaidataItem]
         for item in items:
             # 音符落在第几小节 (向下取整)
@@ -157,27 +158,32 @@ class _LayoutEngine:
         final_texts = []
         for bar_index in range(max(bars) + 1):
 
-            this_bar = bars.get(bar_index)
-            if not this_bar:
+            this_bar_notes = bars.get(bar_index)
+            if not this_bar_notes:
                 final_texts.append("{1},\n")  # 空小节使用 {1}, 填充
                 continue
 
             # 已经在 maidata_generate.py 中排序过了
             # this_bar = sorted(this_bar, key=lambda x: (x[0], 0 if x[1].is_bpm else 1, x[1].content))
-            
+
+            # 生成该小节的 events
             events = []
-            i = 0
-            while i < len(this_bar):
-                relative_time = this_bar[i].relative_time
-                bpm_parts, note_parts = [], []
-                while i < len(this_bar) and this_bar[i].relative_time == relative_time:
-                    it2 = this_bar[i]
-                    (bpm_parts if it2.is_bpm else note_parts).append(it2.content)
-                    i += 1
-                # 同一时刻的项合并成一个"事件": BPM 文本和音符文本分开存
-                # (同时刻的多个音符用 / 连成 each; BPM 后续输出时单独处理)
-                events.append((relative_time, "".join(bpm_parts), "/".join(note_parts)))
-            final_texts.append(self._layout_bar(events))
+            # 按 relative_time 将音符分组
+            for relative_time, group in groupby(this_bar_notes, key=lambda it: it.relative_time):
+                g1, g2 = tee(group, 2)  # group 是一次性迭代器, 需要 tee 复制两份
+                bpm_parts  = [it.content for it in g1 if     it.is_bpm]
+                note_parts = [it.content for it in g2 if not it.is_bpm]
+                # 用 "/" 连接 each 音符
+                note_content = "/".join(note_parts)
+                # 假设同一时间不可能出现多个 BPM
+                bpm_text = bpm_parts[0] if bpm_parts else ""
+                # 写入 events
+                event = (relative_time, bpm_text, note_content)
+                events.append(event)
+            
+            # 排版生成该小节 maidata 文本
+            maidata_text = self._layout_bar(events)
+            final_texts.append(maidata_text)
             
         return "".join(final_texts) + "{1},,,E"
 
