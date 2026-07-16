@@ -74,7 +74,7 @@ def _gap_configs(g: Fraction, R: int):
     
     # 不能用单段写完: 用 tick DP 求最优多段拆法
 
-    # 1. 枚举候选段
+    # 1. 枚举候选段 (遍历顺序: k 外层升序, N 内层升序)
     # 先列出所有"占 tick 数少于 tau"的候选段, 作为 DP 的基本构件
     atoms = []
     for k in range(1, _MAX_COMMAS + 1):
@@ -84,38 +84,66 @@ def _gap_configs(g: Fraction, R: int):
                 if 0 < tk < tau:
                     atoms.append((N, k, tk))
 
-    # 2. DP 状态定义
-    #    值结构: (sw, commas, parent)
-    #      sw     = 段内分音切换次数
-    #      commas = 段内逗号总数 (随身累加, 避免每次 sum 重算)
-    #      parent = (prev_t, prev_key, N, k) 指向前驱状态, 末尾回溯重建 segs
-    #               (避免逐步 `segs + [...]` 的 list 复制)
+    # int 键编码
+    # 把 (first, last) 元组键编码为单个 int, 省去元组构造+双哈希开销
+    # 收集 atoms 中出现过的所有分音 N, 建立 index 双射 (0 保留给 None)
+    # 编码 key = first_idx * stride + last_idx, stride = n_distinct+1, 双射可逆
+    distinct_N = sorted({N for (N, _k, _tk) in atoms})
+    idx_of = {None: 0}
+    for _i, _N in enumerate(distinct_N, start=1):
+        idx_of[_N] = _i
+    n_distinct = len(distinct_N)
+    stride = n_distinct + 1
+    N_from_idx = [None] + distinct_N
+
+    # -atom 按 tk 升序 (稳定排序) + 平行数组
+    # 升序后内层循环可用 `if tk > remaining: break` 提前终止, 跳过所有 nt>tau 的无效 atom
+    # 稳定排序保同 tk 下原始 (k,N) 相对顺序。平行数组避免每转移解包元组
+    atoms_sorted = sorted(atoms, key=lambda a: a[2])
+    atom_N    = [a[0] for a in atoms_sorted]
+    atom_k    = [a[1] for a in atoms_sorted]
+    atom_tk   = [a[2] for a in atoms_sorted]
+    atom_Nidx = [idx_of[a[0]] for a in atoms_sorted]
+    n_atoms = len(atoms_sorted)
+
+    # 2. DP 状态: dp[t] = dict[int_key] -> (sw, commas, parent)
+    #    parent = (prev_t, prev_key_int, N, k) 指向前驱状态, 末尾回溯重建 segs
     dp = [dict() for _ in range(tau + 1)]
-    dp[0][(None, None)] = (0, 0, None)
+    dp[0][0] = (0, 0, None)   # key 0 = first_idx=0, last_idx=0 = (None, None)
 
     # 3. DP 状态转移
     for t in range(tau):
-        for (first, last), (sw, commas, _parent) in list(dp[t].items()):
-            for (N, k, tk) in atoms:
+        layer = dp[t]
+        if not layer:
+            continue
+        remaining = tau - t
+        for key_int, (sw, commas, _parent) in list(layer.items()):
+            first_idx = key_int // stride
+            last_idx = key_int - first_idx * stride
+            for a in range(n_atoms):
+                tk = atom_tk[a]
+                if tk > remaining:
+                    break                # 升序: 后续 atom 的 tk 只会更大, 全部越界, 提前终止
+                Nidx = atom_Nidx[a]
+                if last_idx == Nidx:
+                    continue             # 禁相邻同分音 (last_idx==0 即 None, Nidx>=1 永不等于)
                 nt = t + tk
-                if nt > tau:
-                    continue
-                if last is not None and last == N:
-                    continue  # 1. 不允许相邻两段用同一分音: 否则逗号会连成一串, 超过 4 个
-                nsw = sw + (0 if last is None or last == N else 1)  # 2. 切换计数: 前一段的末段分音与当前段的首段分音不同就 +1
-                nfirst = N if first is None else first
-                key = (nfirst, N)
-                cur = dp[nt].get(key)
-                new_commas = commas + k  # 累加等价于 sum(segs), 数学恒等
+                nsw = sw + (0 if last_idx == 0 else 1)           # last 为 None 时 0 切换, 否则 +1
+                nfirst_idx = Nidx if first_idx == 0 else first_idx
+                new_key = nfirst_idx * stride + Nidx
+                cur = dp[nt].get(new_key)
+                new_commas = commas + atom_k[a]                  # 累加等价于 sum(segs), 数学恒等
                 if cur is None or nsw < cur[0] or (nsw == cur[0] and new_commas < cur[1]):
-                    dp[nt][key] = (nsw, new_commas, (t, (first, last), N, k))  # 3. 代价比较: 切换数优先, 其次逗号总数
+                    dp[nt][new_key] = (nsw, new_commas, (t, key_int, atom_N[a], atom_k[a]))
 
     # 收口: 回溯 parent 链重建 segs, 把 DP 终态 (dp[tau]) 转成 (sw, segs) 返回给外层。
-    for key, (sw, _commas, _parent) in dp[tau].items():
-        if key == (None, None):
+    for key_int, (sw, _commas, _parent) in dp[tau].items():
+        if key_int == 0:
             continue
+        first = N_from_idx[key_int // stride]
+        last = N_from_idx[key_int - (key_int // stride) * stride]
         segs = []
-        cur_key = key
+        cur_key = key_int
         cur_t = tau
         while True:
             _sw, _cm, parent = dp[cur_t][cur_key]
@@ -126,7 +154,7 @@ def _gap_configs(g: Fraction, R: int):
             cur_key = prev_key
             cur_t = prev_t
         segs.reverse()
-        configs[key] = (sw, segs)
+        configs[(first, last)] = (sw, segs)
 
     return configs
 
