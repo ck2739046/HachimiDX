@@ -38,6 +38,9 @@ def _single_segments(numerator: int, denominator: int) -> list[tuple[int, int]]:
     return res
 
 
+
+
+
 def _gap_configs(g: Fraction, R: int):
     """
     为一个间隔 g 求出所有"性价比最优"的写法
@@ -112,6 +115,61 @@ def _gap_configs(g: Fraction, R: int):
     return configs
 
 
+
+
+
+def _emit_bar_text(events, gaps, seg_map) -> str:
+    """
+    将一个小节的 events / gaps / seg_map 拼接成一行 maidata 文本
+
+    输入:
+        events:  [(小节内时间, BPM文本, 音符文本), ...]
+        gaps:    [Fraction, ...], 长度 = len(events)+1
+                 各间隔长度 (以小节为单位)
+        seg_map: {间隔序号: [(N, k), ...]}
+                 每个非零间隔的分段方案
+    """
+
+    out = []
+    cur_div = None
+
+    def emit_div(D):
+        """必要时写一次 {D}; 只有 D 与当前分音不同时才写"""
+        nonlocal cur_div
+        if D != cur_div:
+            out.append(f"{{{D}}}")
+            cur_div = D
+
+    # 如果第一个间隔非零, 先写它的分音和逗号
+    if gaps[0] > 0:
+        for (N, k) in seg_map[0]:
+            emit_div(N)
+            out.append("," * k)
+
+    # 逐音符输出
+    for note_idx in range(len(events)):
+
+        gap_idx = note_idx + 1  # 该音符后面的间隔序号
+        _, bpm, notes = events[note_idx]
+
+        # 1. 写 BPM
+        if bpm:
+            out.append(bpm)
+            cur_div = None  # 换 BPM 后强制重写 {N}, 即使分音没变
+        
+        # 2. 写分音 {N}
+        emit_div(seg_map[gap_idx][0][0])
+
+        # 3. 写音符
+        if notes:
+            out.append(notes)
+
+        # 4. 写间隔的逗号
+        for (N, k) in seg_map[gap_idx]:
+            emit_div(N)
+            out.append("," * k)
+
+    return "".join(out) + "\n"
 
 
 
@@ -243,43 +301,8 @@ class _LayoutEngine:
         chosen = min(cur_layer.values(), key=lambda v: v[0])[1]   # [(间隔序号, 分段列表)]
         seg_map = {gi: segs for (gi, segs) in chosen}
 
-        # ---- 拼接这一行的文本 ----
-        # 输出顺序的硬性规则: {N} 只能出现在"行首"或"逗号之后", 不能直接贴在音符后面。
-        # 这样能保证每个音符后面都至少跟一个逗号 (不会出现 note{N} 这种音符后没逗号的情况)。
-        # 做法: 每个音符 i 之后的间隔 i+1, 把它的第一段分音提到"音符 i 之前"来声明
-        #       (正好落在前一个间隔的逗号后面)。
-        out = []
-        cur = None
-
-        def emit_div(D):
-            """必要时写一次 {D}; 只有 D 与当前分音不同时才写。"""
-            nonlocal cur
-            if D != cur:
-                out.append(f"{{{D}}}")
-                cur = D
-
-        # 行首 + 第一个间隔 (第一个音符前的休止): 若存在, 它的第一段分音成为行首的 {N}
-        if gaps[0] > 0:
-            for (N, k) in seg_map[0]:
-                emit_div(N)
-                out.append("," * k)
-        # 逐个音符输出: 先写 BPM, 再声明它后一个间隔的分音, 再写音符, 再写间隔的逗号
-        for i in range(len(events)):
-            tg = i + 1                              # 该音符后面的间隔序号
-            has_trailing = tg < len(gaps) and gaps[tg] > 0
-            _, bpm, notes = events[i]
-            if bpm:
-                out.append(bpm)                     # BPM 写在 {N} 前面
-                cur = None                          # 换过 BPM 后强制重新声明 {N}, 即使分音没变
-            if has_trailing:
-                emit_div(seg_map[tg][0][0])         # 先声明分音, 再出音符 (避免 note{N})
-            if notes:
-                out.append(notes)
-            if has_trailing:
-                for (N, k) in seg_map[tg]:
-                    emit_div(N)
-                    out.append("," * k)
-        return "".join(out) + "\n"
+        # 拼接这一行的文本
+        return _emit_bar_text(events, gaps, seg_map)
 
 
 
