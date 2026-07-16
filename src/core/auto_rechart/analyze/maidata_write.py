@@ -11,7 +11,7 @@ from .maidata_generate import MaidataItem
 
 
 # 分音策略常量 (移植自 SimaiGenerator.cs)
-_TH_DIRECT = 24      # base 分音上限；超过此值的分音不参与 base 计算
+_TH_DIRECT = 32      # base 分音上限；超过此值的分音不参与 base 计算
 _DIRECT_MINVAL = 4   # 当存在 exotic 分音时，base 分音不得低于此值
 
 
@@ -139,6 +139,21 @@ class _LayoutEngine:
         return lcm_1, lcm_2
 
     # ---- 移植自 CalculateBaseDiv: 为本小节挑最优 base 分音 ----
+    def _switch_cost(self, gaps, base: int) -> int:
+        """估算 gaps 用 base 表示时的 {N} 切换次数。
+
+        每个 gap 若不能被 base 整除 (即 gap*base 非整数), _write_blank 走慢路径,
+        拆出零头触发一次 {N} 切换。返回不整除的 gap 计数 (切换数的下界估计)。
+        """
+        cost = 0
+        for g in gaps:
+            if g <= 0:
+                continue
+            g = Fraction(g)
+            if (g.numerator * base) % g.denominator != 0:
+                cost += 1
+        return cost
+
     def _calculate_base_div(self, note_idx: int):
         bar = _whole(self.buf[note_idx]['time'])
         gaps = [self.buf[note_idx]['time'] - bar]
@@ -147,20 +162,23 @@ class _LayoutEngine:
             gaps.append(self.buf[i]['time'] - self.buf[i - 1]['time'])
             i += 1
 
-        lcm_1, lcm_2 = self._lcm(gaps)
-        result_div = lcm_2
-        should_fill_last_bar_first = True
+        # base 必须用原始 gaps (不含上一小节残余): 执行时新小节 _write_blank 收到的
+        # 是不含残余的原始 gaps, base 若用含残余 gaps 计算会与实际不匹配, 制造零头切换
+        _, base = self._lcm(gaps)
+        in_bar_cost = self._switch_cost(gaps, base)   # 新小节内切换 (两策略相同)
 
-        # 假设不补满上一小节, 把"上一小节剩余空间"并入首 gap 重算; 若 LCM 更小则更优
+        # 比较跨小节过渡策略的切换代价, 取更优者 (替代原版"LCM 数值更小"判据)
         remain_time = bar - self.write_ptr
         if remain_time > 0:
-            gaps[0] += remain_time
-            lcm_n_1, lcm_n_2 = self._lcm(gaps)
-            if lcm_n_1 < lcm_1:
-                result_div = lcm_n_2
-                should_fill_last_bar_first = False
+            # 策略 A: 先补满上一小节残余 (用 base); 补满后 cur_div=base, 新小节无额外切换
+            cost_A = in_bar_cost + (0 if base == self.cur_div else 1)
+            # 策略 B: 让间隔跨过小节线 (用 cur_div); 跨线后 cur_div 清零, 新小节首 blank 须重建 base
+            cross_ok = self.cur_div > 0 and (remain_time * self.cur_div).denominator == 1
+            cost_B = in_bar_cost + (0 if cross_ok else 1) + 1   # +1: 跨线后重建 base
+            if cost_B < cost_A:
+                return base, False
 
-        return result_div, should_fill_last_bar_first
+        return base, True
 
     # ---- 移植自 Generate 第二阶段主循环 ----
     def layout(self, items: list[MaidataItem]) -> str:
