@@ -1,6 +1,6 @@
 # 参考了 MuConvert 的 SimaiGenerator.cs:
 #   https://github.com/MuNET-OSS/MuConvert/blob/742355f50d7e53b5255cb951a1a16da8a4215b05/generator/mai/SimaiGenerator.cs
-# 仅参考部分策略或思路，具体代码实现完全独立
+# 仅参考部分思路，具体代码实现完全独立
 
 
 import os
@@ -13,7 +13,7 @@ from .maidata_generate import MaidataItem
 
 
 # 分音策略常量
-_MAX_DIV = 384       # 分音的最大值
+_MAX_DIV = 384       # 分音的分辨率，最小支持 1/384 小节
 _SWITCH_WEIGHT = 4   # 1 次 {N} 切换相当于多少个逗号的代价 (用于在"少切换"与"少逗号"之间权衡)
 
 
@@ -27,25 +27,27 @@ def _lcm_of_list(nums) -> int:
     return reduce(math.lcm, nums, 1)
 
 
-def _single_segments(tau: int, R: int):
+def _single_segments(numerator: int, denominator: int) -> list[tuple[int, int]]:
     """
-    找一个间隔的所有"单段写法" (N, k)
+    输入: 分子/分母 是这个单个间隔的长度 (以小节为单位)
+    返回: 所有合法的 分子/分母 组合 (分子为1-4)
 
-    一个间隔在分辨率 R 下占 tau 个 tick。如果它恰好能用一个分音 {N} 的 k 个逗号表示
-    (即 k 个 1/N 相加 = tau/R, 且 1 ≤ k ≤ 4), 就是一种合法的单段写法。
-    返回所有这样的 (N, k)。
+    例: 输入 2/8, 输出 [1/4, 2/8, 3/12, 4/16]
+
+    若间隔无法用 1~4 分子表示 (例如 5/8), 返回空列表
     """
     res = []
-    for k in range(1, 5):
-        if (k * R) % tau == 0:
-            N = (k * R) // tau
-            if N <= _MAX_DIV:
-                res.append((N, k))
+    for new_numerator in range(1, 5):
+        if (new_numerator * denominator) % numerator == 0:
+            new_denominator = (new_numerator * denominator) // numerator
+            if new_denominator <= _MAX_DIV:
+                res.append((new_numerator, new_denominator))
     return res
 
 
 def _gap_configs(g: Fraction, R: int):
-    """为一个间隔 g 求出所有"性价比最优"的写法。
+    """
+    为一个间隔 g 求出所有"性价比最优"的写法。
 
     返回 dict[(首段分音, 末段分音)] = (段内切换次数, 分段列表):
       分段列表 = [(N, k), ...] 每个 k∈[1,4], 相邻两段分音不同, 全部相加正好等于 g;
@@ -60,7 +62,7 @@ def _gap_configs(g: Fraction, R: int):
     if tau <= 0:
         return {}
     configs = {}
-    for (N, k) in _single_segments(tau, R):
+    for (k, N) in _single_segments(tau, R):
         configs[(N, N)] = (0, [(N, k)])
     if configs:                         # 能用单段写完: 单段 0 内切换已是理论最优, 不必再拆
         return configs
@@ -107,15 +109,23 @@ def _gap_configs(g: Fraction, R: int):
     return configs
 
 
-class _LayoutEngine:
-    """simai 谱面排版引擎: 把一组音符 (带绝对小节位置) 转成谱面文本。
 
-    设计要点:
-      - 每个小节独立排版, 小节之间互不影响;
-      - 每个小节内部尽量减少 {N} 切换次数 (用双层 DP 求最优);
-      - 连续的逗号不超过 4 个, 超过就拆成多段;
-      - 每个小节占一行, 行首固定写一次 {N};
-      - 每个小节末尾用逗号填满到小节线, 保证下一小节从干净的位置开始。
+
+class _LayoutEngine:
+    """
+    simai 谱面排版引擎
+
+    排版规则:
+      - 将谱面按小节分割，一行一个小节
+      - 每个小节完全独立, 互不影响
+      - 每个行首固定写一次 {N}
+      - 每次 bpm 切换后强制写一次 {N} (即使分音没变)
+
+    分音策略:
+      - 每个小节内部尽量减少 {N} 切换次数
+      - 每个小节内部尽量减少逗号总数
+      - 通过 SWITCH_WEIGHT 平衡 "少切换" 与 "少逗号"
+      - 连续的逗号不能超过 4 个, 如果超过就拆成多段
     """
 
     def layout(self, items: list[MaidataItem]) -> str:
@@ -227,6 +237,10 @@ class _LayoutEngine:
                     emit_div(N)
                     out.append("," * k)
         return "".join(out) + "\n"
+
+
+
+
 
 
 def write_maidata(shared_context, items: list[MaidataItem],
