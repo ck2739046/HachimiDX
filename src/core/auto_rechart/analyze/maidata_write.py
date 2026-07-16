@@ -11,7 +11,7 @@ from .maidata_generate import MaidataItem
 
 
 # 分音策略常量 (移植自 SimaiGenerator.cs)
-_TH_DIRECT = 16      # base 分音上限；超过此值的分音不参与 base 计算
+_TH_DIRECT = 24      # base 分音上限；超过此值的分音不参与 base 计算
 _DIRECT_MINVAL = 4   # 当存在 exotic 分音时，base 分音不得低于此值
 
 
@@ -77,6 +77,12 @@ class _LayoutEngine:
             numer, div = length
             if numer == 0:
                 return
+            # 即便 force_as_is (保留 base_div 粒度), 逗号数过多 (>4) 时也约分,
+            # 避免长串逗号; 约分后 div 变化经 _change_div 切 {N}, 语义不变
+            if numer > 4:
+                g = math.gcd(numer, div)
+                numer //= g
+                div //= g
         else:
             if length == 0:
                 return
@@ -86,8 +92,9 @@ class _LayoutEngine:
 
             if not force_as_is:
                 direct_count = length * self.cur_div
-                # 若能用现有 cur_div 整除表示, 且逗号数不多 (或 cur_div 本身不大), 则复用 cur_div 省切换
-                if self.cur_div > 0 and direct_count.denominator == 1 and (direct_count <= 4 or self.cur_div <= 16):
+                # 若能用现有 cur_div 整除表示, 且逗号数不多 (≤4), 则复用 cur_div 省切换
+                # 否则用约分后的 {N} (逗号更少, 输出更干净)
+                if self.cur_div > 0 and direct_count.denominator == 1 and direct_count <= 4:
                     div = self.cur_div
                     numer = direct_count.numerator
 
