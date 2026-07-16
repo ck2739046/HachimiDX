@@ -100,6 +100,8 @@ class _LayoutEngine:
             # 跨过小节线则换行
             if auto_new_line and _whole(self.write_ptr) != _whole(before):
                 self.result += '\n'
+                # 强制清空 cur_div, 即便新小节分音与上一小节相同, 也固定在行首写一次 {n}
+                self.cur_div = 0
                 if break_on_new_line:
                     break
 
