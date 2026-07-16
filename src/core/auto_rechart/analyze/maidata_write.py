@@ -17,10 +17,6 @@ _MAX_DIV = 384       # 分音的分辨率，最小支持 1/384 小节
 _SWITCH_WEIGHT = 4   # 1 次 {N} 切换相当于多少个逗号的代价 (用于在"少切换"与"少逗号"之间权衡)
 
 
-def _whole(f: Fraction) -> int:
-    """计算一个时间值落在第几小节 (向下取整)"""
-    return f.numerator // f.denominator
-
 
 def _lcm_of_list(nums) -> int:
     """求一组整数的最小公倍数"""
@@ -115,8 +111,11 @@ def _gap_configs(g: Fraction, R: int):
         if key == (None, None):
             continue
         configs[key] = val
-        
+
     return configs
+
+
+
 
 
 
@@ -139,35 +138,49 @@ class _LayoutEngine:
     """
 
     def layout(self, items: list[MaidataItem]) -> str:
+        """主入口: 接受 MaidataItem, 返回排版后的谱面正文"""
+
+        # 特例: 空谱面
         if not items:
             return "{1},,,E"
-        bars = {}
-        for it in items:
-            t = Fraction(it.numerator, it.denominator)
-            bars.setdefault(_whole(t), []).append((t, it))
-        max_bar = max(bars)
-        lines = []
-        for b in range(0, max_bar + 1):
-            its = bars.get(b)
-            if not its:
-                lines.append("{1},\n")          # 空小节: 一个逗号 = 整小节休止
+        
+        # 将所有音符按小节分组, 方便逐小节排版
+        bars = {}  # key: 小节序号, value: list[MaidataItem]
+        for item in items:
+            # 音符落在第几小节 (向下取整)
+            bar = item.time.numerator // item.time.denominator
+            # 本小节的所有音符写入一个列表
+            if bar not in bars: bars[bar] = []
+            bars[bar].append(item)
+
+        # 主循环: 逐小节排版
+        final_texts = []
+        for bar_index in range(max(bars) + 1):
+
+            this_bar = bars.get(bar_index)
+            if not this_bar:
+                final_texts.append("{1},\n")  # 空小节使用 {1}, 填充
                 continue
-            its_sorted = sorted(its, key=lambda x: (x[0] - b, 0 if x[1].is_bpm else 1, x[1].content))
+
+            # 已经在 maidata_generate.py 中排序过了
+            # this_bar = sorted(this_bar, key=lambda x: (x[0], 0 if x[1].is_bpm else 1, x[1].content))
+            
             events = []
             i = 0
-            while i < len(its_sorted):
-                t, _ = its_sorted[i]
-                rel = t - b
+            while i < len(this_bar):
+                relative_time = this_bar[i].relative_time
                 bpm_parts, note_parts = [], []
-                while i < len(its_sorted) and (its_sorted[i][0] - b) == rel:
-                    it2 = its_sorted[i][1]
+                while i < len(this_bar) and this_bar[i].relative_time == relative_time:
+                    it2 = this_bar[i]
                     (bpm_parts if it2.is_bpm else note_parts).append(it2.content)
                     i += 1
                 # 同一时刻的项合并成一个"事件": BPM 文本和音符文本分开存
                 # (同时刻的多个音符用 / 连成 each; BPM 后续输出时单独处理)
-                events.append((rel, "".join(bpm_parts), "/".join(note_parts)))
-            lines.append(self._layout_bar(events))
-        return "".join(lines) + "{1},,,E"
+                events.append((relative_time, "".join(bpm_parts), "/".join(note_parts)))
+            final_texts.append(self._layout_bar(events))
+            
+        return "".join(final_texts) + "{1},,,E"
+
 
     def _layout_bar(self, events) -> str:
         """排版单个小节。每个事件是 (小节内位置, BPM文本, 音符文本)。返回一整行文本。"""

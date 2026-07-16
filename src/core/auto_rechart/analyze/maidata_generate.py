@@ -1,6 +1,7 @@
 import numpy as np
 import math
 from dataclasses import dataclass
+from fractions import Fraction
 
 from .shared_context import *
 from ..detect.note_definition import *
@@ -13,17 +14,21 @@ class MaidataItem:
     """
     restructurer 的最小工作单元，对应 SimaiGenerator.cs 的 SimaiNote。
 
-    numerator:   音符总小节位置，分子
-    denominator: 音符总小节位置，分母
+    time:        音符总小节位置，分数
     content:     音符语法文本
     is_bpm:      是否为 BPM 变化点
     each_group:  each 分组索引，因不支持伪 each, 所以始终为 0
+
+    relative_time: 音符在小节内的相对位置 (0~1), 由 time 派生, 分数
     """
-    numerator: int
-    denominator: int
+    time: Fraction
     content: str
     is_bpm: bool = False
     each_group: int = 0
+
+    @property
+    def relative_time(self) -> Fraction:
+        return self.time - self.time.numerator // self.time.denominator
 
 
 
@@ -114,7 +119,7 @@ class PassedBarTracker:
         return total_ms
 
 
-    def get_total_elapsed_bar(self) -> tuple[int, int]:
+    def get_total_elapsed_bar(self) -> Fraction:
         """理论总播放时间 (小节位置)"""
 
         total_bars = 0
@@ -138,7 +143,7 @@ class PassedBarTracker:
                 actual_passed_bar = theory_total_bar  # 截断
         total_bars += actual_passed_bar
 
-        return total_bars, self.lcm_denom
+        return Fraction(total_bars, self.lcm_denom)
 
 
 
@@ -156,8 +161,8 @@ def _generate_bpm_items(passed_bar_tracker: PassedBarTracker, timing_points: lis
     for i in range(len(timing_points)):
         start_bar_index, bpm = passed_bar_tracker._timing_points[i]
         relative_bar_index = start_bar_index - init_bar_index
-        item = MaidataItem(relative_bar_index, passed_bar_tracker.lcm_denom,
-                           f"({bpm:g})", is_bpm=True)
+        time = Fraction(relative_bar_index, passed_bar_tracker.lcm_denom)
+        item = MaidataItem(time, f"({bpm:g})", is_bpm=True)
         bpm_items.append(item)
     return bpm_items
 
@@ -223,8 +228,8 @@ def generate_maidata(notes_info, timing_points,
                 last_theory_time = cur_theory_time
                 last_bpm_seg_index = cur_bpm_seg_index
             # 音符 item
-            numerator, denominator = passed_bar_tracker.get_total_elapsed_bar()
-            items.append(MaidataItem(numerator, denominator, cur_position))
+            time = passed_bar_tracker.get_total_elapsed_bar()
+            items.append(MaidataItem(time, cur_position))
             # 控制台打印
             print(f"first note appear at {cur_note_time:.1f} ms")
             continue
@@ -243,8 +248,8 @@ def generate_maidata(notes_info, timing_points,
         cur_theory_time = init_time + passed_bar_tracker.get_total_elapsed_ms()
 
         # 音符 item
-        numerator, denominator = passed_bar_tracker.get_total_elapsed_bar()
-        items.append(MaidataItem(numerator, denominator, cur_position))
+        time = passed_bar_tracker.get_total_elapsed_bar()
+        items.append(MaidataItem(time, cur_position))
 
         # 统计音符约分误差
         # note_time   是音符原始到达时间
@@ -288,7 +293,7 @@ def generate_maidata(notes_info, timing_points,
     #   1. numerator 升序 (时间顺序)
     #   2. is_bpm 项排在音符项之前 (同位置 BPM 先于音符)
     #   3. content 升序 (按字母顺序对并行音符排序)
-    all_items.sort(key=lambda item: (item.numerator, 0 if item.is_bpm else 1, item.content))
+    all_items.sort(key=lambda item: (item.time, 0 if item.is_bpm else 1, item.content))
 
     return all_items
 
