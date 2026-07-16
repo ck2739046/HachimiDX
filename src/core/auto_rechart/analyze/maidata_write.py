@@ -14,8 +14,8 @@ from .maidata_generate import MaidataItem
 
 
 # 分音策略常量
-_MAX_DIV = 384       # 分音的分辨率，最小支持 1/384 小节
-_SWITCH_WEIGHT = 4   # 1 次 {N} 切换相当于多少个逗号的代价 (用于在"少切换"与"少逗号"之间权衡)
+_MAX_DIV = 384     # 分音的分辨率，最小支持 1/384 小节
+_MAX_COMMAS = 5    # 单段内最多连续逗号数
 
 
 
@@ -34,7 +34,7 @@ def _single_segments(numerator: int, denominator: int) -> list[tuple[int, int]]:
     若间隔无法用 1~4 分子表示 (例如 5/8), 返回空列表
     """
     res = []
-    for new_numerator in range(1, 5):
+    for new_numerator in range(1, _MAX_COMMAS + 1):
         if (new_numerator * denominator) % numerator == 0:
             new_denominator = (new_numerator * denominator) // numerator
             if new_denominator <= _MAX_DIV:
@@ -78,7 +78,7 @@ def _gap_configs(g: Fraction, R: int):
     # 1. 枚举后选段
     # 先列出所有"占 tick 数少于 tau"的候选段, 作为 DP 的基本构件
     atoms = []
-    for k in range(1, 5):
+    for k in range(1, _MAX_COMMAS + 1):
         for N in range(1, _MAX_DIV + 1):
             if (k * R) % N == 0:
                 tk = (k * R) // N
@@ -134,8 +134,7 @@ class _LayoutEngine:
     分音策略:
       - 每个小节内部尽量减少 {N} 切换次数
       - 每个小节内部尽量减少逗号总数
-      - 通过 SWITCH_WEIGHT 平衡 "少切换" 与 "少逗号"
-      - 连续的逗号不能超过 4 个, 如果超过就拆成多段
+      - 连续逗号不能超过 _MAX_COMMAS 个, 如果超过就拆成多段
     """
 
     def layout(self, items: list[MaidataItem]) -> str:
@@ -188,8 +187,15 @@ class _LayoutEngine:
         return "".join(final_texts) + "{1},,,E"
 
 
+
+
+
     def _layout_bar(self, events) -> str:
-        """排版单个小节。每个事件是 (小节内位置, BPM文本, 音符文本)。返回一整行文本。"""
+        """
+        排版单个小节
+        输入: list of (小节内时间, BPM文本, 音符文本)
+        返回: 一整行 maidata 文本
+        """
         m = len(events)
         times = [Fraction(t) for t, _, _ in events]
         gaps = []
@@ -204,13 +210,13 @@ class _LayoutEngine:
         cfgs = [_gap_configs(g, R) if g > 0 else None for g in gaps]
         active = [(idx, cfgs[idx]) for idx in range(len(gaps)) if cfgs[idx] is not None]
         # 外层 DP: 跨所有间隔, 让"相邻间隔的衔接处"尽量用同一分音 (省一次切换)。
-        # 总代价 = 切换次数*_SWITCH_WEIGHT + 逗号总数; 用加权和是为了让逗号数也能反过来
+        # 总代价 = 切换次数*_MAX_COMMAS + 逗号总数; 用加权和是为了让逗号数也能反过来
         # 抵消"为省一次切换而堆一大堆逗号"的情况。
         first_idx, first_cfg = active[0]
         cur_layer = {}
         for (fd, ld), (sw, segs) in first_cfg.items():
             commas = sum(k for (_, k) in segs)
-            cost = sw * _SWITCH_WEIGHT + commas
+            cost = sw * _MAX_COMMAS + commas
             if ld not in cur_layer or cost < cur_layer[ld][0]:
                 cur_layer[ld] = (cost, [(first_idx, segs)])
         for a_idx in range(1, len(active)):
@@ -220,7 +226,7 @@ class _LayoutEngine:
                 seg_commas = sum(k for (_, k) in segs)
                 best = None
                 for prev_ld, (prev_cost, prev_choices) in cur_layer.items():
-                    tot = prev_cost + (0 if prev_ld == fd else 1) * _SWITCH_WEIGHT + sw * _SWITCH_WEIGHT + seg_commas
+                    tot = prev_cost + (0 if prev_ld == fd else 1) * _MAX_COMMAS + sw * _MAX_COMMAS + seg_commas
                     if best is None or tot < best[0]:
                         best = (tot, prev_choices + [(gi, segs)])
                 if ld not in next_layer or best[0] < next_layer[ld][0]:
