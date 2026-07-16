@@ -13,6 +13,7 @@ from .maidata_generate import MaidataItem
 
 # 分音策略常量
 _MAX_DIV = 384   # 单段分音上限 (覆盖到 1/384, 保证 1/96 gap 的 4 倍对齐选项可用)
+_SWITCH_WEIGHT = 4   # 1 次 {N} 切换的"逗号等价成本"; cost = switches*W + commas, 让 commas 能 trade-off
 
 
 def _whole(f: Fraction) -> int:
@@ -74,13 +75,21 @@ def _gap_configs(g: Fraction, R: int):
                 key = (nfirst, N)
                 newsegs = segs + [(N, k)]
                 cur = dp[nt].get(key)
-                if cur is None or nsw < cur[0] or (nsw == cur[0] and len(newsegs) < len(cur[1])):
+                new_commas = sum(k for _, _ in newsegs)
+                if cur is None or nsw < cur[0] or (nsw == cur[0] and new_commas < sum(kk for _, kk in cur[1])):
                     dp[nt][key] = (nsw, newsegs)
     for key, val in dp[tau].items():
         if key == (None, None):
             continue
-        if key not in configs or val[0] < configs[key][0]:
+        val_commas = sum(kk for _, kk in val[1])
+        if key not in configs:
             configs[key] = val
+        else:
+            cur_c = configs[key]
+            cur_cost = cur_c[0] * _SWITCH_WEIGHT + sum(kk for _, kk in cur_c[1])
+            new_cost = val[0] * _SWITCH_WEIGHT + val_commas
+            if new_cost < cur_cost:
+                configs[key] = val
     return configs
 
 
@@ -139,12 +148,13 @@ class _LayoutEngine:
         R = _lcm_of_list(dens) if dens else 1
         cfgs = [_gap_configs(g, R) if g > 0 else None for g in gaps]
         active = [(idx, cfgs[idx]) for idx in range(len(gaps)) if cfgs[idx] is not None]
-        # 外层 DP: 跨 gap 最小切换; 切换数相同时取总逗号数更少 (主键 switches, 次键 commas)
+        # 外层 DP: 跨 gap 最小化加权和 cost = switches*_SWITCH_WEIGHT + commas
+        # (加权和让 commas 能 trade-off: 不至于为省 1 switch 堆过多逗号)
         first_idx, first_cfg = active[0]
         cur_layer = {}
         for (fd, ld), (sw, segs) in first_cfg.items():
             commas = sum(k for (_, k) in segs)
-            cost = (sw, commas)
+            cost = sw * _SWITCH_WEIGHT + commas
             if ld not in cur_layer or cost < cur_layer[ld][0]:
                 cur_layer[ld] = (cost, [(first_idx, segs)])
         for a_idx in range(1, len(active)):
@@ -154,8 +164,7 @@ class _LayoutEngine:
                 seg_commas = sum(k for (_, k) in segs)
                 best = None
                 for prev_ld, (prev_cost, prev_choices) in cur_layer.items():
-                    tot = (prev_cost[0] + (0 if prev_ld == fd else 1) + sw,
-                           prev_cost[1] + seg_commas)
+                    tot = prev_cost + (0 if prev_ld == fd else 1) * _SWITCH_WEIGHT + sw * _SWITCH_WEIGHT + seg_commas
                     if best is None or tot < best[0]:
                         best = (tot, prev_choices + [(gi, segs)])
                 if ld not in next_layer or best[0] < next_layer[ld][0]:
