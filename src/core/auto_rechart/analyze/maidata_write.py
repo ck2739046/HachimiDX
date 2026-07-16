@@ -213,6 +213,9 @@ class _LayoutEngine:
         if not items:
             return "{1},,,E"
         
+        # 函数级缓存: 每次 layout 调用新建, 仅对单张谱面有效
+        self._gap_cache = {}
+
         # 将所有音符按小节分组, 方便后续逐小节排版
         bars = {}  # key: 小节序号, value: list[MaidataItem]
         for item in items:
@@ -259,6 +262,23 @@ class _LayoutEngine:
 
 
 
+    def _gap_configs_cached(self, g: Fraction, R: int):
+        """
+        _gap_configs(g, R) 对同一 (g, R) 必产出同一 configs
+        按 (g, R) 缓存可省去重复 DP, 显著缩减耗时
+        """
+        cache = self._gap_cache
+        ck = (g, R)
+        cached = cache.get(ck)
+        if cached is not None:
+            return cached
+        result = _gap_configs(g, R)
+        cache[ck] = result
+        return result
+
+
+
+
     def _layout_bar(self, events) -> str:
         """
         排版单个小节
@@ -287,7 +307,7 @@ class _LayoutEngine:
         active = []
         for idx, g in enumerate(gaps):
             if g > 0:
-                cfg = _gap_configs(g, R)
+                cfg = self._gap_configs_cached(g, R)
                 active.append((idx, cfg))
 
         # 外层 DP: 跨所有间隔, 让"相邻间隔的衔接处"尽量用同一分音 (省一次切换)。
