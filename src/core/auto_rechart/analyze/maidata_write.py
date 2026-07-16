@@ -5,7 +5,6 @@
 
 import os
 from fractions import Fraction
-from functools import reduce
 from itertools import groupby, tee
 import math
 
@@ -19,9 +18,6 @@ _MAX_COMMAS = 5    # 单段内最多连续逗号数
 
 
 
-def _lcm_of_list(nums) -> int:
-    """求一组整数的最小公倍数"""
-    return reduce(math.lcm, nums, 1)
 
 
 def _single_segments(numerator: int, denominator: int) -> list[tuple[int, int]]:
@@ -75,7 +71,7 @@ def _gap_configs(g: Fraction, R: int):
     
     # 不能用单段写完: 用 tick DP 求最优多段拆法
 
-    # 1. 枚举后选段
+    # 1. 枚举候选段
     # 先列出所有"占 tick 数少于 tau"的候选段, 作为 DP 的基本构件
     atoms = []
     for k in range(1, _MAX_COMMAS + 1):
@@ -196,19 +192,31 @@ class _LayoutEngine:
         输入: list of (小节内时间, BPM文本, 音符文本)
         返回: 一整行 maidata 文本
         """
-        m = len(events)
-        times = [Fraction(t) for t, _, _ in events]
+
+        # 从 n 个事件中提取出 n+1 个间隔
+        # 小节头 -> 事件1, 事件1 -> 事件2, ..., 事件n -> 小节尾
+        # 计算每个间隔的长度 (以小节为单位)
+        relative_times = [t for t, _, _ in events]
         gaps = []
         prev = Fraction(0)
-        for t in times:
+        for t in relative_times:
             gaps.append(t - prev)
             prev = t
-        gaps.append(Fraction(1) - prev)            # 末尾间隔: 把小节填满到小节线
-        # 取所有间隔分母的最小公倍数作为本小节的分辨率 R, 这样每个间隔都是整数个 tick
-        dens = [g.denominator for g in gaps if g > 0]
-        R = _lcm_of_list(dens) if dens else 1
-        cfgs = [_gap_configs(g, R) if g > 0 else None for g in gaps]
-        active = [(idx, cfgs[idx]) for idx in range(len(gaps)) if cfgs[idx] is not None]
+        gaps.append(Fraction(1) - prev)
+        
+        # 本小节的 tick 分辨率 R = 所有间隔的分母的最小公倍数
+        R = 1
+        for g in gaps:
+            if g > 0:
+                R = math.lcm(R, g.denominator)
+
+        # 为每个非零间隔求出所有 "性价比最优" 的写法
+        active = []
+        for idx, g in enumerate(gaps):
+            if g > 0:
+                cfg = _gap_configs(g, R)
+                active.append((idx, cfg))
+
         # 外层 DP: 跨所有间隔, 让"相邻间隔的衔接处"尽量用同一分音 (省一次切换)。
         # 总代价 = 切换次数*_MAX_COMMAS + 逗号总数; 用加权和是为了让逗号数也能反过来
         # 抵消"为省一次切换而堆一大堆逗号"的情况。
@@ -256,7 +264,7 @@ class _LayoutEngine:
                 emit_div(N)
                 out.append("," * k)
         # 逐个音符输出: 先写 BPM, 再声明它后一个间隔的分音, 再写音符, 再写间隔的逗号
-        for i in range(m):
+        for i in range(len(events)):
             tg = i + 1                              # 该音符后面的间隔序号
             has_trailing = tg < len(gaps) and gaps[tg] > 0
             _, bpm, notes = events[i]
