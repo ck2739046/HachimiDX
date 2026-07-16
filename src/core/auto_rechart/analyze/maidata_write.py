@@ -85,12 +85,17 @@ def _gap_configs(g: Fraction, R: int):
                     atoms.append((N, k, tk))
 
     # 2. DP 状态定义
+    #    值结构: (sw, commas, parent)
+    #      sw     = 段内分音切换次数
+    #      commas = 段内逗号总数 (随身累加, 避免每次 sum 重算)
+    #      parent = (prev_t, prev_key, N, k) 指向前驱状态, 末尾回溯重建 segs
+    #               (避免逐步 `segs + [...]` 的 list 复制)
     dp = [dict() for _ in range(tau + 1)]
-    dp[0][(None, None)] = (0, [])
+    dp[0][(None, None)] = (0, 0, None)
 
     # 3. DP 状态转移
     for t in range(tau):
-        for (first, last), (sw, segs) in list(dp[t].items()):
+        for (first, last), (sw, commas, _parent) in list(dp[t].items()):
             for (N, k, tk) in atoms:
                 nt = t + tk
                 if nt > tau:
@@ -100,17 +105,28 @@ def _gap_configs(g: Fraction, R: int):
                 nsw = sw + (0 if last is None or last == N else 1)  # 2. 切换计数: 前一段的末段分音与当前段的首段分音不同就 +1
                 nfirst = N if first is None else first
                 key = (nfirst, N)
-                newsegs = segs + [(N, k)]
                 cur = dp[nt].get(key)
-                new_commas = sum(kk for _, kk in newsegs)
-                if cur is None or nsw < cur[0] or (nsw == cur[0] and new_commas < sum(kk for _, kk in cur[1])):
-                    dp[nt][key] = (nsw, newsegs)  # 3. 代价比较: 切换数优先, 其次逗号总数
+                new_commas = commas + k  # 累加等价于 sum(segs), 数学恒等
+                if cur is None or nsw < cur[0] or (nsw == cur[0] and new_commas < cur[1]):
+                    dp[nt][key] = (nsw, new_commas, (t, (first, last), N, k))  # 3. 代价比较: 切换数优先, 其次逗号总数
 
-    # 收口: 把 DP 终态 (dp[tau]) 转成 configs 返回。
-    for key, val in dp[tau].items():
+    # 收口: 回溯 parent 链重建 segs, 把 DP 终态 (dp[tau]) 转成 (sw, segs) 返回给外层。
+    for key, (sw, _commas, _parent) in dp[tau].items():
         if key == (None, None):
             continue
-        configs[key] = val
+        segs = []
+        cur_key = key
+        cur_t = tau
+        while True:
+            _sw, _cm, parent = dp[cur_t][cur_key]
+            if parent is None:
+                break
+            prev_t, prev_key, N, k = parent
+            segs.append((N, k))
+            cur_key = prev_key
+            cur_t = prev_t
+        segs.reverse()
+        configs[key] = (sw, segs)
 
     return configs
 
