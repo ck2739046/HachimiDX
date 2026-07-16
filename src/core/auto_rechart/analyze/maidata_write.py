@@ -1,5 +1,6 @@
-# 排版引擎移植自 MuConvert 的 SimaiGenerator.cs (C# → Python)
-# 来源: https://github.com/MuNET-OSS/MuConvert/blob/742355f50d7e53b5255cb951a1a16da8a4215b05/generator/mai/SimaiGenerator.cs
+# 排版引擎 (每小节独立 + 双层 DP, 2026-07-16 重构)
+# 早期版本移植自 MuConvert 的 SimaiGenerator.cs, 已完全重写:
+#   https://github.com/MuNET-OSS/MuConvert/blob/742355f50d7e53b5255cb951a1a16da8a4215b05/generator/mai/SimaiGenerator.cs
 
 import os
 from fractions import Fraction
@@ -10,233 +11,172 @@ from .shared_context import *
 from .maidata_generate import MaidataItem
 
 
-# 分音策略常量 (移植自 SimaiGenerator.cs)
-_TH_DIRECT = 32      # base 分音上限；超过此值的分音不参与 base 计算
-_DIRECT_MINVAL = 4   # 当存在 exotic 分音时，base 分音不得低于此值
+# 分音策略常量
+_MAX_DIV = 384   # 单段分音上限 (覆盖到 1/384, 保证 1/96 gap 的 4 倍对齐选项可用)
 
 
 def _whole(f: Fraction) -> int:
-    """对应 C# Rational.WholePart (仅用于非负数)"""
+    """小节数 (floor, 仅用于非负数)。"""
     return f.numerator // f.denominator
-
-
-def _frac(f: Fraction) -> Fraction:
-    """对应 C# Rational.FractionPart"""
-    return f - _whole(f)
 
 
 def _lcm_of_list(nums) -> int:
     return reduce(math.lcm, nums, 1)
 
 
+def _single_segments(tau: int, R: int):
+    """覆盖 tau ticks 的单段写法 (N, k): k 个逗号 @ 分音 N, k∈[1,4], N=k*R/tau 为整数, N≤_MAX_DIV。"""
+    res = []
+    for k in range(1, 5):
+        if (k * R) % tau == 0:
+            N = (k * R) // tau
+            if N <= _MAX_DIV:
+                res.append((N, k))
+    return res
+
+
+def _gap_configs(g: Fraction, R: int):
+    """gap g 在分辨率 R 下的所有 Pareto-最优分段配置。
+
+    返回 dict[(first_div, last_div)] = (switches, segments):
+      segments = [(N, k), ...] 每 k∈[1,4], 连续 N 不同, sum(k/N) == g;
+      switches = 段内 {N} 切换数 (首段不计, 由行首承担)。
+    最简分子 p≤4: 直接给单段对齐分音 (0 内切换, 已最优); p≥5: 走 tick DP 求最小切换拆分。
+    """
+    tau = (g.numerator * R) // g.denominator
+    if tau <= 0:
+        return {}
+    configs = {}
+    for (N, k) in _single_segments(tau, R):
+        configs[(N, N)] = (0, [(N, k)])
+    if configs:                         # p≤4: 单段 0 内切换已最优, 跳过 DP
+        return configs
+    # p≥5: 多段 DP (atoms = 所有覆盖 <tau ticks 的单段)
+    atoms = []
+    for k in range(1, 5):
+        for N in range(1, _MAX_DIV + 1):
+            if (k * R) % N == 0:
+                tk = (k * R) // N
+                if 0 < tk < tau:
+                    atoms.append((N, k, tk))
+    dp = [dict() for _ in range(tau + 1)]
+    dp[0][(None, None)] = (0, [])
+    for t in range(tau):
+        for (first, last), (sw, segs) in list(dp[t].items()):
+            for (N, k, tk) in atoms:
+                nt = t + tk
+                if nt > tau:
+                    continue
+                if last is not None and last == N:
+                    continue        # 禁止连续同 div: 否则合并成 >4 逗号串 (原则4)
+                nsw = sw + (0 if last is None or last == N else 1)
+                nfirst = N if first is None else first
+                key = (nfirst, N)
+                newsegs = segs + [(N, k)]
+                cur = dp[nt].get(key)
+                if cur is None or nsw < cur[0] or (nsw == cur[0] and len(newsegs) < len(cur[1])):
+                    dp[nt][key] = (nsw, newsegs)
+    for key, val in dp[tau].items():
+        if key == (None, None):
+            continue
+        if key not in configs or val[0] < configs[key][0]:
+            configs[key] = val
+    return configs
+
+
 class _LayoutEngine:
+    """每小节独立排版引擎。
+
+    六原则:
+      1. 每小节完全独立, 不跨小节传递残余/cur_div;
+      2. 放弃 _TH_DIRECT/_DIRECT_MINVAL 阈值;
+      3. 每小节内部最小化 {N} 切换 (双层 DP);
+      4. 连续逗号 ≤4, 超过必拆;
+      5. 每小节行首强制写 {N};
+      6. trailing gap 填满到小节线, 保证下小节从干净边界开始。
     """
-    SimaiGenerator.cs 排版引擎的 Python 移植。
 
-    以 write_ptr (Fraction, 单位=小节) 与 cur_div (当前分音) 为唯一状态，
-    在 list[MaidataItem] 之间填充逗号、跨小节线自动换行、最小化 {N} 切换。
-    三层分音智能:
-      1. 小节级 CalculateBaseDiv: 为本小节挑一个主力分音
-      2. 间隔级 WriteBlank: 优先用 base_div 表示, 把 exotic 分音局部化
-      3. 逗号级 WriteComma: 复用 cur_div 省切换
-    """
-
-    def __init__(self):
-        self.result = ""
-        self.write_ptr = Fraction(0)
-        self.cur_div = 0   # 与 SimaiGenerator 初值一致; 首次 WriteComma 触发 ChangeDiv 插入 {div}
-        self.base_div = 1
-        self.base_div_bar = -1
-        self.buf = []
-
-    # ---- 移植自 ChangeDiv: 回溯插入 {div} ----
-    def _change_div(self, div: int):
-        result = self.result
-        i = len(result) - 1
-        e = -1
-        while i >= 0:
-            c = result[i]
-            if c in (',', ')', '{', '\n'):
-                if c == '{':
-                    i -= 1
-                break
-            elif c == '}':
-                e = i
-            i -= 1
-        if e == -1:
-            e = i
-        self.result = result[:i + 1] + f"{{{div}}}" + result[e + 1:]
-        self.cur_div = div
-
-    # ---- 移植自 WriteComma ----
-    def _write_comma(self, length, force_as_is=False, auto_new_line=True, break_on_new_line=False):
-        # 对应 C# WriteComma: force_as_is 时保留原始 (numer, div) 不约分
-        # (Rationals 构造不自动约分, 而 Fraction 必约分; 故 force_as_is 路径改用裸数元组绕过约分,
-        #  以匹配 C# WriteBlank 快路径 value=new(numer, baseDiv) 传入非约分形式的语义)
-        if force_as_is and isinstance(length, tuple):
-            numer, div = length
-            if numer == 0:
-                return
-            # 即便 force_as_is (保留 base_div 粒度), 逗号数过多 (>4) 时也约分,
-            # 避免长串逗号; 约分后 div 变化经 _change_div 切 {N}, 语义不变
-            if numer > 4:
-                g = math.gcd(numer, div)
-                numer //= g
-                div //= g
-        else:
-            if length == 0:
-                return
-            length = Fraction(length)   # Fraction 构造即自动最简 (CanonicalForm)
-            div = length.denominator
-            numer = length.numerator
-
-            if not force_as_is:
-                direct_count = length * self.cur_div
-                # 若能用现有 cur_div 整除表示, 且逗号数不多 (≤4), 则复用 cur_div 省切换
-                # 否则用约分后的 {N} (逗号更少, 输出更干净)
-                if self.cur_div > 0 and direct_count.denominator == 1 and direct_count <= 4:
-                    div = self.cur_div
-                    numer = direct_count.numerator
-
-        if div != self.cur_div:
-            self._change_div(div)
-        for _ in range(numer):
-            before = self.write_ptr
-            self.result += ','
-            self.write_ptr += Fraction(1, div)
-            # 跨过小节线则换行
-            if auto_new_line and _whole(self.write_ptr) != _whole(before):
-                self.result += '\n'
-                # 强制清空 cur_div, 即便新小节分音与上一小节相同, 也固定在行首写一次 {n}
-                self.cur_div = 0
-                if break_on_new_line:
-                    break
-
-    # ---- 移植自 WriteBlank: 递归填充空白, 优先用 base_div ----
-    def _write_blank(self, blank, base_div: int):
-        blank = Fraction(blank)
-        t = Fraction(base_div, blank.denominator)
-        if t >= 1 and t.denominator == 1:
-            # 空白能用 base_div 整除表示 -> 按 base_div 粒度写 (传裸数元组保留非约分形式, 与 C# WriteBlank 一致)
-            self._write_comma((blank.numerator * _whole(t), base_div), force_as_is=True)
-            return
-
-        # 不能整除: 拆成 零头(remain) + 大块(whole_aims), 零头先行容忍一次切换, 大块递归回 base_div
-        cur_aim = max(blank.denominator // 4, base_div)
-        whole_aims = Fraction(_whole(blank * cur_aim), cur_aim)
-        remain = blank - whole_aims
-        self._write_comma(remain)
-        self._write_blank(whole_aims, base_div)
-
-    # ---- 移植自 LCM: 返回 (全分母 LCM, 仅<=TH_DIRECT 分母 LCM) ----
-    def _lcm(self, gaps) -> tuple:
-        data = [Fraction(g).denominator for g in gaps if g > 0]
-        lcm_1 = _lcm_of_list(data) if data else 1
-        data2 = [d for d in data if d <= _TH_DIRECT]
-        lcm_2 = _lcm_of_list(data2) if data2 else 1
-        if lcm_1 > _TH_DIRECT and lcm_2 < _DIRECT_MINVAL:
-            lcm_2 = _DIRECT_MINVAL
-        return lcm_1, lcm_2
-
-    # ---- 移植自 CalculateBaseDiv: 为本小节挑最优 base 分音 ----
-    def _switch_cost(self, gaps, base: int) -> int:
-        """估算 gaps 用 base 表示时的 {N} 切换次数。
-
-        每个 gap 若不能被 base 整除 (即 gap*base 非整数), _write_blank 走慢路径,
-        拆出零头触发一次 {N} 切换。返回不整除的 gap 计数 (切换数的下界估计)。
-        """
-        cost = 0
-        for g in gaps:
-            if g <= 0:
-                continue
-            g = Fraction(g)
-            if (g.numerator * base) % g.denominator != 0:
-                cost += 1
-        return cost
-
-    def _calculate_base_div(self, note_idx: int):
-        bar = _whole(self.buf[note_idx]['time'])
-        gaps = [self.buf[note_idx]['time'] - bar]
-        i = note_idx + 1
-        while i < len(self.buf) and _whole(self.buf[i]['time']) <= bar:
-            gaps.append(self.buf[i]['time'] - self.buf[i - 1]['time'])
-            i += 1
-
-        # base 必须用原始 gaps (不含上一小节残余): 执行时新小节 _write_blank 收到的
-        # 是不含残余的原始 gaps, base 若用含残余 gaps 计算会与实际不匹配, 制造零头切换
-        _, base = self._lcm(gaps)
-        in_bar_cost = self._switch_cost(gaps, base)   # 新小节内切换 (两策略相同)
-
-        # 比较跨小节过渡策略的切换代价, 取更优者 (替代原版"LCM 数值更小"判据)
-        remain_time = bar - self.write_ptr
-        if remain_time > 0:
-            # 策略 A: 先补满上一小节残余 (用 base); 补满后 cur_div=base, 新小节无额外切换
-            cost_A = in_bar_cost + (0 if base == self.cur_div else 1)
-            # 策略 B: 让间隔跨过小节线 (用 cur_div); 跨线后 cur_div 清零, 新小节首 blank 须重建 base
-            cross_ok = self.cur_div > 0 and (remain_time * self.cur_div).denominator == 1
-            cost_B = in_bar_cost + (0 if cross_ok else 1) + 1   # +1: 跨线后重建 base
-            if cost_B < cost_A:
-                return base, False
-
-        return base, True
-
-    # ---- 移植自 Generate 第二阶段主循环 ----
     def layout(self, items: list[MaidataItem]) -> str:
-        # 转换为内部视图 (time 为 Fraction, 单位=小节)
-        self.buf = [
-            {
-                'time': Fraction(it.numerator, it.denominator),
-                'content': it.content,
-                'is_bpm': it.is_bpm,
-                'each_group': it.each_group,
-            }
-            for it in items
-        ]
-
-        for i in range(len(self.buf)):
-            note = self.buf[i]
-
-            # 处理多押: 与上一音符同时刻且上一音符非 BPM -> 用 `/` (真 each) 或 `` ` `` (伪 each) 连接
-            if i > 0 and note['time'] == self.buf[i - 1]['time'] and not self.buf[i - 1]['is_bpm']:
-                is_false_each = note['each_group'] > self.buf[i - 1]['each_group']
-                self.result += ('`' if is_false_each else '/') + note['content']
+        if not items:
+            return "{1},,,E"
+        bars = {}
+        for it in items:
+            t = Fraction(it.numerator, it.denominator)
+            bars.setdefault(_whole(t), []).append((t, it))
+        max_bar = max(bars)
+        lines = []
+        for b in range(0, max_bar + 1):
+            its = bars.get(b)
+            if not its:
+                lines.append("{1},\n")
                 continue
+            its_sorted = sorted(its, key=lambda x: (x[0] - b, 0 if x[1].is_bpm else 1, x[1].content))
+            events = []
+            i = 0
+            while i < len(its_sorted):
+                t, _ = its_sorted[i]
+                rel = t - b
+                bpm_parts, note_parts = [], []
+                while i < len(its_sorted) and (its_sorted[i][0] - b) == rel:
+                    it2 = its_sorted[i][1]
+                    (bpm_parts if it2.is_bpm else note_parts).append(it2.content)
+                    i += 1
+                content = "".join(bpm_parts) + "/".join(note_parts)
+                events.append((rel, content))
+            lines.append(self._layout_bar(events))
+        return "".join(lines) + "{1},,,E"
 
-            # 仅在每小节第一个音符时执行
-            should_fill_last_bar_first = None
-            if _whole(note['time']) > self.base_div_bar:
-                self.base_div_bar = _whole(note['time'])
-                self.base_div, should_fill_last_bar_first = self._calculate_base_div(i)
-
-            if should_fill_last_bar_first is not None:
-                if should_fill_last_bar_first:
-                    # 策略 A: 先把上一小节补满
-                    to_fill = _frac(self.base_div_bar - self.write_ptr)
-                    self._write_comma(to_fill)
-                elif _frac(self.write_ptr) != 0:
-                    # 策略 B: 让间隔自然跨过小节线, 跨线即停
-                    self._write_comma(note['time'] - self.write_ptr, break_on_new_line=True)
-                # 补完整的空小节 (只有最后一个加换行)
-                whole_bar_to_fill = _whole(note['time'] - self.write_ptr)
-                for j in range(whole_bar_to_fill):
-                    # 第 3 参数 auto_new_line 对应 C# WriteComma(1, true, j==wholeBarToFill-1):
-                    # 仅最后一个空小节在跨小节线时加换行, 其余同行; break_on_new_line 因 numer=1 不生效
-                    self._write_comma(Fraction(1), force_as_is=True, auto_new_line=(j == whole_bar_to_fill - 1))
-
-            # 音符前空白 + 音符本体
-            blank = note['time'] - self.write_ptr
-            self._write_blank(blank, self.base_div)
-            self.result += note['content']
-
-        # 结尾: 3 小节延迟 + E (沿用旧版约定)
-        self.result += ",\n{1},,,E"
-        return self.result
-
-
-
-
-
-
+    def _layout_bar(self, events) -> str:
+        m = len(events)
+        times = [Fraction(t) for t, _ in events]
+        gaps = []
+        prev = Fraction(0)
+        for t in times:
+            gaps.append(t - prev)
+            prev = t
+        gaps.append(Fraction(1) - prev)            # trailing 填满到小节线
+        dens = [g.denominator for g in gaps if g > 0]
+        R = _lcm_of_list(dens) if dens else 1
+        cfgs = [_gap_configs(g, R) if g > 0 else None for g in gaps]
+        active = [(idx, cfgs[idx]) for idx in range(len(gaps)) if cfgs[idx] is not None]
+        # 外层 DP: 跨 gap 最小切换; 切换数相同时取总逗号数更少 (主键 switches, 次键 commas)
+        first_idx, first_cfg = active[0]
+        cur_layer = {}
+        for (fd, ld), (sw, segs) in first_cfg.items():
+            commas = sum(k for (_, k) in segs)
+            cost = (sw, commas)
+            if ld not in cur_layer or cost < cur_layer[ld][0]:
+                cur_layer[ld] = (cost, [(first_idx, segs)])
+        for a_idx in range(1, len(active)):
+            gi, cfg = active[a_idx]
+            next_layer = {}
+            for (fd, ld), (sw, segs) in cfg.items():
+                seg_commas = sum(k for (_, k) in segs)
+                best = None
+                for prev_ld, (prev_cost, prev_choices) in cur_layer.items():
+                    tot = (prev_cost[0] + (0 if prev_ld == fd else 1) + sw,
+                           prev_cost[1] + seg_commas)
+                    if best is None or tot < best[0]:
+                        best = (tot, prev_choices + [(gi, segs)])
+                if ld not in next_layer or best[0] < next_layer[ld][0]:
+                    next_layer[ld] = best
+            cur_layer = next_layer
+        chosen = min(cur_layer.values(), key=lambda v: v[0])[1]   # [(gap_idx, segments)]
+        seg_map = {gi: segs for (gi, segs) in chosen}
+        # 输出单行: 行首强制 {N} (= 首个非零 gap 的首段 div)
+        start_div = seg_map[active[0][0]][0][0]
+        line = f"{{{start_div}}}"
+        cur = start_div
+        for i, g in enumerate(gaps):
+            if g > 0:
+                for (N, k) in seg_map[i]:
+                    if N != cur:
+                        line += f"{{{N}}}"
+                        cur = N
+                    line += "," * k
+            if i < m:                              # gap i 后跟 event i (trailing gap m 无 event)
+                line += events[i][1]
+        return line + "\n"
 
 
 def write_maidata(shared_context, items: list[MaidataItem],
