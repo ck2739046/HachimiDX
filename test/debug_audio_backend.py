@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 
 # --- 注入项目根目录到 sys.path（与 worker 逻辑一致） ---
-ROOT = str(Path(__file__).resolve().parents[2])
+ROOT = str(Path(__file__).resolve().parents[1])
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 

@@ -18,7 +18,7 @@ export_track_video 性能探针: 分段计时主循环, 定位瓶颈所在。
               若大很多 -> 瓶颈在 Python 绘制。
 
 用法:
-  python archive/test/probe_export_perf.py <std_video_path> [--no-draw] [--preset veryfast]
+  python test/probe_export_perf.py <std_video_path> [--no-draw] [--preset veryfast]
 """
 import argparse
 import os
@@ -30,7 +30,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 # 私有函数仅供诊断用
 from src.core.auto_rechart.detect.export_track_video import (  # noqa: E402
