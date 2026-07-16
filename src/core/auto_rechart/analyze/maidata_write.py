@@ -130,14 +130,14 @@ class _LayoutEngine:
                     it2 = its_sorted[i][1]
                     (bpm_parts if it2.is_bpm else note_parts).append(it2.content)
                     i += 1
-                content = "".join(bpm_parts) + "/".join(note_parts)
-                events.append((rel, content))
+                # BPM 与 notes 分离: BPM 作为零宽前缀, emit 时置于 {N} 之前 (见 _layout_bar)
+                events.append((rel, "".join(bpm_parts), "/".join(note_parts)))
             lines.append(self._layout_bar(events))
         return "".join(lines) + "{1},,,E"
 
     def _layout_bar(self, events) -> str:
         m = len(events)
-        times = [Fraction(t) for t, _ in events]
+        times = [Fraction(t) for t, _, _ in events]
         gaps = []
         prev = Fraction(0)
         for t in times:
@@ -190,13 +190,18 @@ class _LayoutEngine:
             for (N, k) in seg_map[0]:
                 emit_div(N)
                 out.append("," * k)
-        # 各音符: 先声明 trailing gap 首段 div, 再出音符, 再出 trailing 逗号
+        # 各音符: BPM 置于该音符 trailing-div 声明 {N} 之前 (bpm 始终在 {N} 前面),
+        # 再出 notes, 再出 trailing 逗号
         for i in range(m):
             tg = i + 1                              # trailing gap index
             has_trailing = tg < len(gaps) and gaps[tg] > 0
+            _, bpm, notes = events[i]
+            if bpm:
+                out.append(bpm)                     # BPM 先于 {N}
             if has_trailing:
                 emit_div(seg_map[tg][0][0])         # 声明 div 在音符前 (避免 note{N})
-            out.append(events[i][1])
+            if notes:
+                out.append(notes)
             if has_trailing:
                 for (N, k) in seg_map[tg]:
                     emit_div(N)
