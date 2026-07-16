@@ -123,20 +123,20 @@ def _gap_configs(g: Fraction, R: int):
             for a in range(n_atoms):
                 tk = atom_tk[a]
                 if tk > remaining:
-                    break                # 升序: 后续 atom 的 tk 只会更大, 全部越界, 提前终止
+                    break              # 升序: 后续 atom 的 tk 只会更大, 全部越界, 提前终止
                 Nidx = atom_Nidx[a]
                 if last_idx == Nidx:
-                    continue             # 禁相邻同分音 (last_idx==0 即 None, Nidx>=1 永不等于)
+                    continue           # 禁相邻同分音 (last_idx==0 即 None, Nidx>=1 永不等于)
                 nt = t + tk
-                nsw = sw + (0 if last_idx == 0 else 1)           # last 为 None 时 0 切换, 否则 +1
+                nsw = sw + (0 if last_idx == 0 else 1)  # last 为 None 时 0 切换, 否则 +1
                 nfirst_idx = Nidx if first_idx == 0 else first_idx
                 new_key = nfirst_idx * stride + Nidx
                 cur = dp[nt].get(new_key)
-                new_commas = commas + atom_k[a]                  # 累加等价于 sum(segs), 数学恒等
+                new_commas = commas + atom_k[a]         # 累加等价于 sum(segs), 数学恒等
                 if cur is None or nsw < cur[0] or (nsw == cur[0] and new_commas < cur[1]):
                     dp[nt][new_key] = (nsw, new_commas, (t, key_int, atom_N[a], atom_k[a]))
 
-    # 收口: 回溯 parent 链重建 segs, 把 DP 终态 (dp[tau]) 转成 (sw, segs) 返回给外层。
+    # 收口: 回溯 parent 链重建 segs, 把 DP 终态 (dp[tau]) 转成 (sw, segs) 返回给外层
     for key_int, (sw, _commas, _parent) in dp[tau].items():
         if key_int == 0:
             continue
