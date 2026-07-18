@@ -255,12 +255,19 @@ class _LayoutEngine:
 
         # 主循环: 逐小节排版
         final_texts = []
+        empty_run = 0
         for bar_index in range(max(bars) + 1):
 
             this_bar_notes = bars.get(bar_index)
+
+            # 如果是空小节, 更新计数器
             if not this_bar_notes:
-                final_texts.append("{1},\n")  # 空小节使用 {1}, 填充
+                empty_run += 1
                 continue
+            # flush 累积的连续空小节, 合并为单行 {1} + K 逗号
+            if empty_run > 0:
+                final_texts.append("{1}" + empty_run * "," + "\n")
+                empty_run = 0
 
             # 已经在 maidata_generate.py 中排序过了
             # this_bar = sorted(this_bar, key=lambda x: (x[0], 0 if x[1].is_bpm else 1, x[1].content))
