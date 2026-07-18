@@ -1,5 +1,6 @@
 from pathlib import Path
 import shutil
+import time
 
 from ...schemas.op_result import OpResult, ok, err, print_op_result
 from ...schemas.media_model import MediaType
@@ -44,6 +45,7 @@ def main(input_video: Path,
     
     try:
         print("Standardize...")
+        start_time = time.time()
 
         # 第一步：检测圆形判定线
         result = detect_circle.main(
@@ -100,6 +102,7 @@ def main(input_video: Path,
             except Exception as e:
                 return err(f"Failed to move output video from temp dir to main output dir.", error_raw=e)
 
+        print(f"标准化模块完成, 耗时{time.time() - start_time:.1f}s                       ")
         return ok()
         
     except Exception as e:
