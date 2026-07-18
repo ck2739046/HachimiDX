@@ -14,7 +14,7 @@ from PyQt6.QtCore import QUrl
 # start/continue 指令从 majdataedit 发出
 # pause 指令从 majdataview 发出
 # 即使只是原地 pause 再 continue，也会有时间差
-_TIME_TOLERANCE_SEC = 0.06
+_TIME_TOLERANCE_SEC = 0.03
 
 # 用户在 majdataedit 拖动音频条调整进度的时候会在短时间产生大量 setPosition 指令
 # 设置防抖，超过此时间间隔没有收到新的 setPosition 指令时，才发送最后一个 setPosition 指令到 UI 线程
@@ -287,7 +287,7 @@ class VideoSyncServer:
         # OpStart 有 5 秒延迟，需延迟到点再播放
         delay = self._compute_play_delay(data)
 
-        # 如果延迟小于等于 60ms，立即播放，否则延迟播放
+        # 如果延迟小于等于阈值，立即播放，否则延迟播放
         if delay <= _TIME_TOLERANCE_SEC:
             self._cancel_pending_play()
             self._dispatch_ui(play_action)
