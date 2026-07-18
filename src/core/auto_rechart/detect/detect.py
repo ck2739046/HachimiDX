@@ -111,7 +111,6 @@ def _inference_worker(model_path, task_name,
     - 通过 multiprocessing.Queue 发送 (note_geometry, task_name)
     - 通过 multiprocessing.Value 更新进度计数器
     """
-    start_time = time.time()
     model = YOLO(model_path, task=task_name)
     imgsz_val = get_imgsz(task_name)
     buffer = []
@@ -137,8 +136,7 @@ def _inference_worker(model_path, task_name,
         next_frame_idx += len(buffer)
         buffer.clear()
 
-    elapsed_s = time.time() - start_time
-    results_queue.put(("__done__", task_name, elapsed_s))
+    results_queue.put(("__done__", task_name))
 
 
 def _run_batch(model, task_name, imgsz_val, frames, start_idx,
@@ -224,6 +222,7 @@ def main(std_video_path: Path,
 
     try:
         print("Start detection...")
+        start_time = time.time()
 
         # 共享解码的 imgsz：detect/obb 必须一致
         decode_imgsz = get_imgsz('detect')
@@ -306,19 +305,12 @@ def main(std_video_path: Path,
 
         print()  # 跳过 \r 所在行
 
-        # 打印各模型汇总
-        for name in ('detect', 'obb'):
-            if name in state.worker_times and state.worker_times[name] is not None:
-                elapsed = state.worker_times[name]
-                frames_done = progress_detect.value if name == 'detect' else progress_obb.value
-                fps = frames_done / elapsed if elapsed > 0 else 0
-                print(f"{name} done, time: {elapsed:.1f}s, average: {fps:.1f}fps")
-
         # 后处理（prefilter + NMS）
         final_results = _postprocess_results(state.all_raw_results, std_video_path)
 
         # 保存到文件
         _save_detect_results(final_results, std_video_path.parent)
+        print(f"检测模块完成, 耗时{time.time() - start_time:.1f}s                       ")
         return ok()
 
     except Exception as e:
@@ -336,15 +328,15 @@ class _PipelineState:
     workers_alive: int = 2
     worker_died: bool = False
     decode_dead_rounds: int = 0                             # decode 死亡判据连续成立的轮数（宽限过滤）
-    worker_times: dict = field(default_factory=dict)        # {task_name: elapsed_seconds}
+    done_workers: set = field(default_factory=set)          # 已发 __done__ 或被判异常死亡的 task_name
     all_raw_results: list = field(default_factory=list)     # list[tuple[Note_Geometry, str]]
 
 
 def _collect_one(state, item):
-    """处理一个 results_queue item：__done__ 信号 → 记录耗时并递减未完成计数；否则 append 结果"""
-    if isinstance(item, tuple) and len(item) == 3 and item[0] == "__done__":
-        _, name, elapsed = item
-        state.worker_times[name] = elapsed
+    """处理一个 results_queue item：__done__ 信号 → 标记 worker 完成并递减未完成计数；否则 append 结果"""
+    if isinstance(item, tuple) and len(item) == 2 and item[0] == "__done__":
+        _, name = item
+        state.done_workers.add(name)
         state.workers_alive -= 1
     else:
         state.all_raw_results.append(item)
@@ -377,7 +369,7 @@ def _check_worker_exits(state, workers, results_queue):
     返回 True 表示判定 worker 异常死亡（外层 break 走清理）。
     """
     for name, p in workers:
-        if name in state.worker_times or p.is_alive():
+        if name in state.done_workers or p.is_alive():
             continue
         time.sleep(0.2)
         try:
@@ -385,7 +377,7 @@ def _check_worker_exits(state, workers, results_queue):
             _collect_one(state, late)  # done 信号会自动递减 workers_alive
             return False               # 回主循环顶部继续 get（等价于原 break for 回 while）
         except Empty:
-            state.worker_times[name] = None
+            state.done_workers.add(name)
             state.workers_alive -= 1
             state.worker_died = True
             print(f"\n[{name}] worker died unexpectedly")
