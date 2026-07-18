@@ -123,9 +123,11 @@ def main(std_video_path: Path,
         # generate maidata
         maidata_items = generate_maidata(final_note_info, timing_points,
                                          base_denominator, duration_denominator)
+        first_bpm = f"({timing_points[0][1]:g})" if timing_points else "(unknown)"
         write_maidata(shared_context, maidata_items,
                       chart_lv, app_version,
-                      note_SpeedIndex, touch_SpeedIndex)
+                      note_SpeedIndex, touch_SpeedIndex,
+                      first_bpm)
 
         print(tap_speed_print_info)
         print(touch_speed_print_info)

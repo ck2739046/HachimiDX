@@ -381,7 +381,8 @@ class _LayoutEngine:
 
 def write_maidata(shared_context, items: list[MaidataItem],
                   chart_lv: int, app_version: str,
-                  note_speed, touch_speed):
+                  note_speed, touch_speed,
+                  first_bpm: str):
     """
     主入口
 
@@ -401,10 +402,6 @@ def write_maidata(shared_context, items: list[MaidataItem],
     # 用排版引擎生成谱面正文
     engine = _LayoutEngine()
     body = engine.layout(items)
-    # 正文开头会带一个 BPM 文本 (如 "(120"), 它会单独写到 &inote 头部, 所以从正文里剥掉
-    first_bpm = items[0].content if items and items[0].is_bpm else ""
-    if first_bpm and body.startswith(first_bpm):
-        body = body[len(first_bpm):].lstrip('\n')
 
     # 写入文件: 元信息头 + 流速注释 + &inote 谱面正文
     note_speed_str = f"{note_speed:.2f}" if note_speed else "N/A"

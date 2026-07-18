@@ -155,10 +155,12 @@ def _generate_bpm_items(passed_bar_tracker: PassedBarTracker, timing_points: lis
     """
     为每个 BPM 段生成一个 BPM 变化点 item
     位置 = 该段起点相对首段起点的小节位置
+
+    首段 (i=0) 不生成 item, 其 BPM 作为元信息由 write_maidata 写入 &inote 头部
     """
     init_bar_index = passed_bar_tracker._timing_points[0][0]  # 首段起点 bar_index
     bpm_items = []
-    for i in range(len(timing_points)):
+    for i in range(1, len(timing_points)):
         start_bar_index, bpm = passed_bar_tracker._timing_points[i]
         relative_bar_index = start_bar_index - init_bar_index
         time = Fraction(relative_bar_index, passed_bar_tracker.lcm_denom)
