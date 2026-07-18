@@ -189,7 +189,8 @@ def install():
         "nanoid==2.0.0",
         "filterpy==1.4.5",
     ]
-    cmd = [sys.executable, "-m", "pip", "install", *dependencies, "--no-warn-script-location"]
+    cmd = [sys.executable, "-m", "pip", "install",
+           *dependencies, "--no-warn-script-location"]
     is_success = general_pip_install("Other dependencies", cmd)
     if not is_success: sys.exit(1)
 
@@ -397,20 +398,23 @@ def install_ultralytics_onnx(has_nvidia_gpu) -> bool:
     libs = ["onnx==1.20.1", "onnxslim==0.1.90"]
     if has_nvidia_gpu:
         libs += ["onnxruntime-gpu==1.24.4"]
-    cmd = [sys.executable, "-m", "pip", "install", *libs, "--no-warn-script-location"]
+    cmd = [sys.executable, "-m", "pip", "install",
+           *libs, "--no-warn-script-location"]
     is_success = general_pip_install("ONNX Runtime", cmd)
     if not is_success:
         return False
         
     # 安装 ultralytics
-    cmd = [sys.executable, "-m", "pip", "install", "ultralytics==8.4.24", "--no-warn-script-location"]
+    cmd = [sys.executable, "-m", "pip", "install",
+           "ultralytics==8.4.24", "--no-warn-script-location"]
     is_success = general_pip_install("Ultralytics 8.4.24", cmd)
     if not is_success:
         return False
     
     # 安装其他依赖
     libs = ["lap==0.5.13", "numpy==2.4.3"]
-    cmd = [sys.executable, "-m", "pip", "install", *libs, "--no-warn-script-location"]
+    cmd = [sys.executable, "-m", "pip", "install",
+           *libs, "--no-warn-script-location"]
     is_success = general_pip_install("lap, numpy", cmd)
     if not is_success:
         return False
@@ -429,13 +433,16 @@ def install_tensorrt(torch_version) -> bool:
         tensorrt_version = "10.15.1.29" # default
 
     # 先安装 wheel-stub
-    cmd = [sys.executable, "-m", "pip", "install", "wheel-stub==0.4.2", "--no-warn-script-location"]
+    cmd = [sys.executable, "-m", "pip", "install",
+           "wheel-stub==0.4.2", "--no-warn-script-location"]
     is_success = general_pip_install("wheel-stub 0.4.2", cmd)
     if not is_success:
         return False
 
     # 再安装 TensorRT
-    cmd = [sys.executable, "-m", "pip", "install", f"tensorrt=={tensorrt_version}", "--no-warn-script-location"]
+    cmd = [sys.executable, "-m", "pip", "install",
+           f"tensorrt=={tensorrt_version}", "--no-warn-script-location",
+           "--extra-index-url", "https://pypi.nvidia.com"]
     is_success = general_pip_install(f"NVIDIA TensorRT {tensorrt_version}", cmd)
     if not is_success:
         return False
@@ -469,7 +476,8 @@ def ask_install_dml() -> bool:
 
 def install_directml_onnx() -> bool:
 
-    cmd = [sys.executable, "-m", "pip", "install", "onnxruntime-directml==1.24.4", "--no-warn-script-location"]
+    cmd = [sys.executable, "-m", "pip", "install",
+           "onnxruntime-directml==1.24.4", "--no-warn-script-location"]
     is_success = general_pip_install("ONNX Runtime DirectML", cmd)
     if not is_success:
         return False
