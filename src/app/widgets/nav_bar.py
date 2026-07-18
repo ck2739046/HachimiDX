@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QButtonGroup
 from PyQt6.QtCore import pyqtSignal, QEvent
 from ..ui_style import UI_Style
-from .popup_tooltip import install_tooltip
+# from .popup_tooltip import install_tooltip  # tooltip 已关闭
 
 
 class SegmentedNavBar(QWidget):
@@ -66,9 +66,9 @@ class SegmentedNavBar(QWidget):
             layout.addWidget(btn)
             self.button_group.addButton(btn, i)
 
-            # 为该按钮安装 tooltip
-            if i < len(self.tooltip_texts):
-                install_tooltip(btn, self.tooltip_texts[i])
+            # 为该按钮安装 tooltip（已关闭，如需恢复取消下方注释即可）
+            # if i < len(self.tooltip_texts):
+            #     install_tooltip(btn, self.tooltip_texts[i])
 
         # 默认选中第一个
         if self.button_group.buttons():

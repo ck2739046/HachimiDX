@@ -146,16 +146,16 @@ class RightPanel(QWidget):
             i18n.t("app.nav_bar.tasks_label"),
             i18n.t("app.nav_bar.settings_label"),
         ]
-        nav_tooltips = [
-            i18n.t("app.nav_bar.majdata_desc"),
-            i18n.t("app.nav_bar.auto_rechart_desc"),
-            i18n.t("app.nav_bar.media_tools_desc"),
-            i18n.t("app.nav_bar.tasks_desc"),
-            i18n.t("app.nav_bar.settings_desc"),
-        ]
+        # nav_tooltips = [
+        #     i18n.t("app.nav_bar.majdata_desc"),
+        #     i18n.t("app.nav_bar.auto_rechart_desc"),
+        #     i18n.t("app.nav_bar.media_tools_desc"),
+        #     i18n.t("app.nav_bar.tasks_desc"),
+        #     i18n.t("app.nav_bar.settings_desc"),
+        # ]
         self.nav_bar = SegmentedNavBar(nav_items,
-                                       height=UI_Style.main_navbar_height,
-                                       tooltip_texts=nav_tooltips)
+                                       height=UI_Style.main_navbar_height)
+                                       # tooltip_texts=nav_tooltips)
         layout.addWidget(self.nav_bar)
 
         # 2. 主内容 Stack

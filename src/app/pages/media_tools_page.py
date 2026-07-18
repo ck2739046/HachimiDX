@@ -38,15 +38,15 @@ class MediaToolsPage(QWidget):
             i18n.t("app.sub_nav_bar.run_ffmpeg_label"),
             i18n.t("app.sub_nav_bar.measure_bpm_label"),
         ]
-        nav_tooltips = [
-            i18n.t("app.sub_nav_bar.arcade_timing_desc"),
-            i18n.t("app.sub_nav_bar.simply_align_desc"),
-            i18n.t("app.sub_nav_bar.run_ffmpeg_desc"),
-            i18n.t("app.sub_nav_bar.measure_bpm_desc"),
-        ]
+        # nav_tooltips = [
+        #     i18n.t("app.sub_nav_bar.arcade_timing_desc"),
+        #     i18n.t("app.sub_nav_bar.simply_align_desc"),
+        #     i18n.t("app.sub_nav_bar.run_ffmpeg_desc"),
+        #     i18n.t("app.sub_nav_bar.measure_bpm_desc"),
+        # ]
         self.nav_bar = SegmentedNavBar(nav_items,
-                                       height=UI_Style.sub_navbar_height,
-                                       tooltip_texts=nav_tooltips)
+                                       height=UI_Style.sub_navbar_height)
+                                       # tooltip_texts=nav_tooltips)
         layout.addWidget(self.nav_bar)
 
         # 2. 内容 Stack
