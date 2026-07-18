@@ -74,7 +74,7 @@ class VideoSyncServer:
 
         # 延迟播放调度：到 startAt 指定的未来时刻再播放，且可取消
         self._pending_play_timer = None   # threading.Timer 引用
-        self._pending_play_token = 0      # 每次调度/取消自增，回调用它校验自己是否仍有效
+        self._pending_play_token = 0      # 调度/取消时自增以使旧回调失效；触发或取消后重置为 0
         self._play_timer_lock = threading.Lock()
 
 
@@ -211,7 +211,7 @@ class VideoSyncServer:
             if self._pending_play_timer is not None:
                 self._pending_play_timer.cancel()
                 self._pending_play_timer = None
-            self._pending_play_token += 1
+            self._pending_play_token = 0  # reset token
 
 
     def _compute_play_delay(self, data) -> float:
@@ -239,6 +239,8 @@ class VideoSyncServer:
                 if token != self._pending_play_token:
                     return  # 已被取消或被新的 play 取代
                 self._pending_play_timer = None
+                # 延迟播放已触发，重置 token
+                self._pending_play_token = 0
             self._dispatch_ui(play_action)
 
         timer = threading.Timer(delay, fire)
