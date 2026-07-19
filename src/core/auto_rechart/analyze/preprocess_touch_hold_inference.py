@@ -3,23 +3,20 @@ Touch-Hold YOLO 推理模块（生产者-消费者流水线）
 
 负责：
 - 构建采样计划（从 track_data 中提取 TOUCH_HOLD 轨迹）
-- 生产者线程：视频 seek + 裁剪样本图像
-- 消费者线程：YOLO batch 推理 + 轻量解析
+- 生产者：视频解码 + 裁剪样本图像
+- 消费者：YOLO batch 推理 + 轻量解析
 - 返回 list[LightResult] 供 preprocess_touch_hold.py 做 dist/percent 解析
-
-参照 detect/classify.py 的生产者-消费者模式
 """
 
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-import threading
-import queue
 
 import cv2
 import numpy as np
 from ultralytics import YOLO
 
+from ..pipeline import Producer, Consumer, Pipeline
 from ..detect.note_definition import NoteType, get_imgsz
 from .tool import calculate_all_position
 from .shared_context import SharedContext
@@ -33,23 +30,28 @@ TOUCH_HOLD_CLASS_PROGRESS = 1
 
 @dataclass(slots=True)
 class LightResult:
-    """YOLO 推理后的轻量化结果，供后续 dist/percent 解析使用。"""
+    """YOLO 推理后的轻量化结果，供后续 dist/percent 解析使用"""
     track_id: int
     frame: int
     position: str
-    touch_w: float | None   # class 0 最高 conf 框的 w（裁剪图坐标系）
-    touch_h: float | None   # class 0 最高 conf 框的 h（裁剪图坐标系）
-    progress_points: list   # class 1 所有框的 (cx, cy)，已按 conf 降序排列；可为空列表
+    # class 0
+    touch_w: float | None
+    touch_h: float | None
+    # class 1
+    # 所有框的 (cx, cy)，已按 conf 降序排列；可为空列表
+    progress_points: list[tuple[float, float]]
 
 
-def run_touch_hold_inference(
-    shared_context: SharedContext,
-    inference_device,
-    batch_touch_hold: int,
-    touch_hold_model_path: Path,
-) -> tuple[list[LightResult], dict]:
+
+
+
+def run_touch_hold_inference(shared_context: SharedContext,
+                             inference_device,
+                             batch_touch_hold: int,
+                             touch_hold_model_path: Path,
+                            ) -> tuple[list[LightResult], dict]:
     """
-    Touch-Hold YOLO 推理入口。
+    主入口: Touch-Hold YOLO 推理
 
     Returns:
         (light_results, track_meta)
@@ -64,44 +66,19 @@ def run_touch_hold_inference(
     crop_size = calc_touch_hold_crop_size(shared_context.std_video_size, shared_context.is_big_touch)
     total_samples = sum(len(v) for v in frame_plan.values())
 
-    # 双缓冲队列
-    batch_queue = queue.Queue(maxsize=2)
-    all_light_results: list[LightResult] = []
-
-    # 启动生产者线程（CPU：视频解码 + 裁剪图像）
-    producer_thread = threading.Thread(
-        target=_producer,
-        args=(
-            str(shared_context.std_video_path),
-            frame_plan,
-            crop_size,
-            batch_touch_hold,
-            batch_queue,
-        ),
-        daemon=True,
+    # 生产者（视频解码 + 裁剪图像）
+    producer = TouchHoldProducer(
+        str(shared_context.std_video_path), frame_plan, crop_size, batch_touch_hold,
     )
-    producer_thread.start()
-
-    # 启动消费者线程（GPU：YOLO 推理 + 轻量解析）
-    consumer_thread = threading.Thread(
-        target=_consumer,
-        args=(
-            batch_queue,
-            str(touch_hold_model_path),
-            inference_device,
-            all_light_results,
-            total_samples,
-        ),
-        daemon=True,
+    # 消费者（YOLO 推理 + 轻量解析）
+    consumer = TouchHoldConsumer(
+        str(touch_hold_model_path), inference_device, total_samples,
     )
-    consumer_thread.start()
-
-    # 等待两个线程完成
-    producer_thread.join()
-    consumer_thread.join()
+    # queue_size=2
+    Pipeline(producer, consumer, queue_size=2).run()
 
     print(f"run_touch_hold_inference: processed {total_samples}/{total_samples} samples... Done")
-    return all_light_results, track_meta
+    return consumer.light_results, track_meta
 
 
 
@@ -110,22 +87,36 @@ def run_touch_hold_inference(
 
 
 
-def _producer(std_video_path, frame_plan, crop_size, batch_touch_hold, batch_queue):
-    """
-    生产者线程
-    解码视频 + 裁剪音符图像
-    凑满 batch 后放入队列
-    结束后发送 None sentinel
-    """
-    cap = cv2.VideoCapture(std_video_path)
-    try:
+class TouchHoldProducer(Producer):
+    """生产者: 视频解码 + 裁剪样本图像, 凑满 batch 入队"""
+
+    def __init__(self, std_video_path, frame_plan, crop_size, batch_touch_hold):
+        self.std_video_path = std_video_path
+        self.frame_plan = frame_plan
+        self.crop_size = crop_size
+        self.touch_hold_batch_number = batch_touch_hold
+        self.cap = None
+
+    def on_start(self, ctx):
+        self.cap = cv2.VideoCapture(self.std_video_path)
+
+    def on_cleanup(self, ctx, error):
+        if self.cap is not None:
+            self.cap.release()
+            self.cap = None
+
+    def produce(self, q, stop, ctx):
+
+        cap = self.cap
         buffer = []
-        sorted_frames = sorted(frame_plan.keys())
+        sorted_frames = sorted(self.frame_plan.keys())
         last_frame_number = -1
 
         for frame_number in sorted_frames:
-            # seek 优化：小跳用 cap.grab() 仅推进指针（不解码），大跳用 cap.set()
+            
+            # 1. 解码视频
             gap = frame_number - last_frame_number
+            # seek 优化: 小跳用 grab() 推进指针不解码, 大跳用 set()
             if gap == 1:
                 pass
             elif gap <= SEEK_THRESHOLD:
@@ -138,14 +129,14 @@ def _producer(std_video_path, frame_plan, crop_size, batch_touch_hold, batch_que
             if not ret: continue
             last_frame_number = frame_number
 
-            this_frame_plan = frame_plan[frame_number]
-            for sample in this_frame_plan:
+            # 2. 裁剪样本图像
+            for sample in self.frame_plan[frame_number]:
                 cropped = _crop_with_black_padding(
                     frame,
                     sample["cx"],
                     sample["cy"],
-                    crop_size,
-                    crop_size,
+                    self.crop_size,
+                    self.crop_size,
                 )
                 buffer.append({
                     "track_id": sample["track_id"],
@@ -154,77 +145,71 @@ def _producer(std_video_path, frame_plan, crop_size, batch_touch_hold, batch_que
                     "cropped_image": cropped,
                 })
 
-            # 凑满 batch 就发送
-            while len(buffer) >= batch_touch_hold:
-                batch_queue.put(buffer[:batch_touch_hold])
-                buffer = buffer[batch_touch_hold:]
+            # 3. 凑满 batch 入队
+            while len(buffer) >= self.touch_hold_batch_number:
+                if not self._put_or_stop(q, buffer[:self.touch_hold_batch_number], stop):
+                    return
+                buffer = buffer[self.touch_hold_batch_number:]
 
-        # 发送剩余样本
+        # 发送剩余 buffer
         if buffer:
-            batch_queue.put(buffer)
+            self._put_or_stop(q, buffer, stop)
 
-        # 发送结束信号
-        batch_queue.put(None)
-
-    finally:
-        cap.release()
+        # 退出
+        q.put(self.sentinel)
 
 
 
 
 
 
-def _consumer(batch_queue, model_path, inference_device, all_light_results, total_samples):
-    """
-    消费者线程
-    从队列取 batch → YOLO 推理 → 轻量解析 → 收集结果。"""
-    model = YOLO(model_path, task="detect")
-    processed_samples = 0
-    last_printed_samples = 0
+class TouchHoldConsumer(Consumer):
+    """消费者: 取 batch 调 YOLO detect 推理 + 轻量解析, 收集到 self.light_results"""
 
-    while True:
-        consumed_batch = batch_queue.get()
-        if consumed_batch is None:
-            break
+    def __init__(self, model_path, inference_device, total_samples):
+        self.model_path = model_path
+        self.inference_device = inference_device
+        self.total_samples = total_samples
+        self.light_results: list[LightResult] = []
+        self._model = None
+        self._processed_samples = 0
+        self._last_printed_samples = 0
 
-        images = [item["cropped_image"] for item in consumed_batch]
+    def on_start(self, ctx):
+        self._model = YOLO(self.model_path, task="detect")
 
+    def consume(self, batch, stop, ctx):
+        images = [item["cropped_image"] for item in batch]
+
+        # yolo 推理
         try:
-            yolo_results = model.predict(
+            yolo_results = self._model.predict(
                 source=images,
                 task="detect",
                 verbose=False,
-                device=inference_device,
+                device=self.inference_device,
                 imgsz=get_imgsz("touch_hold"),
                 half=True,
                 batch=len(images),
             )
         except Exception as e:
             print(f"touch-hold yolo inference failed: {e}")
-            # 跳过这批，但还是要计入进度
-            processed_samples += len(consumed_batch)
-            continue
+            # 跳过这批, 但还是要计入进度
+            self._processed_samples += len(batch)
+            return
 
-        for i, sample in enumerate(consumed_batch):
-            if i < len(yolo_results):
-                light = _extract_light_result(yolo_results[i], sample)
-                all_light_results.append(light)
-            else:
-                # 防御：YOLO 返回结果数不足
-                all_light_results.append(LightResult(
-                    track_id=sample["track_id"],
-                    frame=sample["frame"],
-                    position=sample["position"],
-                    touch_w=None,
-                    touch_h=None,
-                    progress_points=[],
-                ))
+        # 解析轻量结果
+        for i, sample in enumerate(batch):
+            light = _extract_light_result(yolo_results[i], sample)
+            self.light_results.append(light)
 
-        processed_samples += len(consumed_batch)
-        if processed_samples - last_printed_samples >= len(consumed_batch):
-            last_printed_samples = processed_samples
+        self._processed_samples += len(batch)
+
+        # 每处理完一批, 打印进度
+        if self._processed_samples - self._last_printed_samples >= len(batch):
+            self._last_printed_samples = self._processed_samples
             print(
-                f"run_touch_hold_inference: processed {processed_samples}/{total_samples} samples...",
+                f"run_touch_hold_inference: processed {self._processed_samples}/{self.total_samples} samples...",
                 end="\r",
                 flush=True,
             )
@@ -240,7 +225,7 @@ def _consumer(batch_queue, model_path, inference_device, all_light_results, tota
 
 def _extract_light_result(yolo_result, sample_meta: dict) -> LightResult:
     """
-    从单张裁剪图的 YOLO detect 结果中提取轻量字段。
+    从单张裁剪图的 YOLO detect 结果中提取轻量字段
 
     - class 0 (touch 框): 取 conf 最高的框，记 (w, h)
     - class 1 (progress 点): 所有框按 conf 降序，记 (cx, cy) 列表
