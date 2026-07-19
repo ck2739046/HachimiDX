@@ -102,7 +102,10 @@ class TouchHoldProducer(Producer):
 
     def on_cleanup(self, ctx, error):
         if self.cap is not None:
-            self.cap.release()
+            try:
+                self.cap.release()
+            except Exception:
+                pass
             self.cap = None
 
     def produce(self, q, stop, ctx):
