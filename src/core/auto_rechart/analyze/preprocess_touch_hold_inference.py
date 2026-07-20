@@ -18,7 +18,7 @@ from ultralytics import YOLO
 
 from ..pipeline import Producer, Consumer, Pipeline
 from ..detect.note_definition import NoteType, get_imgsz
-from .tool import calculate_all_position
+from ..tool import calculate_all_position
 from .shared_context import SharedContext
 
 

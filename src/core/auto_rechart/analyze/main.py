@@ -4,7 +4,7 @@ import os
 from ..detect.note_definition import *
 from ...measure_bpm.parse_config import load_timing_points
 from ...schemas.op_result import OpResult, ok, err
-from .tool import *
+from ..tool import *
 from .shared_context import *
 
 from .preprocess_tap import preprocess_tap_data

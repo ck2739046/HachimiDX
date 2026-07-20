@@ -12,7 +12,7 @@ from ..analyze.preprocess_slide import (
     _is_close_to_A_zone_endpoint,
 )
 from ..analyze.shared_context import get_a_zone_endpoint, get_touch_areas
-from ..analyze.tool import calculate_all_position, calculate_oct_position, catmull_rom_spline
+from ..tool import calculate_all_position, calculate_oct_position, catmull_rom_spline
 from .note_definition import NoteType
 from .track import _load_track_results, _save_track_results
 

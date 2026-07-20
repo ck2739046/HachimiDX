@@ -1,7 +1,7 @@
 import numpy as np
 
 from ..detect.note_definition import *
-from .tool import *
+from ..tool import *
 from .shared_context import *
 
 

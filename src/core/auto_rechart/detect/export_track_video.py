@@ -14,7 +14,7 @@ from ...schemas.op_result import OpResult, ok, err
 from ..pipeline import Producer, Consumer, Pipeline
 from .note_definition import *
 from .track import _load_track_results
-from ..analyze.tool import catmull_rom_spline
+from ..tool import catmull_rom_spline
 from .custom_oc_sort.oc_sort import _KalmanBoxTracker
 
 from src.services import PathManage

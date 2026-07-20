@@ -1,6 +1,6 @@
 import numpy as np
 
-from .tool import catmull_rom_spline, calculate_all_position
+from ..tool import catmull_rom_spline, calculate_all_position
 
 shared_context = None
 track_id = None
