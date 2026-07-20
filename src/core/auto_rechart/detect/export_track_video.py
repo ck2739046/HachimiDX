@@ -106,7 +106,7 @@ class ExportProducer(Producer):
 
 
 class ExportConsumer(Consumer):
-    """消费者: 绘制轨迹/音符框 + YUV 转换 + 批量写 ffmpeg"""
+    """消费者: 绘制轨迹/音符框 + 批量写 ffmpeg"""
 
     def __init__(self, ffmpeg_cmd, video_width, video_height, frame_size,
                  total_frames, fps_for_calc, timeout_frames,
@@ -215,9 +215,6 @@ class ExportConsumer(Consumer):
         # 绘制 Kalman 预测框
         if _DRAW_KALMAN_PREDICTION:
             _draw_kalman_predictions(frame, self.kalman_predictions, frame_number, self._label_size_cache)
-
-        # bgr24 转 yuv420p
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2YUV_I420)
 
         # 写入批量缓冲 (memoryview slice 赋值, 零拷贝 memcpy)
         self.batch_mv[self.off:self.off + self.frame_size] = frame.reshape(-1)
@@ -605,14 +602,14 @@ def main(std_video_path: Path, total_frames: int) -> OpResult[Path]:
         if os.path.exists(final_track_video_path):
             os.remove(final_track_video_path)
 
-        # FFmpeg 管道命令 (yuv420p 直传: Python 侧预先 cvtColor 将 bgr24 转 yuv420p)
+        # FFmpeg 管道命令
         ffmpeg_exe = str(PathManage.FFMPEG_EXE_PATH)
-        frame_size = video_width * video_height * 3 // 2
+        frame_size = video_width * video_height * 3
         ffmpeg_cmd = [
             ffmpeg_exe,
             '-y', '-hide_banner', '-loglevel', 'error',
             '-f', 'rawvideo',
-            '-pix_fmt', 'yuv420p',
+            '-pix_fmt', 'bgr24',
             '-s', f'{video_width}x{video_height}',
             '-r', str(fps_for_calc),
             '-i', '-',
