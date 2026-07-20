@@ -6,13 +6,12 @@ import numpy as np
 from collections import defaultdict, deque
 import subprocess
 import atexit
-import queue
-import threading
 from dataclasses import dataclass
 from typing import Optional
 from pathlib import Path
 
 from ...schemas.op_result import OpResult, ok, err
+from ..pipeline import Producer, Consumer, Pipeline
 from .note_definition import *
 from .track import _load_track_results
 from ..analyze.tool import catmull_rom_spline
@@ -52,9 +51,6 @@ _MAX_TRACK_HISTORY_LEN = 3000
 # FFmpeg 批量写入帧数
 _BATCH_FRAMES = 30
 
-# 后台解码线程的队列上限 (帧)
-_DECODE_QUEUE_SIZE = 30
-
 # Catmull-Rom 样条参数
 _SPLINE_SAMPLES = 4
 _SPLINE_TENSION = 1.5
@@ -70,6 +66,233 @@ def _color_for_id(track_id: int) -> tuple:
     return _COLOR_PALETTE[track_id % len(_COLOR_PALETTE)]
 
 
+
+
+
+
+class ExportProducer(Producer):
+    """生产者: 视频解码"""
+
+    def __init__(self, std_video_path):
+        self.std_video_path = str(std_video_path)
+        self.cap = None
+
+    def on_start(self, ctx):
+        self.cap = cv2.VideoCapture(self.std_video_path)
+
+    def on_cleanup(self, ctx, error):
+        if self.cap is not None:
+            try:
+                self.cap.release()
+            except Exception:
+                pass
+            self.cap = None
+
+    def produce(self, q, stop, ctx):
+        while True:
+            if stop.is_set():
+                return
+            ret, frame = self.cap.read()
+            if not ret:
+                q.put(self.sentinel)
+                return
+            if not self._put_or_stop(q, frame, stop):
+                return
+
+
+
+
+
+
+
+class ExportConsumer(Consumer):
+    """消费者: 绘制轨迹/音符框 + YUV 转换 + 批量写 ffmpeg"""
+
+    def __init__(self, ffmpeg_cmd, video_width, video_height, frame_size,
+                 total_frames, fps_for_calc, timeout_frames,
+                 note_manifest, center_manifest, kalman_predictions,
+                 final_track_video_path):
+        self.ffmpeg_cmd = ffmpeg_cmd
+        self.video_width = video_width
+        self.video_height = video_height
+        self.frame_size = frame_size
+        self.total_frames = total_frames
+        self.fps_for_calc = fps_for_calc
+        self.timeout_frames = timeout_frames
+        self.note_manifest = note_manifest
+        self.center_manifest = center_manifest
+        self.kalman_predictions = kalman_predictions
+        self.final_track_video_path = final_track_video_path
+
+        # ffmpeg 句柄
+        self.ffmpeg_process = None
+        self.stdin = None
+        self.batch = None
+        self.batch_mv = None
+
+        # 绘制状态 (consume 增量维护)
+        self.builders: dict = {}
+        self.last_seen: dict = {}
+        self._label_size_cache: dict = {}
+
+        # 批量写状态
+        self.off = 0
+        self.count_in_batch = 0
+        self._frame_number = 0
+
+        # 进度/耗时
+        self.start_time = 0.0
+        self.last_start_time = 0.0
+        self.last_frame_number = 0
+        self.elapsed_time = 0.0
+
+
+    def on_start(self, ctx):
+        print("Running FFmpeg command:", " ".join(self.ffmpeg_cmd))
+        self.ffmpeg_process = subprocess.Popen(
+            self.ffmpeg_cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            bufsize=_BATCH_FRAMES * self.frame_size,
+        )
+        if self.ffmpeg_process.stdin is None:
+            raise Exception("FFmpeg stdin pipe is unavailable")
+        atexit.register(_terminate_ffmpeg_on_exit, self.ffmpeg_process)
+        self.stdin = self.ffmpeg_process.stdin
+
+        # 批量写入缓冲 (memoryview 零拷贝)
+        self.batch = bytearray(_BATCH_FRAMES * self.frame_size)
+        self.batch_mv = memoryview(self.batch)
+
+        self.start_time = time.time()
+        self.last_start_time = self.start_time
+
+
+    def consume(self, frame, stop, ctx):
+        frame_number = self._frame_number
+        self._frame_number += 1
+
+        if not frame.flags['C_CONTIGUOUS']:
+            frame = np.ascontiguousarray(frame)
+
+        # 追加本帧中心点 + 标记活跃
+        active_now: set = set()
+        for (tid, is_slide, cx, cy) in self.center_manifest[frame_number]:
+            b = self.builders.get(tid)
+            if b is None:
+                b = _TrailBuilder(is_slide)
+                self.builders[tid] = b
+            b.add_point(cx, cy)
+            self.last_seen[tid] = frame_number
+            active_now.add(tid)
+
+        # 清理过期轨迹 (连续缺席 > timeout_frames 轨迹随之消失)
+        evict = [tid for tid in self.builders
+                 if tid not in active_now
+                 and (frame_number - self.last_seen[tid]) > self.timeout_frames]
+        for tid in evict:
+            del self.builders[tid]
+            del self.last_seen[tid]
+
+        # 绘制轨迹线
+        for tid, b in self.builders.items():
+            poly = b.current_polyline()
+            if poly is not None and len(poly) > 1:
+                color = _color_for_id(tid)
+                cv2.polylines(frame, [poly], False, color, _TRAIL_THICK)
+                cv2.circle(frame, b.start_pt, _CIRCLE_RADIUS, color, -1)
+
+        # 绘制音符框
+        for nd in self.note_manifest[frame_number]:
+            if nd.is_obb:
+                cv2.polylines(frame, [nd.obb_pts], True, nd.color, _BOX_THICK)
+            else:
+                r = nd.rect
+                cv2.rectangle(frame, (r[0], r[1]), (r[2], r[3]), nd.color, _BOX_THICK)
+            bg = nd.label_bg
+            cv2.rectangle(frame, bg[0], bg[1], nd.color, -1)
+            cv2.putText(frame, nd.label, nd.label_org, _LABEL_FONT,
+                        _LABEL_SCALE, _LABEL_COLOR, _LABEL_THICK)
+
+        # 绘制 Kalman 预测框
+        if _DRAW_KALMAN_PREDICTION:
+            _draw_kalman_predictions(frame, self.kalman_predictions, frame_number, self._label_size_cache)
+
+        # bgr24 转 yuv420p
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2YUV_I420)
+
+        # 写入批量缓冲 (memoryview slice 赋值, 零拷贝 memcpy)
+        self.batch_mv[self.off:self.off + self.frame_size] = frame.reshape(-1)
+        self.off += self.frame_size
+        self.count_in_batch += 1
+
+        if self.count_in_batch == _BATCH_FRAMES:
+            # 将这一批缓冲写入 FFmpeg stdin
+            self.stdin.write(self.batch_mv[:self.off])
+            # 打印进度
+            self.last_start_time, self.last_frame_number = print_progress(
+                "export", "fps",
+                frame_number, self.total_frames,
+                self.last_start_time, self.last_frame_number,
+            )
+            self.off = 0
+            self.count_in_batch = 0
+
+
+    def on_cleanup(self, ctx, error):
+        """ffmpeg 生命周期收尾: 正常路径 flush + wait + 检查; 异常路径 kill"""
+        is_normal = (error is None)
+
+        if is_normal:
+            # 正常结束: flush 残余批次
+            try:
+                if self.count_in_batch > 0 and self.stdin is not None:
+                    self.stdin.write(self.batch_mv[:self.off])
+                    print()
+            except Exception:
+                pass
+
+            self.elapsed_time = time.time() - self.start_time
+
+        # 公共收尾: close stdin + wait/kill + unregister + close stderr
+        if self.stdin is not None:
+            try:
+                self.stdin.close()
+            except Exception:
+                pass
+
+        ffmpeg_return_code = None
+        ffmpeg_stderr = ""
+        if self.ffmpeg_process is not None:
+            try:
+                if is_normal:
+                    ffmpeg_return_code = self.ffmpeg_process.wait()
+                else:
+                    if self.ffmpeg_process.poll() is None:
+                        self.ffmpeg_process.kill()
+                    ffmpeg_return_code = self.ffmpeg_process.wait()
+            except Exception:
+                pass
+
+            try:
+                atexit.unregister(_terminate_ffmpeg_on_exit)
+            except Exception:
+                pass
+
+            if self.ffmpeg_process.stderr is not None:
+                try:
+                    ffmpeg_stderr = self.ffmpeg_process.stderr.read().decode('utf-8', errors='ignore').strip()
+                    self.ffmpeg_process.stderr.close()
+                except Exception:
+                    pass
+
+        # 正常路径下 ffmpeg 失败要抛出 (异常路径不再追加错误)
+        if is_normal and ffmpeg_return_code is not None and ffmpeg_return_code != 0:
+            raise Exception(f"FFmpeg processing failed with code {ffmpeg_return_code}: {ffmpeg_stderr}")
+
+
+
 def _terminate_ffmpeg_on_exit(proc: "subprocess.Popen") -> None:
     """atexit 兜底: 进程退出时确保 ffmpeg 子进程被终止, 避免孤儿进程"""
     try:
@@ -82,17 +305,6 @@ def _terminate_ffmpeg_on_exit(proc: "subprocess.Popen") -> None:
     except Exception:
         pass
 
-
-def _decode_worker(cap, out_queue) -> None:
-    """后台解码线程: 持续 cap.read, 把 (ret, frame) 推入队列"""
-    try:
-        while True:
-            ret, frame = cap.read()
-            out_queue.put((ret, frame))
-            if not ret:
-                return
-    except Exception:
-        out_queue.put((False, None))
 
 
 
@@ -367,10 +579,6 @@ def _build_manifests(track_results: dict, total_frames: int) -> tuple:
 def main(std_video_path: Path, total_frames: int) -> OpResult[Path]:
 
     print("开始导出视频模块...")
-    cap = None
-    ffmpeg_process = None
-    decode_thread = None
-    decode_queue = None
 
     try:
         # 读取追踪结果
@@ -384,14 +592,17 @@ def main(std_video_path: Path, total_frames: int) -> OpResult[Path]:
 
         # 获取视频信息
         cap = cv2.VideoCapture(str(std_video_path))
-        video_width = round(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        video_height = round(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps = cap.get(cv2.CAP_PROP_FPS)
+        try:
+            video_width = round(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            video_height = round(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            fps = cap.get(cv2.CAP_PROP_FPS)
+        finally:
+            cap.release()
 
         fps_for_calc = float(fps) if fps and fps > 0 else 30.0
         timeout_frames = max(1, int(round(fps_for_calc / 2.0)))
 
-        # 预计算
+        # 预计算 manifests (主循环只读 blit)
         note_manifest, center_manifest = _build_manifests(track_results, total_frames)
 
         # 输出视频设置
@@ -401,9 +612,8 @@ def main(std_video_path: Path, total_frames: int) -> OpResult[Path]:
         if os.path.exists(final_track_video_path):
             os.remove(final_track_video_path)
 
-        # FFmpeg 管道
+        # FFmpeg 管道命令 (yuv420p 直传: Python 侧预先 cvtColor 将 bgr24 转 yuv420p)
         ffmpeg_exe = str(PathManage.FFMPEG_EXE_PATH)
-        # yuv420p 直传: Python 侧预先 cvtColor 将 bgr24 转成 yuv420p  
         frame_size = video_width * video_height * 3 // 2
         ffmpeg_cmd = [
             ffmpeg_exe,
@@ -422,197 +632,35 @@ def main(std_video_path: Path, total_frames: int) -> OpResult[Path]:
             '-shortest',
             final_track_video_path,
         ]
-        print("Running FFmpeg command:", " ".join(ffmpeg_cmd))
 
-        ffmpeg_process = subprocess.Popen(
-            ffmpeg_cmd,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-            bufsize=_BATCH_FRAMES * frame_size,
+        # producer: 视频解码
+        producer = ExportProducer(std_video_path)
+        # consumer: 绘制 + ffmpeg 批量写
+        consumer = ExportConsumer(
+            ffmpeg_cmd=ffmpeg_cmd,
+            video_width=video_width,
+            video_height=video_height,
+            frame_size=frame_size,
+            total_frames=total_frames,
+            fps_for_calc=fps_for_calc,
+            timeout_frames=timeout_frames,
+            note_manifest=note_manifest,
+            center_manifest=center_manifest,
+            kalman_predictions=kalman_predictions,
+            final_track_video_path=final_track_video_path,
         )
-        if ffmpeg_process.stdin is None:
-            raise Exception("FFmpeg stdin pipe is unavailable")
-        # 注册 atexit 兜底
-        atexit.register(_terminate_ffmpeg_on_exit, ffmpeg_process)
+        Pipeline(producer, consumer, queue_size=_BATCH_FRAMES * 2).run()
 
-        # 批量写入缓冲（memoryview 零拷贝）
-        batch = bytearray(_BATCH_FRAMES * frame_size)
-        batch_mv = memoryview(batch)
-        stdin = ffmpeg_process.stdin
-
-        # 轨迹状态（主循环增量维护）
-        builders: dict = {}
-        last_seen: dict = {}
-
-
-
-
-        start_time = time.time()
-        last_start_time = start_time
-        last_frame_number = 0
-        off = 0
-        count_in_batch = 0
-
-        # 后台解码线程: cap.read 在独立线程跑, 主线程只 queue.get + 绘制
-        # 队列上限 _DECODE_QUEUE_SIZE, 满队列时, 解码线程暂停解码节省性能
-        decode_queue: "queue.Queue" = queue.Queue(maxsize=_DECODE_QUEUE_SIZE)
-        decode_thread = threading.Thread(
-            target=_decode_worker, args=(cap, decode_queue), daemon=True)
-        decode_thread.start()
-
-        for frame_number in range(total_frames):
-            ret, frame = decode_queue.get()
-            if not ret:
-                break
-
-            if not frame.flags['C_CONTIGUOUS']:
-                frame = np.ascontiguousarray(frame)
-
-            # 追加本帧中心点 + 标记活跃
-            active_now: set = set()
-            for (tid, is_slide, cx, cy) in center_manifest[frame_number]:
-                b = builders.get(tid)
-                if b is None:
-                    b = _TrailBuilder(is_slide)
-                    builders[tid] = b
-                b.add_point(cx, cy)
-                last_seen[tid] = frame_number
-                active_now.add(tid)
-
-            # 清理过期轨迹（连续缺席 > timeout_frames 轨迹随之消失）
-            evict = [tid for tid in builders
-                     if tid not in active_now
-                     and (frame_number - last_seen[tid]) > timeout_frames]
-            for tid in evict:
-                del builders[tid]
-                del last_seen[tid]
-
-            # 绘制轨迹线
-            for tid, b in builders.items():
-                poly = b.current_polyline()
-                if poly is not None and len(poly) > 1:
-                    color = _color_for_id(tid)
-                    cv2.polylines(frame, [poly], False, color, _TRAIL_THICK)
-                    cv2.circle(frame, b.start_pt, _CIRCLE_RADIUS, color, -1)
-
-            # 绘制音符框
-            for nd in note_manifest[frame_number]:
-                if nd.is_obb:
-                    cv2.polylines(frame, [nd.obb_pts], True, nd.color, _BOX_THICK)
-                else:
-                    r = nd.rect
-                    cv2.rectangle(frame, (r[0], r[1]), (r[2], r[3]), nd.color, _BOX_THICK)
-                bg = nd.label_bg
-                cv2.rectangle(frame, bg[0], bg[1], nd.color, -1)
-                cv2.putText(frame, nd.label, nd.label_org, _LABEL_FONT,
-                            _LABEL_SCALE, _LABEL_COLOR, _LABEL_THICK)
-
-            # 绘制 Kalman 预测框
-            if _DRAW_KALMAN_PREDICTION:
-                _draw_kalman_predictions(frame, kalman_predictions, frame_number, {})
-
-            # BGR -> YUV_I420
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2YUV_I420)
-
-            # 写入批量缓冲
-            batch_mv[off:off + frame_size] = frame.reshape(-1)
-            off += frame_size
-            count_in_batch += 1
-
-            if count_in_batch == _BATCH_FRAMES:
-                # 将这一批缓冲写入 FFmpeg stdin
-                stdin.write(batch_mv[:off])
-                # 打印进度
-                progress = (frame_number / total_frames) * 100
-                end_time = time.time()
-                elapsed_time = end_time - last_start_time
-                elapsed_frame = frame_number - last_frame_number
-                last_start_time = end_time # 重置时间给下一轮
-                last_frame_number = frame_number # 重置帧数给下一轮
-                fps_rate = elapsed_frame / elapsed_time if elapsed_time > 0 else 0
-                print(f"导出进度: {frame_number}/{total_frames} ({progress:.1f}%) {fps_rate:.1f}fps", end="\r", flush=True)
-                off = 0
-                count_in_batch = 0
-
-        # 回收解码线程
-        decode_thread.join()
-
-        # 写入剩余缓冲
-        if off > 0:
-            stdin.write(batch_mv[:off])
-            print()
-
-        if ffmpeg_process.stdin is not None:
-            ffmpeg_process.stdin.close()
-
-        ffmpeg_return_code = ffmpeg_process.wait()
-        ffmpeg_stderr = ""
-        if ffmpeg_process.stderr is not None:
-            ffmpeg_stderr = ffmpeg_process.stderr.read().decode('utf-8', errors='ignore').strip()
-            ffmpeg_process.stderr.close()
-
-        if ffmpeg_return_code != 0:
-            raise Exception(f"FFmpeg processing failed with code {ffmpeg_return_code}: {ffmpeg_stderr}")
-
-        cap.release()
-        cap = None
-        # ffmpeg 已正常结束, 注销 atexit
-        atexit.unregister(_terminate_ffmpeg_on_exit)
-        ffmpeg_process = None
-
-        elapsed_time = time.time() - start_time
-        average_fps = total_frames / elapsed_time if elapsed_time > 0 else 0
-        print(f"追踪视频导出完成，耗时{elapsed_time:.1f}s, 平均{average_fps:.2f}fps"
+        # 正常结束: 打印耗时
+        average_fps = total_frames / consumer.elapsed_time if consumer.elapsed_time > 0 else 0
+        print(f"追踪视频导出完成，耗时{consumer.elapsed_time:.1f}s, 平均{average_fps:.2f}fps"
               f"               ")
         print(f"追踪视频已保存到：{final_track_video_path}")
 
         return ok(Path(final_track_video_path))
 
     except Exception as e:
-        # 排空解码队列: 解除解码线程在满队列上的阻塞, 让其读到 EOF 自然退出
-        if decode_queue is not None:
-            try:
-                while True:
-                    ret, _ = decode_queue.get_nowait()
-                    if not ret:
-                        break
-            except Exception:
-                pass
-        if decode_thread is not None:
-            decode_thread.join(timeout=2)
-
-        if cap is not None:
-            try:
-                cap.release()
-            except Exception:
-                pass
-
-        if ffmpeg_process is not None:
-            try:
-                if ffmpeg_process.stdin is not None:
-                    ffmpeg_process.stdin.close()
-            except Exception:
-                pass
-
-            try:
-                if ffmpeg_process.poll() is None:
-                    ffmpeg_process.kill()
-            except Exception:
-                pass
-            # ffmpeg 已被 kill, 注销 atexit
-            atexit.unregister(_terminate_ffmpeg_on_exit)
-
-            if ffmpeg_process.stderr is not None:
-                try:
-                    ffmpeg_process.stderr.close()
-                except Exception:
-                    pass
-
         return err("Unexcepted error in auto_rechart > detect > export_track_video", e)
-
-
-
 
 
 

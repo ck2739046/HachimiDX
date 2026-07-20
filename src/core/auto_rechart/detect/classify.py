@@ -2,12 +2,11 @@ from ultralytics import YOLO
 import cv2
 import time
 import math
-import threading
-import queue
 from collections import defaultdict
 from pathlib import Path
 
 from ...schemas.op_result import OpResult, ok, err
+from ..pipeline import Producer, Consumer, Pipeline
 from .note_definition import *
 from .track import _save_track_results, _load_track_results
 
@@ -24,6 +23,8 @@ def main(std_video_path: Path,
         ) -> OpResult[None]:
     
     """
+    主入口
+
     输入:
     - std_video_path
     - batch_cls: yolo predict batch size
@@ -32,9 +33,8 @@ def main(std_video_path: Path,
     - cls_break_model_path
 
     架构: 生产者-消费者流水线
-    - 生产者线程负责视频解码 + 图像裁剪
-    - 消费者主线程负责 GPU 推理
-    - 通过 queue.Queue(maxsize=2) 双缓冲实现 CPU/GPU 重叠执行
+    - producer: 视频解码 + 图像裁剪
+    - consumer: yolo batch 推理 + 轻量解析
     """
 
     try:
@@ -51,45 +51,19 @@ def main(std_video_path: Path,
             print("没有需要分类的轨迹")
             return ok()
 
-        # 加载模型
-        cls_ex_model = YOLO(cls_ex_model_path, task="classify")
-        cls_break_model = YOLO(cls_break_model_path, task="classify")
         imgsz = get_imgsz('cls')
 
-        # 创建双缓冲队列，启动生产者线程
-        batch_queue = queue.Queue(maxsize=2)
-        producer_thread = threading.Thread(
-            target=_producer,
-            args=(std_video_path, sampling_plan, imgsz, batch_cls, batch_queue),
-            daemon=True
+        producer = ClassifyProducer(
+            std_video_path, sampling_plan, imgsz, batch_cls
         )
-        producer_thread.start()
-
-        # 消费者循环：从队列取 batch，GPU 推理
-        counter = 0
-        last_counter = 0
-        last_time = start_time
-        cls_results_all = []
-
-        while True:
-            consumed_batch = batch_queue.get()
-            if consumed_batch is None:
-                break  # producer 结束
-
-            cls_results = _classify_image_batch(consumed_batch,
-                                                cls_ex_model, cls_break_model,
-                                                inference_device, imgsz)
-            if cls_results:
-                cls_results_all.extend(cls_results)
-                counter += len(cls_results)
-                last_time, last_counter = print_progress('分类', ' images/s', counter, total_cls_quantity, last_time, last_counter)
-
-        # producer 线程应该已经自行退出（daemon）
-        # 此处防御性 join 兜底
-        producer_thread.join(timeout=1.0)
+        consumer = ClassifyConsumer(
+            cls_ex_model_path, cls_break_model_path,
+            inference_device, imgsz, total_cls_quantity,
+        )
+        Pipeline(producer, consumer, queue_size=2).run()
 
         # 根据分类结果，更新track_results
-        track_results = _merge_cls_into_track_results(track_results, cls_results_all)
+        track_results = _merge_cls_into_track_results(track_results, consumer.results)
 
         # 结束
         finish_time = time.time()
@@ -109,64 +83,111 @@ def main(std_video_path: Path,
 
 
 
-def _producer(std_video_path, sampling_plan,
-              imgsz, batch_cls, batch_queue):
-    """
-    生产者线程：解码视频 + 裁剪音符图像，凑满一个 batch 就放入队列。
-    结束后发送 None 作为 sentinel。
-    """
-    cap = cv2.VideoCapture(std_video_path)
-    crop_border = round(cap.get(cv2.CAP_PROP_FRAME_WIDTH) * 0.005)  # 1080p下约5像素
-    try:
+class ClassifyProducer(Producer):
+    """生产者: 视频解码 + 音符裁剪, 凑满 batch 入队"""
+
+    def __init__(self, std_video_path, sampling_plan, imgsz, batch_cls):
+        self.std_video_path = std_video_path
+        self.sampling_plan = sampling_plan
+        self.imgsz = imgsz
+        self.batch_cls = batch_cls
+        self.cap = None
+        self.crop_border = 0
+
+    def on_start(self, ctx):
+        self.cap = cv2.VideoCapture(self.std_video_path)
+        # 1080p 下约 5 像素
+        self.crop_border = round(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH) * 0.005)
+
+    def on_cleanup(self, ctx, error):
+        if self.cap is not None:
+            try:
+                self.cap.release()
+            except Exception:
+                pass
+            self.cap = None
+
+    def produce(self, q, stop, ctx):
+        cap = self.cap
         buffer = []
-        sorted_frames_in_sampling_plan = sorted(sampling_plan.keys())
+        sorted_frames_in_sampling_plan = sorted(self.sampling_plan.keys())
         last_frame_number = -1
 
         for frame_number in sorted_frames_in_sampling_plan:
 
-            # 速度优化
-            # cap.read() 读取下一帧 比 cap.set() 跳转到指定帧 更快
-            # 如果目标帧和当前帧差距不大, 循环推进到目标帧以减少 seek 调用
+            # 1. 解码视频
             gap = frame_number - last_frame_number
-            # 如果目标帧就是下一帧，直接读取
+            # seek 优化: 小跳用 grab() 推进指针不解码, 大跳用 set()
             if gap == 1:
                 pass
-            # 如果目标帧不远，循环 grab 跳过中间帧
             elif gap <= SEEK_THRESHOLD:
                 for _ in range(gap - 1):
                     cap.grab()
-            # 如果目标帧较远，使用 seek 跳转
             else:
                 cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
 
-            # 读取当前帧
             ret, frame = cap.read()
             if not ret: continue
             last_frame_number = frame_number
 
-            # 获取当前帧的采样计划
-            this_frame_sample_plan = sampling_plan[frame_number]
-            # 提取当前帧的所有采样图像
-            cropped_images = _extract_note_images_in_frame(imgsz, frame, this_frame_sample_plan, frame_number, crop_border)
+            # 2. 裁剪样本图像
+            this_frame_sample_plan = self.sampling_plan[frame_number]
+            cropped_images = _extract_note_images_in_frame(
+                self.imgsz, frame, this_frame_sample_plan, frame_number, self.crop_border,
+            )
             if cropped_images is None:
                 continue
-            # 写入本地 buffer
             buffer.extend(cropped_images)
 
-            # 凑满一个 batch 就发送到队列
-            while len(buffer) >= batch_cls:
-                batch_queue.put(buffer[:batch_cls])
-                buffer = buffer[batch_cls:]
+            # 3. 凑满 batch 入队
+            while len(buffer) >= self.batch_cls:
+                if not self._put_or_stop(q, buffer[:self.batch_cls], stop):
+                    return
+                buffer = buffer[self.batch_cls:]
 
-        # 发送剩余的图像
+        # 发送剩余 buffer
         if buffer:
-            batch_queue.put(buffer)
+            self._put_or_stop(q, buffer, stop)
 
-        # 发送结束信号
-        batch_queue.put(None)
+        # 退出
+        q.put(self.sentinel)
 
-    finally:
-        cap.release()
+
+
+
+
+
+
+class ClassifyConsumer(Consumer):
+    """消费者: 取 batch 调 yolo cls 推理, 结果收集到 self.results"""
+
+    def __init__(self, cls_ex_model_path, cls_break_model_path,
+                 inference_device, imgsz, total_cls_quantity):
+        self.cls_ex_model_path = cls_ex_model_path
+        self.cls_break_model_path = cls_break_model_path
+        self.inference_device = inference_device
+        self.imgsz = imgsz
+        self.total_cls_quantity = total_cls_quantity
+        self.cls_ex_model = None
+        self.cls_break_model = None
+        self.results = []
+        self._counter = 0
+
+    def on_start(self, ctx):
+        self.cls_ex_model = YOLO(self.cls_ex_model_path, task="classify")
+        self.cls_break_model = YOLO(self.cls_break_model_path, task="classify")
+
+    def consume(self, batch, stop, ctx):
+        cls_results = _classify_image_batch(
+            batch, self.cls_ex_model, self.cls_break_model,
+            self.inference_device, self.imgsz,
+        )
+        if cls_results:
+            self.results.extend(cls_results)
+            self._counter += len(cls_results)
+            progress = self._counter / self.total_cls_quantity * 100
+            print(f"分类: {self._counter}/{self.total_cls_quantity} ({progress:.1f}%)    ",
+                  end="\r", flush=True)
 
 
 
