@@ -18,11 +18,9 @@ from ultralytics import YOLO
 
 from ..pipeline import Producer, Consumer, Pipeline
 from ..detect.note_definition import NoteType, get_imgsz
-from ..tool import calculate_all_position, print_progress
+from ..tool import calculate_all_position, print_progress, SEEK_THRESHOLD
 from .shared_context import SharedContext
 
-
-SEEK_THRESHOLD = 200
 
 TOUCH_HOLD_CLASS_TOUCH = 0
 TOUCH_HOLD_CLASS_PROGRESS = 1

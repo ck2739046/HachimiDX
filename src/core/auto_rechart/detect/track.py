@@ -12,7 +12,7 @@ from ...schemas.op_result import OpResult, ok, err
 from src.services import PathManage
 from .note_definition import *
 from .detect import _load_detect_results
-from ..tool import print_progress
+from ..tool import print_progress, SEEK_THRESHOLD
 from .custom_oc_sort.oc_sort import OCSort
 
 
@@ -230,6 +230,16 @@ def main(std_video_path: Path,
         for detection in detect_results:
             detections_by_frame[detection.frame].append(detection)
 
+        # ReID 按需解码
+        # 只解码含 HOLD 音符的帧, 供 reid 提取外观特征
+        hold_frames_set = (
+            {f for f, dets in detections_by_frame.items()
+             if any(d.note_type == NoteType.HOLD for d in dets)}
+            if enable_reid else set()  # enable_reid 关闭时不解码
+        )
+        # 已解码到的最后一帧号, (用于 seek/grab 决策)
+        last_decoded_frame = -1
+
         # 定义一些变量
         counter = 0
         start_time = time.time()
@@ -248,11 +258,26 @@ def main(std_video_path: Path,
         # 遍历每一帧
         for frame_number in range(total_frames):
 
-            # 读取当前视频帧（用于 ReID 特征提取）
+            # 按需解码视频帧
             frame = None
-            if enable_reid:
+            if enable_reid and frame_number in hold_frames_set:
+                # seek 优化: 小跳用 grab() 推进指针不解码, 大跳用 set()
+                gap = frame_number - last_decoded_frame
+                if last_decoded_frame < 0:
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
+                elif gap == 1:
+                    pass
+                elif gap <= SEEK_THRESHOLD:
+                    for _ in range(gap - 1):
+                        cap.grab()
+                else:
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
+
                 ret, frame = cap.read()
-                if not ret: frame = None
+                if not ret:
+                    frame = None
+                else:
+                    last_decoded_frame = frame_number
 
             # 获取当前帧的检测结果
             single_frame_detections = detections_by_frame.get(frame_number, [])

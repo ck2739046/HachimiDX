@@ -9,10 +9,8 @@ from ...schemas.op_result import OpResult, ok, err
 from ..pipeline import Producer, Consumer, Pipeline
 from .note_definition import *
 from .track import _save_track_results, _load_track_results
-from ..tool import print_progress
+from ..tool import print_progress, SEEK_THRESHOLD
 
-
-SEEK_THRESHOLD = 200
 
 
 

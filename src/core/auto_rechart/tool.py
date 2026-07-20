@@ -1,6 +1,9 @@
 import numpy as np
 
 
+SEEK_THRESHOLD = 200
+
+
 
 def print_progress(name, counter, total):
     """{name} progress: counter/total (percent%)"""
