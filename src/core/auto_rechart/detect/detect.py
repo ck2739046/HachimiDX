@@ -169,34 +169,12 @@ def _run_batch(model, task_name, imgsz_val, frames, start_idx,
 
 
 
-def _process_printer(progress_detect, progress_obb, total_frames, stop_event):
-    """
-    独立打印 progress 进程
-    每 0.2s 轮询两个推理进度计数器，在同一行打印合并进度
-    """
-    while not stop_event.wait(timeout=0.2):
-        d = progress_detect.value
-        o = progress_obb.value
-        if d >= total_frames and o >= total_frames:
-            break
-        pct_d = min(d / total_frames * 100, 100.0)
-        pct_o = min(o / total_frames * 100, 100.0)
-        print(f"detect: {d}/{total_frames} ({pct_d:.1f}%) | obb: {o}/{total_frames} ({pct_o:.1f}%)  ", end="\r", flush=True)
-    # 最后一次刷新
+def _print_progress(progress_detect, progress_obb, total_frames):
     d = progress_detect.value
     o = progress_obb.value
     pct_d = min(d / total_frames * 100, 100.0)
     pct_o = min(o / total_frames * 100, 100.0)
     print(f"detect: {d}/{total_frames} ({pct_d:.1f}%) | obb: {o}/{total_frames} ({pct_o:.1f}%)  ", end="\r", flush=True)
-
-
-
-
-
-
-
-
-
 
 
 
@@ -244,7 +222,6 @@ def main(std_video_path: Path,
         q_detect        = multiprocessing.Queue(maxsize=_FRAME_QUEUE_CAP)
         q_obb           = multiprocessing.Queue(maxsize=_FRAME_QUEUE_CAP)
         stop_event      = multiprocessing.Event()  # worker 崩溃时解除解码进程阻塞
-        stop_printer    = multiprocessing.Event()
 
         # 启动解码进程（单次解码，喂两条队列）
         decode_p = multiprocessing.Process(
@@ -253,14 +230,6 @@ def main(std_video_path: Path,
             daemon=True,
         )
         decode_p.start()
-
-        # 启动 printer 进程
-        printer_p = multiprocessing.Process(
-            target=_process_printer,
-            args=(progress_detect, progress_obb, total_frames, stop_printer),
-            daemon=True
-        )
-        printer_p.start()
 
         # 启动两个模型推理进程（各自从自己的帧队列消费）
         p_detect = multiprocessing.Process(
@@ -291,18 +260,21 @@ def main(std_video_path: Path,
                     break
                 if _check_worker_exits(state, workers, results_queue):
                     break
+            _print_progress(progress_detect, progress_obb, total_frames)
 
         # 排空队列中可能残留的结果
         for item in _drain_queue(results_queue):
             _collect_one(state, item)
 
-        _cleanup_pipeline(decode_p, workers, printer_p,
-                          stop_event, stop_printer, force_terminate=state.worker_died)
+        _cleanup_pipeline(decode_p, workers, stop_event,
+                          force_terminate=state.worker_died)
 
         if state.worker_died:
             print()
             return err("Unexpected error in auto_rechart > detect > detect (worker died)", None)
 
+        # 正常退出：打印最终进度并换行
+        _print_progress(progress_detect, progress_obb, total_frames)
         print()  # 跳过 \r 所在行
 
         # 后处理（prefilter + NMS）
@@ -385,12 +357,10 @@ def _check_worker_exits(state, workers, results_queue):
     return False
 
 
-def _cleanup_pipeline(decode_p, workers, printer_p,
-                      stop_event, stop_printer, force_terminate):
+def _cleanup_pipeline(decode_p, workers, stop_event, force_terminate):
     """
     统一清理：force_terminate=True（worker_died）先 stop 解阻塞 + terminate 存活 worker，
     各 join 带超时；False（正常）则无限 join 两个 worker（已发 __done__）。
-    公共尾巴：通知 printer 退出并 join。
     """
     if force_terminate:
         stop_event.set()  # 解除解码进程 put 阻塞
@@ -405,8 +375,6 @@ def _cleanup_pipeline(decode_p, workers, printer_p,
             p.join()  # 正常退出，无限等待
         stop_event.set()  # 保险：若解码进程仍在，解除其 put 阻塞
         decode_p.join(timeout=_DECODE_JOIN_TIMEOUT)
-    stop_printer.set()
-    printer_p.join(timeout=1.0)
 
 
 
