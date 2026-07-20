@@ -3,6 +3,7 @@ import cv2
 import os
 import time
 import multiprocessing
+import traceback
 from queue import Empty, Full
 from pathlib import Path
 import numpy as np
@@ -19,6 +20,18 @@ _PUT_TIMEOUT = 0.5           # 解码进程 put 的单次超时（用于周期�
 _DECODE_JOIN_TIMEOUT = 10.0  # 解码进程 join 超时
 _DECODE_DEAD_GRACE = 3       # decode 死亡判据连续成立的轮数（×0.3s 主循环 timeout）
                              # 滤掉 EOF 已消费、worker 仍在 flush 尾批的正常窗口
+
+
+def _format_exit_line(p, role):
+    """统一格式化 worker 死亡行：打印原始 exitcode + win_code（仅负值还原 Windows NT 状态码）。
+
+    role: 显示前缀（如 'decode' / 'detect' / 'obb'）。
+    exitcode=None 表示进程刚启动/尚未生成；>0=Python sys.exit；<0=native 硬崩溃（finally 不执行）。
+    """
+    exitcode = p.exitcode
+    win_code = (-exitcode & 0xFFFFFFFF) if exitcode is not None and exitcode < 0 else None
+    win_str = f"0x{win_code:08X}" if win_code is not None else "N/A"
+    return (f"[{role}] worker died, exitcode={exitcode} win_code={win_str}")
 
 
 def _decode_worker(std_video_path, q_detect, q_obb,
@@ -48,7 +61,9 @@ def _decode_worker(std_video_path, q_detect, q_obb,
             if not _put_or_stop(q_obb, frame, stop_event):
                 return
     except Exception:
-        pass
+        # Python 层异常（罕见，cv2 native 报错多走 exitcode 路径）。
+        # 打印 traceback 便于诊断；finally 仍会送 EOF，主循环走正常退出而非判死。
+        traceback.print_exc()
     finally:
         cap.release()
         _send_eof(q_detect, stop_event)
@@ -110,33 +125,48 @@ def _inference_worker(model_path, task_name,
     - 按绝对帧号解析为 Note_Geometrys（帧序由 next_frame_idx 显式维护）
     - 通过 multiprocessing.Queue 发送 (note_geometry, task_name)
     - 通过 multiprocessing.Value 更新进度计数器
-    """
-    model = YOLO(model_path, task=task_name)
-    imgsz_val = get_imgsz(task_name)
-    buffer = []
-    next_frame_idx = 0
 
-    while True:
-        frame = frame_queue.get()
-        if frame is _DECODE_EOF:
-            break
-        buffer.append(frame)
-        if len(buffer) >= batch_detect:
+    异常处理：捕获 BaseException（含 KeyboardInterrupt）后把 traceback + 失败帧号
+    经 results_queue 转发为 ("__error__", task_name, tb_str, next_frame_idx)，
+    再 raise 重抛以保留 exitcode 语义（Python 异常→1，native 硬崩溃→负值，后者走不到这里）。
+    """
+    next_frame_idx = 0
+    try:
+        model = YOLO(model_path, task=task_name)
+        imgsz_val = get_imgsz(task_name)
+        buffer = []
+
+        while True:
+            frame = frame_queue.get()
+            if frame is _DECODE_EOF:
+                break
+            buffer.append(frame)
+            if len(buffer) >= batch_detect:
+                _run_batch(model, task_name, imgsz_val, buffer, next_frame_idx,
+                           batch_detect, inference_device, results_queue, progress_val,
+                           coord_scale)
+                next_frame_idx += len(buffer)
+                buffer.clear()
+
+        # flush 残余
+        if buffer:
             _run_batch(model, task_name, imgsz_val, buffer, next_frame_idx,
                        batch_detect, inference_device, results_queue, progress_val,
                        coord_scale)
             next_frame_idx += len(buffer)
             buffer.clear()
 
-    # flush 残余
-    if buffer:
-        _run_batch(model, task_name, imgsz_val, buffer, next_frame_idx,
-                   batch_detect, inference_device, results_queue, progress_val,
-                   coord_scale)
-        next_frame_idx += len(buffer)
-        buffer.clear()
-
-    results_queue.put(("__done__", task_name))
+        results_queue.put(("__done__", task_name))
+    except BaseException:
+        # Python 异常（含模型加载失败、predict 抛错、解析错误）。
+        # 转发 traceback + 当前 next_frame_idx（= 即将处理的 batch 起始帧），
+        # 便于主进程定位失败位置；再 raise 让进程 exitcode 反映异常性质。
+        tb_str = traceback.format_exc()
+        try:
+            results_queue.put(("__error__", task_name, tb_str, next_frame_idx))
+        except Exception:
+            pass  # 父进程已死 / 队列管道断裂，不再二次崩溃
+        raise
 
 
 def _run_batch(model, task_name, imgsz_val, frames, start_idx,
@@ -300,18 +330,35 @@ class _PipelineState:
     workers_alive: int = 2
     worker_died: bool = False
     decode_dead_rounds: int = 0                             # decode 死亡判据连续成立的轮数（宽限过滤）
-    done_workers: set = field(default_factory=set)          # 已发 __done__ 或被判异常死亡的 task_name
+    done_workers: set = field(default_factory=set)          # 已发 __done__ / __error__ 或被判异常死亡的 task_name
     all_raw_results: list = field(default_factory=list)     # list[tuple[Note_Geometry, str]]
+    worker_errors: list = field(default_factory=list)       # list[(task_name, tb_str, frame_idx)] Python 异常留底
 
 
 def _collect_one(state, item):
-    """处理一个 results_queue item：__done__ 信号 → 标记 worker 完成并递减未完成计数；否则 append 结果"""
-    if isinstance(item, tuple) and len(item) == 2 and item[0] == "__done__":
-        _, name = item
-        state.done_workers.add(name)
-        state.workers_alive -= 1
-    else:
-        state.all_raw_results.append(item)
+    """处理一个 results_queue item。
+
+    三类 item：
+    - ("__done__", name)  → 正常完成，标记 worker 完成
+    - ("__error__", name, tb_str, frame_idx) → Python 异常，打印 traceback + 标记 worker 死亡
+    - 其它（Note_Geometry, task_name） → append 到 all_raw_results
+    """
+    if isinstance(item, tuple) and len(item) >= 2:
+        if item[0] == "__done__":
+            _, name = item
+            state.done_workers.add(name)
+            state.workers_alive -= 1
+            return
+        if item[0] == "__error__":
+            _, name, tb_str, frame_idx = item
+            print(f"\n[{name}] worker error @ frame={frame_idx}")
+            print(tb_str, end="" if tb_str.endswith("\n") else "\n")
+            state.worker_errors.append((name, tb_str, frame_idx))
+            state.done_workers.add(name)  # 视同完成，避免 _check_worker_exits 重复判死
+            state.workers_alive -= 1
+            state.worker_died = True
+            return
+    state.all_raw_results.append(item)
 
 
 def _check_decode_dead(state, decode_p, q_detect, q_obb):
@@ -320,13 +367,15 @@ def _check_decode_dead(state, decode_p, q_detect, q_obb):
     推理 worker 会永久阻塞在 frame_queue.get() 上 → 死锁。
     判据：decode 已死 + 两条帧队列都空 + 仍有 worker 未完成，连续 _DECODE_DEAD_GRACE 轮成立。
     返回 True 表示判定 decode 死锁（外层 break 走清理）。
+    命中时打印 exitcode/win_code 行后置 worker_died。
     """
     if (not decode_p.is_alive()
             and q_detect.empty() and q_obb.empty()
             and state.workers_alive > 0):
         state.decode_dead_rounds += 1
         if state.decode_dead_rounds >= _DECODE_DEAD_GRACE:
-            print("\n[decode] worker died unexpectedly (no EOF delivered)")
+            print("\n" + _format_exit_line(decode_p, "decode")
+                  + " (no EOF delivered)")
             state.worker_died = True
             return True
     else:
@@ -336,9 +385,10 @@ def _check_decode_dead(state, decode_p, q_detect, q_obb):
 
 def _check_worker_exits(state, workers, results_queue):
     """
-    崩溃兜底：worker 已退出但未发 __done__。
+    崩溃兜底：worker 已退出但未发 __done__ / __error__。
     再等一小段排除 mp.Queue 管道尚未刷新的正常退出竞态；仍取不到才判异常死亡。
     返回 True 表示判定 worker 异常死亡（外层 break 走清理）。
+    命中时打印 exitcode/win_code 行（覆盖 native 硬崩溃，Python 异常已由 __error__ 先行处理）。
     """
     for name, p in workers:
         if name in state.done_workers or p.is_alive():
@@ -346,13 +396,13 @@ def _check_worker_exits(state, workers, results_queue):
         time.sleep(0.2)
         try:
             late = results_queue.get(timeout=0.5)
-            _collect_one(state, late)  # done 信号会自动递减 workers_alive
+            _collect_one(state, late)  # done/error 信号会自动递减 workers_alive
             return False               # 回主循环顶部继续 get（等价于原 break for 回 while）
         except Empty:
             state.done_workers.add(name)
             state.workers_alive -= 1
             state.worker_died = True
-            print(f"\n[{name}] worker died unexpectedly")
+            print("\n" + _format_exit_line(p, name))
             return True
     return False
 
