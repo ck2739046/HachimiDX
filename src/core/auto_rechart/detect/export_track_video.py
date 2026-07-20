@@ -14,7 +14,7 @@ from ...schemas.op_result import OpResult, ok, err
 from ..pipeline import Producer, Consumer, Pipeline
 from .note_definition import *
 from .track import _load_track_results
-from ..tool import catmull_rom_spline
+from ..tool import catmull_rom_spline, print_progress
 from .custom_oc_sort.oc_sort import _KalmanBoxTracker
 
 from src.services import PathManage
@@ -142,8 +142,6 @@ class ExportConsumer(Consumer):
 
         # 进度/耗时
         self.start_time = 0.0
-        self.last_start_time = 0.0
-        self.last_frame_number = 0
         self.elapsed_time = 0.0
 
 
@@ -166,7 +164,6 @@ class ExportConsumer(Consumer):
         self.batch_mv = memoryview(self.batch)
 
         self.start_time = time.time()
-        self.last_start_time = self.start_time
 
 
     def consume(self, frame, stop, ctx):
@@ -231,11 +228,7 @@ class ExportConsumer(Consumer):
             # 将这一批缓冲写入 FFmpeg stdin
             self.stdin.write(self.batch_mv[:self.off])
             # 打印进度
-            self.last_start_time, self.last_frame_number = print_progress(
-                "export", "fps",
-                frame_number, self.total_frames,
-                self.last_start_time, self.last_frame_number,
-            )
+            print_progress("export", frame_number+1, self.total_frames)
             self.off = 0
             self.count_in_batch = 0
 

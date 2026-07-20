@@ -9,6 +9,7 @@ from ...schemas.op_result import OpResult, ok, err
 from ..pipeline import Producer, Consumer, Pipeline
 from .note_definition import *
 from .track import _save_track_results, _load_track_results
+from ..tool import print_progress
 
 
 SEEK_THRESHOLD = 200
@@ -67,7 +68,7 @@ def main(std_video_path: Path,
 
         # 结束
         finish_time = time.time()
-        print(f"分类模块完成, 耗时{finish_time - start_time:.1f}s                       ")
+        print(f"\n分类模块完成, 耗时{finish_time - start_time:.1f}s                       ")
 
         # 保存到文件
         _save_track_results(track_results, std_video_path.parent, call_fn="classify")
@@ -185,9 +186,7 @@ class ClassifyConsumer(Consumer):
         if cls_results:
             self.results.extend(cls_results)
             self._counter += len(cls_results)
-            progress = self._counter / self.total_cls_quantity * 100
-            print(f"分类: {self._counter}/{self.total_cls_quantity} ({progress:.1f}%)    ",
-                  end="\r", flush=True)
+            print_progress('分类', self._counter, self.total_cls_quantity)
 
 
 

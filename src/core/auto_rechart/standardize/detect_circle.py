@@ -4,6 +4,7 @@ from typing import Tuple
 from pathlib import Path
 
 from ...schemas.op_result import OpResult, ok, err, print_op_result
+from ..tool import print_progress
 
 
 
@@ -79,7 +80,7 @@ def main(input_video: Path,
 
             # 打印进度
             frame_counter += 1
-            print(f"Initial detection...{frame_counter}/{search_end_frame - search_start_frame}", end="\r")
+            print_progress('初始圆检测', frame_counter, search_end_frame - search_start_frame)
 
             ret, frame = cap.read()
             if not ret: break  # 视频结束

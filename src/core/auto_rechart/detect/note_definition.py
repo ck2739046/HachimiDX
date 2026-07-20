@@ -1,6 +1,4 @@
 from dataclasses import dataclass
-import time
-from dataclasses import dataclass
 from enum import Enum
 
 
@@ -83,15 +81,3 @@ def get_imgsz(model_name: str) -> int:
     else:
         # cls-ex, cls-break
         return 224
-
-
-def print_progress(name, speed_unit, counter, total, last_time, last_counter):
-    # 计算即时fps
-    current_time = time.time()
-    elapsed_time = current_time - last_time + 1e-6
-    elapsed_counter = counter - last_counter
-    speed = elapsed_counter / elapsed_time
-    # 打印进度
-    progress = (counter / total) * 100
-    print(f"{name} progress: {counter}/{total} ({progress:.1f}%), {speed:.1f}{speed_unit}  ", end="\r", flush=True)
-    return current_time, counter

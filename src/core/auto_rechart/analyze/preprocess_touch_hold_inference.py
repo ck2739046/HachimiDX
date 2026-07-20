@@ -18,7 +18,7 @@ from ultralytics import YOLO
 
 from ..pipeline import Producer, Consumer, Pipeline
 from ..detect.note_definition import NoteType, get_imgsz
-from ..tool import calculate_all_position
+from ..tool import calculate_all_position, print_progress
 from .shared_context import SharedContext
 
 
@@ -211,11 +211,7 @@ class TouchHoldConsumer(Consumer):
         # 每处理完一批, 打印进度
         if self._processed_samples - self._last_printed_samples >= len(batch):
             self._last_printed_samples = self._processed_samples
-            print(
-                f"run_touch_hold_inference: processed {self._processed_samples}/{self.total_samples} samples...",
-                end="\r",
-                flush=True,
-            )
+            print_progress('touch_hold_inference', self._processed_samples, self.total_samples)
 
 
 

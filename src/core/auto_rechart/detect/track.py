@@ -12,6 +12,7 @@ from ...schemas.op_result import OpResult, ok, err
 from src.services import PathManage
 from .note_definition import *
 from .detect import _load_detect_results
+from ..tool import print_progress
 from .custom_oc_sort.oc_sort import OCSort
 
 
@@ -231,9 +232,7 @@ def main(std_video_path: Path,
 
         # 定义一些变量
         counter = 0
-        last_counter = 0
         start_time = time.time()
-        last_time = start_time
         # 维护 local tracker id 到全局连续 id 的映射
         local_to_global_id = {}
         next_global_id = [0]
@@ -300,13 +299,17 @@ def main(std_video_path: Path,
             
             # 打印进度
             counter += 1
-            if counter % 200 == 0:
-                last_time, last_counter = print_progress('追踪', 'fps', counter, total_frames, last_time, last_counter)   
+            if counter % 100 == 0:
+                print_progress('追踪', counter, total_frames)
+
+        # 最后再打印一次进度
+        time.sleep(0.1)  # 等待全部结果完成
+        print_progress('追踪', total_frames, total_frames)
                         
         # 结束
         if cap and cap.isOpened(): cap.release()
         finish_time = time.time()
-        print(f"追踪模块完成, 耗时{finish_time - start_time:.1f}s, 平均{total_frames / (finish_time - start_time):.1f}fps          ")
+        print(f"\n追踪模块完成, 耗时{finish_time - start_time:.1f}s, 平均{total_frames / (finish_time - start_time):.1f}fps       ")
 
         # === 反向追踪 slide tracks ===
         # 对每条 slide track 尝试反向追踪
