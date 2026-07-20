@@ -183,6 +183,7 @@ class Pipeline:
 
         if error_box:
             _role, exc = error_box[0]
+            print(f"[{_role}] worker failed: {exc!r}")
             raise exc
 
     # ---- worker 包装(捕获异常 / 保证 on_cleanup / 记录 error) ----
