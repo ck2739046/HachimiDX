@@ -3,9 +3,11 @@ import time
 import traceback
 import torch.multiprocessing as tmp
 from queue import Empty, Full
+from dataclasses import dataclass
 
 from ...schemas.op_result import OpResult, ok, err
 from .note_definition import *
+from .detect_inference_worker import inference_worker_main
 
 
 
@@ -37,99 +39,129 @@ def _drain_queue(q):
 
 
 
-# ---------------------------------------------------------------------------
-# Inferencer: 封装 detect/obb 双进程推理, 对 main 只暴露 put_batch/get_results
-# ---------------------------------------------------------------------------
+
+
+
+
+@dataclass
+class _InferencerDeps:
+    """create_inferencer 装配好参数打包供 Inferencer.__init__ 消费"""
+    process_detect: "tmp.Process"
+    process_obb: "tmp.Process"
+    input_queue_detect: "tmp.Queue"
+    input_queue_obb: "tmp.Queue"
+    output_queue: "tmp.Queue"
+    control_queue_detect: "tmp.Queue"
+    control_queue_obb: "tmp.Queue"
+    stop_event: "tmp.Event"
+    progress_ref_detect: "tmp.Value"
+    progress_ref_obb: "tmp.Value"
+
+
+
+def create_inferencer(detect_model_path, obb_model_path,
+                      batch_size, inference_device, coord_scale,
+                    ) -> OpResult:
+    """构造 Inferencer (而不是直接调用 Inferencer.__init__)"""
+
+    if batch_size <= 0:
+        return err(f"[inferencer] batch_size 必须为正整数, got {batch_size}")
+    if get_imgsz('detect') != get_imgsz('obb'):
+        return err("detect/obb imgsz 不一致, 两者必须相同")
+
+    # 构造进程间共享对象
+    input_queue_detect = tmp.Queue(maxsize=_FRAME_QUEUE_CAP)
+    input_queue_obb = tmp.Queue(maxsize=_FRAME_QUEUE_CAP)
+    output_queue = tmp.Queue(maxsize=_RESULTS_QUEUE_CAP)
+    control_queue_detect = tmp.Queue()
+    control_queue_obb = tmp.Queue()
+    stop_event = tmp.Event()
+    progress_ref_detect = tmp.Value('i', 0)
+    progress_ref_obb = tmp.Value('i', 0)
+
+    # 创建推理 worker 进程 (detect/obb)
+    process_detect = tmp.Process(
+        target=inference_worker_main,
+        args=(detect_model_path, 'detect', batch_size, inference_device,
+              coord_scale,
+              input_queue_detect, output_queue, control_queue_detect,
+              progress_ref_detect, stop_event),
+        daemon=True,
+    )
+    process_obb = tmp.Process(
+        target=inference_worker_main,
+        args=(obb_model_path, 'obb', batch_size, inference_device,
+              coord_scale,
+              input_queue_obb, output_queue, control_queue_obb,
+              progress_ref_obb, stop_event),
+        daemon=True,
+    )
+
+    # 启动 workers
+    started = []
+    try:
+        process_detect.start()
+        started.append(process_detect)
+        process_obb.start()
+        started.append(process_obb)
+    except Exception as e:
+        failed_name = 'obb' if process_detect in started else 'detect'
+        for p in started:
+            if p.is_alive():
+                p.terminate()
+        return err(f"[inferencer] failed to start {failed_name} model worker: {e}", error_raw=e)
+
+    # 真正创建 Inferencer
+    deps = _InferencerDeps(
+        process_detect, process_obb,
+        input_queue_detect, input_queue_obb,
+        output_queue,
+        control_queue_detect, control_queue_obb,
+        stop_event,
+        progress_ref_detect, progress_ref_obb,
+    )
+    inferencer = Inferencer(deps)
+
+    return ok(inferencer)
+
+
 
 class Inferencer:
-    """推理门面: 内部 tee 到 detect/obb 两个并行 worker, 对 main 屏蔽所有队列细节。
+    """
+    api:
+    - create_inferencer(...)  -> OpResult[Inferencer]  (模块级工厂, 非本类方法)
+    - put_batch(batch)        -> OpResult[None]
+    - get_results(timeout=0)  -> OpResult[List[Tuple[Note_Geometry, str]]]
+    - send_eof()              -> None
+    - stop()                  -> None
 
-    与 main 的交互契约 (全部 OpResult):
-    - create(...)            : 构造 (classmethod; __init__ 不能返回 OpResult)。
-    - put_batch(batch)       : main 喂 batch; 生产阶段 worker 报错经此返回 err。
-    - get_results(timeout)   : main 收集结果; 排空阶段 (EOF 后) worker 报错经此返回 err。
-    - progress               : (detect_done_frames, obb_done_frames), 仅打印用。
-    - send_eof()             : best-effort 投 None 到两条 in_queue, void。
-    - stop()                 : 幂等 terminate + join, void。
-
-    模型加载 (YOLO(...)) 在 worker 进程内完成 (spawn + CUDA 隔离),
-    故 create() 只能捕获参数错/spawn 错, 模型加载失败需经 put_batch/get_results 才能暴露。
-
-    进程间协议 (通道分离):
-    - in  (q_detect/q_obb) EOF : None
-    - out results_queue        : (Note_Geometry, task_name)              ← 纯推理数据 (共享)
-    - out control_queue_*      : OpResult (ok(value=last_frame_idx) / err(error_msg, value=last_frame_idx))
-                                  每个 worker 各一条 control_queue, 队列身份即 worker 身份
+    只读属性: is_done, is_failed, progress, errors, exit_lines
     """
 
-    @classmethod
-    def create(cls, detect_model_path, obb_model_path,
-               batch_size, device, coord_scale) -> OpResult:
-        """构造 Inferencer。仅校验参数 + 启动进程; 不等待模型加载完成。
+    def __init__(self, deps: _InferencerDeps):
+        """正常使用不应直接调本构造函数, 请通过 create_inferencer() 外部工厂函数创建"""
 
-        Args:
-            detect_model_path / obb_model_path: 模型文件路径 (worker 内 YOLO 加载)。
-            batch_size: 推理 batch 大小 (必须 >0, 且与 decoder 一致)。
-            device: ultralytics device 字符串 (如 'cuda:0' / 'cpu')。
-            coord_scale: 坐标还原系数 (decode_imgsz → 视频原始尺寸)。
+        # 进程间共享对象 (来自工厂装配的 deps)
+        # 实例属性名与 deps 字段名保持一致
+        self._process_detect = deps.process_detect
+        self._process_obb = deps.process_obb
+        self._input_queue_detect = deps.input_queue_detect
+        self._input_queue_obb = deps.input_queue_obb
+        self._output_queue = deps.output_queue
+        self._control_queue_detect = deps.control_queue_detect
+        self._control_queue_obb = deps.control_queue_obb
+        self._stop_event = deps.stop_event
+        self._progress_ref_detect = deps.progress_ref_detect
+        self._progress_ref_obb = deps.progress_ref_obb
 
-        Returns:
-            ok(value=Inferencer) 或 err。
-        """
-        if batch_size <= 0:
-            return err(f"[inferencer] batch_size 必须为正整数, got {batch_size}")
-        # detect/obb 共享解码 imgsz 必须一致 (decoder 只产一种分辨率)
-        if get_imgsz('detect') != get_imgsz('obb'):
-            return err("detect/obb imgsz 不一致, 共享解码需相同 imgsz")
-
-        try:
-            self = cls.__new__(cls)  # 绕过 __init__, 自定义构造
-            self._batch_size = batch_size
-            self._coord_scale = coord_scale
-            self._q_detect = tmp.Queue(maxsize=_FRAME_QUEUE_CAP)
-            self._q_obb = tmp.Queue(maxsize=_FRAME_QUEUE_CAP)
-            self._results_queue = tmp.Queue(maxsize=_RESULTS_QUEUE_CAP)        # 纯数据通道 (共享)
-            self._control_queue_detect = tmp.Queue()                            # detect worker 控制信号
-            self._control_queue_obb = tmp.Queue()                               # obb worker 控制信号
-            self._stop_event = tmp.Event()
-            self._progress_detect = tmp.Value('i', 0)
-            self._progress_obb = tmp.Value('i', 0)
-
-            self._p_detect = tmp.Process(
-                target=_inference_worker_main,
-                args=(detect_model_path, 'detect', batch_size, device,
-                      self._q_detect, self._results_queue, self._control_queue_detect,
-                      self._progress_detect, coord_scale, self._stop_event),
-                daemon=True,
-            )
-            self._p_obb = tmp.Process(
-                target=_inference_worker_main,
-                args=(obb_model_path, 'obb', batch_size, device,
-                      self._q_obb, self._results_queue, self._control_queue_obb,
-                      self._progress_obb, coord_scale, self._stop_event),
-                daemon=True,
-            )
-
-            # 状态机标志 (sticky)
-            self._finished = set()          # 已 done/error/判死的 task_name, 去重计数
-            self._done_count = 0            # 已完成 worker 数, 达 2 即 is_done
-            self._failed = False            # 任一 worker 报错/判死
-            self._closed = False            # stop() 已调用
-            self._errors = []               # list[(name, tb_str, frame_idx)]
-            self._exit_lines = []           # list[str]  native 崩溃诊断行
-            self._pending_results = []      # list[(Note_Geometry, task_name)]  get_results 缓冲
-
-            self._p_detect.start()
-            self._p_obb.start()
-        except Exception as e:
-            # spawn 失败兜底: 清理已起的进程
-            try:
-                self.stop()  # type: ignore[name-defined]
-            except Exception:
-                pass
-            return err(f"[inferencer] create failed: {e}", error_raw=e)
-
-        return ok(value=self)
+        # 状态机标志 (sticky)
+        self._finished = set()          # 已 done/error/判死的 task_name, 去重计数
+        self._done_count = 0            # 已完成 worker 数, 达 2 即 is_done
+        self._failed = False            # 任一 worker 报错/判死
+        self._closed = False            # stop() 已调用
+        self._errors = []               # list[(name, error_msg, frame_idx)]
+        self._exit_lines = []           # list[str]  native 崩溃诊断行
+        self._pending_results = []      # list[(Note_Geometry, task_name)]  get_results 缓冲
 
     # --- 属性 ---------------------------------------------------------------
 
@@ -146,7 +178,7 @@ class Inferencer:
     @property
     def progress(self) -> tuple:
         """(detect_done_frames, obb_done_frames), 仅用于打印进度。"""
-        return (self._progress_detect.value, self._progress_obb.value)
+        return (self._progress_ref_detect.value, self._progress_ref_obb.value)
 
     @property
     def errors(self) -> list:
@@ -180,15 +212,15 @@ class Inferencer:
     # --- 内部: 健康检查 (put_batch 与 get_results 共用) ----------------------
 
     def _check_health(self) -> bool:
-        """非阻塞排空 results_queue (数据) + 两条 control_queue (控制) + 进程存活兜底。
+        """非阻塞排空 output_queue (数据) + 两条 control_queue (控制) + 进程存活兜底。
 
         返回是否仍健康 (not _failed)。
 
         进程存活兜底覆盖 native 硬崩溃 (worker 死了没来得及发 err);
         Python 异常已由 err 先行处理, 这里只是兜底。
         """
-        # 1. 排空数据队列 → 直接进 _pending_results (results_queue 只存数据)
-        self._pending_results.extend(_drain_queue(self._results_queue))
+        # 1. 排空数据队列 → 直接进 _pending_results (output_queue 只存数据)
+        self._pending_results.extend(_drain_queue(self._output_queue))
 
         # 2. 排空两条控制队列 → dispatch (name 由队列身份决定)
         for item in _drain_queue(self._control_queue_detect):
@@ -197,7 +229,7 @@ class Inferencer:
             self._dispatch_control('obb', item)
 
         # 3. 进程存活兜底: worker 已死但未登记 → 判死亡
-        for name, p in (('detect', self._p_detect), ('obb', self._p_obb)):
+        for name, p in (('detect', self._process_detect), ('obb', self._process_obb)):
             if name not in self._finished and not p.is_alive():
                 self._exit_lines.append(format_exit_line(p, name))
                 self._mark_finished(name)
@@ -217,7 +249,7 @@ class Inferencer:
     # --- 对 main 的公开 API --------------------------------------------------
 
     def put_batch(self, batch) -> OpResult:
-        """tee batch 到 detect/obb 两条 in_queue。生产阶段 worker 报错经此返回 err。
+        """tee batch 到 detect/obb 两条 input_queue。生产阶段 worker 报错经此返回 err。
 
         Returns:
             ok()              — tee 成功
@@ -228,12 +260,12 @@ class Inferencer:
         if not self._check_health():
             return err(self._first_failure_msg())
 
-        # 内部 tee: 把 batch 投到两条 in_queue, 每条带 _PUT_TIMEOUT 重试
+        # 内部 tee: 把 batch 投到两条 input_queue, 每条带 _PUT_BATCH_TIMEOUT 重试
         # 仅在 Full 重试时周期性 _check_health (避免每次 put 都排空的开销)
-        for q in (self._q_detect, self._q_obb):
+        for q in (self._input_queue_detect, self._input_queue_obb):
             while True:
                 try:
-                    q.put(batch, block=True, timeout=_PUT_TIMEOUT)
+                    q.put(batch, block=True, timeout=_PUT_BATCH_TIMEOUT)
                     break
                 except Full:
                     if self._stop_event.is_set():
@@ -248,7 +280,7 @@ class Inferencer:
         return ok()
 
     def get_results(self, timeout=0.0) -> OpResult:
-        """收集 results_queue 中已就绪的推理结果。
+        """收集 output_queue 中已就绪的推理结果。
 
         Args:
             timeout: 阻塞等待首个结果的超时 (秒)。0 = 非阻塞排空。
@@ -262,8 +294,8 @@ class Inferencer:
 
         if timeout > 0:
             try:
-                item = self._results_queue.get(timeout=timeout)
-                self._pending_results.append(item)   # results_queue 只存数据
+                item = self._output_queue.get(timeout=timeout)
+                self._pending_results.append(item)   # output_queue 只存数据
             except Empty:
                 pass
 
@@ -276,18 +308,18 @@ class Inferencer:
         return ok(value=snapshot)
 
     def send_eof(self):
-        """best-effort 向两条 in_queue 投 None (EOF)。worker 收到即正常退出。
+        """best-effort 向两条 input_queue 投 None (EOF)。worker 收到即正常退出。
 
         void: 即使投递失败也不抛 (后续 get_results 的健康检查会兜底报错)。
         stop_event 已触发时先排空队列避免永久阻塞。
         """
-        for q in (self._q_detect, self._q_obb):
+        for q in (self._input_queue_detect, self._input_queue_obb):
             deadline = time.monotonic() + 5.0
             while True:
                 if self._stop_event.is_set():
                     _drain_queue(q)
                 try:
-                    q.put(_INFER_EOF, block=True, timeout=2.0)
+                    q.put(None, block=True, timeout=2.0)
                     break
                 except Full:
                     if time.monotonic() > deadline:
@@ -299,9 +331,9 @@ class Inferencer:
             return
         self._closed = True
         self._stop_event.set()
-        for p in (self._p_detect, self._p_obb):
+        for p in (self._process_detect, self._process_obb):
             if p is not None and p.is_alive():
                 p.terminate()
-        for p in (self._p_detect, self._p_obb):
+        for p in (self._process_detect, self._process_obb):
             if p is not None:
-                p.join(timeout=_WORKER_JOIN_TIMEOUT)
+                p.join(timeout=_WORKER_EXIT_TIMEOUT)

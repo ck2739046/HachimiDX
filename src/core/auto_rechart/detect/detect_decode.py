@@ -7,6 +7,13 @@ from ...schemas.op_result import OpResult, ok, err
 
 
 class Decoder:
+    """
+    api:
+    - __init__(std_video_path, imgsz, batch_size)
+    - get_next_batch() -> OpResult[List[(frame_idx, frame)]]
+                          ok(value=None) 表示 eof 解码完毕
+    - close()
+    """
 
     _TIMEOUT = 5.0  # timeout for collecting a batch from workers
 

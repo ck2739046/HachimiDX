@@ -1,9 +1,9 @@
 
 
-def _inference_worker_main(model_path, task_name, batch_size, inference_device,
-                           coord_scale,
-                           input_queue, output_queue, control_queue,
-                           progress_ref, stop_event):
+def inference_worker_main(model_path, task_name, batch_size, inference_device,
+                          coord_scale,
+                          input_queue, output_queue, control_queue,
+                          progress_ref, stop_event):
     """
     模型推理 worker 主函数 (detect/obb 共用)
 
