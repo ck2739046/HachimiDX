@@ -4,6 +4,7 @@ import traceback
 import torch.multiprocessing as tmp
 from queue import Empty, Full
 from dataclasses import dataclass
+from enum import Enum
 
 from ...schemas.op_result import OpResult, ok, err
 from .note_definition import *
@@ -126,6 +127,21 @@ def create_inferencer(detect_model_path, obb_model_path,
 
 
 
+
+
+
+
+
+
+
+
+
+class WorkerStatus(Enum):
+    RUNNING = 'running'   # 未结束
+    DONE    = 'done'      # 正常结束
+    FAILED  = 'failed'    # 报错
+
+
 class Inferencer:
     """
     api:
@@ -135,14 +151,13 @@ class Inferencer:
     - send_eof()              -> None
     - stop()                  -> None
 
-    只读属性: is_done, is_failed, progress, errors, exit_lines
+    只读属性: is_done, is_failed, progress, errors, exit_lines, status
     """
 
     def __init__(self, deps: _InferencerDeps):
         """正常使用不应直接调本构造函数, 请通过 create_inferencer() 外部工厂函数创建"""
 
         # 进程间共享对象 (来自工厂装配的 deps)
-        # 实例属性名与 deps 字段名保持一致
         self._process_detect = deps.process_detect
         self._process_obb = deps.process_obb
         self._input_queue_detect = deps.input_queue_detect
@@ -154,26 +169,32 @@ class Inferencer:
         self._progress_ref_detect = deps.progress_ref_detect
         self._progress_ref_obb = deps.progress_ref_obb
 
-        # 状态机标志 (sticky)
-        self._finished = set()          # 已 done/error/判死的 task_name, 去重计数
-        self._done_count = 0            # 已完成 worker 数, 达 2 即 is_done
-        self._failed = False            # 任一 worker 报错/判死
-        self._closed = False            # stop() 已调用
-        self._errors = []               # list[(name, error_msg, frame_idx)]
-        self._exit_lines = []           # list[str]  native 崩溃诊断行
-        self._pending_results = []      # list[(Note_Geometry, task_name)]  get_results 缓冲
+        # worker 状态机: RUNNING / DONE / FAILED
+        # sticky: 仅在 RUNNING 时可转 DONE/FAILED, 终态不可回退
+        self._status = {'detect': WorkerStatus.RUNNING,
+                        'obb':    WorkerStatus.RUNNING,}
 
-    # --- 属性 ---------------------------------------------------------------
+        self._class_force_closed = False  # 仅在用户主动关闭时为 True
+        self._errors = []                 # list[(name, error_msg, frame_idx)]
+        self._exit_lines = []             # list[str]  硬失败诊断行 (native 崩溃 / 队列断裂)
+        self._pending_results = []        # list[(Note_Geometry, task_name)]  get_results 缓冲
+
+
 
     @property
     def is_done(self) -> bool:
         """两个 worker 是否都已结束 (无论成功/失败)。"""
-        return self._done_count >= 2
+        return all(s != WorkerStatus.RUNNING for s in self._status.values())
 
     @property
     def is_failed(self) -> bool:
         """是否发生过任何 worker 报错/判死。"""
-        return self._failed
+        return WorkerStatus.FAILED in self._status.values()
+
+    @property
+    def status(self) -> dict:
+        """dict[str, WorkerStatus] 副本 — {'detect': ..., 'obb': ...}, 仅用于观察/调试。"""
+        return dict(self._status)
 
     @property
     def progress(self) -> tuple:
@@ -187,34 +208,42 @@ class Inferencer:
 
     @property
     def exit_lines(self) -> list:
-        """list[str] — native 硬崩溃诊断行 (format_exit_line 输出)。"""
+        """list[str] — 硬失败诊断行 (format_exit_line 输出 / 队列断裂)。"""
         return self._exit_lines
 
     # --- 内部: 派发 (数据/控制分离) -------------------------------------------
 
     def _dispatch_control(self, name, op_result):
-        """处理一个 worker 的控制 OpResult, 更新状态机标志。
+        """处理一个 worker 的控制 OpResult, 更新状态机。
 
-        - ok(value=last_frame_idx)  → 该 worker 正常结束
-        - err(error_msg, value=last_frame_idx) → 该 worker 失败, 记录错误
+        - ok(value=last_frame_idx)  → 该 worker 正常结束 → DONE
+        - err(error_msg, value=last_frame_idx) → 该 worker 失败 → FAILED, 记录错误
+
+        sticky: 已进入终态的 worker 收到重复派发直接忽略 (不重复 append _errors)。
         """
-        self._mark_finished(name)
-        if not op_result.is_ok:
+        if self._status[name] != WorkerStatus.RUNNING:
+            return
+        if op_result.is_ok:
+            self._set_status(name, WorkerStatus.DONE)
+        else:
             self._errors.append((name, op_result.error_msg, op_result.value))
-            self._failed = True
+            self._set_status(name, WorkerStatus.FAILED)
 
-    def _mark_finished(self, name):
-        """标记一个 worker 已结束 (去重计数)。"""
-        if name not in self._finished:
-            self._finished.add(name)
-            self._done_count += 1
+    def _set_status(self, name, status):
+        """更新某 worker 状态 (sticky: 仅 RUNNING 可转 DONE/FAILED, 终态不可回退)。
+
+        等价原 _mark_finished 的去重计数语义: 终态下重复调用为 no-op,
+        也防止 _check_health 兜底 / _dispatch_control 重复 append _errors / _exit_lines。
+        """
+        if self._status[name] == WorkerStatus.RUNNING:
+            self._status[name] = status
 
     # --- 内部: 健康检查 (put_batch 与 get_results 共用) ----------------------
 
     def _check_health(self) -> bool:
         """非阻塞排空 output_queue (数据) + 两条 control_queue (控制) + 进程存活兜底。
 
-        返回是否仍健康 (not _failed)。
+        返回是否仍健康 (not is_failed)。
 
         进程存活兜底覆盖 native 硬崩溃 (worker 死了没来得及发 err);
         Python 异常已由 err 先行处理, 这里只是兜底。
@@ -230,12 +259,11 @@ class Inferencer:
 
         # 3. 进程存活兜底: worker 已死但未登记 → 判死亡
         for name, p in (('detect', self._process_detect), ('obb', self._process_obb)):
-            if name not in self._finished and not p.is_alive():
+            if self._status[name] == WorkerStatus.RUNNING and not p.is_alive():
                 self._exit_lines.append(format_exit_line(p, name))
-                self._mark_finished(name)
-                self._failed = True
+                self._set_status(name, WorkerStatus.FAILED)
 
-        return not self._failed
+        return not self.is_failed
 
     def _first_failure_msg(self):
         """生成首个失败原因的简短消息 (供 put_batch/get_results 的 err)。"""
@@ -255,7 +283,7 @@ class Inferencer:
             ok()              — tee 成功
             err(...)          — worker 已报错/判死, 或 stop_event 已触发
         """
-        if self._closed:
+        if self._class_force_closed:
             return err("[inferencer] put_batch: already closed.")
         if not self._check_health():
             return err(self._first_failure_msg())
@@ -274,9 +302,13 @@ class Inferencer:
                         return err(self._first_failure_msg())
                     continue
                 except Exception as e:
-                    # 队列管道断裂 (worker 已死/被 terminate) → 判失败
-                    self._failed = True
-                    return err(f"[inferencer] put_batch: queue error: {e}", error_raw=e)
+                    # 队列管道断裂 (worker 已死/被 terminate) → 无法归属到具体 worker,
+                    # 将所有仍在 RUNNING 的 worker 判 FAILED 并记录诊断行
+                    msg = f"put_batch: queue error: {e}"
+                    self._exit_lines.append(msg)
+                    for n in self._status:
+                        self._set_status(n, WorkerStatus.FAILED)
+                    return err(f"[inferencer] {msg}", error_raw=e)
         return ok()
 
     def get_results(self, timeout=0.0) -> OpResult:
@@ -289,7 +321,7 @@ class Inferencer:
             ok(value=list)    — list[(Note_Geometry, task_name)], 可能为空
             err(value=list)   — worker 报错/判死; value 仍带回已收集的部分结果
         """
-        if self._closed:
+        if self._class_force_closed:
             return err("[inferencer] get_results: already closed.", value=None)
 
         if timeout > 0:
@@ -327,9 +359,9 @@ class Inferencer:
 
     def stop(self):
         """幂等清理: stop_event.set() → 存活者 terminate() → join(timeout)。"""
-        if self._closed:
+        if self._class_force_closed:
             return
-        self._closed = True
+        self._class_force_closed = True
         self._stop_event.set()
         for p in (self._process_detect, self._process_obb):
             if p is not None and p.is_alive():
