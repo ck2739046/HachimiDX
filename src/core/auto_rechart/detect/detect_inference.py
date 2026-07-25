@@ -124,20 +124,24 @@ def _parse_detections_to_note_geometrys(result, frame_number, model_name, coord_
 
 def _infer_worker_target(model_path, task_name,
                          batch_size, device,
-                         in_queue, results_queue,
+                         in_queue, results_queue, control_queue,
                          progress_val, coord_scale, stop_event):
     """模型推理 actor。
 
     循环:
     - 从 in_queue 取 batch (None 哨兵即 EOF)
     - model.predict + 解析为 Note_Geometrys (帧序由 next_frame_idx 显式维护)
-    - results_queue.put((note_geometry, task_name))
+    - results_queue.put((note_geometry, task_name))   ← 纯数据通道
     - progress_val.value 推进
 
+    通道分离:
+    - results_queue: 只存推理数据 (Note_Geometry, task_name)
+    - control_queue: 只存控制信号 ("__done__"/"__error__")
+
     异常: 捕获 BaseException (含 KeyboardInterrupt) 后把 traceback + 失败帧号
-    经 results_queue 转发为 ("__error__", task_name, tb_str, next_frame_idx),
+    经 control_queue 转发为 ("__error__", task_name, tb_str, next_frame_idx),
     再 raise 重抛以保留 exitcode 语义 (Python 异常→1, native 硬崩溃→负值, 后者走不到这里)。
-    正常退出: results_queue.put(("__done__", task_name))。
+    正常退出: control_queue.put(("__done__", task_name))。
     """
     next_frame_idx = 0
     try:
@@ -170,14 +174,14 @@ def _infer_worker_target(model_path, task_name,
 
             next_frame_idx += len(batch)
 
-        results_queue.put(("__done__", task_name))
+        control_queue.put(("__done__", task_name))
     except BaseException:
         # Python 异常 (含模型加载失败、predict 抛错、解析错误)。
         # 转发 traceback + 当前 next_frame_idx (= 即将处理的 batch 起始帧),
         # 便于父进程定位失败位置; 再 raise 让进程 exitcode 反映异常性质。
         tb_str = traceback.format_exc()
         try:
-            results_queue.put(("__error__", task_name, tb_str, next_frame_idx))
+            control_queue.put(("__error__", task_name, tb_str, next_frame_idx))
         except Exception:
             pass  # 父进程已死 / 队列管道断裂, 不再二次崩溃
         raise
@@ -201,10 +205,10 @@ class Inferencer:
     模型加载 (YOLO(...)) 在 worker 进程内完成 (spawn + CUDA 隔离),
     故 create() 只能捕获参数错/spawn 错, 模型加载失败需经 put_batch/get_results 才能暴露。
 
-    进程间协议 (沿用旧实现):
-    - in  EOF   : None
-    - out data  : (Note_Geometry, task_name)
-    - out ctrl  : ("__done__", name) / ("__error__", name, tb_str, frame_idx)
+    进程间协议 (通道分离):
+    - in  (q_detect/q_obb) EOF : None
+    - out results_queue  数据  : (Note_Geometry, task_name)        ← 纯推理数据
+    - out control_queue  控制  : ("__done__", name) / ("__error__", name, tb_str, frame_idx)
     """
 
     @classmethod
@@ -233,7 +237,8 @@ class Inferencer:
             self._coord_scale = coord_scale
             self._q_detect = tmp.Queue(maxsize=_FRAME_QUEUE_CAP)
             self._q_obb = tmp.Queue(maxsize=_FRAME_QUEUE_CAP)
-            self._results_queue = tmp.Queue(maxsize=_RESULTS_QUEUE_CAP)
+            self._results_queue = tmp.Queue(maxsize=_RESULTS_QUEUE_CAP)   # 纯数据通道
+            self._control_queue = tmp.Queue()                             # 控制信号通道 (__done__/__error__)
             self._stop_event = tmp.Event()
             self._progress_detect = tmp.Value('i', 0)
             self._progress_obb = tmp.Value('i', 0)
@@ -241,14 +246,14 @@ class Inferencer:
             self._p_detect = tmp.Process(
                 target=_infer_worker_target,
                 args=(detect_model_path, 'detect', batch_size, device,
-                      self._q_detect, self._results_queue,
+                      self._q_detect, self._results_queue, self._control_queue,
                       self._progress_detect, coord_scale, self._stop_event),
                 daemon=True,
             )
             self._p_obb = tmp.Process(
                 target=_infer_worker_target,
                 args=(obb_model_path, 'obb', batch_size, device,
-                      self._q_obb, self._results_queue,
+                      self._q_obb, self._results_queue, self._control_queue,
                       self._progress_obb, coord_scale, self._stop_event),
                 daemon=True,
             )
@@ -301,27 +306,24 @@ class Inferencer:
         """list[str] — native 硬崩溃诊断行 (format_exit_line 输出)。"""
         return self._exit_lines
 
-    # --- 内部: 派发一个 results_queue item -----------------------------------
+    # --- 内部: 派发 (数据/控制分离) -------------------------------------------
 
-    def _dispatch(self, item):
-        """分类处理一个 results_queue item, 更新状态机标志。
+    def _dispatch_control(self, item):
+        """处理一个 control_queue item, 更新状态机标志。
 
         - ("__done__", name)  → 标记 worker 完成
         - ("__error__", name, tb_str, frame_idx) → Python 异常, 标记 worker 死亡
-        - 其它 (Note_Geometry, task_name) → append 到 _pending_results
         """
-        if isinstance(item, tuple) and len(item) >= 2:
-            if item[0] == "__done__":
-                _, name = item
-                self._mark_finished(name)
-                return
-            if item[0] == "__error__":
-                _, name, tb_str, frame_idx = item
-                self._errors.append((name, tb_str, frame_idx))
-                self._mark_finished(name)
-                self._failed = True
-                return
-        self._pending_results.append(item)
+        if item[0] == "__done__":
+            _, name = item
+            self._mark_finished(name)
+            return
+        if item[0] == "__error__":
+            _, name, tb_str, frame_idx = item
+            self._errors.append((name, tb_str, frame_idx))
+            self._mark_finished(name)
+            self._failed = True
+            return
 
     def _mark_finished(self, name):
         """标记一个 worker 已结束 (去重计数)。"""
@@ -332,16 +334,21 @@ class Inferencer:
     # --- 内部: 健康检查 (put_batch 与 get_results 共用) ----------------------
 
     def _check_health(self) -> bool:
-        """非阻塞排空 results_queue + 进程存活兜底。返回是否仍健康 (not _failed)。
+        """非阻塞排空 results_queue (数据) + control_queue (控制) + 进程存活兜底。
+
+        返回是否仍健康 (not _failed)。
 
         进程存活兜底覆盖 native 硬崩溃 (worker 死了没来得及发 __error__);
         Python 异常已由 __error__ 先行处理, 这里只是兜底。
         """
-        # 1. 非阻塞排空 results_queue
-        for item in _drain_queue(self._results_queue):
-            self._dispatch(item)
+        # 1. 排空数据队列 → 直接进 _pending_results (results_queue 只存数据)
+        self._pending_results.extend(_drain_queue(self._results_queue))
 
-        # 2. 进程存活兜底: worker 已死但未登记 → 判死亡
+        # 2. 排空控制队列 → dispatch 控制 (done/error)
+        for item in _drain_queue(self._control_queue):
+            self._dispatch_control(item)
+
+        # 3. 进程存活兜底: worker 已死但未登记 → 判死亡
         for name, p in (('detect', self._p_detect), ('obb', self._p_obb)):
             if name not in self._finished and not p.is_alive():
                 self._exit_lines.append(format_exit_line(p, name))
@@ -408,7 +415,7 @@ class Inferencer:
         if timeout > 0:
             try:
                 item = self._results_queue.get(timeout=timeout)
-                self._dispatch(item)
+                self._pending_results.append(item)   # results_queue 只存数据
             except Empty:
                 pass
 
