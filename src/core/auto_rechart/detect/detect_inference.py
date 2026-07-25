@@ -15,11 +15,13 @@ _PUT_BATCH_TIMEOUT = 0.5
 _WORKER_EXIT_TIMEOUT = 10.0
 
 
+
 def format_exit_line(p, model_name):
     exitcode = p.exitcode
     win_code = (exitcode & 0xFFFFFFFF) if exitcode is not None and exitcode < 0 else None
     win_str = f"0x{win_code:08X}" if win_code is not None else "N/A"
     return f"{model_name} model inferencer died, exitcode={exitcode} win_code={win_str}"
+
 
 
 def _drain_queue(q):
@@ -33,158 +35,6 @@ def _drain_queue(q):
     return items
 
 
-def _parse_detections_to_note_geometrys(result, frame_number, model_name, coord_scale):
-    
-    if model_name == 'detect':
-
-        # 转换detect模型结果
-        if result.boxes is None or len(result.boxes) == 0:
-            return []
-        # 转换为numpy批量获取数据
-        boxes = result.boxes.cpu().numpy()
-        xyxy = boxes.xyxy    # shape: (N, 4)
-        xywh = boxes.xywh    # shape: (N, 4)
-        conf = boxes.conf    # shape: (N, 1)
-        raw_cls = boxes.cls  # shape: (N, 1)
-
-        # 坐标从 decode_imgsz 空间还原到 _STD_VIDEO_SIZE 空间
-        xyxy = xyxy * coord_scale
-        xywh = xywh * coord_scale
-
-        # 批量构建字典列表
-        note_geometry_list = [
-            Note_Geometry(
-                frame=frame_number,
-                note_type=map_model_class_to_note_type(model_name, int(raw_cls[i])),
-                note_variant=NoteVariant.NORMAL, # 默认 normal
-                conf=float(conf[i]),
-                x1=float(xyxy[i, 0]),  # 左上角x
-                y1=float(xyxy[i, 1]),  # 左上角y
-                x2=float(xyxy[i, 2]),  # 右上角x
-                y2=float(xyxy[i, 1]),  # 右上角y
-                x3=float(xyxy[i, 2]),  # 右下角x
-                y3=float(xyxy[i, 3]),  # 右下角y
-                x4=float(xyxy[i, 0]),  # 左下角x
-                y4=float(xyxy[i, 3]),  # 左下角y
-                cx=float(xywh[i, 0]),
-                cy=float(xywh[i, 1]),
-                w=float(xywh[i, 2]),
-                h=float(xywh[i, 3]),
-                r=0.0
-            )
-            for i in range(len(boxes))
-        ]
-        return note_geometry_list
-    
-    else:
-
-        # 转换obb模型结果
-        if result.obb is None or len(result.obb) == 0:
-            return [] 
-        # 转换为numpy批量获取数据
-        obb = result.obb.cpu().numpy()
-        xyxyxyxy = obb.xyxyxyxy  # (N, 4, 2) -> N个框，每个框4个点，每个点(x,y)
-        xywhr = obb.xywhr        # (N, 5)    -> N个框，每个框(x_center, y_center, w, h, r)
-        conf = obb.conf          # (N, 1)
-        raw_cls = obb.cls        # (N, 1)
-
-        # 坐标从 decode_imgsz 空间还原到 _STD_VIDEO_SIZE 空间
-        xyxyxyxy = xyxyxyxy * coord_scale
-        xywhr[:, :4] = xywhr[:, :4] * coord_scale  # 旋转角 r 不缩放
-
-        # 批量构建字典列表
-        note_geometry_list = [
-            Note_Geometry(
-                frame=frame_number,
-                note_type=map_model_class_to_note_type(model_name, int(raw_cls[i])),
-                note_variant=NoteVariant.NORMAL, # 默认 normal
-                conf=float(conf[i]),
-                x1=float(xyxyxyxy[i, 0, 0]),  # 第1个点的x坐标
-                y1=float(xyxyxyxy[i, 0, 1]),  # 第1个点的y坐标
-                x2=float(xyxyxyxy[i, 1, 0]),  # 第2个点的x坐标
-                y2=float(xyxyxyxy[i, 1, 1]),  # 第2个点的y坐标
-                x3=float(xyxyxyxy[i, 2, 0]),  # 第3个点的x坐标
-                y3=float(xyxyxyxy[i, 2, 1]),  # 第3个点的y坐标
-                x4=float(xyxyxyxy[i, 3, 0]),  # 第4个点的x坐标
-                y4=float(xyxyxyxy[i, 3, 1]),  # 第4个点的y坐标
-                cx=float(xywhr[i, 0]),
-                cy=float(xywhr[i, 1]),
-                w=float(xywhr[i, 2]),
-                h=float(xywhr[i, 3]),
-                r=float(xywhr[i, 4]),         # rotation
-            )
-            for i in range(len(obb))
-        ]
-        return note_geometry_list
-
-
-# ---------------------------------------------------------------------------
-# 推理 worker (模块级函数, spawn pickle 友好)
-# ---------------------------------------------------------------------------
-
-def _infer_worker_target(model_path, task_name,
-                         batch_size, device,
-                         in_queue, results_queue, control_queue,
-                         progress_val, coord_scale, stop_event):
-    """模型推理 actor。
-
-    循环:
-    - 从 in_queue 取 batch (None 哨兵即 EOF)
-    - model.predict + 解析为 Note_Geometrys (帧序由 next_frame_idx 显式维护)
-    - results_queue.put((note_geometry, task_name))   ← 纯数据通道
-    - progress_val.value 推进
-
-    通道分离:
-    - results_queue: 只存推理数据 (Note_Geometry, task_name)
-    - control_queue: 只存控制信号 ("__done__"/"__error__")
-
-    异常: 捕获 BaseException (含 KeyboardInterrupt) 后把 traceback + 失败帧号
-    经 control_queue 转发为 ("__error__", task_name, tb_str, next_frame_idx),
-    再 raise 重抛以保留 exitcode 语义 (Python 异常→1, native 硬崩溃→负值, 后者走不到这里)。
-    正常退出: control_queue.put(("__done__", task_name))。
-    """
-    next_frame_idx = 0
-    try:
-        model = YOLO(model_path, task=task_name)
-        imgsz_val = get_imgsz(task_name)
-
-        while True:
-            if stop_event is not None and stop_event.is_set():
-                break
-            batch = in_queue.get()
-            if batch is _INFER_EOF:
-                break
-
-            results = model.predict(
-                source=batch,
-                batch=batch_size,
-                device=device,
-                imgsz=imgsz_val,
-                max_det=50,
-                verbose=False,
-                half=True,
-            )
-            for i, result in enumerate(results):
-                frame_number = next_frame_idx + i
-                note_geometrys = _parse_detections_to_note_geometrys(
-                    result, frame_number, task_name, coord_scale)
-                for ng in note_geometrys:
-                    results_queue.put((ng, task_name))
-                progress_val.value = frame_number + 1
-
-            next_frame_idx += len(batch)
-
-        control_queue.put(("__done__", task_name))
-    except BaseException:
-        # Python 异常 (含模型加载失败、predict 抛错、解析错误)。
-        # 转发 traceback + 当前 next_frame_idx (= 即将处理的 batch 起始帧),
-        # 便于父进程定位失败位置; 再 raise 让进程 exitcode 反映异常性质。
-        tb_str = traceback.format_exc()
-        try:
-            control_queue.put(("__error__", task_name, tb_str, next_frame_idx))
-        except Exception:
-            pass  # 父进程已死 / 队列管道断裂, 不再二次崩溃
-        raise
 
 
 # ---------------------------------------------------------------------------
@@ -207,8 +57,9 @@ class Inferencer:
 
     进程间协议 (通道分离):
     - in  (q_detect/q_obb) EOF : None
-    - out results_queue  数据  : (Note_Geometry, task_name)        ← 纯推理数据
-    - out control_queue  控制  : ("__done__", name) / ("__error__", name, tb_str, frame_idx)
+    - out results_queue        : (Note_Geometry, task_name)              ← 纯推理数据 (共享)
+    - out control_queue_*      : OpResult (ok(value=last_frame_idx) / err(error_msg, value=last_frame_idx))
+                                  每个 worker 各一条 control_queue, 队列身份即 worker 身份
     """
 
     @classmethod
@@ -237,23 +88,24 @@ class Inferencer:
             self._coord_scale = coord_scale
             self._q_detect = tmp.Queue(maxsize=_FRAME_QUEUE_CAP)
             self._q_obb = tmp.Queue(maxsize=_FRAME_QUEUE_CAP)
-            self._results_queue = tmp.Queue(maxsize=_RESULTS_QUEUE_CAP)   # 纯数据通道
-            self._control_queue = tmp.Queue()                             # 控制信号通道 (__done__/__error__)
+            self._results_queue = tmp.Queue(maxsize=_RESULTS_QUEUE_CAP)        # 纯数据通道 (共享)
+            self._control_queue_detect = tmp.Queue()                            # detect worker 控制信号
+            self._control_queue_obb = tmp.Queue()                               # obb worker 控制信号
             self._stop_event = tmp.Event()
             self._progress_detect = tmp.Value('i', 0)
             self._progress_obb = tmp.Value('i', 0)
 
             self._p_detect = tmp.Process(
-                target=_infer_worker_target,
+                target=_inference_worker_main,
                 args=(detect_model_path, 'detect', batch_size, device,
-                      self._q_detect, self._results_queue, self._control_queue,
+                      self._q_detect, self._results_queue, self._control_queue_detect,
                       self._progress_detect, coord_scale, self._stop_event),
                 daemon=True,
             )
             self._p_obb = tmp.Process(
-                target=_infer_worker_target,
+                target=_inference_worker_main,
                 args=(obb_model_path, 'obb', batch_size, device,
-                      self._q_obb, self._results_queue, self._control_queue,
+                      self._q_obb, self._results_queue, self._control_queue_obb,
                       self._progress_obb, coord_scale, self._stop_event),
                 daemon=True,
             )
@@ -298,7 +150,7 @@ class Inferencer:
 
     @property
     def errors(self) -> list:
-        """list[(name, tb_str, frame_idx)] — worker Python 异常列表。"""
+        """list[(name, error_msg, frame_idx)] — worker 失败列表 (仅失败者)。"""
         return self._errors
 
     @property
@@ -308,22 +160,16 @@ class Inferencer:
 
     # --- 内部: 派发 (数据/控制分离) -------------------------------------------
 
-    def _dispatch_control(self, item):
-        """处理一个 control_queue item, 更新状态机标志。
+    def _dispatch_control(self, name, op_result):
+        """处理一个 worker 的控制 OpResult, 更新状态机标志。
 
-        - ("__done__", name)  → 标记 worker 完成
-        - ("__error__", name, tb_str, frame_idx) → Python 异常, 标记 worker 死亡
+        - ok(value=last_frame_idx)  → 该 worker 正常结束
+        - err(error_msg, value=last_frame_idx) → 该 worker 失败, 记录错误
         """
-        if item[0] == "__done__":
-            _, name = item
-            self._mark_finished(name)
-            return
-        if item[0] == "__error__":
-            _, name, tb_str, frame_idx = item
-            self._errors.append((name, tb_str, frame_idx))
-            self._mark_finished(name)
+        self._mark_finished(name)
+        if not op_result.is_ok:
+            self._errors.append((name, op_result.error_msg, op_result.value))
             self._failed = True
-            return
 
     def _mark_finished(self, name):
         """标记一个 worker 已结束 (去重计数)。"""
@@ -334,19 +180,21 @@ class Inferencer:
     # --- 内部: 健康检查 (put_batch 与 get_results 共用) ----------------------
 
     def _check_health(self) -> bool:
-        """非阻塞排空 results_queue (数据) + control_queue (控制) + 进程存活兜底。
+        """非阻塞排空 results_queue (数据) + 两条 control_queue (控制) + 进程存活兜底。
 
         返回是否仍健康 (not _failed)。
 
-        进程存活兜底覆盖 native 硬崩溃 (worker 死了没来得及发 __error__);
-        Python 异常已由 __error__ 先行处理, 这里只是兜底。
+        进程存活兜底覆盖 native 硬崩溃 (worker 死了没来得及发 err);
+        Python 异常已由 err 先行处理, 这里只是兜底。
         """
         # 1. 排空数据队列 → 直接进 _pending_results (results_queue 只存数据)
         self._pending_results.extend(_drain_queue(self._results_queue))
 
-        # 2. 排空控制队列 → dispatch 控制 (done/error)
-        for item in _drain_queue(self._control_queue):
-            self._dispatch_control(item)
+        # 2. 排空两条控制队列 → dispatch (name 由队列身份决定)
+        for item in _drain_queue(self._control_queue_detect):
+            self._dispatch_control('detect', item)
+        for item in _drain_queue(self._control_queue_obb):
+            self._dispatch_control('obb', item)
 
         # 3. 进程存活兜底: worker 已死但未登记 → 判死亡
         for name, p in (('detect', self._p_detect), ('obb', self._p_obb)):
@@ -360,8 +208,8 @@ class Inferencer:
     def _first_failure_msg(self):
         """生成首个失败原因的简短消息 (供 put_batch/get_results 的 err)。"""
         if self._errors:
-            name, tb_str, frame_idx = self._errors[0]
-            return f"[inferencer] {name} error @ frame={frame_idx}:\n{tb_str}"
+            name, error_msg, frame_idx = self._errors[0]
+            return f"[inferencer] {name} failed @ frame={frame_idx}:\n{error_msg}"
         if self._exit_lines:
             return f"[inferencer] {self._exit_lines[0]}"
         return "[inferencer] unknown failure"
