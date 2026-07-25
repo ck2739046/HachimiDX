@@ -16,12 +16,6 @@ from ...schemas.op_result import OpResult, ok, err
 from .note_definition import *
 
 
-# 解码完成的帧，等待推理
-# 解码器在队列满时会阻塞
-_DECODE_FRAMES_QUEUE_CAP = 20
-# 推理完成的结果，等到主线程处理
-# 推理进程在队列满时会阻塞
-_INFERENCE_RESULTS_QUEUE_CAP = 1000
 
 
 
