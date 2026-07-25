@@ -11,29 +11,19 @@ from .note_definition import *
 
 _FRAME_QUEUE_CAP = 20         # 输入: 待推理的视频帧 queue 上限 (detect/obb 各一条)
 _RESULTS_QUEUE_CAP = 1000     # 输出: 推理结果 queue 上限
-_INFER_EOF = None             # 
-_PUT_TIMEOUT = 0.5            # tee put 单次超时 (周期检查 worker 健康)
-_WORKER_JOIN_TIMEOUT = 10.0   # actor Process join 超时
+_PUT_BATCH_TIMEOUT = 0.5
+_WORKER_EXIT_TIMEOUT = 10.0
 
 
-def format_exit_line(p, role):
-    """统一格式化 actor 死亡行: 打印原始 exitcode + win_code (仅负值还原 Windows NT 状态码)。
-
-    role: 显示前缀 (如 'detect' / 'obb')。
-    exitcode=None 表示进程刚启动/尚未生成; >0=Python sys.exit; <0=native 硬崩溃 (finally 不执行)。
-
-    win_code 还原: Python 负数 exitcode 实为 Windows NT 状态码的 int32 解释
-    (如 -1073741819 = 0xC0000005 access violation)。
-    直接用 exitcode & 0xFFFFFFFF 取无符号 32 位补码即可还原。
-    """
+def format_exit_line(p, model_name):
     exitcode = p.exitcode
     win_code = (exitcode & 0xFFFFFFFF) if exitcode is not None and exitcode < 0 else None
     win_str = f"0x{win_code:08X}" if win_code is not None else "N/A"
-    return f"[{role}] actor died, exitcode={exitcode} win_code={win_str}"
+    return f"{model_name} model inferencer died, exitcode={exitcode} win_code={win_str}"
 
 
 def _drain_queue(q):
-    """非阻塞排空队列, 返回所有移除项 (调用方可丢弃)。get_nowait 跑空即止。"""
+    """非阻塞排空队列"""
     items = []
     while True:
         try:
