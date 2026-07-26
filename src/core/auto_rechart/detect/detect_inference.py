@@ -1,4 +1,3 @@
-from ultralytics import YOLO
 import time
 import traceback
 import torch.multiprocessing as tmp
@@ -13,29 +12,12 @@ from .detect_inference_worker import inference_worker_main
 
 
 _FRAME_QUEUE_CAP = 20         # 输入: 待推理的视频帧 queue 上限 (detect/obb 各一条)
+
 _RESULTS_QUEUE_CAP = 1000     # 输出: 推理结果 queue 上限
 _PUT_BATCH_TIMEOUT = 0.5
 _WORKER_EXIT_TIMEOUT = 10.0
 
 
-
-def format_exit_line(p, model_name):
-    exitcode = p.exitcode
-    win_code = (exitcode & 0xFFFFFFFF) if exitcode is not None and exitcode < 0 else None
-    win_str = f"0x{win_code:08X}" if win_code is not None else "N/A"
-    return f"{model_name} model inferencer died, exitcode={exitcode} win_code={win_str}"
-
-
-
-def _drain_queue(q):
-    """非阻塞排空队列"""
-    items = []
-    while True:
-        try:
-            items.append(q.get_nowait())
-        except Empty:
-            break
-    return items
 
 
 
@@ -151,7 +133,7 @@ class Inferencer:
     - send_eof()              -> None
     - stop()                  -> None
 
-    只读属性: is_done, is_failed, progress, errors, exit_lines, status
+    只读属性: is_done, is_failed, progress, failures, status
     """
 
     def __init__(self, deps: _InferencerDeps):
@@ -175,114 +157,90 @@ class Inferencer:
                         'obb':    WorkerStatus.RUNNING,}
 
         self._class_force_closed = False  # 仅在用户主动关闭时为 True
-        self._errors = []                 # list[(name, error_msg, frame_idx)]
-        self._exit_lines = []             # list[str]  硬失败诊断行 (native 崩溃 / 队列断裂)
-        self._pending_results = []        # list[(Note_Geometry, task_name)]  get_results 缓冲
+        self._failures = []               # 失败事件 - list[OpResult]
+        self._pending_results = []        # get_results 缓冲 - list[(Note_Geometry, task_name)]
 
 
 
-    @property
-    def is_done(self) -> bool:
-        """两个 worker 是否都已结束 (无论成功/失败)。"""
-        return all(s != WorkerStatus.RUNNING for s in self._status.values())
 
-    @property
-    def is_failed(self) -> bool:
-        """是否发生过任何 worker 报错/判死。"""
-        return WorkerStatus.FAILED in self._status.values()
-
-    @property
-    def status(self) -> dict:
-        """dict[str, WorkerStatus] 副本 — {'detect': ..., 'obb': ...}, 仅用于观察/调试。"""
-        return dict(self._status)
 
     @property
     def progress(self) -> tuple:
-        """(detect_done_frames, obb_done_frames), 仅用于打印进度。"""
+        """tuple[detect_done_frames, obb_done_frames]"""
         return (self._progress_ref_detect.value, self._progress_ref_obb.value)
 
     @property
-    def errors(self) -> list:
-        """list[(name, error_msg, frame_idx)] — worker 失败列表 (仅失败者)。"""
-        return self._errors
+    def failures(self) -> list:
+        """list[OpResult] — 失败事件"""
+        return self._failures
 
-    @property
-    def exit_lines(self) -> list:
-        """list[str] — 硬失败诊断行 (format_exit_line 输出 / 队列断裂)。"""
-        return self._exit_lines
 
-    # --- 内部: 派发 (数据/控制分离) -------------------------------------------
 
-    def _dispatch_control(self, name, op_result):
-        """处理一个 worker 的控制 OpResult, 更新状态机。
 
-        - ok(value=last_frame_idx)  → 该 worker 正常结束 → DONE
-        - err(error_msg, value=last_frame_idx) → 该 worker 失败 → FAILED, 记录错误
 
-        sticky: 已进入终态的 worker 收到重复派发直接忽略 (不重复 append _errors)。
+
+    def _set_status(self, name, status):
+        if self._status[name] == WorkerStatus.RUNNING:
+            self._status[name] = status
+
+
+    def _dispatch_control_queue_result(self, name, op_result):
+        """
+        处理 control queue 中的 OpResult, 更新 worker 状态机
+        - ok()  → 该 worker 正常结束 → DONE
+        - err() → 该 worker 失败     → FAILED
         """
         if self._status[name] != WorkerStatus.RUNNING:
             return
         if op_result.is_ok:
             self._set_status(name, WorkerStatus.DONE)
         else:
-            self._errors.append((name, op_result.error_msg, op_result.value))
+            self._failures.append(op_result)
             self._set_status(name, WorkerStatus.FAILED)
 
-    def _set_status(self, name, status):
-        """更新某 worker 状态 (sticky: 仅 RUNNING 可转 DONE/FAILED, 终态不可回退)。
-
-        等价原 _mark_finished 的去重计数语义: 终态下重复调用为 no-op,
-        也防止 _check_health 兜底 / _dispatch_control 重复 append _errors / _exit_lines。
-        """
-        if self._status[name] == WorkerStatus.RUNNING:
-            self._status[name] = status
-
-    # --- 内部: 健康检查 (put_batch 与 get_results 共用) ----------------------
 
     def _check_health(self) -> bool:
-        """非阻塞排空 output_queue (数据) + 两条 control_queue (控制) + 进程存活兜底。
-
-        返回是否仍健康 (not is_failed)。
-
-        进程存活兜底覆盖 native 硬崩溃 (worker 死了没来得及发 err);
-        Python 异常已由 err 先行处理, 这里只是兜底。
         """
-        # 1. 排空数据队列 → 直接进 _pending_results (output_queue 只存数据)
+        检查 inferencer 健康状态, 处理控制队列, 更新状态机
+        返回:
+            True  — 无 worker failed (允许done/running)
+            False — 有 worker failed
+        """
+        # 1. 排空输出队列，存进 _pending_results
         self._pending_results.extend(_drain_queue(self._output_queue))
 
-        # 2. 排空两条控制队列 → dispatch (name 由队列身份决定)
+        # 2. 排空两条控制队列 → dispatch result
         for item in _drain_queue(self._control_queue_detect):
-            self._dispatch_control('detect', item)
+            self._dispatch_control_queue_result('detect', item)
         for item in _drain_queue(self._control_queue_obb):
-            self._dispatch_control('obb', item)
+            self._dispatch_control_queue_result('obb', item)
 
-        # 3. 进程存活兜底: worker 已死但未登记 → 判死亡
+        # 3. 检查进程是否存活
         for name, p in (('detect', self._process_detect), ('obb', self._process_obb)):
-            if self._status[name] == WorkerStatus.RUNNING and not p.is_alive():
-                self._exit_lines.append(format_exit_line(p, name))
+            status_is_running = bool(self._status[name] == WorkerStatus.RUNNING)
+            if status_is_running and not p.is_alive():
+                self._failures.append(err(format_exit_line(p, name)))
                 self._set_status(name, WorkerStatus.FAILED)
 
-        return not self.is_failed
+        is_failed = any(s == WorkerStatus.FAILED for s in self._status.values())
+        return not is_failed
+
+
 
     def _first_failure_msg(self):
         """生成首个失败原因的简短消息 (供 put_batch/get_results 的 err)。"""
-        if self._errors:
-            name, error_msg, frame_idx = self._errors[0]
-            return f"[inferencer] {name} failed @ frame={frame_idx}:\n{error_msg}"
-        if self._exit_lines:
-            return f"[inferencer] {self._exit_lines[0]}"
+        if self._failures:
+            return f"[inferencer] {self._failures[0].error_msg}"
         return "[inferencer] unknown failure"
 
     # --- 对 main 的公开 API --------------------------------------------------
 
-    def put_batch(self, batch) -> OpResult:
-        """tee batch 到 detect/obb 两条 input_queue。生产阶段 worker 报错经此返回 err。
 
-        Returns:
-            ok()              — tee 成功
-            err(...)          — worker 已报错/判死, 或 stop_event 已触发
-        """
+
+
+    def put_batch(self, batch) -> OpResult:
+        """tee batch 到 detect/obb 两条 input_queue"""
+
         if self._class_force_closed:
             return err("[inferencer] put_batch: already closed.")
         if not self._check_health():
@@ -304,8 +262,8 @@ class Inferencer:
                 except Exception as e:
                     # 队列管道断裂 (worker 已死/被 terminate) → 无法归属到具体 worker,
                     # 将所有仍在 RUNNING 的 worker 判 FAILED 并记录诊断行
-                    msg = f"put_batch: queue error: {e}"
-                    self._exit_lines.append(msg)
+                    msg = f"put_batch [inferencer]: queue error: {e}"
+                    self._failures.append(err(msg, error_raw=e))
                     for n in self._status:
                         self._set_status(n, WorkerStatus.FAILED)
                     return err(f"[inferencer] {msg}", error_raw=e)
@@ -369,3 +327,24 @@ class Inferencer:
         for p in (self._process_detect, self._process_obb):
             if p is not None:
                 p.join(timeout=_WORKER_EXIT_TIMEOUT)
+
+
+
+
+
+def format_exit_line(p, model_name):
+    exitcode = p.exitcode
+    win_code = (exitcode & 0xFFFFFFFF) if exitcode is not None and exitcode < 0 else None
+    win_str = f"0x{win_code:08X}" if win_code is not None else "N/A"
+    return f"{model_name} model inferencer died, exitcode={exitcode} win_code={win_str}"
+
+
+def _drain_queue(q):
+    """非阻塞排空队列"""
+    items = []
+    while True:
+        try:
+            items.append(q.get_nowait())
+        except Empty:
+            break
+    return items

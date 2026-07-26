@@ -1,3 +1,10 @@
+from ultralytics import YOLO
+import traceback
+
+from ...schemas.op_result import OpResult, ok, err
+from .note_definition import *
+
+
 
 
 def inference_worker_main(model_path, task_name, batch_size, inference_device,
