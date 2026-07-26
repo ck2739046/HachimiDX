@@ -14,6 +14,126 @@ from dataclasses import dataclass, field
 
 from ...schemas.op_result import OpResult, ok, err
 from .note_definition import *
+from .detect_decode import Decoder
+from .detect_inference import create_inferencer
+
+
+
+
+
+def main(std_video_path,
+         total_frames,
+         batch_detect, inference_device,
+         detect_model_path, obb_model_path
+        ) -> OpResult:
+    """
+    检测模块主入口
+
+    流程: Decoder 共享解码 → Inferencer (detect/obb 双 worker) 推理
+          → 边喂边收 → send_eof → 收尾 drain → 后处理 → 保存 detect_result.txt
+    """
+    decoder = None
+    inferencer = None
+    raw_results = []
+    try:
+        start_time = time.time()
+        print("Start detection...")
+
+        # 1. 前置计算: decode_imgsz + coord_scale
+        #    decoder 会把帧 resize 到 decode_imgsz
+        #    worker 解析时乘 coord_scale 还原到原始尺寸
+        decode_imgsz = get_imgsz('detect')
+        cap = cv2.VideoCapture(str(std_video_path))
+        std_video_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+        cap.release()
+        if not std_video_width or std_video_width <= 0:
+            return err(f"[detect] 无法读取视频宽度: {std_video_path}")
+        coord_scale = std_video_width / decode_imgsz
+
+        # 2. 构造 Decoder
+        decoder = Decoder(str(std_video_path), decode_imgsz, batch_detect)
+
+        # 3. 构造 Inferencer
+        create_r = create_inferencer(detect_model_path, obb_model_path,
+                                     batch_detect, inference_device, coord_scale)
+        if not create_r.is_ok:
+            return err("[detect] create_inferencer 失败", inner=create_r)
+        inferencer = create_r.value
+
+
+
+        # 4. 主循环: 从 decoder 取帧, 给 inferencer 喂帧, 再从 inferencer 取结果
+        while True:
+            batch_r = decoder.get_next_batch()
+            if not batch_r.is_ok:
+                return err("[detect.main.loop1] decoder.get_next_batch 失败", inner=batch_r)
+            if batch_r.value is None:
+                break  # 解码 EOF
+
+            put_r = inferencer.put_batch(batch_r.value)
+            if not put_r.is_ok:
+                return err("[detect.main.loop1] inferencer.put_batch 失败", inner=put_r)
+
+            get_r = inferencer.get_results()
+            if not get_r.is_ok:
+                return err("[detect.main.loop1] inferencer.get_results 失败", inner=get_r)
+            raw_results.extend(get_r.value)
+
+            _print_progress(inferencer.progress, total_frames)
+            time.sleep(0.05)
+
+        # 5. 解码完成了, 通知 worker 不再有新输入
+        eof_r = inferencer.send_eof()
+        if not eof_r.is_ok:
+            return err("[detect.main] inferencer.send_eof 失败", inner=eof_r)
+
+
+
+        # 6. 收尾循环: 等待 inferencer 完成剩余的推理
+        while not inferencer.is_done:
+            get_r = inferencer.get_results()
+            if not get_r.is_ok:
+                return err("[detect.main.loop2] inferencer.get_results 失败", inner=get_r)
+            raw_results.extend(get_r.value)
+            _print_progress(inferencer.progress, total_frames)
+            time.sleep(0.05)
+
+        # 7. 再排空一次残留
+        get_r = inferencer.get_results()
+        if get_r.is_ok:
+            raw_results.extend(get_r.value)
+
+        _print_progress(inferencer.progress, total_frames)
+        print()  # 换行跳出 \r 行
+
+
+
+        # 8. 后处理 (prefilter + NMS) + 保存
+        final_results = _postprocess_results(raw_results, std_video_path)
+        _save_detect_results(final_results, std_video_path.parent)
+
+        print(f"检测模块完成, 耗时{time.time() - start_time:.1f}s")
+        return ok()
+
+    except KeyboardInterrupt:
+        print("\n[detect] 中断")
+        return err("[detect.main] KeyboardInterrupt")
+    except Exception as e:
+        print(traceback.format_exc())
+        return err("[detect.main] unexpected error", error_raw=e)
+    finally:
+        if inferencer is not None:
+            inferencer.stop()
+        if decoder is not None:
+            decoder.close()
+
+
+
+def _print_progress(progress, total_frames):
+    pd, po = progress
+    print(f"\rdetect {pd}/{total_frames}  obb {po}/{total_frames}",
+          end="    ", flush=True)
+
 
 
 

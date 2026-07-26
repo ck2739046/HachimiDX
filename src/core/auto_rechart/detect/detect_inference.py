@@ -129,7 +129,7 @@ class Inferencer:
     - send_eof()              -> OpResult[None]  (失败时调用方需自行 stop())
     - stop()                  -> None
 
-    只读属性: progress
+    只读属性: progress, is_done
     """
 
     def __init__(self, deps: _InferencerDeps):
@@ -164,6 +164,12 @@ class Inferencer:
     def progress(self) -> tuple:
         """tuple[detect_done_frames, obb_done_frames]"""
         return (self._progress_ref_detect.value, self._progress_ref_obb.value)
+
+
+    @property
+    def is_done(self) -> bool:
+        """两个 worker 是否都已离开 RUNNING (即 DONE 或 FAILED)"""
+        return all(s != WorkerStatus.RUNNING for s in self._status.values())
 
 
 
@@ -273,7 +279,8 @@ class Inferencer:
 
 
 
-    def send_eof(self) -> OpResult:
+
+    def send_eof(self, timeout: float = 10.0) -> OpResult:
         """
         通知 worker 不再有新的输入帧
         失败时返回 err(), 调用方应该自行调用 stop()
@@ -284,8 +291,6 @@ class Inferencer:
         if not self._check_workers_health():
             inner_err = _build_chain_OpResult(self._failures)
             return err("[inferencer] send_eof: health check failed.", inner=inner_err)
-
-        timeout = 5.0  # 5 秒内尝试把 EOF 投入每条 input_queue
 
         for q in (self._input_queue_detect, self._input_queue_obb):
             deadline = time.monotonic() + timeout
