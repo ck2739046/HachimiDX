@@ -14,13 +14,8 @@ from .detect_inference_worker import inference_worker_main
 _FRAME_QUEUE_CAP = 20         # 输入: 待推理的视频帧 queue 上限 (detect/obb 各一条)
 
 _RESULTS_QUEUE_CAP = 1000     # 输出: 推理结果 queue 上限
-_PUT_BATCH_TIMEOUT = 0.5
+_PUT_TO_INPUT_QUEUE_TIMEOUT = 0.1
 _WORKER_EXIT_TIMEOUT = 10.0
-
-
-
-
-
 
 
 
@@ -129,11 +124,11 @@ class Inferencer:
     api:
     - create_inferencer(...)  -> OpResult[Inferencer]  (模块级工厂, 非本类方法)
     - put_batch(batch)        -> OpResult[None]
-    - get_results(timeout=0)  -> OpResult[List[Tuple[Note_Geometry, str]]]
+    - get_results()           -> OpResult[List[Tuple[Note_Geometry, str]]]
     - send_eof()              -> None
     - stop()                  -> None
 
-    只读属性: is_done, is_failed, progress, failures, status
+    只读属性: progress
     """
 
     def __init__(self, deps: _InferencerDeps):
@@ -157,22 +152,17 @@ class Inferencer:
                         'obb':    WorkerStatus.RUNNING,}
 
         self._class_force_closed = False  # 仅在用户主动关闭时为 True
+                                          # 只会在 stop() 写入
         self._failures = []               # 失败事件 - list[OpResult]
+                                          # 只会在 check_health() 写入
         self._pending_results = []        # get_results 缓冲 - list[(Note_Geometry, task_name)]
-
-
-
+                                          # 只会在 get_results() 写入/清空
 
 
     @property
     def progress(self) -> tuple:
         """tuple[detect_done_frames, obb_done_frames]"""
         return (self._progress_ref_detect.value, self._progress_ref_obb.value)
-
-    @property
-    def failures(self) -> list:
-        """list[OpResult] — 失败事件"""
-        return self._failures
 
 
 
@@ -199,27 +189,24 @@ class Inferencer:
             self._set_status(name, WorkerStatus.FAILED)
 
 
-    def _check_health(self) -> bool:
+    def _check_workers_health(self) -> bool:
         """
-        检查 inferencer 健康状态, 处理控制队列, 更新状态机
+        检查 inference workers 健康状态, 处理控制队列, 更新状态机
         返回:
             True  — 无 worker failed (允许done/running)
             False — 有 worker failed
         """
-        # 1. 排空输出队列，存进 _pending_results
-        self._pending_results.extend(_drain_queue(self._output_queue))
-
-        # 2. 排空两条控制队列 → dispatch result
+        # 1. 排空两条控制队列 → dispatch result
         for item in _drain_queue(self._control_queue_detect):
             self._dispatch_control_queue_result('detect', item)
         for item in _drain_queue(self._control_queue_obb):
             self._dispatch_control_queue_result('obb', item)
 
-        # 3. 检查进程是否存活
+        # 2. 检查进程是否存活
         for name, p in (('detect', self._process_detect), ('obb', self._process_obb)):
             status_is_running = bool(self._status[name] == WorkerStatus.RUNNING)
             if status_is_running and not p.is_alive():
-                self._failures.append(err(format_exit_line(p, name)))
+                self._failures.append(err(_format_exit_line(p, name)))
                 self._set_status(name, WorkerStatus.FAILED)
 
         is_failed = any(s == WorkerStatus.FAILED for s in self._status.values())
@@ -227,13 +214,6 @@ class Inferencer:
 
 
 
-    def _first_failure_msg(self):
-        """生成首个失败原因的简短消息 (供 put_batch/get_results 的 err)。"""
-        if self._failures:
-            return f"[inferencer] {self._failures[0].error_msg}"
-        return "[inferencer] unknown failure"
-
-    # --- 对 main 的公开 API --------------------------------------------------
 
 
 
@@ -243,80 +223,78 @@ class Inferencer:
 
         if self._class_force_closed:
             return err("[inferencer] put_batch: already closed.")
-        if not self._check_health():
-            return err(self._first_failure_msg())
+        if not self._check_workers_health():
+            inner_err = _build_chain_OpResult(self._failures)
+            return err("[inferencer] put_batch: health check failed.", inner=inner_err)
 
-        # 内部 tee: 把 batch 投到两条 input_queue, 每条带 _PUT_BATCH_TIMEOUT 重试
-        # 仅在 Full 重试时周期性 _check_health (避免每次 put 都排空的开销)
+        # 内部 tee: 把 batch 投到两条 input_queue
         for q in (self._input_queue_detect, self._input_queue_obb):
             while True:
                 try:
-                    q.put(batch, block=True, timeout=_PUT_BATCH_TIMEOUT)
+                    q.put(batch, block=True, timeout=_PUT_TO_INPUT_QUEUE_TIMEOUT)
                     break
                 except Full:
-                    if self._stop_event.is_set():
-                        return err("[inferencer] put_batch: stop_event set.")
-                    if not self._check_health():
-                        return err(self._first_failure_msg())
+                    # 队列满了, 检查健康状态再重试
+                    if not self._check_workers_health():
+                        inner_err = _build_chain_OpResult(self._failures)
+                        return err("[inferencer] put_batch: health check failed.", inner=inner_err)
                     continue
                 except Exception as e:
-                    # 队列管道断裂 (worker 已死/被 terminate) → 无法归属到具体 worker,
-                    # 将所有仍在 RUNNING 的 worker 判 FAILED 并记录诊断行
-                    msg = f"put_batch [inferencer]: queue error: {e}"
-                    self._failures.append(err(msg, error_raw=e))
+                    # 其他异常
                     for n in self._status:
                         self._set_status(n, WorkerStatus.FAILED)
-                    return err(f"[inferencer] {msg}", error_raw=e)
+                    inner_err = _build_chain_OpResult(self._failures)
+                    msg = f"[inferencer] put_batch: other error: {e}"
+                    return err(msg, inner=inner_err, error_raw=e)
+
         return ok()
 
-    def get_results(self, timeout=0.0) -> OpResult:
-        """收集 output_queue 中已就绪的推理结果。
 
-        Args:
-            timeout: 阻塞等待首个结果的超时 (秒)。0 = 非阻塞排空。
 
-        Returns:
-            ok(value=list)    — list[(Note_Geometry, task_name)], 可能为空
-            err(value=list)   — worker 报错/判死; value 仍带回已收集的部分结果
+    def get_results(self) -> OpResult:
+        """
+        收集 output_queue 中已就绪的推理结果
+        value = list[(Note_Geometry, task_name)] 可能为空
         """
         if self._class_force_closed:
-            return err("[inferencer] get_results: already closed.", value=None)
+            return err("[inferencer] get_results: already closed.")
+        if not self._check_workers_health():
+            inner_err = _build_chain_OpResult(self._failures)
+            return err("[inferencer] get_results: health check failed.", inner=inner_err)
 
-        if timeout > 0:
-            try:
-                item = self._output_queue.get(timeout=timeout)
-                self._pending_results.append(item)   # output_queue 只存数据
-            except Empty:
-                pass
-
-        healthy = self._check_health()
+        # 排空输出队列, 存进 _pending_results
+        self._pending_results.extend(_drain_queue(self._output_queue))
+        # 读取完毕后, 清空 _pending_results
         snapshot = self._pending_results
         self._pending_results = []
 
-        if not healthy:
-            return err(self._first_failure_msg(), value=snapshot)
         return ok(value=snapshot)
 
-    def send_eof(self):
-        """best-effort 向两条 input_queue 投 None (EOF)。worker 收到即正常退出。
 
-        void: 即使投递失败也不抛 (后续 get_results 的健康检查会兜底报错)。
-        stop_event 已触发时先排空队列避免永久阻塞。
-        """
+
+    def send_eof(self):
+        """通知 worker 不再有新的输入帧"""
+
+        timeout = 5.0  # 5秒内尝试把 EOF 投入两条 input_queue, 超时则放弃
+
         for q in (self._input_queue_detect, self._input_queue_obb):
-            deadline = time.monotonic() + 5.0
+            deadline = time.monotonic() + timeout
             while True:
                 if self._stop_event.is_set():
                     _drain_queue(q)
                 try:
-                    q.put(None, block=True, timeout=2.0)
+                    q.put(None, block=True, timeout=_PUT_TO_INPUT_QUEUE_TIMEOUT)
                     break
                 except Full:
                     if time.monotonic() > deadline:
                         break
+                except Exception:
+                    break
+
+
 
     def stop(self):
-        """幂等清理: stop_event.set() → 存活者 terminate() → join(timeout)。"""
+        """强制关闭推理"""
         if self._class_force_closed:
             return
         self._class_force_closed = True
@@ -332,7 +310,7 @@ class Inferencer:
 
 
 
-def format_exit_line(p, model_name):
+def _format_exit_line(p, model_name):
     exitcode = p.exitcode
     win_code = (exitcode & 0xFFFFFFFF) if exitcode is not None and exitcode < 0 else None
     win_str = f"0x{win_code:08X}" if win_code is not None else "N/A"
@@ -348,3 +326,22 @@ def _drain_queue(q):
         except Empty:
             break
     return items
+
+
+def _build_chain_OpResult(OpResult_list, value=None) -> OpResult:
+        """
+        将 failures 列表的多个 OpResult 构建为单个 OpResult
+
+        通过 inner 链式嵌套 _failures 全部 (正序):
+            failures[0].inner → failures[1].inner → ...
+        """
+        if not OpResult_list:
+            return err("no failures to chain", value=value)
+
+        root = OpResult_list[0]
+        root.value = value
+        cur = root
+        for nxt in OpResult_list[1:]:
+            cur.inner = nxt
+            cur = nxt
+        return root
