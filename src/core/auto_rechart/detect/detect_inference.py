@@ -225,7 +225,8 @@ class Inferencer:
 
 
 
-    def put_batch(self, batch) -> OpResult:
+
+    def put_batch(self, batch, timeout: float = 10.0) -> OpResult:
         """tee batch 到 detect/obb 两条 input_queue"""
 
         if self._class_force_closed:
@@ -235,6 +236,7 @@ class Inferencer:
             return err("[inferencer] put_batch: health check failed.", inner=inner_err)
 
         # 内部 tee: 把 batch 投到两条 input_queue
+        deadline = time.monotonic() + timeout
         for q in (self._input_queue_detect, self._input_queue_obb):
             while True:
                 try:
@@ -245,6 +247,10 @@ class Inferencer:
                     if not self._check_workers_health():
                         inner_err = _build_chain_OpResult(self._failures)
                         return err("[inferencer] put_batch: health check failed.", inner=inner_err)
+                    if time.monotonic() > deadline:
+                        # 超时
+                        inner_err = _build_chain_OpResult(self._failures)
+                        return err("[inferencer] put_batch: timeout putting batch", inner=inner_err)
                     continue
                 except Exception as e:
                     # 其他异常

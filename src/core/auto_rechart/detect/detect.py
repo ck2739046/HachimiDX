@@ -20,6 +20,9 @@ from .detect_inference import create_inferencer
 
 
 
+_PROGRESS_STALL_TIMEOUT = 10.0  # 如果 progress 连续 10s 无推进则报错
+
+
 
 def main(std_video_path,
          total_frames,
@@ -60,6 +63,9 @@ def main(std_video_path,
             return err("[detect] create_inferencer 失败", inner=create_r)
         inferencer = create_r.value
 
+        # 3. 构造 progress stall detector
+        stall = _Progress_Stall_Detector(_PROGRESS_STALL_TIMEOUT)
+
 
 
         # 4. 主循环: 从 decoder 取帧, 给 inferencer 喂帧, 再从 inferencer 取结果
@@ -79,26 +85,33 @@ def main(std_video_path,
                 return err("[detect.main.loop1] inferencer.get_results 失败", inner=get_r)
             raw_results.extend(get_r.value)
 
-            _print_progress(inferencer.progress, total_frames)
+            cur_progress = inferencer.progress
+            if stall.is_stall(cur_progress):
+                return err(f"[detect.main.loop1] progress 超过 {_PROGRESS_STALL_TIMEOUT}s 无推进, 可能是程序卡住了")
+            _print_progress(cur_progress, total_frames)
             time.sleep(0.05)
 
-        # 5. 解码完成了, 通知 worker 不再有新输入
+        # 解码完成, 通知 worker 不再有新输入
         eof_r = inferencer.send_eof()
         if not eof_r.is_ok:
             return err("[detect.main] inferencer.send_eof 失败", inner=eof_r)
 
 
 
-        # 6. 收尾循环: 等待 inferencer 完成剩余的推理
+        # 5. 收尾循环: 等待 inferencer 完成剩余的推理
         while not inferencer.is_done:
             get_r = inferencer.get_results()
             if not get_r.is_ok:
                 return err("[detect.main.loop2] inferencer.get_results 失败", inner=get_r)
             raw_results.extend(get_r.value)
-            _print_progress(inferencer.progress, total_frames)
+
+            cur_progress = inferencer.progress
+            if stall.is_stall(cur_progress):
+                return err(f"[detect.main.loop2] progress 超过 {_PROGRESS_STALL_TIMEOUT}s 无推进, 可能是程序卡住了")
+            _print_progress(cur_progress, total_frames)
             time.sleep(0.05)
 
-        # 7. 再排空一次残留
+        # 再排空一次残留
         get_r = inferencer.get_results()
         if get_r.is_ok:
             raw_results.extend(get_r.value)
@@ -108,7 +121,7 @@ def main(std_video_path,
 
 
 
-        # 8. 后处理 (prefilter + NMS) + 保存
+        # 6. 后处理 (prefilter + NMS) + 保存
         final_results = _postprocess_results(raw_results, std_video_path)
         _save_detect_results(final_results, std_video_path.parent)
 
@@ -133,6 +146,23 @@ def _print_progress(progress, total_frames):
     pd, po = progress
     print(f"\rdetect {pd}/{total_frames}  obb {po}/{total_frames}",
           end="    ", flush=True)
+
+
+
+class _Progress_Stall_Detector:
+    """跟踪 progress, 若超过 timeout 秒无任何变化则判定停滞"""
+
+    def __init__(self, timeout: float):
+        self.timeout = timeout
+        self._last = None
+        self._t = time.monotonic()
+
+    def is_stall(self, progress) -> bool:
+        if progress != self._last:
+            self._last = progress
+            self._t = time.monotonic()
+            return False
+        return time.monotonic() - self._t > self.timeout
 
 
 
