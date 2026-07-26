@@ -20,7 +20,7 @@ from .detect_inference import create_inferencer
 
 
 
-_PROGRESS_STALL_TIMEOUT = 10.0  # 如果 progress 连续 10s 无推进则报错
+_PROGRESS_STALL_TIMEOUT = 60.0  # 如果 progress 连续一段时间无推进则报错
 
 
 

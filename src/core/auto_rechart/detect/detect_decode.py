@@ -15,7 +15,7 @@ class Decoder:
     - close()
     """
 
-    _TIMEOUT = 5.0  # timeout for collecting a batch from workers
+    _TIMEOUT = 60.0  # timeout for collecting a batch from workers
 
     def __init__(self, std_video_path: str, imgsz: int, batch_size: int):
 

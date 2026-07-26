@@ -226,7 +226,7 @@ class Inferencer:
 
 
 
-    def put_batch(self, batch, timeout: float = 10.0) -> OpResult:
+    def put_batch(self, batch, timeout: float = 60.0) -> OpResult:
         """tee batch 到 detect/obb 两条 input_queue"""
 
         if self._class_force_closed:
@@ -286,7 +286,7 @@ class Inferencer:
 
 
 
-    def send_eof(self, timeout: float = 10.0) -> OpResult:
+    def send_eof(self, timeout: float = 60.0) -> OpResult:
         """
         通知 worker 不再有新的输入帧
         失败时返回 err(), 调用方应该自行调用 stop()
