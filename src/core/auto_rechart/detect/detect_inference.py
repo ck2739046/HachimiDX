@@ -8,12 +8,13 @@ from enum import Enum
 from ...schemas.op_result import OpResult, ok, err
 from .note_definition import *
 from .detect_inference_worker import inference_worker_main
+from src.services.watchdog import _kill_process_tree
 
 
 
 _FRAME_QUEUE_CAP = 20         # 输入: 待推理的视频帧 queue 上限 (detect/obb 各一条)
-
 _RESULTS_QUEUE_CAP = 1000     # 输出: 推理结果 queue 上限
+
 _PUT_TO_INPUT_QUEUE_TIMEOUT = 0.1
 _WORKER_EXIT_TIMEOUT = 10.0
 
@@ -125,7 +126,7 @@ class Inferencer:
     - create_inferencer(...)  -> OpResult[Inferencer]  (模块级工厂, 非本类方法)
     - put_batch(batch)        -> OpResult[None]
     - get_results()           -> OpResult[List[Tuple[Note_Geometry, str]]]
-    - send_eof()              -> None
+    - send_eof()              -> OpResult[None]  (失败时调用方需自行 stop())
     - stop()                  -> None
 
     只读属性: progress
@@ -272,10 +273,19 @@ class Inferencer:
 
 
 
-    def send_eof(self):
-        """通知 worker 不再有新的输入帧"""
+    def send_eof(self) -> OpResult:
+        """
+        通知 worker 不再有新的输入帧
+        失败时返回 err(), 调用方应该自行调用 stop()
+        """
 
-        timeout = 5.0  # 5秒内尝试把 EOF 投入两条 input_queue, 超时则放弃
+        if self._class_force_closed:
+            return err("[inferencer] send_eof: already closed.")
+        if not self._check_workers_health():
+            inner_err = _build_chain_OpResult(self._failures)
+            return err("[inferencer] send_eof: health check failed.", inner=inner_err)
+
+        timeout = 5.0  # 5 秒内尝试把 EOF 投入每条 input_queue
 
         for q in (self._input_queue_detect, self._input_queue_obb):
             deadline = time.monotonic() + timeout
@@ -287,9 +297,13 @@ class Inferencer:
                     break
                 except Full:
                     if time.monotonic() > deadline:
-                        break
-                except Exception:
-                    break
+                        # 超时
+                        return err("[inferencer] send_eof: timeout putting EOF")
+                except Exception as e:
+                    # 其他异常
+                    return err(f"[inferencer] send_eof: error putting EOF: {e}", error_raw=e)
+
+        return ok()
 
 
 
@@ -305,6 +319,9 @@ class Inferencer:
         for p in (self._process_detect, self._process_obb):
             if p is not None:
                 p.join(timeout=_WORKER_EXIT_TIMEOUT)
+                # join 超时后, 使用 psutil 强杀整棵进程树
+                if p.is_alive():
+                    _kill_process_tree(p.pid)   
 
 
 
