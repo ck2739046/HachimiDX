@@ -328,20 +328,29 @@ def _drain_queue(q):
     return items
 
 
-def _build_chain_OpResult(OpResult_list, value=None) -> OpResult:
-        """
-        将 failures 列表的多个 OpResult 构建为单个 OpResult
+def _build_chain_OpResult(OpResult_list) -> OpResult:
+    """
+    将 failures 列表的多个 OpResult 构建为单个 OpResult
 
-        通过 inner 链式嵌套 _failures 全部 (正序):
-            failures[0].inner → failures[1].inner → ...
-        """
-        if not OpResult_list:
-            return err("no failures to chain", value=value)
+    通过 inner 链式嵌套 _failures 全部 (正序):
+        failures[0].inner → failures[1].inner → ...
+    """
+    if not OpResult_list:
+        return err("no failures to chain")
 
-        root = OpResult_list[0]
-        root.value = value
-        cur = root
-        for nxt in OpResult_list[1:]:
-            cur.inner = nxt
-            cur = nxt
-        return root
+    def _copy_op_result(r: OpResult) -> OpResult:
+        return OpResult(
+            is_ok=r.is_ok,
+            source=r.source,
+            value=r.value,
+            error_msg=r.error_msg,
+            error_raw=r.error_raw,
+            inner=None,
+        )
+
+    root = _copy_op_result(OpResult_list[0])
+    cur = root
+    for next in OpResult_list[1:]:
+        cur.inner = _copy_op_result(next)
+        cur = cur.inner
+    return root
