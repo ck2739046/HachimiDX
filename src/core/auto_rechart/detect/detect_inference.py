@@ -210,11 +210,27 @@ class Inferencer:
             self._dispatch_control_queue_result('obb', item)
 
         # 2. 检查进程是否存活
-        for name, p in (('detect', self._process_detect), ('obb', self._process_obb)):
+        for name, p, control_q in (
+            ('detect', self._process_detect, self._control_queue_detect),
+            ('obb', self._process_obb, self._control_queue_obb),
+        ):
             status_is_running = bool(self._status[name] == WorkerStatus.RUNNING)
+            # 状态是 running 但实际进程挂了
+            # 可能1：进程异常退出, 没放 err() 到 control queue
+            # 可能2：进程放了 err() 但还没被 dispatch 到状态机
             if status_is_running and not p.is_alive():
-                self._failures.append(err(_format_exit_line(p, name)))
-                self._set_status(name, WorkerStatus.FAILED)
+                # 非阻塞尝试一次回收子进程
+                p.join(timeout=0)
+                # 考虑可能2, 尝试 dispatch queue 中的 err()
+                for item in _drain_queue(control_q):
+                    self._dispatch_control_queue_result(name, item)
+                # 仍是 running，考虑可能1
+                if self._status[name] == WorkerStatus.RUNNING:
+                    if p.exitcode == 0:
+                        self._set_status(name, WorkerStatus.DONE)
+                    else:
+                        self._failures.append(err(_format_exit_line(p, name)))
+                        self._set_status(name, WorkerStatus.FAILED)
 
         is_failed = any(s == WorkerStatus.FAILED for s in self._status.values())
         return not is_failed
