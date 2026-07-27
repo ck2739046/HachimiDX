@@ -70,7 +70,8 @@ class Decoder:
         self._force_closed = True
         self._eof = True
         self._failed = True
-        _shutdown_loader(self._loader)
+        _shutdown_loader(self._loader, self._iter)
+        self._iter = None
 
 
 
@@ -79,17 +80,17 @@ def _to_list(batch):
 
 
 
-def _shutdown_loader(loader):
+def _shutdown_loader(loader, iterator=None):
     """强制关闭 dataloader worker"""
 
     # 通过销毁 iterator 触发 dataloader 内部 _shutdown_workers 实现
     try:
-        it = getattr(loader, "_iterator", None)
+        it = iterator if iterator is not None else getattr(loader, "_iterator", None)
         if it is not None:
             shutdown = getattr(it, "_shutdown_workers", None)
             if shutdown is not None:
                 shutdown()
-            loader._iterator = None
+        loader._iterator = None
     except Exception as e:
         print(f"[decoder] _shutdown_loader failed: {e}")
 
