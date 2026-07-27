@@ -1,8 +1,15 @@
 from ultralytics import YOLO
+import time
 import traceback
+from queue import Full
 
 from ...schemas.op_result import OpResult, ok, err
 from .note_definition import *
+
+
+
+_PUT_TO_OUTPUT_QUEUE_TIMEOUT = 0.1
+_OUTPUT_QUEUE_STALL_TIMEOUT = 60.0
 
 
 
@@ -60,7 +67,24 @@ def inference_worker_main(model_path, task_name, batch_size, inference_device,
                 )
                 # 放入 output_queue
                 for note_geometry in note_geometrys:
-                    output_queue.put((note_geometry, task_name))
+                    deadline = time.monotonic() + _OUTPUT_QUEUE_STALL_TIMEOUT
+                    while True:
+                        if stop_event is not None and stop_event.is_set():
+                            return
+                        try:
+                            output_queue.put(
+                                (note_geometry, task_name),
+                                block=True,
+                                timeout=_PUT_TO_OUTPUT_QUEUE_TIMEOUT,
+                            )
+                            break
+                        except Full:
+                            if time.monotonic() > deadline:
+                                raise TimeoutError(
+                                    f"{task_name} output queue remained full for "
+                                    f"{_OUTPUT_QUEUE_STALL_TIMEOUT}s"
+                                )
+                            continue
                 # 更新进度
                 progress_ref.value = frame_number + 1
 
