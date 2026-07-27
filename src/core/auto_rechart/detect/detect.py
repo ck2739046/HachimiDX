@@ -63,8 +63,8 @@ def main(std_video_path,
             return err("[detect] create_inferencer 失败", inner=create_r)
         inferencer = create_r.value
 
-        # 3. 构造 progress stall detector
-        stall = _Progress_Stall_Detector(_PROGRESS_STALL_TIMEOUT)
+        # 3. 构造 progress monitor (打印进度 + 停滞检测)
+        monitor = _ProgressMonitor(total_frames)
 
 
 
@@ -85,10 +85,9 @@ def main(std_video_path,
                 return err("[detect.main.loop1] inferencer.get_results 失败", inner=get_r)
             raw_results.extend(get_r.value)
 
-            cur_progress = inferencer.progress
-            if stall.is_stall(cur_progress):
-                return err(f"[detect.main.loop1] progress 超过 {_PROGRESS_STALL_TIMEOUT}s 无推进, 可能是程序卡住了")
-            _print_progress(cur_progress, total_frames)
+            update_r = monitor.update(inferencer)
+            if not update_r.is_ok:
+                return err("[detect.main.loop1] progress monitor error", inner=update_r)
 
         # 解码完成, 通知 worker 不再有新输入
         eof_r = inferencer.send_eof()
@@ -104,10 +103,9 @@ def main(std_video_path,
                 return err("[detect.main.loop2] inferencer.get_results 失败", inner=get_r)
             raw_results.extend(get_r.value)
 
-            cur_progress = inferencer.progress
-            if stall.is_stall(cur_progress):
-                return err(f"[detect.main.loop2] progress 超过 {_PROGRESS_STALL_TIMEOUT}s 无推进, 可能是程序卡住了")
-            _print_progress(cur_progress, total_frames)
+            update_r = monitor.update(inferencer)
+            if not update_r.is_ok:
+                return err("[detect.main.loop2] progress monitor error", inner=update_r)
             time.sleep(0.01)
 
         # 再排空一次残留
@@ -115,7 +113,7 @@ def main(std_video_path,
         if get_r.is_ok:
             raw_results.extend(get_r.value)
 
-        _print_progress(inferencer.progress, total_frames)
+        _ = monitor.update(inferencer)  # 最终刷新一次进度显示 (忽略结果)
         print()  # 换行跳出 \r 行
 
 
@@ -141,27 +139,43 @@ def main(std_video_path,
 
 
 
-def _print_progress(progress, total_frames):
-    pd, po = progress
-    print(f"\rdetect {pd}/{total_frames}  obb {po}/{total_frames}",
-          end="    ", flush=True)
+class _ProgressMonitor:
+    """简易进度监控器: 进度打印 + 停滞检测"""
 
+    def __init__(self, total_frames: int,
+                 stall_timeout: float = _PROGRESS_STALL_TIMEOUT):
+        self._total_frames = total_frames
+        self._stall_timeout = stall_timeout
 
+        self._last_progress = None                 # 上次进度的数值, 用于停滞检测
+        self._last_change_time = time.monotonic()  # 上次进度变化的时刻, 用于停滞检测
 
-class _Progress_Stall_Detector:
-    """跟踪 progress, 若超过 timeout 秒无任何变化则判定停滞"""
+    def update(self, inferencer) -> OpResult:
+        # 1. 读取 progress
+        try:
+            pd, po = inferencer.progress
+        except Exception as e:
+            return err("Failed to get inferencer.progress", error_raw=e)
+        progress = (pd, po)
 
-    def __init__(self, timeout: float):
-        self.timeout = timeout
-        self._last = None
-        self._t = time.monotonic()
+        # 2. 停滞检测: progress 连续无变化超过 stall_timeout 即判定卡住
+        if progress != self._last_progress:
+            self._last_progress = progress
+            self._last_change_time = time.monotonic()
+        elif time.monotonic() - self._last_change_time > self._stall_timeout:
+            return err(f"进度超过 {self._stall_timeout}s 无推进, 可能程序卡住了")
 
-    def is_stall(self, progress) -> bool:
-        if progress != self._last:
-            self._last = progress
-            self._t = time.monotonic()
-            return False
-        return time.monotonic() - self._t > self.timeout
+        # 3. 打印进度
+        total = self._total_frames
+        pct_d = min(pd / total * 100, 100.0) if total else 0.0
+        pct_o = min(po / total * 100, 100.0) if total else 0.0
+        print("\r"
+              f"detect {pd}/{total} ({pct_d:.1f}%)"
+              " | "
+              f"obb {po}/{total} ({pct_o:.1f}%)",
+              end="    ", flush=True)
+
+        return ok()
 
 
 
