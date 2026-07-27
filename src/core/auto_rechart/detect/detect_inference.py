@@ -323,6 +323,9 @@ class Inferencer:
                     q.put(None, block=True, timeout=_PUT_TO_INPUT_QUEUE_TIMEOUT)
                     break
                 except Full:
+                    if not self._check_workers_health():
+                        inner_err = _build_chain_OpResult(self._failures)
+                        return err("[inferencer] send_eof: health check failed.", inner=inner_err)
                     if time.monotonic() > deadline:
                         # 超时
                         return err("[inferencer] send_eof: timeout putting EOF")
