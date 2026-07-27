@@ -89,7 +89,6 @@ def main(std_video_path,
             if stall.is_stall(cur_progress):
                 return err(f"[detect.main.loop1] progress 超过 {_PROGRESS_STALL_TIMEOUT}s 无推进, 可能是程序卡住了")
             _print_progress(cur_progress, total_frames)
-            time.sleep(0.05)
 
         # 解码完成, 通知 worker 不再有新输入
         eof_r = inferencer.send_eof()
@@ -109,7 +108,7 @@ def main(std_video_path,
             if stall.is_stall(cur_progress):
                 return err(f"[detect.main.loop2] progress 超过 {_PROGRESS_STALL_TIMEOUT}s 无推进, 可能是程序卡住了")
             _print_progress(cur_progress, total_frames)
-            time.sleep(0.05)
+            time.sleep(0.01)
 
         # 再排空一次残留
         get_r = inferencer.get_results()
