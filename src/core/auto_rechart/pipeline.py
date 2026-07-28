@@ -1,64 +1,100 @@
-"""
-轻量线程级生产者-消费者框架
-
-专注非业务代码:
-    线程拉起 / sentinel 协议 / 异常传播 / 资源清理钩子
-
-业务方继承 Producer / Consumer 实现 produce() / consume(),
-可选重写 on_start / on_cleanup; Pipeline.run() 编排一切
-
-设计要点:
-- producer 和 consumer 都是独立 daemon 线程, 主线程只编排不消费
-- sentinel 协议:
-      producer 结束必须 q.put(self.sentinel), 框架检测到后自动停 consumer
-- 异常策略 = stop_event 合作式 + 主线程排空兜底:
-    * 任一方崩溃 → error_box 记录 → stop.set()
-    * 主线程 poll 检测到 error → drain queue + 补投 sentinel,解除存活方阻塞
-    * 业务方应使用 _put_or_stop 才能在满队列上享受合作式中断
-- on_cleanup 无论正常/异常都恰好调用一次 (error=None 表示正常退出)
-"""
+"""轻量线程级生产者-消费者框架"""
 
 from __future__ import annotations
 
 import queue
 import threading
+import time
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any
 
+from ..schemas.op_result import OpResult, err, ok
 
-# Pipeline 内部默认哨兵:用模块级单例对象,避免与 None 这类合法业务 item 冲突
-_DEFAULT_SENTINEL = object()
 
 _PUT_TIMEOUT = 0.5          # _put_or_stop 单次 put 超时(周期检查 stop)
 _POLL_INTERVAL = 0.5        # 主线程 poll-join 间隔
 _ERROR_GRACE_TIMEOUT = 5.0  # 异常后给存活 worker 的退出宽限(秒)
 
 
+class WorkerStatus(Enum):
+    RUNNING = "running"
+    DONE = "done"
+    FAILED = "failed"
+
+
+class _MessageKind(Enum):
+    ITEM = "item"
+    DONE = "done"
+    FAILED = "failed"
+
+
+@dataclass(frozen=True, slots=True)
+class _Message:
+    kind: _MessageKind
+    value: Any = None
+
+
+class _RunState:
+    """单次运行的共享状态。"""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._status = {
+            "producer": WorkerStatus.RUNNING,
+            "consumer": WorkerStatus.RUNNING,
+        }
+        self._failures: list[OpResult[Any]] = []
+        self._cleanup_started: set[str] = set()
+
+    def set_status(self, role: str, status: WorkerStatus) -> None:
+        with self._lock:
+            if self._status[role] == WorkerStatus.RUNNING:
+                self._status[role] = status
+
+    def add_failure(self, role: str, failure: OpResult[Any]) -> None:
+        with self._lock:
+            self._failures.append(failure)
+            if role in self._status and self._status[role] == WorkerStatus.RUNNING:
+                self._status[role] = WorkerStatus.FAILED
+
+    def has_failure(self) -> bool:
+        with self._lock:
+            return bool(self._failures)
+
+    def first_failure(self) -> OpResult[Any] | None:
+        with self._lock:
+            return self._failures[0] if self._failures else None
+
+    def failures(self) -> list[OpResult[Any]]:
+        with self._lock:
+            return list(self._failures)
+
+    def statuses(self) -> dict[str, WorkerStatus]:
+        with self._lock:
+            return dict(self._status)
+
+    def begin_cleanup(self, role: str) -> bool:
+        with self._lock:
+            if role in self._cleanup_started:
+                return False
+            self._cleanup_started.add(role)
+            return True
+
+
 class Producer(ABC):
-    """
-    生产者基类。
-
-    子类实现 produce(), 在其中用 q.put 推数据,
-    结束前必须 q.put(self.sentinel) 通知 consumer 终止。
-    满队列场景下应使用 self._put_or_stop(q, item, stop) 而非裸 q.put,
-    以保证 stop_event 触发时能及时脱困。
-    """
-
-    # 由 Pipeline.run() 启动前注入; 业务方在 produce() 末尾 q.put(self.sentinel)
-    sentinel: Any = _DEFAULT_SENTINEL
+    """生产者基类。produce() 正常返回后，框架自动通知 consumer 结束。"""
 
     @abstractmethod
     def produce(self, q: "queue.Queue[Any]", stop: threading.Event, ctx: Any) -> None:
-        """业务循环。结束时必须 q.put(self.sentinel)"""
+        """生产业务数据；正常返回即可。"""
 
     def on_start(self, ctx: Any) -> None:
         """线程启动前调用一次(默认空)。打开 cap、加载模型可放此处或 __init__"""
 
-    def on_cleanup(self, ctx: Any, error: Optional[BaseException]) -> None:
-        """
-        无论正常/异常都恰好调用一次; error=None 表示正常退出。
-        典型用途: cap.release()、atexit.unregister、kill 子进程。
-        """
+    def on_cleanup(self, ctx: Any, error: OpResult[Any] | None) -> None:
+        """退出前调用一次；error=None 表示当前已知路径正常。"""
 
     @staticmethod
     def _put_or_stop(
@@ -75,23 +111,14 @@ class Producer(ABC):
             if stop.is_set():
                 return False
             try:
-                q.put(item, block=True, timeout=timeout)
+                q.put(_Message(_MessageKind.ITEM, item), block=True, timeout=timeout)
                 return True
             except queue.Full:
                 continue
 
 
 class Consumer(ABC):
-    """
-    消费者基类
-
-    子类实现 consume(item, ...) 处理单个 item; sentinel 由框架拦截,
-    不会传入 consume。可选重写 on_start / on_cleanup 管理资源句柄
-    (如 export 的 ffmpeg 子进程)。
-    """
-
-    #: 由 Pipeline.run() 启动前注入(仅用于身份比较,框架侧使用)
-    sentinel: Any = _DEFAULT_SENTINEL
+    """消费者基类。框架只会把业务 item 传给 consume()。"""
 
     @abstractmethod
     def consume(self, item: Any, stop: threading.Event, ctx: Any) -> None:
@@ -100,21 +127,12 @@ class Consumer(ABC):
     def on_start(self, ctx: Any) -> None:
         """线程启动前调用一次(默认空)"""
 
-    def on_cleanup(self, ctx: Any, error: Optional[BaseException]) -> None:
+    def on_cleanup(self, ctx: Any, error: OpResult[Any] | None) -> None:
         """无论正常/异常都恰好调用一次"""
 
 
 class Pipeline:
-    """
-    编排一个 producer 线程 + 一个 consumer 线程
-
-    典型用法::
-
-        producer = MyProducer(...)
-        consumer = MyConsumer(..., results=[])
-        Pipeline(producer, consumer, queue_size=2).run()
-        # run() 返回后,consumer.results 已填好
-    """
+    """编排一个 producer 线程和一个 consumer 线程。"""
 
     def __init__(
         self,
@@ -122,7 +140,6 @@ class Pipeline:
         consumer: Consumer,
         *,
         queue_size: int = 2,
-        sentinel: Any = None,
         ctx: Any = None,
         poll_interval: float = _POLL_INTERVAL,
         error_grace_timeout: float = _ERROR_GRACE_TIMEOUT,
@@ -133,133 +150,288 @@ class Pipeline:
         self.ctx = ctx
         self.poll_interval = poll_interval
         self.error_grace_timeout = error_grace_timeout
-        # sentinel=None 时回落到模块默认哨兵对象,避免与 None 合法 item 冲突
-        self.sentinel = _DEFAULT_SENTINEL if sentinel is None else sentinel
+        self._worker_status = {
+            "producer": WorkerStatus.RUNNING,
+            "consumer": WorkerStatus.RUNNING,
+        }
 
-    def run(self) -> None:
-        """
-        启动 producer/consumer 线程,阻塞直到双方都退出。
+    @property
+    def worker_status(self) -> dict[str, WorkerStatus]:
+        """最近一次 run 的 worker 状态快照。"""
+        return dict(self._worker_status)
 
-        正常:producer 发 sentinel,consumer 收到后退出,run() 正常返回。
-        异常:任一方崩溃 → 解除另一方阻塞 → 重新抛出第一个异常(保留 traceback)。
-        """
+    def run(self) -> OpResult[None]:
+        """启动并等待两个 worker；成功或错误链均通过 OpResult 返回。"""
+        validation_error = self._validate_config()
+        if validation_error is not None:
+            self._worker_status = {
+                "producer": WorkerStatus.FAILED,
+                "consumer": WorkerStatus.FAILED,
+            }
+            return validation_error
+
         q: "queue.Queue[Any]" = queue.Queue(maxsize=self.queue_size)
         stop = threading.Event()
-        error_box: list = []  # [(role, exc), ...]
-
-        # 注入 sentinel,业务方 produce() 内 q.put(self.sentinel) 即可
-        self.producer.sentinel = self.sentinel
-        self.consumer.sentinel = self.sentinel
+        state = _RunState()
+        started_roles: set[str] = set()
 
         producer_t = threading.Thread(
             target=self._run_producer,
-            args=(q, stop, error_box),
+            args=(q, stop, state),
             name="pipeline-producer",
             daemon=True,
         )
         consumer_t = threading.Thread(
             target=self._run_consumer,
-            args=(q, stop, error_box),
+            args=(q, stop, state),
             name="pipeline-consumer",
             daemon=True,
         )
-        producer_t.start()
-        consumer_t.start()
 
-        # 主线程 poll-join:正常路径无限等,异常路径主动解阻塞后 break
-        while producer_t.is_alive() or consumer_t.is_alive():
-            producer_t.join(timeout=self.poll_interval)
-            consumer_t.join(timeout=self.poll_interval)
-            if error_box:
+        try:
+            consumer_t.start()
+            started_roles.add("consumer")
+            producer_t.start()
+            started_roles.add("producer")
+
+            while producer_t.is_alive() or consumer_t.is_alive():
+                producer_t.join(timeout=self.poll_interval)
+                consumer_t.join(timeout=self.poll_interval)
+                if state.has_failure():
+                    stop.set()
+                    self._replace_with_terminal(
+                        q,
+                        _Message(_MessageKind.FAILED, state.first_failure()),
+                    )
+                    break
+        except BaseException as exc:
+            failure = err("[pipeline] coordinator failed", error_raw=exc)
+            state.add_failure("pipeline", failure)
+            stop.set()
+            self._replace_with_terminal(q, _Message(_MessageKind.FAILED, failure))
+        finally:
+            if state.has_failure():
                 stop.set()
-                self._drain(q)              # 解除 producer 在满队列 put 上的阻塞
-                self._try_put_sentinel(q)   # 补 sentinel 解除 consumer 在 get 上的阻塞
-                break
+                self._replace_with_terminal(
+                    q,
+                    _Message(_MessageKind.FAILED, state.first_failure()),
+                )
 
-        # 异常路径给存活方一个宽限期(正常路径 grace=None,无限等到结束)
-        grace = self.error_grace_timeout if error_box else None
-        producer_t.join(timeout=grace)
-        consumer_t.join(timeout=grace)
+            self._join_workers(producer_t, consumer_t, state)
 
-        if error_box:
-            _role, exc = error_box[0]
-            print(f"[{_role}] worker failed: {exc!r}")
-            raise exc
+            for role, worker in (
+                ("producer", self.producer),
+                ("consumer", self.consumer),
+            ):
+                if role not in started_roles:
+                    self._safe_cleanup(role, worker, state, state.first_failure())
+                    state.set_status(role, WorkerStatus.FAILED)
 
-    # ---- worker 包装(捕获异常 / 保证 on_cleanup / 记录 error) ----
+            self._worker_status = state.statuses()
+
+        failures = state.failures()
+        statuses = state.statuses()
+        if not failures and all(status == WorkerStatus.DONE for status in statuses.values()):
+            return ok()
+
+        if not failures:
+            failures.append(err(f"[pipeline] invalid final worker status: {statuses}"))
+        return err("[pipeline] failed", inner=_chain_op_results(failures))
 
     def _run_producer(
         self,
         q: "queue.Queue[Any]",
         stop: threading.Event,
-        error_box: list,
+        state: _RunState,
     ) -> None:
-        error: Optional[BaseException] = None
+        failure: OpResult[Any] | None = None
         try:
-            self.producer.on_start(self.ctx)
-            self.producer.produce(q, stop, self.ctx)
-        except BaseException as e:
-            error = e
-            error_box.append(("producer", e))
+            if stop.is_set():
+                failure = state.first_failure()
+            else:
+                self.producer.on_start(self.ctx)
+                self.producer.produce(q, stop, self.ctx)
+                if stop.is_set():
+                    failure = state.first_failure()
+        except BaseException as exc:
+            failure = err("[pipeline.producer] worker failed", error_raw=exc)
+            state.add_failure("producer", failure)
             stop.set()
-        finally:
-            self._safe_cleanup("producer", self.producer, error_box, error)
+
+        cleanup_failure = self._safe_cleanup(
+            "producer", self.producer, state, failure or state.first_failure()
+        )
+        failure = failure or cleanup_failure or state.first_failure()
+
+        if failure is not None or stop.is_set():
+            state.set_status("producer", WorkerStatus.FAILED)
+            self._replace_with_terminal(q, _Message(_MessageKind.FAILED, failure))
+            return
+
+        if self._put_message_or_stop(q, _Message(_MessageKind.DONE), stop):
+            state.set_status("producer", WorkerStatus.DONE)
+        else:
+            state.set_status("producer", WorkerStatus.FAILED)
 
     def _run_consumer(
         self,
         q: "queue.Queue[Any]",
         stop: threading.Event,
-        error_box: list,
+        state: _RunState,
     ) -> None:
-        error: Optional[BaseException] = None
+        failure: OpResult[Any] | None = None
         try:
-            self.consumer.on_start(self.ctx)
-            while not stop.is_set():
-                try:
-                    item = q.get(timeout=self.poll_interval)
-                except queue.Empty:
-                    continue
-                if item is self.sentinel:
-                    break
-                self.consumer.consume(item, stop, self.ctx)
-        except BaseException as e:
-            error = e
-            error_box.append(("consumer", e))
+            if stop.is_set():
+                failure = state.first_failure()
+            else:
+                self.consumer.on_start(self.ctx)
+                while True:
+                    if stop.is_set() and state.has_failure():
+                        failure = state.first_failure()
+                        break
+                    try:
+                        message = q.get(timeout=self.poll_interval)
+                    except queue.Empty:
+                        continue
+
+                    if not isinstance(message, _Message):
+                        raise RuntimeError("pipeline queue received an invalid message")
+                    if message.kind == _MessageKind.ITEM:
+                        self.consumer.consume(message.value, stop, self.ctx)
+                    elif message.kind == _MessageKind.DONE:
+                        break
+                    elif message.kind == _MessageKind.FAILED:
+                        failure = message.value or state.first_failure()
+                        stop.set()
+                        break
+        except BaseException as exc:
+            failure = err("[pipeline.consumer] worker failed", error_raw=exc)
+            state.add_failure("consumer", failure)
             stop.set()
-        finally:
-            self._safe_cleanup("consumer", self.consumer, error_box, error)
+
+        cleanup_failure = self._safe_cleanup(
+            "consumer", self.consumer, state, failure or state.first_failure()
+        )
+        failure = failure or cleanup_failure or state.first_failure()
+
+        if failure is not None or stop.is_set():
+            state.set_status("consumer", WorkerStatus.FAILED)
+        else:
+            state.set_status("consumer", WorkerStatus.DONE)
 
     def _safe_cleanup(
         self,
         role: str,
         worker: "Producer | Consumer",
-        error_box: list,
-        error: Optional[BaseException],
-    ) -> None:
-        """调用 on_cleanup;cleanup 自身抛异常也记入 error_box 不吞掉。"""
+        state: _RunState,
+        error: OpResult[Any] | None,
+    ) -> OpResult[Any] | None:
+        if not state.begin_cleanup(role):
+            return None
         try:
             worker.on_cleanup(self.ctx, error)
-        except BaseException as ce:
-            error_box.append((f"{role}_cleanup", ce))
+            return None
+        except BaseException as exc:
+            failure = err(f"[pipeline.{role}] cleanup failed", error_raw=exc)
+            state.add_failure(role, failure)
+            return failure
 
-    # ---- 队列操作辅助 ----
+    def _join_workers(
+        self,
+        producer_t: threading.Thread,
+        consumer_t: threading.Thread,
+        state: _RunState,
+    ) -> None:
+        if not state.has_failure():
+            producer_t.join()
+            consumer_t.join()
+            return
+
+        deadline = time.monotonic() + self.error_grace_timeout
+        for thread in (producer_t, consumer_t):
+            if thread.ident is None:
+                continue
+            remaining = max(0.0, deadline - time.monotonic())
+            thread.join(timeout=remaining)
+
+        alive = [
+            role
+            for role, thread in (("producer", producer_t), ("consumer", consumer_t))
+            if thread.ident is not None and thread.is_alive()
+        ]
+        if alive:
+            failure = err(
+                "[pipeline] worker stop timeout; daemon thread still alive: "
+                + ", ".join(alive)
+            )
+            state.add_failure("pipeline", failure)
+            for role in alive:
+                state.set_status(role, WorkerStatus.FAILED)
+
+    def _validate_config(self) -> OpResult[None] | None:
+        if not isinstance(self.queue_size, int) or self.queue_size <= 0:
+            return err(f"[pipeline] queue_size must be a positive integer: {self.queue_size!r}")
+        if not isinstance(self.poll_interval, (int, float)) or self.poll_interval <= 0:
+            return err(f"[pipeline] poll_interval must be positive: {self.poll_interval!r}")
+        if (
+            not isinstance(self.error_grace_timeout, (int, float))
+            or self.error_grace_timeout <= 0
+        ):
+            return err(
+                "[pipeline] error_grace_timeout must be positive: "
+                f"{self.error_grace_timeout!r}"
+            )
+        return None
 
     @staticmethod
-    def _drain(q: "queue.Queue[Any]") -> None:
-        """排空队列(解除 producer 在满队列 put 上的阻塞)"""
+    def _put_message_or_stop(
+        q: "queue.Queue[Any]",
+        message: _Message,
+        stop: threading.Event,
+    ) -> bool:
+        while not stop.is_set():
+            try:
+                q.put(message, block=True, timeout=_PUT_TIMEOUT)
+                return True
+            except queue.Full:
+                continue
+        return False
+
+    @staticmethod
+    def _replace_with_terminal(q: "queue.Queue[Any]", message: _Message) -> None:
+        """异常路径丢弃待处理 item，并尽力放入终止消息解除 consumer。"""
         while True:
             try:
                 q.get_nowait()
             except queue.Empty:
-                return
-
-    def _try_put_sentinel(self, q: "queue.Queue[Any]") -> None:
-        """尽力补投 sentinel, 解除 consumer 在 q.get 上的阻塞"""
+                break
         try:
-            q.put(self.sentinel, block=False)
+            q.put_nowait(message)
         except queue.Full:
-            self._drain(q)
-            try:
-                q.put(self.sentinel, block=False)
-            except queue.Full:
-                pass
+            pass
+
+
+def _clone_op_result(result: OpResult[Any]) -> OpResult[Any]:
+    return OpResult(
+        is_ok=result.is_ok,
+        source=result.source,
+        value=result.value,
+        error_msg=result.error_msg,
+        error_raw=result.error_raw,
+        inner=_clone_op_result(result.inner) if result.inner is not None else None,
+    )
+
+
+def _chain_op_results(results: list[OpResult[Any]]) -> OpResult[Any]:
+    if not results:
+        return err("[pipeline] no failure details")
+
+    root = _clone_op_result(results[0])
+    tail = root
+    while tail.inner is not None:
+        tail = tail.inner
+    for result in results[1:]:
+        tail.inner = _clone_op_result(result)
+        while tail.inner is not None:
+            tail = tail.inner
+    return root
