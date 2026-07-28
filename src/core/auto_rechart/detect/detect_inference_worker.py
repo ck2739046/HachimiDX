@@ -89,6 +89,7 @@ def inference_worker_main(model_path, task_name, batch_size, inference_device,
                 progress_ref.value = frame_number + 1
 
         # 正常结束
+        time.sleep(0.1)
         control_queue.put(ok())
 
     except BaseException as e:  # 使用 base exception 捕获所有异常
