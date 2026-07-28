@@ -197,6 +197,9 @@ def install():
     # 解决 pywin32 导入错误
     cmd = [sys.executable, str(ROOT / "python" / "Scripts" / "pywin32_postinstall.py"), "-install"]
     subprocess.run(cmd, capture_output=True) # 隐藏输出
+
+    # 结束
+    print(T.INSTALL_DONE)
     
 
 

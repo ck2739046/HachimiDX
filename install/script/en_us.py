@@ -1,6 +1,7 @@
 # HachimiDX Installer — English locale constants
 
 DEFAULTING_YES = "Defaulting to Yes."
+INSTALL_DONE = "\n\n-----\n\nHachimiDX installation completed\n"
 
 # ===== ask_language =====
 LANGUAGE_PROMPT = """

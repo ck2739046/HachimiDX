@@ -1,6 +1,7 @@
 # HachimiDX Installer — 简体中文本地化常量
 
 DEFAULTING_YES = "默认选择「是」。"
+INSTALL_DONE = "\n\n-----\n\nHachimiDX 安装完成\n"
 
 # ===== ask_language =====
 LANGUAGE_PROMPT = """
