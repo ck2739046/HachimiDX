@@ -94,8 +94,7 @@ def ok(value: Optional[T] = None) -> OpResult[T]:
 
 def err(error_msg: str = "", 
         error_raw: Any = None, 
-        inner: Optional[OpResult[Any]] = None,
-        value: Optional[Any] = None) -> OpResult[Any]:
+        inner: Optional[OpResult[Any]] = None) -> OpResult[Any]:
     """
     创建一个表示失败的 Result 对象。
 
@@ -103,7 +102,6 @@ def err(error_msg: str = "",
         error_msg (str): 错误信息（面向用户/日志）
         error_raw (any): 原始错误信息（存放 Exception, 字符串, 状态码等）
         inner (Optional[OpResult[Any]]): 内部嵌套的 OpResult
-        value (Optional[Any]): 与 ok(value) 对称
 
     Returns:
         OpResult[Any]: 表示失败的 Result 对象
@@ -113,8 +111,7 @@ def err(error_msg: str = "",
         source=_get_caller_context(),
         error_msg=error_msg,
         error_raw=_normalize_error_raw(error_raw),
-        inner=inner,
-        value=value
+        inner=inner
     )
 
 
