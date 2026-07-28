@@ -54,7 +54,7 @@ def main(std_video_path,
         coord_scale = std_video_width / decode_imgsz
 
         # 2. 构造 Decoder
-        decoder = Decoder(str(std_video_path), decode_imgsz, batch_detect)
+        decoder = Decoder(str(std_video_path), decode_imgsz, batch_detect, total_frames)
 
         # 3. 构造 Inferencer
         create_r = create_inferencer(detect_model_path, obb_model_path,

@@ -9,7 +9,7 @@ from ...schemas.op_result import OpResult, ok, err
 class Decoder:
     """
     api:
-    - __init__(std_video_path, imgsz, batch_size)
+    - __init__(std_video_path, imgsz, batch_size, total_frames)
     - get_next_batch() -> OpResult[List[(frame_idx, frame)]]
                           ok(value=None) 表示 eof 解码完毕
     - close()
@@ -17,9 +17,10 @@ class Decoder:
 
     _TIMEOUT = 60.0  # timeout for collecting a batch from workers
 
-    def __init__(self, std_video_path: str, imgsz: int, batch_size: int):
+    def __init__(self, std_video_path: str, imgsz: int, batch_size: int,
+                 total_frames: int):
 
-        dataset = _VideoFrameDataset(std_video_path, imgsz)
+        dataset = _VideoFrameDataset(std_video_path, imgsz, total_frames)
 
         self._loader = torch.utils.data.DataLoader(
             dataset,
@@ -98,10 +99,11 @@ def _shutdown_loader(loader, iterator=None):
 
 class _VideoFrameDataset(torch.utils.data.IterableDataset):
 
-    def __init__(self, std_video_path: str, imgsz: int):
+    def __init__(self, std_video_path: str, imgsz: int, total_frames: int):
         super().__init__()
         self._std_video_path = std_video_path
         self._imgsz = (imgsz, imgsz)
+        self._total_frames = total_frames
 
     def __iter__(self):
         cap = cv2.VideoCapture(self._std_video_path)
@@ -113,7 +115,12 @@ class _VideoFrameDataset(torch.utils.data.IterableDataset):
                 # 读取视频帧
                 ret, frame = cap.read()
                 if not ret:
-                    break  # 触发 StopIteration
+                    if frame_idx >= self._total_frames * 0.98:
+                        break  # 接近预期总帧数，视为正常 EOF
+                    raise RuntimeError(
+                        f"Video decoding stopped early at frame {frame_idx}; "
+                        f"expected at least {self._total_frames * 0.98:.2f} frames"
+                    )
 
                 # 此处提前 resize 好可以避免在推理内部 resize 从而加快推理速度
                 # 目前 detect/obb imgsz 相同所以能这么干
