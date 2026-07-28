@@ -1,13 +1,6 @@
 """Pipeline 框架单测。
 
-覆盖:
-1. 正常流程:producer 推 N 项 → consumer 全收到 → run 正常返回
-2. producer 崩:consumer 不卡死,run 重抛原异常
-3. consumer 崩:producer 在满队列上能脱困(用 _put_or_stop),run 重抛
-4. on_cleanup 正常路径:恰好调用一次,error=None
-5. on_cleanup 异常路径:恰好调用一次,error 是原异常
-6. 线程生命周期:run 返回后两 worker 线程均 is_alive()==False
-7. 满队列恢复:慢 consumer + 快 producer + queue_size=2,仍能全量送达
+覆盖正常流程、OpResult 错误链、背压解除、cleanup 和线程生命周期。
 
 运行::
 
@@ -29,13 +22,29 @@ _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from src.core.auto_rechart.pipeline import Consumer, Pipeline, Producer  # noqa: E402
+from src.core.auto_rechart.pipeline import (  # noqa: E402
+    Consumer,
+    Pipeline,
+    Producer,
+    WorkerStatus,
+)
+
+
+def _result_text(result):
+    parts = []
+    current = result
+    while current is not None:
+        parts.append(current.error_msg)
+        if current.error_raw:
+            parts.append(str(current.error_raw))
+        current = current.inner
+    return "\n".join(parts)
 
 
 # ---- 测试用业务桩 ----
 
 class _ListProducer(Producer):
-    """把一个列表依次入队,结束发 sentinel。"""
+    """把一个列表依次入队，正常返回后由框架发送 DONE。"""
 
     def __init__(self, items):
         self.items = list(items)
@@ -44,7 +53,6 @@ class _ListProducer(Producer):
         for it in self.items:
             if not self._put_or_stop(q, it, stop):
                 return
-        q.put(self.sentinel)
 
 
 class _ListConsumer(Consumer):
@@ -61,8 +69,8 @@ class _CrashProducer(Producer):
     """推两项后抛 RuntimeError。"""
 
     def produce(self, q, stop, ctx):
-        q.put(1)
-        q.put(2)
+        self._put_or_stop(q, 1, stop)
+        self._put_or_stop(q, 2, stop)
         raise RuntimeError("producer boom")
 
 
@@ -87,7 +95,6 @@ class _SteadyProducer(Producer):
         for i in range(self.n):
             if not self._put_or_stop(q, i, stop):
                 return
-        q.put(self.sentinel)
 
 
 class _TrackingMixin:
@@ -124,29 +131,36 @@ class PipelineTests(unittest.TestCase):
     def test_normal_flow(self):
         producer = _ListProducer([1, 2, 3, 4, 5])
         consumer = _ListConsumer()
-        Pipeline(producer, consumer, queue_size=2).run()
+        pipeline = Pipeline(producer, consumer, queue_size=2)
+        result = pipeline.run()
+        self.assertTrue(result.is_ok, _result_text(result))
         self.assertEqual(consumer.received, [1, 2, 3, 4, 5])
+        self.assertEqual(
+            pipeline.worker_status,
+            {"producer": WorkerStatus.DONE, "consumer": WorkerStatus.DONE},
+        )
 
-    # 2. producer 崩 → consumer 不卡死,run 重抛
+    # 2. producer 崩 → consumer 不卡死，run 返回错误链
     def test_producer_crash_propagates(self):
         producer = _CrashProducer()
         consumer = _ListConsumer()
-        with self.assertRaises(RuntimeError) as cm:
-            Pipeline(producer, consumer, queue_size=2).run()
-        self.assertIn("producer boom", str(cm.exception))
-        # 注:异常路径下主线程会 drain_queue 排空未消费数据(框架正确行为),
-        # 因此 consumer.received 的具体内容随时序变化,不在此断言。
+        pipeline = Pipeline(producer, consumer, queue_size=2)
+        result = pipeline.run()
+        self.assertFalse(result.is_ok)
+        self.assertIn("producer boom", _result_text(result))
+        self.assertEqual(pipeline.worker_status["producer"], WorkerStatus.FAILED)
+        self.assertEqual(pipeline.worker_status["consumer"], WorkerStatus.FAILED)
 
-    # 3. consumer 崩 → producer 用 _put_or_stop 能脱困,run 重抛
+    # 3. consumer 崩 → producer 用 _put_or_stop 能脱困
     def test_consumer_crash_unblocks_producer(self):
         producer = _SteadyProducer(n=1000)
         consumer = _CrashConsumer()
         t0 = time.monotonic()
-        with self.assertRaises(RuntimeError) as cm:
-            Pipeline(producer, consumer, queue_size=2).run()
+        pipeline = Pipeline(producer, consumer, queue_size=2)
+        result = pipeline.run()
         elapsed = time.monotonic() - t0
-        self.assertIn("consumer boom", str(cm.exception))
-        # 关键:不应耗到 error_grace_timeout 才返回(说明 producer 被 stop 解除而非硬超时)
+        self.assertFalse(result.is_ok)
+        self.assertIn("consumer boom", _result_text(result))
         self.assertLess(elapsed, 4.0, "producer 未被合作式解除阻塞")
         self.assertEqual(consumer.received, [0])
 
@@ -154,65 +168,36 @@ class PipelineTests(unittest.TestCase):
     def test_on_cleanup_normal(self):
         producer = _TrackingProducer([1, 2])
         consumer = _TrackingConsumer()
-        Pipeline(producer, consumer, queue_size=2).run()
+        result = Pipeline(producer, consumer, queue_size=2).run()
+        self.assertTrue(result.is_ok, _result_text(result))
         self.assertEqual(producer.start_calls, 1)
         self.assertEqual(consumer.start_calls, 1)
         self.assertEqual(producer.cleanup_calls, [None])
         self.assertEqual(consumer.cleanup_calls, [None])
 
-    # 5. on_cleanup 异常路径:恰好一次,error 是原异常
+    # 5. 对端异常时 cleanup 收到对应 OpResult
     def test_on_cleanup_error(self):
         producer = _CrashProducer()
         consumer = _TrackingConsumer()
-        with self.assertRaises(RuntimeError):
-            Pipeline(producer, consumer, queue_size=2).run()
-        # consumer 正常退出(error=None),因为 producer 崩后主线程补了 sentinel
-        self.assertEqual(consumer.cleanup_calls, [None])
+        result = Pipeline(producer, consumer, queue_size=2).run()
+        self.assertFalse(result.is_ok)
+        self.assertEqual(len(consumer.cleanup_calls), 1)
+        self.assertIsNotNone(consumer.cleanup_calls[0])
+        self.assertFalse(consumer.cleanup_calls[0].is_ok)
         self.assertEqual(consumer.start_calls, 1)
 
     # 6. 线程生命周期:run 返回后两 worker 线程均已退出
     def test_threads_dead_after_run(self):
         producer = _ListProducer([1, 2, 3])
         consumer = _ListConsumer()
-        captured = {}
-
-        def _watch():
-            # 包一层抓线程对象
-            pass
-
-        # 用 InstrumentedPipeline 抓线程引用
-        class _CapturingPipeline(Pipeline):
-            def run(self):
-                import queue as _q
-                from src.core.auto_rechart.pipeline import _DEFAULT_SENTINEL
-                q = _q.Queue(maxsize=self.queue_size)
-                stop = threading.Event()
-                error_box = []
-                self.producer.sentinel = self.sentinel
-                self.consumer.sentinel = self.sentinel
-                pt = threading.Thread(
-                    target=self._run_producer, args=(q, stop, error_box),
-                    daemon=True)
-                ct = threading.Thread(
-                    target=self._run_consumer, args=(q, stop, error_box),
-                    daemon=True)
-                pt.start(); ct.start()
-                captured["p"] = pt
-                captured["c"] = ct
-                while pt.is_alive() or ct.is_alive():
-                    pt.join(timeout=self.poll_interval)
-                    ct.join(timeout=self.poll_interval)
-                    if error_box:
-                        stop.set()
-                        break
-                pt.join(timeout=self.error_grace_timeout)
-                ct.join(timeout=self.error_grace_timeout)
-                if error_box:
-                    raise error_box[0][1]
-
-        _CapturingPipeline(producer, consumer, queue_size=2).run()
-        self.assertFalse(captured["p"].is_alive(), "producer 线程泄漏")
-        self.assertFalse(captured["c"].is_alive(), "consumer 线程泄漏")
+        result = Pipeline(producer, consumer, queue_size=2).run()
+        self.assertTrue(result.is_ok, _result_text(result))
+        alive = [
+            thread.name
+            for thread in threading.enumerate()
+            if thread.name.startswith("pipeline-") and thread.is_alive()
+        ]
+        self.assertEqual(alive, [], f"pipeline 线程泄漏: {alive}")
 
     # 7. 满队列恢复:慢 consumer + 快 producer,仍全量送达
     def test_full_queue_recovery(self):
@@ -225,24 +210,20 @@ class PipelineTests(unittest.TestCase):
         producer = _SteadyProducer(n)
         consumer = SlowConsumer()
         t0 = time.monotonic()
-        Pipeline(producer, consumer, queue_size=2).run()
+        result = Pipeline(producer, consumer, queue_size=2).run()
         elapsed = time.monotonic() - t0
+        self.assertTrue(result.is_ok, _result_text(result))
         self.assertEqual(consumer.received, list(range(n)))
         # 慢 consumer 应触发背压(queue_size=2 经常满),但仍完成
         self.assertGreaterEqual(elapsed, n * 0.05 * 0.8)
 
-    # 8. 自定义 sentinel:None 作为合法业务 item 也能正确工作
-    def test_custom_sentinel_when_none_is_data(self):
+    # 8. None 作为合法业务 item 能正确工作
+    def test_none_is_data(self):
         class NoneItemProducer(Producer):
-            def __init__(self):
-                self.count = 0
-
             def produce(self, q, stop, ctx):
-                # None 是合法业务数据
                 for v in [None, None, None]:
                     if not self._put_or_stop(q, v, stop):
                         return
-                q.put(self.sentinel)
 
         class NoneItemConsumer(Consumer):
             def __init__(self):
@@ -251,10 +232,10 @@ class PipelineTests(unittest.TestCase):
             def consume(self, item, stop, ctx):
                 self.received.append(item)
 
-        _sentinel = object()  # 自定义非 None 哨兵
         producer = NoneItemProducer()
         consumer = NoneItemConsumer()
-        Pipeline(producer, consumer, queue_size=2, sentinel=_sentinel).run()
+        result = Pipeline(producer, consumer, queue_size=2).run()
+        self.assertTrue(result.is_ok, _result_text(result))
         self.assertEqual(consumer.received, [None, None, None])
 
     # 9. producer 用 _put_or_stop 在 stop 后及时 return(不被裸 q.put 卡死)
@@ -284,8 +265,9 @@ class PipelineTests(unittest.TestCase):
                 pass  # 不会到达
 
         producer = HangingProducer()
-        with self.assertRaises(RuntimeError):
-            Pipeline(producer, CrashNow(), queue_size=1).run()
+        result = Pipeline(producer, CrashNow(), queue_size=1).run()
+        self.assertFalse(result.is_ok)
+        self.assertIn("crash on start", _result_text(result))
         self.assertTrue(returned.wait(timeout=3.0), "producer 未在 stop 后及时 return")
 
 

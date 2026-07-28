@@ -16,6 +16,7 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 
+from ...schemas.op_result import OpResult, err, ok
 from ..pipeline import Producer, Consumer, Pipeline
 from ..detect.note_definition import NoteType, get_imgsz
 from ..tool import calculate_all_position, print_progress, SEEK_THRESHOLD
@@ -47,7 +48,7 @@ def run_touch_hold_inference(shared_context: SharedContext,
                              inference_device,
                              batch_touch_hold: int,
                              touch_hold_model_path: Path,
-                            ) -> tuple[list[LightResult], dict]:
+                            ) -> OpResult[tuple[list[LightResult], dict]]:
     """
     主入口: Touch-Hold YOLO 推理
 
@@ -59,7 +60,7 @@ def run_touch_hold_inference(shared_context: SharedContext,
     frame_plan, track_meta = _build_touch_hold_sampling_plan(shared_context)
     if not frame_plan:
         print("run_touch_hold_inference: no touch hold data")
-        return [], {}
+        return ok(([], {}))
 
     crop_size = calc_touch_hold_crop_size(shared_context.std_video_size, shared_context.is_big_touch)
     total_samples = sum(len(v) for v in frame_plan.values())
@@ -73,10 +74,12 @@ def run_touch_hold_inference(shared_context: SharedContext,
         str(touch_hold_model_path), inference_device, total_samples,
     )
     # queue_size=2
-    Pipeline(producer, consumer, queue_size=2).run()
+    pipeline_r = Pipeline(producer, consumer, queue_size=2).run()
+    if not pipeline_r.is_ok:
+        return err("[touch_hold_inference] pipeline failed", inner=pipeline_r)
 
     print(f"run_touch_hold_inference: processed {total_samples}/{total_samples} samples... Done")
-    return consumer.light_results, track_meta
+    return ok((consumer.light_results, track_meta))
 
 
 
@@ -154,10 +157,8 @@ class TouchHoldProducer(Producer):
 
         # 发送剩余 buffer
         if buffer:
-            self._put_or_stop(q, buffer, stop)
-
-        # 退出
-        q.put(self.sentinel)
+            if not self._put_or_stop(q, buffer, stop):
+                return
 
 
 

@@ -94,7 +94,6 @@ class ExportProducer(Producer):
                 return
             ret, frame = self.cap.read()
             if not ret:
-                q.put(self.sentinel)
                 return
             if not self._put_or_stop(q, frame, stop):
                 return
@@ -639,7 +638,11 @@ def main(std_video_path: Path, total_frames: int) -> OpResult[Path]:
             kalman_predictions=kalman_predictions,
             final_track_video_path=final_track_video_path,
         )
-        Pipeline(producer, consumer, queue_size=_BATCH_FRAMES * 2).run()
+        pipeline_r = Pipeline(
+            producer, consumer, queue_size=_BATCH_FRAMES * 2
+        ).run()
+        if not pipeline_r.is_ok:
+            return err("[export_track_video] pipeline failed", inner=pipeline_r)
 
         # 正常结束: 打印耗时
         average_fps = total_frames / consumer.elapsed_time if consumer.elapsed_time > 0 else 0

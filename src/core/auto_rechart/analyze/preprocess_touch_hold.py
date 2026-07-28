@@ -2,6 +2,7 @@ from collections import defaultdict
 from pathlib import Path
 import numpy as np
 
+from ...schemas.op_result import OpResult, err, ok
 from .shared_context import *
 from .preprocess_touch_hold_inference import run_touch_hold_inference, calc_touch_hold_crop_size
 
@@ -9,7 +10,7 @@ from .preprocess_touch_hold_inference import run_touch_hold_inference, calc_touc
 def preprocess_touch_hold_data(shared_context: SharedContext,
                                inference_device,
                                batch_touch_hold: int,
-                               touch_hold_model_path: Path):
+                               touch_hold_model_path: Path) -> OpResult[dict]:
     '''
     返回格式:
     dict{
@@ -29,12 +30,17 @@ def preprocess_touch_hold_data(shared_context: SharedContext,
     touch_hold_data = {}
 
     # 1: YOLO 推理（生产者-消费者流水线，轻量解析）
-    light_results, track_meta = run_touch_hold_inference(
+    inference_r = run_touch_hold_inference(
         shared_context, inference_device, batch_touch_hold, touch_hold_model_path
     )
+    if not inference_r.is_ok:
+        return err("[preprocess_touch_hold] inference failed", inner=inference_r)
+    if inference_r.value is None:
+        return err("[preprocess_touch_hold] inference returned no value")
+    light_results, track_meta = inference_r.value
     if not light_results:
         print("preprocess_touch_hold_data: no touch hold data")
-        return {}
+        return ok({})
 
     # 2: 解析 dist/percent
     observations_by_track = _resolve_dist_percent(light_results, shared_context)
@@ -77,7 +83,7 @@ def preprocess_touch_hold_data(shared_context: SharedContext,
         print("preprocess_touch_hold_data: no touch hold data")
         touch_hold_data = {}
 
-    return touch_hold_data
+    return ok(touch_hold_data)
 
 
 

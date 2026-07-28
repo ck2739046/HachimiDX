@@ -79,12 +79,17 @@ def main(std_video_path: Path,
         tap_data = preprocess_tap_data(shared_context)
         touch_data = preprocess_touch_data(shared_context)
         hold_data = preprocess_hold_data(shared_context)
-        touch_hold_data = preprocess_touch_hold_data(
+        touch_hold_r = preprocess_touch_hold_data(
             shared_context,
             inference_device,
             batch_touch_hold,
             touch_hold_model_path,
         )
+        if not touch_hold_r.is_ok:
+            return err("Touch-Hold preprocessing failed", inner=touch_hold_r)
+        if touch_hold_r.value is None:
+            return err("Touch-Hold preprocessing returned no value")
+        touch_hold_data = touch_hold_r.value
         slide_head_data, slide_tail_data = preprocess_slide_data(shared_context)
 
         # 分析音符流速

@@ -59,7 +59,9 @@ def main(std_video_path: Path,
             cls_ex_model_path, cls_break_model_path,
             inference_device, imgsz, total_cls_quantity,
         )
-        Pipeline(producer, consumer, queue_size=2).run()
+        pipeline_r = Pipeline(producer, consumer, queue_size=2).run()
+        if not pipeline_r.is_ok:
+            return err("[classify] pipeline failed", inner=pipeline_r)
 
         # 根据分类结果，更新track_results
         track_results = _merge_cls_into_track_results(track_results, consumer.results)
@@ -146,10 +148,8 @@ class ClassifyProducer(Producer):
 
         # 发送剩余 buffer
         if buffer:
-            self._put_or_stop(q, buffer, stop)
-
-        # 退出
-        q.put(self.sentinel)
+            if not self._put_or_stop(q, buffer, stop):
+                return
 
 
 
