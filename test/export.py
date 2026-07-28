@@ -42,7 +42,7 @@ def convert_to_onnx(model_path, task, batch):
 
         model = YOLO(model_path, task=task)
         model.export(format="onnx",
-                    opset=20,
+                    opset=17,
                     half=True,
                     dynamic=True,
                     simplify=True,

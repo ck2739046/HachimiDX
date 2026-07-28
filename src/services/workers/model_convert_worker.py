@@ -108,7 +108,7 @@ def _convert_to_onnx(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
 
             model.export(
                 format="onnx",
-                opset=20,
+                opset=17,
                 imgsz=imgsz,
                 half=True,
                 dynamic=True,
