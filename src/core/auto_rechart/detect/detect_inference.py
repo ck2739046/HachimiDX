@@ -157,7 +157,7 @@ class Inferencer:
         self._failures = []               # 失败事件 - list[OpResult]
                                           # 只会在 check_health() 写入
         self._pending_results = []        # get_results 缓冲 - list[(Note_Geometry, task_name)]
-                                          # 只会在 get_results() 写入/清空
+                                          # 在结果收集时写入, 仅在 get_results() 清空
 
 
     @property
@@ -236,6 +236,11 @@ class Inferencer:
         return not is_failed
 
 
+    def _collect_ready_results(self):
+        """将 output_queue 中已就绪的结果暂存到内部缓冲"""
+        self._pending_results.extend(_drain_queue(self._output_queue))
+
+
 
 
 
@@ -259,6 +264,8 @@ class Inferencer:
                     q.put(batch, block=True, timeout=_PUT_TO_INPUT_QUEUE_TIMEOUT)
                     break
                 except Full:
+                    # 输入队列满时先消费输出，避免 worker 因输出队列反压无法继续消费输入
+                    self._collect_ready_results()
                     # 队列满了, 检查健康状态再重试
                     if not self._check_workers_health():
                         inner_err = _build_chain_OpResult(self._failures)
@@ -292,7 +299,7 @@ class Inferencer:
             return err("[inferencer] get_results: health check failed.", inner=inner_err)
 
         # 排空输出队列, 存进 _pending_results
-        self._pending_results.extend(_drain_queue(self._output_queue))
+        self._collect_ready_results()
         # 读取完毕后, 清空 _pending_results
         snapshot = self._pending_results
         self._pending_results = []
@@ -323,6 +330,8 @@ class Inferencer:
                     q.put(None, block=True, timeout=_PUT_TO_INPUT_QUEUE_TIMEOUT)
                     break
                 except Full:
+                    # 先消费输出以解除反压闭环
+                    self._collect_ready_results()
                     if not self._check_workers_health():
                         inner_err = _build_chain_OpResult(self._failures)
                         return err("[inferencer] send_eof: health check failed.", inner=inner_err)

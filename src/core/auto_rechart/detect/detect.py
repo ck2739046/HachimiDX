@@ -68,8 +68,17 @@ def main(std_video_path,
 
 
 
-        # 4. 主循环: 从 decoder 取帧, 给 inferencer 喂帧, 再从 inferencer 取结果
+        # 4. 主循环: 先收结果, 再从 decoder 取帧, 最后给 inferencer 喂帧
         while True:
+            get_r = inferencer.get_results()
+            if not get_r.is_ok:
+                return err("[detect.main.loop1] inferencer.get_results 失败", inner=get_r)
+            raw_results.extend(get_r.value)
+
+            update_r = monitor.update(inferencer)
+            if not update_r.is_ok:
+                return err("[detect.main.loop1] progress monitor error", inner=update_r)
+
             batch_r = decoder.get_next_batch()
             if not batch_r.is_ok:
                 return err("[detect.main.loop1] decoder.get_next_batch 失败", inner=batch_r)
@@ -79,15 +88,6 @@ def main(std_video_path,
             put_r = inferencer.put_batch(batch_r.value)
             if not put_r.is_ok:
                 return err("[detect.main.loop1] inferencer.put_batch 失败", inner=put_r)
-
-            get_r = inferencer.get_results()
-            if not get_r.is_ok:
-                return err("[detect.main.loop1] inferencer.get_results 失败", inner=get_r)
-            raw_results.extend(get_r.value)
-
-            update_r = monitor.update(inferencer)
-            if not update_r.is_ok:
-                return err("[detect.main.loop1] progress monitor error", inner=update_r)
 
         # 解码完成, 通知 worker 不再有新输入
         eof_r = inferencer.send_eof()
