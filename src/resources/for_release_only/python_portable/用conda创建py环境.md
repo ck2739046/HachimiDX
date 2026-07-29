@@ -8,7 +8,7 @@ https://github.com/mamba-org/micromamba-releases/releases/download/2.8.1-0/micro
 
 2. 运行指令创建 python 环境
 
-.\micromamba-win-64.exe create -y --prefix "$PWD\python" --root-prefix "$PWD\.mamba" --override-channels --channel https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge python=3.13
+.\micromamba-win-64.exe create -y --prefix "$PWD\python" --root-prefix "$PWD\.mamba" --override-channels --channel https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge python=3.11
 
 这是单行指令，运行前需要先 cd 到 root
 
@@ -17,7 +17,7 @@ https://github.com/mamba-org/micromamba-releases/releases/download/2.8.1-0/micro
 --root-prefix: 指令 mamba 自身的根目录 (放下载缓存、mantadata等)
 --override-channels: 禁用所有默认 channel 只走清华源
 --channel: 指定从清华源下载
-python=3.13: 安装 python 3.13 本体
+python=3.11: 安装 python 3.11 本体
 
 
 3. 后处理
@@ -27,6 +27,6 @@ python=3.13: 安装 python 3.13 本体
 删除 .mamba/ 和 micromamba-win-64.exe 本体
 删除 python/conda-meta/ 这个文件夹
 
-将本文档同位置的 sitecustomize.py 放入 pytohn/ 内
+将本文档同位置的 sitecustomize.py 放入 python/ 内
 
 然后将整个 python 文件夹打包成 zip 放到 for_release_only 内
