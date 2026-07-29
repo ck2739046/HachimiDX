@@ -114,7 +114,7 @@ class ProcessManager(QObject):
         process.errorOccurred.connect(lambda e, rid=rid: self._on_error(rid, e))
 
         # 延迟发送开始文本
-        start_msg = f"\n-\n{'=' * 30}\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] Task_id '{rid}' start.\n-\n{", ".join(cmd)}\n-\n"
+        start_msg = f"\n-\n{'=' * 30}\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] Task_id '{rid}' start.\n-\n{', '.join(cmd)}\n-\n"
         QTimer.singleShot(0, lambda rid=rid: self.signals.runner_output.emit(rid, bytes(start_msg, 'utf-8')))
         
         process.start()

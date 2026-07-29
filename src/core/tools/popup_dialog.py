@@ -342,7 +342,7 @@ if __name__ == "__main__":
     app = QApplication.instance() or QApplication([])
 
     test_configs = [
-        ("Confirm 1", f"这是第一个 Confirm 弹窗\n2\n3\n4\n5{"5" * 1000}", "confirm"),
+        ("Confirm 1", f"这是第一个 Confirm 弹窗\n2\n3\n4\n5{'5' * 1000}", "confirm"),
         ("Confirm 2", "这是第二个 Confirm 弹窗", "confirm"),
         ("Notify 1", "这是第一个 Notify 弹窗", "notify"),
         ("Notify 2", "这是第二个 Notify 弹窗", "notify"),

@@ -228,7 +228,7 @@ def get_syntax(note_path, start_pos, end_pos):
             if note['position'] != last_pos:
                 deduped.append(note['position'])
                 last_pos = note['position']
-        print(f"{' ' * space_num}{" -> ".join(deduped)}")
+        print(f"{' ' * space_num}{' -> '.join(deduped)}")
 
 
     return classified_segments
