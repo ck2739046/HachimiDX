@@ -2,29 +2,17 @@ import sys
 import re
 import subprocess
 from pathlib import Path
-import importlib.util
 import shutil
 
+from .detect_trt import main as detect_trt_main
+from .detect_trt import nvidia_config
 
-
-_script_dir = Path(__file__).resolve().parent
-
-def _load_locale(module_name: str):
-    spec = importlib.util.spec_from_file_location(
-        module_name, _script_dir / f"{module_name}.py"
-    )
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-en_us = _load_locale("en_us")
-zh_cn = _load_locale("zh_cn")
 
 
 
 # 全局变量
 USE_PyPI_Mirror = ""
-T = None  # locale module, set after language selection
+T = None  # 多语言文本
 
 # PyPI 镜像列表（key, args_list）优先级从上到下，首选清华源
 PYPI_MIRRORS = [
