@@ -63,7 +63,6 @@ install = SN(
 
 
 
-
 ask_use_pypi_mirror = SN(
     prompt = """
 PyPI 镜像可以显著加速国内的下载和安装。
@@ -71,6 +70,25 @@ PyPI 镜像可以显著加速国内的下载和安装。
 
 如果你在中国大陆，强烈建议选择"是"。
 如果你在其他地区，请选择"否"。
+
+1. 是 (默认)
+2. 否
+3. 退出
+
+-> """,
+
+    defaulting = "默认选择「是」。",
+)
+
+
+
+ask_install_trt = SN(
+    prompt = """
+TensorRT 能够调用 NVIDIA GPU 进行推理加速，显著提升推理速度。
+你是否想安装 NVIDIA TensorRT ?
+
+如果你有 NVIDIA GPU，强烈建议选择"是"。
+其他情况请选择"否"。
 
 1. 是 (默认)
 2. 否
@@ -92,15 +110,10 @@ PyPI 镜像可以显著加速国内的下载和安装。
 RESTORE_SUCCESS = "Ultralytics 已恢复到原始状态。"
 RESTORE_ERROR = "尝试恢复 ultralytics 时发生错误。"
 
-
-
 # HachimiDX Installer — 简体中文本地化常量
 
 DEFAULTING_YES = "默认选择「是」。"
 INSTALL_DONE = "\n\n-----\n\nHachimiDX 安装完成\n"
-
-
-
 
 
 
@@ -112,24 +125,6 @@ CUDA_FALLBACK_PROMPT = """
 
 1. 是 (默认)
 2. 否 (退出)
-
--> """
-
-
-
-
-
-# ===== ask_install_trt =====
-TRT_PROMPT = """
-NVIDIA TensorRT 能够调用 NVIDIA GPU 进行推理加速，显著提升推理速度。
-你是否想安装 NVIDIA TensorRT ?
-
-如果你有 NVIDIA GPU，强烈建议选择"是"。
-其他情况请选择"否"。
-
-1. 是 (默认)
-2. 否
-3. 退出
 
 -> """
 

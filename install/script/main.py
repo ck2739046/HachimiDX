@@ -131,9 +131,16 @@ def reinstall_backend() -> OpResult[None]:
 
 def install() -> OpResult[None]:
 
-    print(f"\n-----\n\n{T.install.start}")
+    print("\n-----\n")
+    print(T.install.start)
 
     ask_use_pypi_mirror()
+
+
+
+    
+
+    return ok()
 
 
 
@@ -152,3 +159,18 @@ def ask_use_pypi_mirror():
     else:
         print(T.ask_use_pypi_mirror.defaulting)
         USE_PyPI_Mirror = True
+
+
+
+def ask_install_trt() -> bool:
+    print("\n-----")
+    install_trt = input(T.ask_install_trt.prompt).strip()
+    if install_trt == "1":
+        return True
+    elif install_trt == "2":
+        return False
+    elif install_trt == "3":
+        sys.exit(0)
+    else:
+        print(T.ask_install_trt.defaulting)
+        return True
