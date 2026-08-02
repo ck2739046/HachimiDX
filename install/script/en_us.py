@@ -139,11 +139,8 @@ In other cases, please choose "No".
 
 
 # ===== uninstall_torch_torchvision =====
-UNINSTALL_TORCH_START = "Uninstalling torch and torchvision..."
-UNINSTALL_TORCH_NONE = "torch and torchvision are not installed. Nothing to uninstall."
-UNINSTALL_TORCH_ONLY_NOT = "torch was not installed. torchvision has been uninstalled."
-UNINSTALL_TORCHVISION_ONLY_NOT = "torchvision was not installed. torch has been uninstalled."
-UNINSTALL_TORCH_DONE = "torch and torchvision have been uninstalled."
+UNINSTALL_TORCH_START = "Uninstalling torch, torchvision, onnxruntime-gpu, onnxruntime-directml, tensorrt, numpy..."
+UNINSTALL_TORCH_DONE = "Uninstall completed."
 
 
 

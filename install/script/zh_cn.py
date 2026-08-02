@@ -47,14 +47,7 @@ DEFAULTING_TO_INSTALL = "默认选择安装 HachimiDX。"
 
 # ===== reinstall backend =====
 REINSTALL_BACKEND_PROMPT = """
-即将执行以下操作：
-
-(1) 撤销 Ultralytics DirectML 修改
-(2) 删除 torch & torchvision
-(3) 进入安装流程，选择新的后端
-
 此操作会清理当前已安装的后端，之后你可以在安装流程中选择新的后端。
-
 你确定要继续吗？
 
 1. 是
@@ -143,11 +136,8 @@ DirectML 能够调用多个品牌的 GPU（如 AMD、Intel、NVIDIA 等）进行
 
 
 # ===== uninstall_torch_torchvision =====
-UNINSTALL_TORCH_START = "正在删除 torch 和 torchvision..."
-UNINSTALL_TORCH_NONE = "torch 和 torchvision 均未安装，无需删除。"
-UNINSTALL_TORCH_ONLY_NOT = "torch 未安装，torchvision 已删除。"
-UNINSTALL_TORCHVISION_ONLY_NOT = "torchvision 未安装，torch 已删除。"
-UNINSTALL_TORCH_DONE = "torch 和 torchvision 已删除。"
+UNINSTALL_TORCH_START = "正在删除 torch、torchvision、onnxruntime-gpu、onnxruntime-directml、tensorrt、numpy..."
+UNINSTALL_TORCH_DONE = "删除完成。"
 
 
 

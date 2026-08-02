@@ -13,28 +13,8 @@ from .detect_trt import nvidia_config
 # 全局变量
 USE_PyPI_Mirror = ""
 T = None  # 多语言文本
-
-# PyPI 镜像列表（key, args_list）优先级从上到下，首选清华源
-PYPI_MIRRORS = [
-    ("tsinghua", ["-i", "https://pypi.tuna.tsinghua.edu.cn/simple"]),
-    ("tencent",  ["-i", "https://mirrors.cloud.tencent.com/pypi/simple"]),
-    ("huawei",   ["-i", "https://repo.huaweicloud.com/repository/pypi/simple"]),
-    ("aliyun",   ["-i", "https://mirrors.aliyun.com/pypi/simple"]),
-]
-
-
 ROOT = Path(__file__).resolve().parents[2] # 往上三级目录
 
-
-# CUDA 版本对应的最低驱动版本要求
-# 格式为 (CUDA 版本, 驱动主版本号)
-# 从低到高排列
-CUDA_DRIVER_REQUIREMENTS = [
-    (11.8, 453),
-    (12.6, 561),
-    (12.8, 572),
-    (13.0, 580),
-]
 
 
 
@@ -92,8 +72,16 @@ def reinstall_backend():
     else:
         print(T.RESTORE_ERROR)
 
-    # 2. 删除 torch & torchvision
-    uninstall_torch_torchvision()
+    # 2. 删除相关库
+    print(f"\n-----\n\n{T.UNINSTALL_TORCH_START}\n")
+    cmd = [sys.executable, "-m", "pip", "uninstall",
+            "torch", "torchvision",
+            "onnxruntime-gpu", "onnxruntime-directml",
+            "tensorrt", "numpy", "-y"]
+    try:
+        subprocess.run(cmd, check=True)
+        print(T.UNINSTALL_TORCH_DONE)
+    except Exception as e:
 
     # 3. 进入安装流程
     install()
@@ -104,23 +92,13 @@ def reinstall_backend():
 
 def uninstall_torch_torchvision():
     print(f"\n-----\n\n{T.UNINSTALL_TORCH_START}\n")
-    cmd = [sys.executable, "-m", "pip", "uninstall", "torch", "torchvision", "-y"]
+    cmd = [sys.executable, "-m", "pip", "uninstall",
+           "torch", "torchvision",
+           "onnxruntime-gpu", "onnxruntime-directml",
+           "tensorrt", "numpy", "-y"]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        combined = result.stdout + result.stderr
-        print(combined)
-        # 检查是否两个包都显示 "not installed"
-        torch_not_installed = "Skipping torch as it is not installed" in combined
-        torchvision_not_installed = "Skipping torchvision as it is not installed" in combined
-        if torch_not_installed and torchvision_not_installed:
-            msg = T.UNINSTALL_TORCH_NONE
-        elif torch_not_installed:
-            msg = T.UNINSTALL_TORCH_ONLY_NOT
-        elif torchvision_not_installed:
-            msg = T.UNINSTALL_TORCHVISION_ONLY_NOT
-        else:
-            msg = T.UNINSTALL_TORCH_DONE
-        print(msg)
+        subprocess.run(cmd, check=True)
+        print(T.UNINSTALL_TORCH_DONE)
     except Exception as e:
         print(f"Error: {e}")
 
@@ -181,10 +159,6 @@ def install():
            *dependencies, "--no-warn-script-location"]
     is_success = general_pip_install("Other dependencies", cmd)
     if not is_success: sys.exit(1)
-
-    # 解决 pywin32 导入错误
-    cmd = [sys.executable, str(ROOT / "python" / "Scripts" / "pywin32_postinstall.py"), "-install"]
-    subprocess.run(cmd, capture_output=True) # 隐藏输出
 
     # 结束
     print(T.INSTALL_DONE)
@@ -530,6 +504,14 @@ def general_pip_install(package_name, cmd: list[str], add_pypi_mirror: bool | No
       - False：强制禁用 PyPI 镜像（即使全局启用）
       - True： 不支持强制启用, 视为 None
     """
+
+    # PyPI 镜像列表（key, args_list）优先级从上到下，首选清华源
+    PYPI_MIRRORS = [
+        ("tsinghua", ["-i", "https://pypi.tuna.tsinghua.edu.cn/simple"]),
+        ("tencent",  ["-i", "https://mirrors.cloud.tencent.com/pypi/simple"]),
+        ("huawei",   ["-i", "https://repo.huaweicloud.com/repository/pypi/simple"]),
+        ("aliyun",   ["-i", "https://mirrors.aliyun.com/pypi/simple"]),
+    ]
 
     use_mirror = bool(USE_PyPI_Mirror) and add_pypi_mirror is not False
 
