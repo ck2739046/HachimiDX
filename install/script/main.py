@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[2] # 往上三级目录
 # 在 ask_language() 中赋值
 T = en_us
 
-# 在 ask_pypi_mirror() 中赋值
+# 在 install.ask_pypi_mirror() 中赋值
 USE_PyPI_Mirror = False
 
 
@@ -123,3 +123,32 @@ def reinstall_backend() -> OpResult[None]:
     return ok()
 
 
+
+
+
+
+
+
+def install() -> OpResult[None]:
+
+    print(f"\n-----\n\n{T.install.start}")
+
+    ask_use_pypi_mirror()
+
+
+
+
+
+def ask_use_pypi_mirror():
+    global USE_PyPI_Mirror
+    print("\n-----")
+    use_mirror = input(T.ask_use_pypi_mirror.prompt).strip()
+    if use_mirror == "1":
+        USE_PyPI_Mirror = True
+    elif use_mirror == "2":
+        USE_PyPI_Mirror = False
+    elif use_mirror == "3":
+        sys.exit(0)
+    else:
+        print(T.ask_use_pypi_mirror.defaulting)
+        USE_PyPI_Mirror = True

@@ -49,10 +49,39 @@ reinstall_backend = SN(
 -> """,
 
     abort = "已取消，未做任何更改。",
-    
+
     start_uninstall = "正在卸载当前后端...",
     uninstall_done = "卸载完成。",
 )
+
+
+
+install = SN(
+    start = "开始安装 HachimiDX...",
+    
+)
+
+
+
+
+ask_use_pypi_mirror = SN(
+    prompt = """
+PyPI 镜像可以显著加速国内的下载和安装。
+你是否想使用 PyPI 镜像?
+
+如果你在中国大陆，强烈建议选择"是"。
+如果你在其他地区，请选择"否"。
+
+1. 是 (默认)
+2. 否
+3. 退出
+
+-> """,
+
+    defaulting = "默认选择「是」。",
+)
+
+
 
 
 
@@ -76,48 +105,6 @@ INSTALL_DONE = "\n\n-----\n\nHachimiDX 安装完成\n"
 
 
 
-# ===== main menu =====
-MAIN_MENU = """
-请选择：
-
-1. 安装 HachimiDX (默认)
-2. 切换模型推理后端
-3. 退出
-
-如果你不清楚选项 2 是什么，请不要选择此选项。
-
--> """
-RESTORE_SUCCESS = "Ultralytics 已恢复到原始状态。"
-RESTORE_ERROR = "尝试恢复 ultralytics 时发生错误。"
-DEFAULTING_TO_INSTALL = "默认选择安装 HachimiDX。"
-
-
-
-
-
-# ===== reinstall backend =====
-REINSTALL_BACKEND_PROMPT = """
-此操作会先卸载当前已安装的后端，再重新进入安装流程。
-你确定要继续吗？
-
-1. 是
-2. 否 (默认)
-
--> """
-REINSTALL_BACKEND_ABORT = "已取消，未做任何更改。"
-
-
-
-
-
-
-# ===== install =====
-INSTALL_STARTING = "开始安装 HachimiDX..."
-
-
-
-
-
 # ===== CUDA fallback =====
 CUDA_FALLBACK_PROMPT = """
 未检测到兼容的 PyTorch CUDA 版本，将回退到 PyTorch CPU 版本。
@@ -125,24 +112,6 @@ CUDA_FALLBACK_PROMPT = """
 
 1. 是 (默认)
 2. 否 (退出)
-
--> """
-
-
-
-
-
-# ===== ask_use_pypi_mirror =====
-PYPI_MIRROR_PROMPT = """
-PyPI 镜像可以显著加速国内的下载和安装。
-你是否想使用 PyPI 镜像?
-
-如果你在中国大陆，强烈建议选择"是"。
-如果你在其他地区，请选择"否"。
-
-1. 是 (默认)
-2. 否
-3. 退出
 
 -> """
 
