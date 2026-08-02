@@ -2,13 +2,8 @@ from types import SimpleNamespace as SN
 
 
 
-# HachimiDX Installer — 简体中文本地化常量
-
-DEFAULTING_YES = "默认选择「是」。"
-INSTALL_DONE = "\n\n-----\n\nHachimiDX 安装完成\n"
-
-# ===== ask_language =====
-LANGUAGE_PROMPT = """
+ask_language = SN(
+    prompt = """
 Please select your language:
 1. Simplified Chinese (Default)
 2. English
@@ -19,8 +14,63 @@ Please select your language:
 2. 英语
 3. 退出
 
--> """
-LANGUAGE_DEFAULT = "默认选择简体中文。"
+-> """,
+
+    defaulting = "默认选择简体中文。",
+)
+
+
+
+main_menu = SN(
+    prompt = """
+请选择：
+
+1. 安装 HachimiDX (默认)
+2. 重新安装模型推理后端
+3. 退出
+
+如果你不清楚选项 2 是什么，请不要选择此选项。
+
+-> """,
+
+    defaulting = "默认选择安装 HachimiDX。",
+)
+
+
+
+reinstall_backend = SN(
+    prompt = """
+即将卸载当前已安装的后端，再重新进入安装流程。
+你确定要继续吗？
+
+1. 是
+2. 否 (默认)
+
+-> """,
+
+    abort = "已取消，未做任何更改。",
+    
+    start_uninstall = "正在卸载当前后端...",
+    uninstall_done = "卸载完成。",
+)
+
+
+
+
+
+
+
+RESTORE_SUCCESS = "Ultralytics 已恢复到原始状态。"
+RESTORE_ERROR = "尝试恢复 ultralytics 时发生错误。"
+
+
+
+# HachimiDX Installer — 简体中文本地化常量
+
+DEFAULTING_YES = "默认选择「是」。"
+INSTALL_DONE = "\n\n-----\n\nHachimiDX 安装完成\n"
+
+
 
 
 
@@ -47,7 +97,7 @@ DEFAULTING_TO_INSTALL = "默认选择安装 HachimiDX。"
 
 # ===== reinstall backend =====
 REINSTALL_BACKEND_PROMPT = """
-此操作会清理当前已安装的后端，之后你可以在安装流程中选择新的后端。
+此操作会先卸载当前已安装的后端，再重新进入安装流程。
 你确定要继续吗？
 
 1. 是
@@ -55,6 +105,7 @@ REINSTALL_BACKEND_PROMPT = """
 
 -> """
 REINSTALL_BACKEND_ABORT = "已取消，未做任何更改。"
+
 
 
 
