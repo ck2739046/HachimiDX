@@ -58,7 +58,7 @@ reinstall_backend = SN(
 
 install = SN(
     start = "开始安装 HachimiDX...",
-    
+    detect_trt_failed = "检测 NVIDIA GPU 失败。",
 )
 
 

@@ -9,8 +9,8 @@ cd /d "%~dp0"
 ::更新 wheel
 "..\python\python.exe" -m pip install wheel --no-warn-script-location
 
-:: 运行脚本
-"..\python\python.exe" -u ".\script\install.py"
+:: 以包方式运行 main.py（相对导入需要 -m，不能用文件路径）
+"..\python\python.exe" -u -m script.main
 
 @echo off
 pause

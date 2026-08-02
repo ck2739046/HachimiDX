@@ -1,4 +1,27 @@
+from types import SimpleNamespace as SN
+
 # HachimiDX Installer — English locale constants
+
+ask_language = SN(
+    prompt = """
+Please select your language:
+1. Simplified Chinese (Default)
+2. English
+3. Exit
+
+请选择语言：
+1. 简体中文 (默认)
+2. 英语
+3. 退出
+
+-> """,
+
+    defaulting = "Defaulting to Simplified Chinese.",
+)
+
+
+
+
 
 DEFAULTING_YES = "Defaulting to Yes."
 INSTALL_DONE = "\n\n-----\n\nHachimiDX installation completed\n"

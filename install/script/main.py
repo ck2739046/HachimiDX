@@ -7,8 +7,7 @@ import shutil
 from . import en_us, zh_cn
 from .op_result import OpResult, ok, err, print_op_result
 
-from .detect_trt import main as detect_trt_main
-from .detect_trt import nvidia_config
+from .detect_trt import detect_trt_availability, nvidia_config
 
 
 ROOT = Path(__file__).resolve().parents[2] # 往上三级目录
@@ -51,7 +50,7 @@ def main():
         elif language == "3":
             sys.exit(0)
         else:
-            print(en_us.ask_language.defaulting)
+            print(zh_cn.ask_language.defaulting)
             T = zh_cn
 
         # main menu
@@ -77,9 +76,12 @@ def main():
             if not result.is_ok:
                 print_op_result(result)
 
-    except BaseException as e:
+    except KeyboardInterrupt:
+        print("\nKeyboardInterrupt detected, exiting...")
+        sys.exit(1)
+    except Exception as e:
         result = err("Unexpected error in main()", error_raw=e)
-        print_op_result(result)
+        print(f"\n-----\n\n{print_op_result(result)}\n")
         sys.exit(1)
 
 
@@ -136,7 +138,10 @@ def install() -> OpResult[None]:
 
     ask_use_pypi_mirror()
 
-
+    result = detect_trt_availability(T)
+    if not result.is_ok:
+        print_op_result(result)
+        print(f"\n-----\n\n{T.install.detect_trt_failed}\n")
 
     
 
@@ -174,3 +179,9 @@ def ask_install_trt() -> bool:
     else:
         print(T.ask_install_trt.defaulting)
         return True
+
+
+
+
+if __name__ == "__main__":
+    main()
