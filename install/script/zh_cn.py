@@ -209,15 +209,10 @@ MIRROR_EXHAUSTED = "所有镜像均无法安装 {package_name}。"
 
 # ===== detect_trt.py =====
 detect_trt = SN(
-    _get_nvidia_gpu_info=SN(
-        success="""
-检测到 NVIDIA 显卡:
-   显卡名称: {gpu_name}
-   计算能力: {compute_cap}
-   驱动版本: {driver_version}""",
-    ),
-    _is_gpu_valid=SN(
-        low_compute_cap="显卡的计算能力 {compute_cap} 低于最低要求 {min_compute_cap}, 请升级显卡或使用其他后端。",
-        invalid_driver_version="显卡的驱动版本 {driver_version} 低于最低要求 {min_driver_version}, 请升级显卡驱动或使用其他后端。",
-    ),
+    start="正在检测 NVIDIA GPU 可用性...",
+    gpu_detected_title="检测到 NVIDIA 显卡:",
+    select_gpu_prompt="请选择要使用的显卡编号 (0, 1, 2, ...): ",
+    select_gpu_try_again="  输入无效，请重新输入。",
+    low_compute_cap="显卡的计算能力 {compute_cap} 低于最低要求 {min_compute_cap}, 请升级显卡或使用其他后端。",
+    invalid_driver_version="显卡的驱动版本 {driver_version} 低于最低要求 {min_driver_version}, 请升级显卡驱动或使用其他后端。",
 )
