@@ -39,8 +39,8 @@ class SettingsConfig_Definitions:
         type="str",
         group="model",
         default="TensorRT",
-        constraints={"options": ["CPU", "NCNN", "TensorRT"],
-                     "options_tooltips": ["ui_model_backend_cpu_tooltip",
+        constraints={"options": ["PyTorch", "NCNN", "TensorRT"],
+                 "options_tooltips": ["ui_model_backend_pytorch_tooltip",
                                           "ui_model_backend_ncnn_tooltip",
                                           "ui_model_backend_tensorrt_tooltip"]},
     )
@@ -79,7 +79,7 @@ class SettingsConfig_Definitions:
 
     @staticmethod
     def get_inference_device_by_backend(backend):
-        if backend == "CPU":
+        if backend == "PyTorch":
             return "cpu"
         elif backend == "NCNN":
             return "vulkan:0"

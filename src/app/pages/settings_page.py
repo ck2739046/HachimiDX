@@ -500,9 +500,9 @@ class SettingsPage(BaseOutputPage):
             return
         backend = self.model_backend_combo_box.currentText().strip()
 
-        # 特例：cpu 不应该触发转换按钮
-        if backend == "CPU":
-            self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_cpu_does_not_need_convert_model"))
+        # 特例：pytorch 后端不应该触发转换按钮
+        if backend == "PyTorch":
+            self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_pytorch_does_not_need_convert_model"))
             return
 
         detect_batch_result = SettingsManage.get(S_Defs.predict_batch_size_detect_obb.key)
@@ -630,9 +630,9 @@ class SettingsPage(BaseOutputPage):
         path_result = PathManage.resolve_model_paths(backend)
         if path_result.is_ok:
             self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_model_ready", backend=backend))
-            # 特例 cpu 提示无需转换
-            if backend == "CPU":
-                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_cpu_does_not_need_convert_model"))
+            # 特例：pytorch 后端不需要转换模型
+            if backend == "PyTorch":
+                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_pytorch_does_not_need_convert_model"))
                 self._sync_ui_state()
             return
 
@@ -649,11 +649,11 @@ class SettingsPage(BaseOutputPage):
             )
         )
 
-        # 特例：cpu 不显示转换按钮，直接报错
-        if backend == "CPU":
+        # 特例：pytorch 后端不显示转换按钮，直接报错
+        if backend == "PyTorch":
             show_notify_dialog(
                 i18n.t(f"{I18N_Prefix}.dialog_title"),
-                i18n.t(f"{I18N_Prefix}.warning_cpu_model_missing", error=model_error),
+                i18n.t(f"{I18N_Prefix}.warning_pytorch_model_missing", error=model_error),
             )
             self._sync_ui_state()
             return

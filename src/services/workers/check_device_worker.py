@@ -177,7 +177,7 @@ def _check_openvino() -> bool:
 def main(runtime: str) -> bool:
     runtime_norm = str(runtime or "").strip().lower()
 
-    if runtime_norm == "cpu":
+    if runtime_norm in {"pytorch", "cpu"}:
         return _check_cpu()
     if runtime_norm in {"cuda", "tensorrt"}:
         return _check_cuda_or_tensorrt()
