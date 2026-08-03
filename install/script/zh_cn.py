@@ -59,14 +59,6 @@ reinstall_backend = SN(
 install = SN(
     start = "开始安装 HachimiDX...",
     detect_trt_failed = "检测到 TensorRT 不可用。",
-    continue_prompt = """
-是否继续安装？
-
-1. 否 (默认)
-2. 是
-
--> """,
-    continue_defaulting = "默认选择「否」。",
 )
 
 
@@ -109,39 +101,22 @@ TensorRT 能够调用 NVIDIA GPU 进行推理加速，显著提升推理速度�
 
 
 
-
-
-
-
-
-
-RESTORE_SUCCESS = "Ultralytics 已恢复到原始状态。"
-RESTORE_ERROR = "尝试恢复 ultralytics 时发生错误。"
-
-# HachimiDX Installer — 简体中文本地化常量
-
-DEFAULTING_YES = "默认选择「是」。"
-INSTALL_DONE = "\n\n-----\n\nHachimiDX 安装完成\n"
-
-
-
-
-# ===== CUDA fallback =====
-CUDA_FALLBACK_PROMPT = """
-未检测到兼容的 PyTorch CUDA 版本，将回退到 PyTorch CPU 版本。
+ask_continue_install = SN(
+    prompt = """
 是否继续安装？
 
-1. 是 (默认)
-2. 否 (退出)
+1. 否 (默认)
+2. 是
 
--> """
+-> """,
+
+    defaulting = "默认选择「否」。",
+)
 
 
 
-
-
-# ===== ask_install_dml =====
-DML_PROMPT = """
+ask_install_dml = SN(
+    prompt = """
 DirectML 能够调用多个品牌的 GPU（如 AMD、Intel、NVIDIA 等）进行硬件加速。
 你是否想安装 DirectML ?
 
@@ -152,48 +127,29 @@ DirectML 能够调用多个品牌的 GPU（如 AMD、Intel、NVIDIA 等）进行
 2. 否
 3. 退出
 
--> """
+-> """,
 
-
-
-
-
-# ===== uninstall_torch_torchvision =====
-UNINSTALL_TORCH_START = "正在删除 torch、torchvision、onnxruntime-gpu、onnxruntime-directml、tensorrt、numpy..."
-UNINSTALL_TORCH_DONE = "删除完成。"
-
-
-
-
-
-# ===== GPU detection =====
-GPU_DETECTED = "检测到显卡: {gpu_name}"
-GPU_NOT_DETECTED = "未检测到 NVIDIA 显卡。"
-CUDA_NOT_DETECTED = "无法从 nvidia-smi 输出中检测到 CUDA 版本。"
-CUDA_VERSION = "CUDA 版本: {cuda_version}"
-DRIVER_NOT_DETECTED = "无法从 nvidia-smi 输出中检测到显卡驱动版本。"
-DRIVER_VERSION = "显卡驱动版本: {driver_full}"
-
-
-
-
-
-# ===== _find_compatible_cuda =====
-COMPATIBLE_CUDA_FOUND = "-> 找到兼容的 PyTorch CUDA 版本: {final_cuda}"
-COMPATIBLE_CUDA_NOT_FOUND = (
-    "-> 未找到兼容的 PyTorch CUDA 版本。\n"
-    "   最低支持: CUDA >= {min_cuda}，驱动 >= {min_driver}.x\n"
-    "   回退到 PyTorch CPU 版本。"
+    defaulting = "默认选择「是」。",
 )
 
 
 
 
 
-# ===== modify_ultralytics_for_dml =====
+
+
+
+
+
+
+INSTALL_DONE = "\n\n-----\n\nHachimiDX 安装完成\n"
+
 MODIFY_TARGET_NOT_EXIST = "modify_ultralytics_for_dml(): 错误: 目标文件 {file} 不存在。"
 MODIFY_REPLACE_MODIFIED_ERROR = "modify_ultralytics_for_dml(): 替换为修改后的文件时发生错误: {e}"
 MODIFY_REPLACE_ORIGINAL_ERROR = "modify_ultralytics_for_dml(): 替换为原始文件时发生错误: {e}"
+
+RESTORE_SUCCESS = "Ultralytics 已恢复到原始状态。"
+RESTORE_ERROR = "尝试恢复 ultralytics 时发生错误。"
 
 
 

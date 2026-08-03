@@ -138,6 +138,7 @@ def install() -> OpResult[None]:
 
     ask_use_pypi_mirror()
 
+    # ask install TensorRT
     install_trt = ask_install_trt()
     if install_trt:
         # 检测是否可用
@@ -163,7 +164,18 @@ def install() -> OpResult[None]:
     if not success:
         return err("Failed to install ultralytics or onnxruntime.")
     
-
+    # model inference acceleration
+    if nvidia_gpu_config is not None:
+        # install TensorRT
+        is_success = install_tensorrt(nvidia_gpu_config)
+        if not is_success: sys.exit(1)
+    else:
+        # install DirectML
+        install_dml = ask_install_dml()
+        if install_dml:
+            is_success = install_directml()
+            if not is_success: sys.exit(1)
+        
             
 
     
@@ -191,8 +203,6 @@ def ask_use_pypi_mirror():
         print(T.ask_use_pypi_mirror.defaulting)
         USE_PyPI_Mirror = True
 
-
-
 def ask_install_trt() -> bool:
     print("\n-----")
     install_trt = input(T.ask_install_trt.prompt).strip()
@@ -206,18 +216,29 @@ def ask_install_trt() -> bool:
         print(T.ask_install_trt.defaulting)
         return True
 
-
-
 def ask_continue_install() -> bool:
     print("\n-----")
-    continue_install = input(T.install.continue_prompt).strip()
+    continue_install = input(T.ask_continue_install.prompt).strip()
     if continue_install == "1":
         return False
     elif continue_install == "2":
         return True
     else:
-        print(T.install.continue_defaulting)
+        print(T.ask_continue_install.defaulting)
         return False
+
+def ask_install_dml() -> bool:
+    print("\n-----")
+    install_dml = input(T.ask_install_dml.prompt).strip()
+    if install_dml == "1":
+        return True
+    elif install_dml == "2":
+        return False
+    elif install_dml == "3":
+        sys.exit(0)
+    else:
+        print(T.ask_install_dml.defaulting)
+        return True
 
 
 
