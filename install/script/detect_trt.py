@@ -143,8 +143,9 @@ def _get_nvidia_gpu_info(T) -> OpResult[list[_gpu_info]]:
         for gpu in gpus:
             compute_cap_print = f"sm {gpu.compute_capability[0]}.{gpu.compute_capability[1]}"
             driver_ver_print = f"{gpu.driver_version[0]}.{gpu.driver_version[1]}"
-            print(f"- {index}. {gpu.gpu_name}, {compute_cap_print}, {driver_ver_print}")
+            print(f"{index}. {gpu.gpu_name}, {compute_cap_print}, {driver_ver_print}")
             index += 1
+        print()
 
         return ok(gpus)
     

@@ -138,12 +138,29 @@ def install() -> OpResult[None]:
 
     ask_use_pypi_mirror()
 
-    result = detect_trt_availability(T)
-    if not result.is_ok:
-        print_op_result(result)
-        print(f"\n-----\n\n{T.install.detect_trt_failed}\n")
+    install_trt = ask_install_trt()
+    if install_trt:
+        # 检测是否可用
+        result = detect_trt_availability(T)
+        if result.is_ok:
+            nvidia_gpu_config: nvidia_config = result.value
+        else:
+            # 不可用，询问是否继续安装
+            print(print_op_result(result))
+            print(f"\n{T.install.detect_trt_failed}")
+            does_continue = ask_continue_install()
+            if not does_continue:
+                sys.exit(1)
+            nvidia_gpu_config = None
+           
+    
+
+            
 
     
+
+    
+
 
     return ok()
 
@@ -179,6 +196,19 @@ def ask_install_trt() -> bool:
     else:
         print(T.ask_install_trt.defaulting)
         return True
+
+
+
+def ask_continue_install() -> bool:
+    print("\n-----")
+    continue_install = input(T.install.continue_prompt).strip()
+    if continue_install == "1":
+        return False
+    elif continue_install == "2":
+        return True
+    else:
+        print(T.install.continue_defaulting)
+        return False
 
 
 

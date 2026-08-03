@@ -58,7 +58,15 @@ reinstall_backend = SN(
 
 install = SN(
     start = "开始安装 HachimiDX...",
-    detect_trt_failed = "检测 NVIDIA GPU 失败。",
+    detect_trt_failed = "检测到 TensorRT 不可用。",
+    continue_prompt = """
+是否继续安装？
+
+1. 否 (默认)
+2. 是
+
+-> """,
+    continue_defaulting = "默认选择「否」。",
 )
 
 
@@ -209,7 +217,7 @@ MIRROR_EXHAUSTED = "所有镜像均无法安装 {package_name}。"
 
 # ===== detect_trt.py =====
 detect_trt = SN(
-    start="正在检测 NVIDIA GPU 可用性...",
+    start="正在检测 TensorRT 是否可用...",
     gpu_detected_title="检测到 NVIDIA 显卡:",
     select_gpu_prompt="请选择要使用的显卡编号 (0, 1, 2, ...): ",
     select_gpu_try_again="  输入无效，请重新输入。",
