@@ -319,7 +319,7 @@ def install_tensorrt(nvidia_gpu_config: nvidia_config) -> bool:
 
     # 先安装 wheel-stub
     cmd = [sys.executable, "-m", "pip", "install",
-            "wheel-stub==0.4.2", "--no-warn-script-location"]
+           "wheel-stub==0.4.2", "--no-warn-script-location"]
     is_success = general_pip_install("wheel-stub", cmd)
     if not is_success:
         return False
@@ -341,6 +341,25 @@ def install_tensorrt(nvidia_gpu_config: nvidia_config) -> bool:
         except Exception as e:
             print(f"Error deleting TensorRT temporary directory {tmp_dir}\n{e}")
 
+    return True
+
+
+
+
+
+def install_directml() -> bool:
+    
+    cmd = [sys.executable, "-m", "pip", "install",
+           "onnxruntime-directml==1.24.4", "--no-warn-script-location"]
+    is_success = general_pip_install("ONNX Runtime for DirectML", cmd)
+    if not is_success:
+        return False
+    
+    result = modify_ultralytics_for_dml()
+    if not result.is_ok:
+        print(print_op_result(result))
+        return False
+    
     return True
 
 
