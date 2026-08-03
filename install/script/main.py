@@ -266,7 +266,7 @@ def install_pytorch(nvidia_gpu_config: nvidia_config|None) -> bool:
     cmd = [sys.executable, "-m", "pip", "install",
            f"torch=={torch_ver}",
            f"torchvision=={torchvision_ver}",
-           "--index-url", f"{base_url}/{target}"
+           "--index-url", f"{base_url}/{target}",
            "--no-warn-script-location"]
     
     return general_pip_install(f"PyTorch ({target})", cmd, add_pypi_mirror=False)  # 显式禁用镜像，已经指定了南京大学
@@ -348,7 +348,7 @@ def install_tensorrt(nvidia_gpu_config: nvidia_config) -> bool:
 
 
 def install_directml() -> bool:
-    
+
     cmd = [sys.executable, "-m", "pip", "install",
            "onnxruntime-directml==1.24.4", "--no-warn-script-location"]
     is_success = general_pip_install("ONNX Runtime for DirectML", cmd)
@@ -360,6 +360,50 @@ def install_directml() -> bool:
         print(print_op_result(result))
         return False
     
+    return True
+
+
+
+
+
+def modify_ultralytics_for_dml(recover = False) -> bool:
+
+    return True
+
+    print("\n-----\n")
+    ultralytics = ROOT / "python" / "Lib" / "site-packages" / "ultralytics"
+    target_path_onnx = ultralytics / "nn" / "backends" / "onnx.py"
+    target_path_exporter = ultralytics / "engine" / "exporter.py"
+
+    dml_support_dir = ROOT / "install" / "dml_support"
+    modified_onnx = dml_support_dir / "modified" / "onnx.py"
+    modified_exporter = dml_support_dir / "modified" / "exporter.py"
+    original_onnx = dml_support_dir / "original" / "onnx.py"
+    original_exporter = dml_support_dir / "original" / "exporter.py"
+
+    # ckech file exists
+    for file in [target_path_onnx, target_path_exporter, modified_onnx, modified_exporter, original_onnx, original_exporter]:
+        if not file.exists() or not file.is_file():
+            print(T.MODIFY_TARGET_NOT_EXIST.format(file=file))
+            return False
+
+    if not recover:  
+        # replace target files with modified files
+        try:
+            shutil.copyfile(modified_onnx, target_path_onnx)
+            shutil.copyfile(modified_exporter, target_path_exporter)
+        except Exception as e:
+            print(T.MODIFY_REPLACE_MODIFIED_ERROR.format(e=e))
+            return False
+    else:
+        # replace target files with original files
+        try:
+            shutil.copyfile(original_onnx, target_path_onnx)
+            shutil.copyfile(original_exporter, target_path_exporter)
+        except Exception as e:
+            print(T.MODIFY_REPLACE_ORIGINAL_ERROR.format(e=e))
+            return False
+
     return True
 
 

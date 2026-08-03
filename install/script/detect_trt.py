@@ -143,9 +143,8 @@ def _get_nvidia_gpu_info(T) -> OpResult[list[_gpu_info]]:
         for gpu in gpus:
             compute_cap_print = f"sm {gpu.compute_capability[0]}.{gpu.compute_capability[1]}"
             driver_ver_print = f"{gpu.driver_version[0]}.{gpu.driver_version[1]}"
-            print(f"{index}. {gpu.gpu_name}, {compute_cap_print}, {driver_ver_print}")
+            print(f"{index}. {gpu.gpu_name}, {compute_cap_print}, driver {driver_ver_print}")
             index += 1
-        print()
 
         return ok(gpus)
     
@@ -175,6 +174,7 @@ def _is_gpu_valid(T,
                 target_cfg = cfg
     if target_cfg is None:
         # 计算能力低于最低配置
+        print()
         print(T.detect_trt.low_compute_cap.format(
             compute_cap=f"sm {compute_cap[0]}.{compute_cap[1]}",
             min_compute_cap=f"sm {nvidia_config_list[-1].compute_capability[0]}.{nvidia_config_list[-1].compute_capability[1]}",
@@ -183,6 +183,7 @@ def _is_gpu_valid(T,
 
     # 驱动版本不达标：不允许回退到其他区间，直接判为不可用
     if driver_ver < target_cfg.win_driver_ver:
+        print()
         print(T.detect_trt.invalid_driver_version.format(
             driver_version=f"{driver_ver[0]}.{driver_ver[1]}",
             min_driver_version=f"{target_cfg.win_driver_ver[0]}.{target_cfg.win_driver_ver[1]}",
