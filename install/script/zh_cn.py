@@ -59,6 +59,7 @@ reinstall_backend = SN(
 install = SN(
     start = "开始安装 HachimiDX...",
     detect_trt_failed = "检测到 TensorRT 不可用。",
+    done = "HachimiDX 安装完成。",
 )
 
 

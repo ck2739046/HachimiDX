@@ -175,8 +175,26 @@ def install() -> OpResult[None]:
         if install_dml:
             is_success = install_directml()
             if not is_success: sys.exit(1)
+
+    # install others
+    dependencies = [
+        "PyQt6==6.10.2",
+        "pywin32==311",
+        "librosa==0.11.0",
+        "pydantic==2.12.5",
+        "python-i18n==0.3.9",
+        "nanoid==2.0.0",
+        "filterpy==1.4.5",
+    ]
+    cmd = [sys.executable, "-m", "pip", "install",
+           *dependencies, "--no-warn-script-location"]
+    is_success = general_pip_install("Other dependencies", cmd)
+    if not is_success: sys.exit(1)
         
-            
+    # 结束
+    print("\n-----\n")
+    print(T.install.done)
+    print("\n-----\n")
 
     
 
