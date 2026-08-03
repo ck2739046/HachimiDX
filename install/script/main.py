@@ -256,20 +256,20 @@ def install_pytorch(nvidia_gpu_config: nvidia_config|None) -> bool:
         # 使用配置指定的版本
         torch_ver = nvidia_gpu_config.torch_ver
         torchvision_ver = nvidia_gpu_config.torchvision_ver
-        index_url = f"{base_url}/{nvidia_gpu_config.torch_cuda_ver}"
+        target = nvidia_gpu_config.torch_cuda_ver
     else:
         # 默认安装 cpu 版本
         torch_ver = "2.10.0"
         torchvision_ver = "0.25.0"
-        index_url = f"{base_url}/cpu"
+        target = "cpu"
 
     cmd = [sys.executable, "-m", "pip", "install",
            f"torch=={torch_ver}",
            f"torchvision=={torchvision_ver}",
-           "--index-url", index_url,
+           "--index-url", f"{base_url}/{target}"
            "--no-warn-script-location"]
     
-    return general_pip_install(f"PyTorch", cmd, add_pypi_mirror=False)  # 显式禁用镜像，已经指定了南京大学
+    return general_pip_install(f"PyTorch ({target})", cmd, add_pypi_mirror=False)  # 显式禁用镜像，已经指定了南京大学
 
 
 
@@ -309,6 +309,38 @@ def install_ultralytics_onnx(nvidia_gpu_config: nvidia_config|None) -> bool:
     if not is_success:
         return False
     
+    return True
+
+
+
+
+
+def install_tensorrt(nvidia_gpu_config: nvidia_config) -> bool:
+
+    # 先安装 wheel-stub
+    cmd = [sys.executable, "-m", "pip", "install",
+            "wheel-stub==0.4.2", "--no-warn-script-location"]
+    is_success = general_pip_install("wheel-stub", cmd)
+    if not is_success:
+        return False
+    
+    # 再安装 NVIDIA TensorRT
+    cmd = [sys.executable, "-m", "pip", "install",
+           f"tensorrt=={nvidia_gpu_config.tensorRT_ver}",
+           "--no-warn-script-location",
+           "--extra-index-url", "https://pypi.nvidia.com"]
+    is_success = general_pip_install("TensorRT", cmd)
+    if not is_success:
+        return False
+    
+    # 最后删除临时文件
+    tmp_dir = ROOT / "_tmp_trt"
+    if tmp_dir.exists() and tmp_dir.is_dir():
+        try:
+            shutil.rmtree(tmp_dir)
+        except Exception as e:
+            print(f"Error deleting TensorRT temporary directory {tmp_dir}\n{e}")
+
     return True
 
 
