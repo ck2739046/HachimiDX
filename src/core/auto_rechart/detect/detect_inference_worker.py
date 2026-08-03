@@ -5,6 +5,7 @@ from queue import Full
 
 from ...schemas.op_result import OpResult, ok, err
 from .note_definition import *
+from ..tool import release_ncnn_vulkan
 
 
 
@@ -30,6 +31,8 @@ def inference_worker_main(model_path, task_name, inference_device,
     会修改 output_queue 和 progress_ref.value, 其他参数均为只读
     """
 
+    model = None
+    results = None
     try:
         last_frame_idx = 0  # 仅用于报错提示
         model = YOLO(model_path, task=task_name)
@@ -99,6 +102,10 @@ def inference_worker_main(model_path, task_name, inference_device,
         except Exception:
             pass
         raise  # 再次 raise 保持向上传播
+    finally:
+        results = None
+        model = None
+        release_ncnn_vulkan(inference_device)
 
 
 

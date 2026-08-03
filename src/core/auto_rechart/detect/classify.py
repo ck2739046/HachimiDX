@@ -9,7 +9,7 @@ from ...schemas.op_result import OpResult, ok, err
 from ..pipeline import Producer, Consumer, Pipeline
 from .note_definition import *
 from .track import _save_track_results, _load_track_results
-from ..tool import print_progress, SEEK_THRESHOLD
+from ..tool import print_progress, release_ncnn_vulkan, SEEK_THRESHOLD
 
 
 
@@ -175,6 +175,11 @@ class ClassifyConsumer(Consumer):
     def on_start(self, ctx):
         self.cls_ex_model = YOLO(self.cls_ex_model_path, task="classify")
         self.cls_break_model = YOLO(self.cls_break_model_path, task="classify")
+
+    def on_cleanup(self, ctx, error):
+        self.cls_ex_model = None
+        self.cls_break_model = None
+        release_ncnn_vulkan(self.inference_device)
 
     def consume(self, batch, stop, ctx):
         cls_results = _classify_image_batch(

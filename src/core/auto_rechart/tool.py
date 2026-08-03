@@ -1,4 +1,5 @@
 import numpy as np
+import gc
 
 
 SEEK_THRESHOLD = 200
@@ -9,6 +10,17 @@ def print_progress(name, counter, total):
     """{name} progress: counter/total (percent%)"""
     progress = (counter / total) * 100 if total else 0.0
     print(f"{name} progress: {counter}/{total} ({progress:.1f}%)     ", end="\r", flush=True)
+
+
+def release_ncnn_vulkan(inference_device) -> None:
+    if not str(inference_device or "").lower().startswith("vulkan"):
+        return
+    gc.collect()
+    try:
+        import ncnn
+        ncnn.destroy_gpu_instance()
+    except Exception as e:
+        print(f"Failed to release NCNN Vulkan instance: {e}")
 
 
 def calculate_oct_position(circle_center_x, circle_center_y, note_x, note_y):
