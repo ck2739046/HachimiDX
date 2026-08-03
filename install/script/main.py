@@ -106,7 +106,7 @@ def reinstall_backend() -> OpResult[None]:
     # 2. 删除相关库
     print(f"\n-----\n\n{T.reinstall_backend.start_uninstall}\n")
     cmd = [sys.executable, "-m", "pip", "uninstall",
-        "onnxruntime-gpu", "onnxruntime-directml",
+        "onnxruntime", "onnxruntime-gpu", "onnxruntime-directml",
         "torch", "torchvision", "tensorrt", "-y"]
     try:
         subprocess.run(cmd, check=True)
@@ -146,12 +146,17 @@ def install() -> OpResult[None]:
         if result.is_ok:
             nvidia_gpu_config = result.value
         else:
-            # 不可用，询问是否继续安装
             print(print_op_result(result))
             print(f"\n{T.install.detect_trt_failed}")
+            # 不可用，询问是否继续安装
             does_continue = ask_continue_install()
             if not does_continue:
                 sys.exit(1)
+
+    # ask install DirectML (if no trt)
+    install_dml = False
+    if nvidia_gpu_config is None:
+        install_dml = ask_install_dml()
 
     # install pytorch
     success = install_pytorch(nvidia_gpu_config)
@@ -159,21 +164,21 @@ def install() -> OpResult[None]:
         return err("Failed to install pytorch.")
 
     # install ultralytics + onnxruntime
-    success = install_ultralytics_onnx(nvidia_gpu_config)
+    success = install_ultralytics_onnx(nvidia_gpu_config, install_dml)
     if not success:
         return err("Failed to install ultralytics or onnxruntime.")
-    
+
     # model inference acceleration
     if nvidia_gpu_config is not None:
         # install TensorRT
         is_success = install_tensorrt(nvidia_gpu_config)
         if not is_success: sys.exit(1)
-    else:
-        # install DirectML
-        install_dml = ask_install_dml()
-        if install_dml:
-            is_success = install_directml()
-            if not is_success: sys.exit(1)
+    elif install_dml:
+        # modify ultralytics for DirectML
+        result = modify_ultralytics_for_dml()
+        if not result.is_ok:
+            print(print_op_result(result))
+            sys.exit(1)
 
     # install others
     dependencies = [
@@ -194,11 +199,6 @@ def install() -> OpResult[None]:
     print("\n-----\n")
     print(T.install.done)
     print("\n-----\n")
-
-    
-
-    
-
 
     return ok()
 
@@ -292,13 +292,16 @@ def install_pytorch(nvidia_gpu_config: nvidia_config|None) -> bool:
 
 
 
-def install_ultralytics_onnx(nvidia_gpu_config: nvidia_config|None) -> bool:
 
-    # 安装 onnxruntime
-    libs = ["onnx==1.20.1", "onnxslim==0.1.90"]
+def install_ultralytics_onnx(nvidia_gpu_config: nvidia_config|None, install_dml: bool) -> bool:
+
+    # 必装
+    libs = ["onnx==1.20.1", "onnxslim==0.1.90", "onnxruntime==1.20.1"]
+    # 选装
     if nvidia_gpu_config is not None:
-        # 增加安装 GPU 版本
         libs += [f"onnxruntime-gpu=={nvidia_gpu_config.onnxruntime_gpu_ver}"]
+    elif install_dml:
+        libs += ["onnxruntime-directml==1.24.4"]
 
     cmd = [sys.executable, "-m", "pip", "install",
            *libs, "--no-warn-script-location"]
@@ -358,25 +361,6 @@ def install_tensorrt(nvidia_gpu_config: nvidia_config) -> bool:
         except Exception as e:
             print(f"Error deleting TensorRT temporary directory {tmp_dir}\n{e}")
 
-    return True
-
-
-
-
-
-def install_directml() -> bool:
-
-    cmd = [sys.executable, "-m", "pip", "install",
-           "onnxruntime-directml==1.24.4", "--no-warn-script-location"]
-    is_success = general_pip_install("ONNX Runtime for DirectML", cmd)
-    if not is_success:
-        return False
-    
-    result = modify_ultralytics_for_dml()
-    if not result.is_ok:
-        print(print_op_result(result))
-        return False
-    
     return True
 
 
