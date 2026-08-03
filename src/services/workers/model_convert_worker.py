@@ -65,8 +65,8 @@ def _convert_to_tensorrt(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
             model.export(
                 format="engine",
                 imgsz=imgsz,
-                half=True,
-                dynamic=True,
+                quantize=16,
+                dynamic=False,
                 simplify=True,
                 workspace=None,
                 batch=batch
@@ -110,8 +110,7 @@ def _convert_to_onnx(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
                 format="onnx",
                 opset=17,
                 imgsz=imgsz,
-                half=True,
-                dynamic=True,
+                dynamic=False,
                 simplify=True,
                 batch=batch
             )

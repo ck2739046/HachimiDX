@@ -61,7 +61,7 @@ def create_inferencer(detect_model_path, obb_model_path,
     # 创建推理 worker 进程 (detect/obb)
     process_detect = tmp.Process(
         target=inference_worker_main,
-        args=(detect_model_path, 'detect', batch_size, inference_device,
+        args=(detect_model_path, 'detect', inference_device,
               coord_scale,
               input_queue_detect, output_queue, control_queue_detect,
               progress_ref_detect, stop_event),
@@ -69,7 +69,7 @@ def create_inferencer(detect_model_path, obb_model_path,
     )
     process_obb = tmp.Process(
         target=inference_worker_main,
-        args=(obb_model_path, 'obb', batch_size, inference_device,
+        args=(obb_model_path, 'obb', inference_device,
               coord_scale,
               input_queue_obb, output_queue, control_queue_obb,
               progress_ref_obb, stop_event),

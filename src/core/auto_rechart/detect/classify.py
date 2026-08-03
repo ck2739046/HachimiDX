@@ -415,6 +415,7 @@ def _classify_image_batch(consumed_batch, cls_ex_model, cls_break_model, inferen
         images_info = [(item['frame'], item['track_id'], item['sample_position'], item['note_type']) for item in consumed_batch]
 
         # 模型推理
+        batch_size = len(images)
         ex_results = cls_ex_model.predict(
             task='classify',
             source=images,
@@ -422,7 +423,7 @@ def _classify_image_batch(consumed_batch, cls_ex_model, cls_break_model, inferen
             verbose=False,
             device=inference_device,
             imgsz=imgsz,
-            half=True
+            batch=batch_size,
         )
         break_results = cls_break_model.predict(
             task='classify',
@@ -431,7 +432,7 @@ def _classify_image_batch(consumed_batch, cls_ex_model, cls_break_model, inferen
             verbose=False,
             device=inference_device,
             imgsz=imgsz,
-            half=True
+            batch=batch_size,
         )
 
         # 解析yolo结果

@@ -14,7 +14,7 @@ _OUTPUT_QUEUE_STALL_TIMEOUT = 60.0
 
 
 
-def inference_worker_main(model_path, task_name, batch_size, inference_device,
+def inference_worker_main(model_path, task_name, inference_device,
                           coord_scale,
                           input_queue, output_queue, control_queue,
                           progress_ref, stop_event):
@@ -49,12 +49,11 @@ def inference_worker_main(model_path, task_name, batch_size, inference_device,
             # 推理
             results = model.predict(
                 source=frames,
-                batch=batch_size,
+                batch=len(frames),
                 device=inference_device,
                 imgsz=imgsz_val,
                 max_det=50,
                 verbose=False,
-                half=True,
             )
 
             # 处理结果

@@ -191,7 +191,6 @@ class TouchHoldConsumer(Consumer):
                 verbose=False,
                 device=self.inference_device,
                 imgsz=get_imgsz("touch_hold"),
-                half=True,
                 batch=len(images),
             )
         except Exception as e:
