@@ -99,9 +99,9 @@ def build_auto_rechart_cmd(data: AutoRechartModel) -> OpResult[list[str]]:
                 return err("Failed to get inference args from settings", inner=res)
             cmd.extend(res.value)
 
-            res = _get_all_model_paths()
+            res = _get_model_backend_arg()
             if not res.is_ok:
-                return err("Failed to get model paths", inner=res)
+                return err("Failed to get model backend arg", inner=res)
             cmd.extend(res.value)
 
 
@@ -319,29 +319,14 @@ def _get_inference_args_from_settings() -> OpResult[list]:
 
 
 
-def _get_all_model_paths() -> OpResult[list]:
-
-    cmd = []
-
+def _get_model_backend_arg() -> OpResult[list[str]]:
     res = SettingsManage.get(SC_Defs.model_backend.key)
     if not res.is_ok:
         return err(f"Failed to get {SC_Defs.model_backend.key} from settings", inner=res)
-    model_backend = res.value
+    model_backend = str(res.value).strip()
 
-    res = SC_Defs.get_path_by_backend(model_backend)
+    res = PathManage.resolve_model_paths(model_backend)
     if not res.is_ok:
-        return err(f"Failed to get model paths for backend: {model_backend}", inner=res)
-    paths = res.value
+        return err(f"Failed to validate model paths for backend: {model_backend}", inner=res)
 
-    cmd.append("--detect_model_path")
-    cmd.append(str(paths["detect"]))
-    cmd.append("--obb_model_path")
-    cmd.append(str(paths["obb"]))
-    cmd.append("--cls_break_model_path")
-    cmd.append(str(paths["cls_break"]))
-    cmd.append("--cls_ex_model_path")
-    cmd.append(str(paths["cls_ex"]))
-    cmd.append("--touch_hold_model_path")
-    cmd.append(str(paths["touch_hold"]))
-
-    return ok(cmd)
+    return ok([f"--{SC_Defs.model_backend.key}", model_backend])

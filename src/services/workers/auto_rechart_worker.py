@@ -33,6 +33,7 @@ from src.core.auto_rechart.detect.main import main as detect_main
 from src.core.auto_rechart.analyze.main import main as analyze_main
 from src.core.schemas.media_config import MediaType
 from src.core.schemas.op_result import print_op_result
+from src.services import PathManage
 from src.main import VERSION
 
 
@@ -71,6 +72,18 @@ def main(args: list[str]) -> bool:
         is_analyze_enabled = _as_bool(cfg["is_analyze_enabled"])
         std_video_path = _get_cfg(cfg, "std_video_path", Path)
 
+        model_paths = None
+        if is_detect_enabled or is_analyze_enabled:
+            model_backend = _get_cfg(cfg, "model_backend")
+            if model_backend is None:
+                return _fail("Missing model_backend")
+            model_paths_result = PathManage.resolve_model_paths(model_backend)
+            if not model_paths_result.is_ok:
+                return _fail(print_op_result(model_paths_result))
+            model_paths = model_paths_result.value
+            if model_paths is None:
+                return _fail("Resolved model paths are empty")
+
 
 
         if is_standardize_enabled:
@@ -98,10 +111,10 @@ def main(args: list[str]) -> bool:
                 batch_detect=_get_cfg(cfg, "predict_batch_size_detect_obb", int),
                 batch_cls=_get_cfg(cfg, "predict_batch_size_classify", int),
                 inference_device=_get_cfg(cfg, "inference_device"),
-                detect_model_path=_get_cfg(cfg, "detect_model_path", Path),
-                obb_model_path=_get_cfg(cfg, "obb_model_path", Path),
-                cls_ex_model_path=_get_cfg(cfg, "cls_ex_model_path", Path),
-                cls_break_model_path=_get_cfg(cfg, "cls_break_model_path", Path),
+                detect_model_path=model_paths.detect,
+                obb_model_path=model_paths.obb,
+                cls_ex_model_path=model_paths.cls_ex,
+                cls_break_model_path=model_paths.cls_break,
                 skip_detect=_get_cfg(cfg, "skip_detect", _as_bool),
                 skip_cls=_get_cfg(cfg, "skip_cls", _as_bool),
                 skip_export_tracked_video=_get_cfg(cfg, "skip_export_tracked_video", _as_bool),
@@ -124,10 +137,10 @@ def main(args: list[str]) -> bool:
                 duration_denominator=_get_cfg(cfg, "duration_denominator", int),
                 inference_device=_get_cfg(cfg, "inference_device"),
                 batch_touch_hold=_get_cfg(cfg, "predict_batch_size_touch_hold", int),
-                touch_hold_model_path=_get_cfg(cfg, "touch_hold_model_path", Path),
+                touch_hold_model_path=model_paths.touch_hold,
                 batch_cls=_get_cfg(cfg, "predict_batch_size_classify", int),
-                cls_break_model_path=_get_cfg(cfg, "cls_break_model_path", Path),
-                cls_ex_model_path=_get_cfg(cfg, "cls_ex_model_path", Path),
+                cls_break_model_path=model_paths.cls_break,
+                cls_ex_model_path=model_paths.cls_ex,
                 app_version=VERSION
             )
             if not result.is_ok:
