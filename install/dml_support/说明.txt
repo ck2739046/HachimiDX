@@ -1,23 +1,37 @@
 参考 issue:
 https://github.com/ultralytics/yolov5/issues/2995
 
-版本: ultralytics 8.4.24
-
 当前 ultralytics 不支持 DirectML，需要修改源码
 
+=========================
+版本: ultralytics 8.4.102
+=========================
+
+engine/exporter.py line 978-979 注释掉:
+
+    ort = "onnxruntime-gpu" if "cuda" in self.device.type else "onnxruntime"
+    requirements += [(ort, "onnxruntime", "onnxruntime-gpu", "onnxruntime-qnn")]
 
 
-exporter.py line 710:
+nn/backends/onnx.py line 66-80 注释掉:
+                    注意 line 67 不注释
 
-requirements += ["onnxslim>=0.1.71", "onnxruntime" + ("-gpu" if torch.cuda.is_available() else "")]
+    # check_requirements(("onnx", "onnxruntime-gpu" if cuda else "onnxruntime"))
+    import onnxruntime
 
-->
+    # Select execution provider
+    # available = onnxruntime.get_available_providers()
+    # if cuda and "CUDAExecutionProvider" in available:
+        # providers = [("CUDAExecutionProvider", {"device_id": self.device.index}), "CPUExecutionProvider"]
+    # elif self.device.type == "mps" and "CoreMLExecutionProvider" in available:
+        # providers = ["CoreMLExecutionProvider", "CPUExecutionProvider"]
+    # else:
+        # providers = ["CPUExecutionProvider"]
+        # if cuda:
+            # LOGGER.warning("CUDA requested but CUDAExecutionProvider not available. Using CPU...")
+            # self.device = torch.device("cpu")
+            # cuda = False
 
-requirements += ["onnxslim>=0.1.71"] #, "onnxruntime" + ("-gpu" if torch.cuda.is_available() else "")]
+nn/backends/onnx.py line 82 新增:
 
-
-onnx.py line 59-69 注释掉
-
-onnx.py line 71 新增:
-
-providers = ["DmlExecutionProvider", "CPUExecutionProvider"] # 强制使用 dml
+    providers = ["DmlExecutionProvider", "CPUExecutionProvider"]  # 强制使用 dml

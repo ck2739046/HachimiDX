@@ -135,25 +135,10 @@ DirectML 能够调用多个品牌的 GPU（如 AMD、Intel、NVIDIA 等）进行
 
 
 
-
-
-
-
-
-
-
-
-
-
-MODIFY_TARGET_NOT_EXIST = "modify_ultralytics_for_dml(): 错误: 目标文件 {file} 不存在。"
-MODIFY_REPLACE_MODIFIED_ERROR = "modify_ultralytics_for_dml(): 替换为修改后的文件时发生错误: {e}"
-MODIFY_REPLACE_ORIGINAL_ERROR = "modify_ultralytics_for_dml(): 替换为原始文件时发生错误: {e}"
-
-RESTORE_SUCCESS = "Ultralytics 已恢复到原始状态。"
-RESTORE_ERROR = "尝试恢复 ultralytics 时发生错误。"
-
-
-
+modify_ultralytics_for_dml = SN(
+    file_not_exist = "目标文件 {file} 不存在。",
+    modify_failed = "替换文件时发生错误: {e}",
+)
 
 
 
@@ -170,8 +155,6 @@ pip_install = SN(
     mirror_switching = "镜像「{old}」安装失败，正在切换到镜像「{new}」重试...",
     mirror_exhausted = "所有镜像均无法安装 {package_name}。",
 )
-
-
 
 
 

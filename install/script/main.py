@@ -371,9 +371,6 @@ def install_tensorrt(nvidia_gpu_config: nvidia_config) -> bool:
 
 def modify_ultralytics_for_dml(recover = False) -> OpResult[None]:
 
-    return ok()
-
-    print("\n-----\n")
     ultralytics = ROOT / "python" / "Lib" / "site-packages" / "ultralytics"
     target_path_onnx = ultralytics / "nn" / "backends" / "onnx.py"
     target_path_exporter = ultralytics / "engine" / "exporter.py"
@@ -385,29 +382,28 @@ def modify_ultralytics_for_dml(recover = False) -> OpResult[None]:
     original_exporter = dml_support_dir / "original" / "exporter.py"
 
     # ckech file exists
-    for file in [target_path_onnx, target_path_exporter, modified_onnx, modified_exporter, original_onnx, original_exporter]:
+    for file in [target_path_onnx, target_path_exporter,
+                 modified_onnx, modified_exporter,
+                 original_onnx, original_exporter]:
         if not file.exists() or not file.is_file():
-            print(T.MODIFY_TARGET_NOT_EXIST.format(file=file))
-            return False
+            msg = T.modify_ultralytics_for_dml.file_not_exist.format(file=file)
+            return err(msg)
 
-    if not recover:  
-        # replace target files with modified files
-        try:
+    # replace files
+    try:
+        if not recover:
+            # replace modified
             shutil.copyfile(modified_onnx, target_path_onnx)
             shutil.copyfile(modified_exporter, target_path_exporter)
-        except Exception as e:
-            print(T.MODIFY_REPLACE_MODIFIED_ERROR.format(e=e))
-            return False
-    else:
-        # replace target files with original files
-        try:
+        else:
+            # replace original
             shutil.copyfile(original_onnx, target_path_onnx)
             shutil.copyfile(original_exporter, target_path_exporter)
-        except Exception as e:
-            print(T.MODIFY_REPLACE_ORIGINAL_ERROR.format(e=e))
-            return False
+    except Exception as e:
+        msg = T.modify_ultralytics_for_dml.modify_failed.format(e=e)
+        return err(msg, error_raw=e)
 
-    return True
+    return ok()
 
 
 
