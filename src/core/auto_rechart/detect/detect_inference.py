@@ -351,6 +351,24 @@ class Inferencer:
         if self._class_force_closed:
             return
         self._class_force_closed = True
+
+        input_queues = (self._input_queue_detect, self._input_queue_obb)
+        all_queues = (
+            *input_queues,
+            self._output_queue,
+            self._control_queue_detect,
+            self._control_queue_obb,
+        )
+        is_aborting = any(status != WorkerStatus.DONE for status in self._status.values())
+
+        # 异常关闭允许丢弃待发送帧，避免解释器等待 QueueFeederThread。
+        if is_aborting:
+            for q in input_queues:
+                try:
+                    q.cancel_join_thread()
+                except (AttributeError, OSError, ValueError):
+                    pass
+
         self._stop_event.set()
         for p in (self._process_detect, self._process_obb):
             if p is not None and p.is_alive():
@@ -360,7 +378,20 @@ class Inferencer:
                 p.join(timeout=_WORKER_EXIT_TIMEOUT)
                 # join 超时后, 使用 psutil 强杀整棵进程树
                 if p.is_alive():
-                    _kill_process_tree(p.pid)   
+                    _kill_process_tree(p.pid)
+
+        for q in all_queues:
+            try:
+                q.close()
+            except (AttributeError, OSError, ValueError):
+                pass
+
+        if not is_aborting:
+            for q in input_queues:
+                try:
+                    q.join_thread()
+                except (AttributeError, OSError, ValueError):
+                    pass
 
 
 
