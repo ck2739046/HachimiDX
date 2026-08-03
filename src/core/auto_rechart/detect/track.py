@@ -46,9 +46,7 @@ def _build_botsort_tracker(fps: float, with_reid: bool = False) -> BOTSORT:
 
         # 当一个轨迹在连续若干帧未匹配到检测框时，不会立即删除，而是保留最多 track_buffer 帧
         # 值越高，越不容易视为新 id
-        # real buffer frames = fps / 30 * track_buffer
-        # 由于传入了视频 fps，此处固定等于 x/30 秒
-        track_buffer=2, # 1/15s
+        track_buffer=max(1, round(fps / 15)),  # 1/15s
 
         # 计算: 阈值 = 1-IOU
         # 值越高，越宽松，允许较大位移 (低iou) 也匹配上，越不容易视为新 id
@@ -73,7 +71,7 @@ def _build_botsort_tracker(fps: float, with_reid: bool = False) -> BOTSORT:
         # 值越低，外观就不需要那么相似也能匹配上，越不容易视为新 id
         appearance_thresh=0.8 if with_reid else 478,
     )
-    return BOTSORT(tracker_args, frame_rate=fps)
+    return BOTSORT(tracker_args)
 
 
 def _build_ocsort_tracker(fps: float, debug: bool = False) -> OCSort:
