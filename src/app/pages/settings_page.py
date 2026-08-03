@@ -627,7 +627,7 @@ class SettingsPage(BaseOutputPage):
         # 下一步，检查模型文件是否存在
 
         # 模型检查通过
-        path_result = S_Defs.get_path_by_backend(backend)
+        path_result = PathManage.resolve_model_paths(backend)
         if path_result.is_ok:
             self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_model_ready", backend=backend))
             # 特例 cpu 提示无需转换
@@ -637,11 +637,15 @@ class SettingsPage(BaseOutputPage):
             return
 
         # 模型检查失败
+        model_error = (
+            f"{path_result.error_msg}\n\n"
+            f"{i18n.t(f'{I18N_Prefix}.warning_model_not_found_for_backend')}"
+        )
         self.output_widget.append_text(
             i18n.t(
                 f"{I18N_Prefix}.warning_model_missing",
                 backend=backend,
-                error=path_result.error_msg,
+                error=model_error,
             )
         )
 
@@ -649,7 +653,7 @@ class SettingsPage(BaseOutputPage):
         if backend == "CPU":
             show_notify_dialog(
                 i18n.t(f"{I18N_Prefix}.dialog_title"),
-                i18n.t(f"{I18N_Prefix}.warning_cpu_model_missing", error=path_result.error_msg),
+                i18n.t(f"{I18N_Prefix}.warning_cpu_model_missing", error=model_error),
             )
             self._sync_ui_state()
             return
@@ -687,13 +691,17 @@ class SettingsPage(BaseOutputPage):
             return
 
         # 进程正常结束，二次复查模型文件是否存在
-        path_result = S_Defs.get_path_by_backend(backend)
+        path_result = PathManage.resolve_model_paths(backend)
         if not path_result.is_ok:
+            model_error = (
+                f"{path_result.error_msg}\n\n"
+                f"{i18n.t(f'{I18N_Prefix}.warning_model_not_found_for_backend')}"
+            )
             self.output_widget.append_text(
                 i18n.t(
                     f"{I18N_Prefix}.warning_convert_incomplete",
                     backend=backend,
-                    error=path_result.error_msg,
+                    error=model_error,
                 )
             )
             self._sync_ui_state()

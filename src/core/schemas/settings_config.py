@@ -1,9 +1,6 @@
 from dataclasses import dataclass
 from typing import Literal
 
-from src.services import PathManage
-from .op_result import OpResult, ok, err
-
 
 # 窗口尺寸硬性边界常量（不写入 settings.json，不在设置页配置）
 MAIN_APP_W_MIN = 1240
@@ -42,50 +39,11 @@ class SettingsConfig_Definitions:
         type="str",
         group="model",
         default="TensorRT",
-        constraints={"options": ["CPU", "DirectML", "TensorRT"],
+        constraints={"options": ["CPU", "NCNN", "TensorRT"],
                      "options_tooltips": ["ui_model_backend_cpu_tooltip",
-                                          "ui_model_backend_directml_tooltip",
+                                          "ui_model_backend_ncnn_tooltip",
                                           "ui_model_backend_tensorrt_tooltip"]},
     )
-
-    @staticmethod
-    def get_path_by_backend(backend) -> OpResult[dict]:
-        if backend == "CPU":
-            paths = {
-                "detect": PathManage.DETECT_PT_PATH,
-                "obb": PathManage.OBB_PT_PATH,
-                "cls_break": PathManage.CLS_BREAK_PT_PATH,
-                "cls_ex": PathManage.CLS_EX_PT_PATH,
-                "touch_hold": PathManage.TOUCH_HOLD_PT_PATH,
-            }
-        elif backend == "TensorRT":
-            paths = {
-                "detect": PathManage.DETECT_ENGINE_PATH,
-                "obb": PathManage.OBB_ENGINE_PATH,
-                "cls_break": PathManage.CLS_BREAK_ENGINE_PATH,
-                "cls_ex": PathManage.CLS_EX_ENGINE_PATH,
-                "touch_hold": PathManage.TOUCH_HOLD_ENGINE_PATH,
-            }
-        elif backend == "DirectML":
-            paths = {
-                "detect": PathManage.DETECT_ONNX_PATH,
-                "obb": PathManage.OBB_ONNX_PATH,
-                "cls_break": PathManage.CLS_BREAK_ONNX_PATH,
-                "cls_ex": PathManage.CLS_EX_ONNX_PATH,
-                "touch_hold": PathManage.TOUCH_HOLD_ONNX_PATH,
-            }
-        else:
-            paths = {}
-
-        if not paths:
-            return err(f"Unknown model backend: {backend}")
-        for path in paths.values():
-            if not path.exists():
-                import i18n # 避免循环导入
-                hint = i18n.t("app.settings_page.warning_model_not_found_for_backend")
-                return err(f"Model file not found for backend {backend}: {path}\n\n{hint}")
-        return ok(paths)
-
 
     predict_batch_size_detect_obb = SettingsConfig_Definition(
         key="predict_batch_size_detect_obb",
@@ -116,17 +74,17 @@ class SettingsConfig_Definitions:
         type="str",
         group="model",
         default="cuda",
-        constraints={"options": ["cpu", "cuda"]},
+        constraints={"options": ["cpu", "vulkan:0", "cuda"]},
     )
 
     @staticmethod
     def get_inference_device_by_backend(backend):
         if backend == "CPU":
             return "cpu"
+        elif backend == "NCNN":
+            return "vulkan:0"
         elif backend == "TensorRT":
             return "cuda"
-        elif backend == "DirectML":
-            return "cpu" # 虽然写的cpu但实际上会自动选择显卡
         else:
             return "cpu" # default to cpu if unknown backend
 
