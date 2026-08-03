@@ -41,7 +41,6 @@ def main():
     try:
         # ask language
         global T
-        print("\n-----")
         language = input(en_us.ask_language.prompt).strip()
         if language == "1":
             T = zh_cn
@@ -477,10 +476,10 @@ def general_pip_install(package_name, cmd: list[str],
             print(T.pip_install.error.format(package_name=package_name, e=e))
             # 如果启用镜像, 尝试切换到下一个镜像
             if use_mirror and idx < len(attempts) - 1:
-                # 显示名按 key 从当前 locale 的 MIRROR_NAMES 查表
-                current_name = T.MIRROR_NAMES.get(mirror_key, mirror_key) 
+                # 显示名按 key 从当前 locale 的 mirror_names 查表
+                current_name = T.pip_install.mirror_names.get(mirror_key, mirror_key) 
                 next_key = attempts[idx + 1][0]
-                next_name = T.MIRROR_NAMES.get(next_key, next_key)
+                next_name = T.pip_install.mirror_names.get(next_key, next_key)
                 print('\n' + T.pip_install.mirror_switching.format(old=current_name, new=next_name))
 
     # 全部失败
