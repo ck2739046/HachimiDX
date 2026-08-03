@@ -313,7 +313,7 @@ def install_ultralytics_onnx(nvidia_gpu_config: nvidia_config|None, install_dml:
         
     # 安装 ultralytics
     cmd = [sys.executable, "-m", "pip", "install",
-           "ultralytics==8.4.102", "--no-warn-script-location"]
+           "ultralytics==8.4.115", "--no-warn-script-location"]
     is_success = general_pip_install("Ultralytics", cmd)
     if not is_success:
         return False
