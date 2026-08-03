@@ -59,6 +59,7 @@ Are you sure you want to continue?
 install = SN(
     start = "Starting HachimiDX installation...",
     detect_trt_failed = "TensorRT is unavailable.",
+    detect_ncnn_failed = "No compatible NCNN Vulkan GPU is available.",
     done = "HachimiDX installation completed.",
 )
 
@@ -116,12 +117,12 @@ Do you want to continue the installation?
 
 
 
-ask_install_dml = SN(
+ask_install_ncnn = SN(
     prompt = """
-DirectML can use GPUs from multiple brands (such as AMD, Intel, and NVIDIA) for hardware acceleration.
-Do you want to install DirectML?
+NCNN can use AMD, Intel, NVIDIA, and other GPUs through Vulkan for inference acceleration.
+Do you want to install the NCNN Vulkan backend?
 
-If you have a GPU that supports DirectML and performs significantly better than the CPU, it is highly recommended to choose \"Yes\".
+If you have a Vulkan-capable GPU, it is recommended to choose \"Yes\".
 In other cases, please choose \"No\".
 
 1. Yes (Default)
@@ -131,13 +132,6 @@ In other cases, please choose \"No\".
 -> """,
 
     defaulting = "Defaulting to Yes.",
-)
-
-
-
-modify_ultralytics_for_dml = SN(
-    file_not_exist = "Target file {file} does not exist.",
-    modify_failed = "An error occurred while replacing files: {e}",
 )
 
 
@@ -165,4 +159,21 @@ detect_trt = SN(
     select_gpu_try_again = "  Invalid input. Please try again.",
     low_compute_cap = "GPU compute capability {compute_cap} is below the minimum requirement {min_compute_cap}. Please upgrade the GPU or use another backend.",
     invalid_driver_version = "GPU driver version {driver_version} is below the minimum requirement {min_driver_version}. Please upgrade the GPU driver or use another backend.",
+)
+
+
+
+detect_ncnn = SN(
+    start = "Checking whether an NCNN Vulkan GPU is available...",
+    loader_unavailable = "The system Vulkan Loader was not found. Install or update the GPU driver.",
+    api_unavailable = "The system Vulkan Loader does not provide the required Vulkan 1.0 API.",
+    no_physical_devices = "Vulkan did not detect any physical devices.",
+    no_compute_gpu = "No integrated or discrete GPU with a Vulkan compute queue was detected.",
+    check_failed = "An error occurred while checking Vulkan GPUs.",
+    gpu_detected_title = "Detected GPU available for NCNN Vulkan:",
+    gpu_info = "{index}. {gpu_name}, {device_type}, Vulkan {api_version}, vendor 0x{vendor_id:04X}, device 0x{device_id:04X}",
+    device_types = {
+        "integrated": "integrated GPU",
+        "discrete": "discrete GPU",
+    },
 )

@@ -8,6 +8,7 @@ from . import en_us, zh_cn
 from .op_result import OpResult, ok, err, print_op_result
 
 from .detect_trt import detect_trt_availability, nvidia_config
+from .detect_ncnn import detect_ncnn_availability
 
 
 ROOT = Path(__file__).resolve().parents[2] # 往上三级目录
@@ -97,17 +98,11 @@ def reinstall_backend() -> OpResult[None]:
         print(T.reinstall_backend.abort)
         return ok()
 
-    # 1. 撤销 Ultralytics DirectML 修改
-    result = modify_ultralytics_for_dml(recover=True)
-    if not result.is_ok:
-        msg = f"Failed to recover Ultralytics from DirectML modification."
-        return err(msg, inner=result)
-
-    # 2. 删除相关库
+    # 删除相关库
     print(f"\n-----\n\n{T.reinstall_backend.start_uninstall}\n")
     cmd = [sys.executable, "-m", "pip", "uninstall",
         "onnxruntime", "onnxruntime-gpu", "onnxruntime-directml",
-        "torch", "torchvision", "tensorrt", "-y"]
+        "torch", "torchvision", "tensorrt", "ncnn", "pnnx", "-y"]
     try:
         subprocess.run(cmd, check=True)
         print("\n-----\n")
@@ -115,7 +110,7 @@ def reinstall_backend() -> OpResult[None]:
     except Exception as e:
         return err("failed to uninstall existing backend.", error_raw=e)
 
-    # 3. 进入安装流程
+    # 进入安装流程
     result = install()
     if not result.is_ok:
         msg = f"Failed to reinstall."
@@ -153,10 +148,20 @@ def install() -> OpResult[None]:
             if not does_continue:
                 sys.exit(1)
 
-    # ask install DirectML (if no trt)
-    install_dml = False
+    # ask install NCNN (if no trt)
+    install_ncnn = False
     if nvidia_gpu_config is None:
-        install_dml = ask_install_dml()
+        install_ncnn = ask_install_ncnn()
+    if install_ncnn:
+        # 检测是否可用
+        result = detect_ncnn_availability(T)
+        if not result.is_ok:
+            print(print_op_result(result))
+            print(f"\n{T.install.detect_ncnn_failed}")
+            does_continue = ask_continue_install()
+            if not does_continue:
+                sys.exit(1)
+            install_ncnn = False
 
     # install pytorch
     success = install_pytorch(nvidia_gpu_config)
@@ -164,7 +169,7 @@ def install() -> OpResult[None]:
         return err("Failed to install pytorch.")
 
     # install ultralytics + onnxruntime
-    success = install_ultralytics_onnx(nvidia_gpu_config, install_dml)
+    success = install_ultralytics_onnx(nvidia_gpu_config)
     if not success:
         return err("Failed to install ultralytics or onnxruntime.")
 
@@ -173,12 +178,10 @@ def install() -> OpResult[None]:
         # install TensorRT
         is_success = install_tensorrt(nvidia_gpu_config)
         if not is_success: sys.exit(1)
-    elif install_dml:
-        # modify ultralytics for DirectML
-        result = modify_ultralytics_for_dml()
-        if not result.is_ok:
-            print(print_op_result(result))
-            sys.exit(1)
+    elif install_ncnn:
+        # install NCNN
+        is_success = install_ncnn()
+        if not is_success: sys.exit(1)
 
     # install others
     dependencies = [
@@ -244,17 +247,17 @@ def ask_continue_install() -> bool:
         print(T.ask_continue_install.defaulting)
         return False
 
-def ask_install_dml() -> bool:
+def ask_install_ncnn() -> bool:
     print("\n-----")
-    install_dml = input(T.ask_install_dml.prompt).strip()
-    if install_dml == "1":
+    install_ncnn = input(T.ask_install_ncnn.prompt).strip()
+    if install_ncnn == "1":
         return True
-    elif install_dml == "2":
+    elif install_ncnn == "2":
         return False
-    elif install_dml == "3":
+    elif install_ncnn == "3":
         sys.exit(0)
     else:
-        print(T.ask_install_dml.defaulting)
+        print(T.ask_install_ncnn.defaulting)
         return True
 
 
@@ -293,15 +296,13 @@ def install_pytorch(nvidia_gpu_config: nvidia_config|None) -> bool:
 
 
 
-def install_ultralytics_onnx(nvidia_gpu_config: nvidia_config|None, install_dml: bool) -> bool:
+def install_ultralytics_onnx(nvidia_gpu_config: nvidia_config|None) -> bool:
 
     # onnx/onnxslim 必装
     libs = ["onnx==1.20.1", "onnxslim==0.1.90"]
-    # onnxruntime 三选一
+    # onnxruntime 二选一
     if nvidia_gpu_config is not None:
         libs += [f"onnxruntime-gpu=={nvidia_gpu_config.onnxruntime_gpu_ver}"]
-    elif install_dml:
-        libs += ["onnxruntime-directml==1.24.4"]
     else:
         libs += ["onnxruntime==1.20.1"]
 
@@ -369,41 +370,11 @@ def install_tensorrt(nvidia_gpu_config: nvidia_config) -> bool:
 
 
 
-def modify_ultralytics_for_dml(recover = False) -> OpResult[None]:
-
-    ultralytics = ROOT / "python" / "Lib" / "site-packages" / "ultralytics"
-    target_path_onnx = ultralytics / "nn" / "backends" / "onnx.py"
-    target_path_exporter = ultralytics / "engine" / "exporter.py"
-
-    dml_support_dir = ROOT / "install" / "dml_support"
-    modified_onnx = dml_support_dir / "modified" / "onnx.py"
-    modified_exporter = dml_support_dir / "modified" / "exporter.py"
-    original_onnx = dml_support_dir / "original" / "onnx.py"
-    original_exporter = dml_support_dir / "original" / "exporter.py"
-
-    # ckech file exists
-    for file in [target_path_onnx, target_path_exporter,
-                 modified_onnx, modified_exporter,
-                 original_onnx, original_exporter]:
-        if not file.exists() or not file.is_file():
-            msg = T.modify_ultralytics_for_dml.file_not_exist.format(file=file)
-            return err(msg)
-
-    # replace files
-    try:
-        if not recover:
-            # replace modified
-            shutil.copyfile(modified_onnx, target_path_onnx)
-            shutil.copyfile(modified_exporter, target_path_exporter)
-        else:
-            # replace original
-            shutil.copyfile(original_onnx, target_path_onnx)
-            shutil.copyfile(original_exporter, target_path_exporter)
-    except Exception as e:
-        msg = T.modify_ultralytics_for_dml.modify_failed.format(e=e)
-        return err(msg, error_raw=e)
-
-    return ok()
+def install_ncnn() -> bool:
+    cmd = [sys.executable, "-m", "pip", "install",
+           "ncnn==1.0.20260526", "pnnx==20260526",
+           "--no-warn-script-location"]
+    return general_pip_install("NCNN", cmd)
 
 
 

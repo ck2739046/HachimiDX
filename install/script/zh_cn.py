@@ -59,6 +59,7 @@ reinstall_backend = SN(
 install = SN(
     start = "开始安装 HachimiDX...",
     detect_trt_failed = "检测到 TensorRT 不可用。",
+    detect_ncnn_failed = "检测到 NCNN Vulkan GPU 不可用。",
     done = "HachimiDX 安装完成。",
 )
 
@@ -86,7 +87,7 @@ PyPI 镜像可以显著加速国内的下载和安装。
 ask_install_trt = SN(
     prompt = """
 TensorRT 能够调用 NVIDIA GPU 进行推理加速，显著提升推理速度。
-你是否想安装 NVIDIA TensorRT ?
+你是否想安装 NVIDIA TensorRT 后端?
 
 如果你有 NVIDIA GPU，强烈建议选择"是"。
 其他情况请选择"否"。
@@ -116,12 +117,12 @@ ask_continue_install = SN(
 
 
 
-ask_install_dml = SN(
+ask_install_ncnn = SN(
     prompt = """
-DirectML 能够调用多个品牌的 GPU（如 AMD、Intel、NVIDIA 等）进行硬件加速。
-你是否想安装 DirectML ?
+NCNN 可以通过 Vulkan 调用 AMD、Intel、NVIDIA 等品牌的 GPU 进行推理加速。
+你是否想安装 NCNN Vulkan 后端？
 
-如果你有支持 DirectML 的 GPU，并且性能显著优于 CPU，强烈建议选择"是"。
+如果你有支持 Vulkan 的 GPU，建议选择"是"。
 其他情况请选择"否"。
 
 1. 是 (默认)
@@ -131,13 +132,6 @@ DirectML 能够调用多个品牌的 GPU（如 AMD、Intel、NVIDIA 等）进行
 -> """,
 
     defaulting = "默认选择「是」。",
-)
-
-
-
-modify_ultralytics_for_dml = SN(
-    file_not_exist = "目标文件 {file} 不存在。",
-    modify_failed = "替换文件时发生错误: {e}",
 )
 
 
@@ -165,4 +159,21 @@ detect_trt = SN(
     select_gpu_try_again="  输入无效，请重新输入。",
     low_compute_cap="显卡的计算能力 {compute_cap} 低于最低要求 {min_compute_cap}, 请升级显卡或使用其他后端。",
     invalid_driver_version="显卡的驱动版本 {driver_version} 低于最低要求 {min_driver_version}, 请升级显卡驱动或使用其他后端。",
+)
+
+
+
+detect_ncnn = SN(
+    start = "正在检测 NCNN Vulkan GPU 是否可用...",
+    loader_unavailable = "未找到系统 Vulkan Loader，请安装或升级显卡驱动。",
+    api_unavailable = "系统 Vulkan Loader 缺少必要的 Vulkan 1.0 API。",
+    no_physical_devices = "Vulkan 未检测到任何物理设备。",
+    no_compute_gpu = "未检测到具有 Vulkan 计算队列的独立或集成 GPU。",
+    check_failed = "检测 Vulkan GPU 时发生错误。",
+    gpu_detected_title = "检测到可用于 NCNN Vulkan 的 GPU:",
+    gpu_info = "{index}. {gpu_name}, {device_type}, Vulkan {api_version}, vendor 0x{vendor_id:04X}, device 0x{device_id:04X}",
+    device_types = {
+        "integrated": "集成 GPU",
+        "discrete": "独立 GPU",
+    },
 )
