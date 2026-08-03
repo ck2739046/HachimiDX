@@ -1,5 +1,15 @@
 from pathlib import Path
+from dataclasses import dataclass
 from src.core.schemas.op_result import OpResult, ok, err
+
+
+@dataclass(frozen=True, slots=True)
+class ModelPaths:
+    detect: Path
+    obb: Path
+    cls_break: Path
+    cls_ex: Path
+    touch_hold: Path
 
 
 class PathManage:
@@ -62,17 +72,91 @@ class PathManage:
     CLS_EX_ENGINE_PATH: Path = MODELS_DIR / "cls-ex.engine"
     TOUCH_HOLD_ENGINE_PATH: Path = MODELS_DIR / "detect-touch-hold.engine"
 
-    DETECT_ONNX_PATH: Path = MODELS_DIR / "detect_a.onnx"
-    OBB_ONNX_PATH: Path = MODELS_DIR / "obb_a.onnx"
-    CLS_BREAK_ONNX_PATH: Path = MODELS_DIR / "cls-break_a.onnx"
-    CLS_EX_ONNX_PATH: Path = MODELS_DIR / "cls-ex_a.onnx"
-    TOUCH_HOLD_ONNX_PATH: Path = MODELS_DIR / "detect-touch-hold_a.onnx"
+    DETECT_NCNN_PATH: Path = MODELS_DIR / "detect_ncnn_model"
+    OBB_NCNN_PATH: Path = MODELS_DIR / "obb_ncnn_model"
+    CLS_BREAK_NCNN_PATH: Path = MODELS_DIR / "cls-break_ncnn_model"
+    CLS_EX_NCNN_PATH: Path = MODELS_DIR / "cls-ex_ncnn_model"
+    TOUCH_HOLD_NCNN_PATH: Path = MODELS_DIR / "detect-touch-hold_ncnn_model"
 
-    TEMP_DETECT_ONNX_PATH: Path = MODELS_DIR / "detect.onnx"
-    TEMP_OBB_ONNX_PATH: Path = MODELS_DIR / "obb.onnx"
-    TEMP_CLS_BREAK_ONNX_PATH: Path = MODELS_DIR / "cls-break.onnx"
-    TEMP_CLS_EX_ONNX_PATH: Path = MODELS_DIR / "cls-ex.onnx"
-    TEMP_TOUCH_HOLD_ONNX_PATH: Path = MODELS_DIR / "detect-touch-hold.onnx"
+    NCNN_PARAM_FILE_NAME = "model.ncnn.param"
+    NCNN_BIN_FILE_NAME = "model.ncnn.bin"
+    NCNN_METADATA_FILE_NAME = "metadata.yaml"
+    NCNN_REQUIRED_FILE_NAMES = (
+        NCNN_PARAM_FILE_NAME,
+        NCNN_BIN_FILE_NAME,
+        NCNN_METADATA_FILE_NAME,
+    )
+
+    TEMP_TRT_DETECT_ONNX_PATH: Path = MODELS_DIR / "detect.onnx"
+    TEMP_TRT_OBB_ONNX_PATH: Path = MODELS_DIR / "obb.onnx"
+    TEMP_TRT_CLS_BREAK_ONNX_PATH: Path = MODELS_DIR / "cls-break.onnx"
+    TEMP_TRT_CLS_EX_ONNX_PATH: Path = MODELS_DIR / "cls-ex.onnx"
+    TEMP_TRT_TOUCH_HOLD_ONNX_PATH: Path = MODELS_DIR / "detect-touch-hold.onnx"
+
+
+    @classmethod
+    def get_model_paths(cls, backend: str) -> OpResult[ModelPaths]:
+        backend = str(backend).strip()
+        if backend == "CPU":
+            return ok(ModelPaths(
+                detect=cls.DETECT_PT_PATH,
+                obb=cls.OBB_PT_PATH,
+                cls_break=cls.CLS_BREAK_PT_PATH,
+                cls_ex=cls.CLS_EX_PT_PATH,
+                touch_hold=cls.TOUCH_HOLD_PT_PATH,
+            ))
+        if backend == "TensorRT":
+            return ok(ModelPaths(
+                detect=cls.DETECT_ENGINE_PATH,
+                obb=cls.OBB_ENGINE_PATH,
+                cls_break=cls.CLS_BREAK_ENGINE_PATH,
+                cls_ex=cls.CLS_EX_ENGINE_PATH,
+                touch_hold=cls.TOUCH_HOLD_ENGINE_PATH,
+            ))
+        if backend == "NCNN":
+            return ok(ModelPaths(
+                detect=cls.DETECT_NCNN_PATH,
+                obb=cls.OBB_NCNN_PATH,
+                cls_break=cls.CLS_BREAK_NCNN_PATH,
+                cls_ex=cls.CLS_EX_NCNN_PATH,
+                touch_hold=cls.TOUCH_HOLD_NCNN_PATH,
+            ))
+        return err(f"Unknown model backend: {backend}")
+
+
+    @classmethod
+    def validate_model_paths(cls, paths: ModelPaths) -> OpResult[None]:
+        for path in (
+            paths.detect,
+            paths.obb,
+            paths.cls_break,
+            paths.cls_ex,
+            paths.touch_hold,
+        ):
+            if path.suffix:
+                if not path.is_file():
+                    return err(f"Model artifact not found: {path}")
+                continue
+
+            if not path.is_dir():
+                return err(f"Model artifact not found: {path}")
+            for file_name in cls.NCNN_REQUIRED_FILE_NAMES:
+                required_path = path / file_name
+                if not required_path.is_file():
+                    return err(f"Model artifact incomplete: {required_path}")
+        return ok()
+
+
+    @classmethod
+    def resolve_model_paths(cls, backend: str) -> OpResult[ModelPaths]:
+        paths_result = cls.get_model_paths(backend)
+        if not paths_result.is_ok:
+            return err(f"Failed to get model paths for backend: {backend}", inner=paths_result)
+
+        validation_result = cls.validate_model_paths(paths_result.value)
+        if not validation_result.is_ok:
+            return err(f"Model artifact validation failed for backend: {backend}", inner=validation_result)
+        return ok(paths_result.value)
 
 
 
@@ -97,12 +181,14 @@ class PathManage:
                           cls.FFMPEG_EXE_PATH, cls.FFPROBE_EXE_PATH,
                           cls.MajdataView_EXE_PATH, cls.MajdataEdit_EXE_PATH,
                           cls.BPM_MEASURER_EXE_PATH,
-                          cls.DETECT_PT_PATH, cls.OBB_PT_PATH,
-                          cls.CLS_BREAK_PT_PATH, cls.CLS_EX_PT_PATH,
-                          cls.TOUCH_HOLD_PT_PATH, cls.REID_PT_PATH]:
+                          cls.REID_PT_PATH]:
             if not file_path.is_file():
                 error_msg = f"Critical Error: Required file not found: {file_path}"
                 return err(error_msg)
+
+        model_result = cls.resolve_model_paths("CPU")
+        if not model_result.is_ok:
+            return err("Critical Error: Required CPU model artifact not found", inner=model_result)
             
         # 检查 worker 是否存在
         for file_path in [cls.AUTO_RECHART_WORKER_PATH,
