@@ -537,7 +537,7 @@ en_US:
       ui_model_divider: "Model Inference"
       ui_model_backend_label: "Model Backend: "
       ui_model_backend_cpu_tooltip: "slowest, no GPU required"
-      ui_model_backend_directml_tooltip: "medium, requires compatible GPU (NVIDIA, AMD, Intel)"
+      ui_model_backend_ncnn_tooltip: "medium, uses a compatible GPU through Vulkan (AMD, Intel, NVIDIA)"
       ui_model_backend_tensorrt_tooltip: "fastest, requires NVIDIA GPU"
       ui_check_model_button: "Check"
       ui_convert_model_button: "Convert Model"
