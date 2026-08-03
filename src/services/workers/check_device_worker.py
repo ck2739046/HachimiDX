@@ -88,59 +88,54 @@ def _check_cuda_or_tensorrt() -> bool:
 
 
 
-def _check_directml() -> bool:
+def _check_ncnn_vulkan() -> bool:
 
     # 检查 PyTorch 是否安装
     ok, _ = _check_torch_installed()
     if not ok:
         return False
 
-    # 检查 ONNX Runtime 是否安装
+    # 检查 ncnn 是否安装
     try:
-        import onnxruntime as ort
-        print(f"ONNX Runtime installed, version {ort.__version__}")
+        import ncnn
+        print(f"NCNN installed, version {ncnn.__version__}")
     except ImportError as e:
-        print(f"ONNX Runtime is not installed: {e!r}")
+        print(f"NCNN is not installed: {e!r}")
         return False
 
-    # 检查 DirectML 支持
-    providers = ort.get_available_providers()
-    print(f"Available providers: {providers}")
-    if "DmlExecutionProvider" not in providers:
-        print("DirectML execution provider is unavailable")
-        return False
-    print("DirectML execution provider is available")
-
-    # 获取 DirectML 支持的设备列表
+    # 检查 Vulkan 是否可用
+    gpu_instance_created = False
     try:
-        # 获取所有设备
-        all_devices = ort.get_ep_devices()
-        if not all_devices:
-            print("No available EP devices found")
+        create_result = ncnn.create_gpu_instance()
+        if create_result != 0:
+            print(f"Failed to initialize NCNN Vulkan, error code: {create_result}")
+            return False
+        gpu_instance_created = True
+
+        # 列出可用的 Vulkan 设备
+        gpu_count = ncnn.get_gpu_count()
+        if gpu_count <= 0:
+            print("No available NCNN Vulkan devices found")
             return False
 
-        # 筛选出 DML 可用的设备
-        dml_devices = []
-        for device in all_devices:
-            # print([attr for attr in dir(device) if not attr.startswith('_')])
-            if getattr(device, "ep_name", "") == "DmlExecutionProvider":
-                # print([attr for attr in dir(device.device) if not attr.startswith('_')])
-                name = device.device.metadata.get("Description", "Unknown device")
-                dml_devices.append(name)
+        print("NCNN Vulkan devices:")
+        for index in range(gpu_count):
+            gpu_info = ncnn.get_gpu_info(index)
+            print(f"  - {index}: {gpu_info.device_name()}")
 
-        if not dml_devices:
-            print("No available DirectML devices found")
-            return False
-
-        print("DirectML devices:")
-        for i, device_name in enumerate(dml_devices):
-            print(f"  - {i}: {device_name}")
-
+        net = ncnn.Net()
+        net.opt.use_vulkan_compute = True
+        net.set_vulkan_device(0)
+        del net
+        print("NCNN Vulkan device 0 is available")
         return True
-    
+
     except Exception as e:
-        print(f"Failed to read DirectML devices: {e}")
+        print(f"Failed to initialize NCNN Vulkan: {e}")
         return False
+    finally:
+        if gpu_instance_created:
+            ncnn.destroy_gpu_instance()
 
 
 
@@ -186,8 +181,8 @@ def main(runtime: str) -> bool:
         return _check_cpu()
     if runtime_norm in {"cuda", "tensorrt"}:
         return _check_cuda_or_tensorrt()
-    if runtime_norm in {"onnx", "directml"}:
-        return _check_directml()
+    if runtime_norm == "ncnn":
+        return _check_ncnn_vulkan()
     # if runtime_norm == "openvino":
         # return _check_openvino()
 
