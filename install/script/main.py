@@ -254,6 +254,46 @@ def install_pytorch(nvidia_gpu_config: nvidia_config|None) -> bool:
 
 
 
+def install_ultralytics_onnx(nvidia_gpu_config: nvidia_config|None) -> bool:
+
+    # 安装 onnxruntime
+    libs = ["onnx==1.20.1", "onnxslim==0.1.90"]
+    if nvidia_gpu_config is not None:
+        # 增加安装 GPU 版本
+        libs += [f"onnxruntime-gpu=={nvidia_gpu_config.onnxruntime_gpu_ver}"]
+
+    cmd = [sys.executable, "-m", "pip", "install",
+           *libs, "--no-warn-script-location"]
+    is_success = general_pip_install("ONNX Runtime", cmd)
+    if not is_success:
+        return False
+        
+    # 安装 ultralytics
+    cmd = [sys.executable, "-m", "pip", "install",
+           "ultralytics==8.4.102", "--no-warn-script-location"]
+    is_success = general_pip_install("Ultralytics", cmd)
+    if not is_success:
+        return False
+    
+    # 安装其他依赖
+    if nvidia_gpu_config is not None:
+        numpy_ver = nvidia_gpu_config.numpy_ver
+    else:
+        numpy_ver = "2.4.3"
+
+    libs = ["lap==0.5.13", f"numpy=={numpy_ver}"]
+    cmd = [sys.executable, "-m", "pip", "install",
+           *libs, "--no-warn-script-location"]
+    is_success = general_pip_install("lap & numpy", cmd)
+    if not is_success:
+        return False
+    
+    return True
+
+
+
+
+
 def general_pip_install(package_name, cmd: list[str],
                         add_pypi_mirror: bool | None = None) -> bool:
     """
