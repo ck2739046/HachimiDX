@@ -66,7 +66,7 @@ def _convert_to_tensorrt(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
                 format="engine",
                 imgsz=imgsz,
                 quantize=16,
-                dynamic=False,
+                dynamic=True,
                 simplify=True,
                 workspace=None,
                 batch=batch
@@ -110,7 +110,7 @@ def _convert_to_onnx(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
                 format="onnx",
                 opset=17,
                 imgsz=imgsz,
-                dynamic=False,
+                dynamic=True,
                 simplify=True,
                 batch=batch
             )
