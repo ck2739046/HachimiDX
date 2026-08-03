@@ -295,13 +295,15 @@ def install_pytorch(nvidia_gpu_config: nvidia_config|None) -> bool:
 
 def install_ultralytics_onnx(nvidia_gpu_config: nvidia_config|None, install_dml: bool) -> bool:
 
-    # 必装
-    libs = ["onnx==1.20.1", "onnxslim==0.1.90", "onnxruntime==1.20.1"]
-    # 选装
+    # onnx/onnxslim 必装
+    libs = ["onnx==1.20.1", "onnxslim==0.1.90"]
+    # onnxruntime 三选一
     if nvidia_gpu_config is not None:
         libs += [f"onnxruntime-gpu=={nvidia_gpu_config.onnxruntime_gpu_ver}"]
     elif install_dml:
         libs += ["onnxruntime-directml==1.24.4"]
+    else:
+        libs += ["onnxruntime==1.20.1"]
 
     cmd = [sys.executable, "-m", "pip", "install",
            *libs, "--no-warn-script-location"]
