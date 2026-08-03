@@ -94,7 +94,7 @@ def reinstall_backend() -> OpResult[None]:
     # 确认
     print("\n-----")
     confirm = input(T.reinstall_backend.prompt).strip()
-    if confirm != "1":
+    if confirm != "2":
         print(T.reinstall_backend.abort)
         return ok()
 
@@ -139,12 +139,13 @@ def install() -> OpResult[None]:
     ask_use_pypi_mirror()
 
     # ask install TensorRT
+    nvidia_gpu_config: nvidia_config|None = None
     install_trt = ask_install_trt()
     if install_trt:
         # 检测是否可用
         result = detect_trt_availability(T)
         if result.is_ok:
-            nvidia_gpu_config: nvidia_config = result.value
+            nvidia_gpu_config = result.value
         else:
             # 不可用，询问是否继续安装
             print(print_op_result(result))
@@ -152,7 +153,6 @@ def install() -> OpResult[None]:
             does_continue = ask_continue_install()
             if not does_continue:
                 sys.exit(1)
-            nvidia_gpu_config = None
 
     # install pytorch
     success = install_pytorch(nvidia_gpu_config)
@@ -384,9 +384,9 @@ def install_directml() -> bool:
 
 
 
-def modify_ultralytics_for_dml(recover = False) -> bool:
+def modify_ultralytics_for_dml(recover = False) -> OpResult[None]:
 
-    return True
+    return ok()
 
     print("\n-----\n")
     ultralytics = ROOT / "python" / "Lib" / "site-packages" / "ultralytics"

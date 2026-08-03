@@ -43,8 +43,8 @@ reinstall_backend = SN(
 即将卸载当前已安装的后端，再重新进入安装流程。
 你确定要继续吗？
 
-1. 是
-2. 否 (默认)
+1. 否 (默认)
+2. 是
 
 -> """,
 
@@ -143,7 +143,7 @@ DirectML 能够调用多个品牌的 GPU（如 AMD、Intel、NVIDIA 等）进行
 
 
 
-INSTALL_DONE = "\n\n-----\n\nHachimiDX 安装完成\n"
+
 
 MODIFY_TARGET_NOT_EXIST = "modify_ultralytics_for_dml(): 错误: 目标文件 {file} 不存在。"
 MODIFY_REPLACE_MODIFIED_ERROR = "modify_ultralytics_for_dml(): 替换为修改后的文件时发生错误: {e}"
@@ -165,7 +165,7 @@ pip_install = SN(
         "aliyun": "阿里云",
     },
     start = "正在安装 {package_name}...",
-    success = "{package_name} 安装成功完成。",
+    success = "{package_name} 安装完成。",
     error = "安装 {package_name} 时发生错误: {e}",
     mirror_switching = "镜像「{old}」安装失败，正在切换到镜像「{new}」重试...",
     mirror_exhausted = "所有镜像均无法安装 {package_name}。",
