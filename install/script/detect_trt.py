@@ -4,10 +4,10 @@ from .op_result import OpResult, ok, err, print_op_result
 
 @dataclass
 class nvidia_config:
-    compute_capability:  tuple[int, int]
-    cuda_ver:            tuple[int, int]
+    compute_capability:  tuple[int, int] 
     win_driver_ver:      tuple[int, int]
     torch_ver:           str
+    torch_cuda_ver:      str
     torchvision_ver:     str
     onnxruntime_gpu_ver: str
     tensorRT_ver:        str
@@ -27,9 +27,9 @@ nvidia_config_list: list[nvidia_config] = [
     # sm7.5, Turing and later
     nvidia_config( 
         compute_capability= (7, 5),
-        cuda_ver=           (12, 8),
         win_driver_ver=     (572, 61),
-        torch_ver=          "2.10.0+cu128",
+        torch_ver=          "2.10.0",
+        torch_cuda_ver=     "cu128",
         torchvision_ver=    "0.25.0",
         onnxruntime_gpu_ver="1.24.4",
         tensorRT_ver=       "10.15.1.29",
@@ -39,9 +39,9 @@ nvidia_config_list: list[nvidia_config] = [
     # sm6.0 Pascal & sm7.0 Volta
     nvidia_config( 
         compute_capability= (6, 0),
-        cuda_ver=           (11, 8),
         win_driver_ver=     (452, 39),
-        torch_ver=          "2.7.1+cu118",
+        torch_ver=          "2.7.1",
+        torch_cuda_ver=     "cu118",
         torchvision_ver=    "0.22.1",
         onnxruntime_gpu_ver="1.18.1",
         tensorRT_ver=       "8.6.1",
@@ -51,9 +51,9 @@ nvidia_config_list: list[nvidia_config] = [
     # sm5.0 Maxwell
     nvidia_config( 
         compute_capability= (5, 0),
-        cuda_ver=           (11, 8),
         win_driver_ver=     (452, 39),
-        torch_ver=          "2.7.1+cu118",
+        torch_ver=          "2.7.1",
+        torch_cuda_ver=     "cu118",
         torchvision_ver=    "0.22.1",
         onnxruntime_gpu_ver="1.18.1",
         tensorRT_ver=       "8.5.3.1",

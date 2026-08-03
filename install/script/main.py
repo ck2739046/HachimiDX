@@ -152,7 +152,16 @@ def install() -> OpResult[None]:
             if not does_continue:
                 sys.exit(1)
             nvidia_gpu_config = None
-           
+
+    # install pytorch
+    success = install_pytorch(nvidia_gpu_config)
+    if not success:
+        return err("Failed to install pytorch.")
+
+    # install ultralytics + onnxruntime
+    success = install_ultralytics_onnx(nvidia_gpu_config)
+    if not success:
+        return err("Failed to install ultralytics or onnxruntime.")
     
 
             
@@ -209,6 +218,101 @@ def ask_continue_install() -> bool:
     else:
         print(T.install.continue_defaulting)
         return False
+
+
+
+
+
+def install_pytorch(nvidia_gpu_config: nvidia_config|None) -> bool:
+
+    if USE_PyPI_Mirror:
+        # 南京大学源有 pytorch cuda 本体
+        base_url = "https://mirrors.nju.edu.cn/pytorch/whl"
+    else:
+        base_url = "https://download.pytorch.org/whl"
+
+    if nvidia_gpu_config is not None:
+        # 使用配置指定的版本
+        torch_ver = nvidia_gpu_config.torch_ver
+        torchvision_ver = nvidia_gpu_config.torchvision_ver
+        index_url = f"{base_url}/{nvidia_gpu_config.torch_cuda_ver}"
+    else:
+        # 默认安装 cpu 版本
+        torch_ver = "2.10.0"
+        torchvision_ver = "0.25.0"
+        index_url = f"{base_url}/cpu"
+
+    cmd = [sys.executable, "-m", "pip", "install",
+           f"torch=={torch_ver}",
+           f"torchvision=={torchvision_ver}",
+           "--index-url", index_url,
+           "--no-warn-script-location"]
+    
+    return general_pip_install(f"PyTorch", cmd, add_pypi_mirror=False)  # 显式禁用镜像，已经指定了南京大学
+
+
+
+
+
+def general_pip_install(package_name, cmd: list[str],
+                        add_pypi_mirror: bool | None = None) -> bool:
+    """
+    执行一次 pip 安装，自动处理镜像切换。
+
+    add_pypi_mirror（可选）:
+      - None： 跟随全局 USE_PyPI_Mirror
+      - False：强制禁用 PyPI 镜像（即使全局启用）
+      - True： 不支持强制启用, 视为 None
+    """
+
+    # PyPI 镜像列表（key, args_list）优先级从上到下，首选清华源
+    PYPI_MIRRORS = [
+        ("tsinghua", ["-i", "https://pypi.tuna.tsinghua.edu.cn/simple"]),
+        ("tencent",  ["-i", "https://mirrors.cloud.tencent.com/pypi/simple"]),
+        ("huawei",   ["-i", "https://repo.huaweicloud.com/repository/pypi/simple"]),
+        ("aliyun",   ["-i", "https://mirrors.aliyun.com/pypi/simple"]),
+    ]
+
+    use_mirror = bool(USE_PyPI_Mirror) and add_pypi_mirror is not False
+
+    # 构造使用每个镜像源的完整命令
+    if use_mirror:
+        attempts = [(name, cmd + mirror_args)
+                    for name, mirror_args in PYPI_MIRRORS]
+    else:
+        attempts = [("None", cmd)]
+
+    for idx, (mirror_key, full_cmd) in enumerate(attempts):
+        # 打印即将执行的指令
+        print("\n-----\n")
+        print(T.pip_install.start.format(package_name=package_name))
+        print()
+        print(subprocess.list2cmdline(full_cmd))
+
+        try:
+            # 执行安装命令
+            print("\n-----\n")
+            subprocess.run(full_cmd, check=True)
+            # 安装成功
+            print("\n-----\n")
+            print(T.pip_install.success.format(package_name=package_name))
+            return ok()
+        except Exception as e:
+            # 安装失败
+            print("\n-----\n")
+            print(T.pip_install.error.format(package_name=package_name, e=e))
+            # 如果启用镜像, 尝试切换到下一个镜像
+            if use_mirror and idx < len(attempts) - 1:
+                # 显示名按 key 从当前 locale 的 MIRROR_NAMES 查表
+                current_name = T.MIRROR_NAMES.get(mirror_key, mirror_key) 
+                next_key = attempts[idx + 1][0]
+                next_name = T.MIRROR_NAMES.get(next_key, next_key)
+                print('\n' + T.pip_install.mirror_switching.format(old=current_name, new=next_name))
+
+    # 全部失败
+    if use_mirror:
+        print(T.pip_install.mirror_exhausted.format(package_name=package_name))
+    return False
 
 
 
