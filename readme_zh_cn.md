@@ -54,7 +54,7 @@
     - 集成 [`Bpm-Measurer`](https://github.com/ck2739046/Bpm-Measurer)，一款实用的歌曲 BPM 测量工具。
 
 - **多后台推理支持**
-    - 支持 PyTorch / NCNN Vulkan / NVIDIA TensorRT 多种深度学习推理后端，兼容各类硬件。
+    - 支持 PyTorch / NCNN Vulkan / ONNX-DirectML / NVIDIA TensorRT 多种深度学习推理后端，兼容各类硬件。
 
 - **便捷的多媒体处理**
     - 内置多个实用工具：视频裁剪、音频匹配、格式转换，街机延迟调整等。

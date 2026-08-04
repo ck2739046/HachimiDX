@@ -86,8 +86,8 @@ PyPI 镜像可以显著加速国内的下载和安装。
 
 ask_install_trt = SN(
     prompt = """
-TensorRT 能够调用 NVIDIA GPU 进行推理加速，显著提升推理速度。
-你是否想安装 NVIDIA TensorRT 后端?
+TensorRT 能够调用 NVIDIA GPU 进行模型推理加速。
+你是否想安装 NVIDIA TensorRT?
 
 如果你有 NVIDIA GPU，强烈建议选择"是"。
 其他情况请选择"否"。
@@ -119,10 +119,10 @@ ask_continue_install = SN(
 
 ask_install_ncnn = SN(
     prompt = """
-NCNN 可以通过 Vulkan 调用 AMD、Intel、NVIDIA 等品牌的 GPU 进行推理加速。
-你是否想安装 NCNN Vulkan 后端？
+NCNN 可以通过 Vulkan 调用 GPU 进行模型推理加速。
+你是否想安装 NCNN 后端？
 
-如果你有支持 Vulkan 的 GPU，建议选择"是"。
+如果你有兼容 Vulkan 的 GPU，强烈建议选择"是"。
 其他情况请选择"否"。
 
 1. 是 (默认)
@@ -176,4 +176,30 @@ detect_ncnn = SN(
         "integrated": "集成 GPU",
         "discrete": "独立 GPU",
     },
+)
+
+
+
+ask_install_dml = SN(
+    prompt = """
+DirectML 能够调用 GPU 进行模型推理加速。
+你是否想安装 DirectML？
+
+如果你有兼容 DX12 的 GPU，强烈建议选择"是"。
+其他情况请选择"否"。
+
+1. 是 (默认)
+2. 否
+3. 退出
+
+-> """,
+
+    defaulting = "默认选择「是」。",
+)
+
+
+
+modify_ultralytics_for_dml = SN(
+    file_not_exist = "目标文件 {file} 不存在。",
+    modify_failed = "替换文件时发生错误: {e}",
 )

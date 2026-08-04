@@ -1,3 +1,4 @@
+import os
 import sys
 import traceback
 from pathlib import Path
@@ -85,6 +86,18 @@ def main(args: list[str]) -> bool:
                     f"Invalid inference_device '{inference_device}' for backend '{model_backend}'"
                 )
             inference_device = S_Defs.normalize_inference_device_for_backend(
+                model_backend,
+                inference_device,
+            )
+            if model_backend == "DirectML":
+                dml_device_index = S_Defs.get_directml_device_index(inference_device)
+                if dml_device_index is None:
+                    return _fail(f"Invalid DirectML device: '{inference_device}'")
+                os.environ["HACHIMIDX_DML_DEVICE_ID"] = str(dml_device_index)
+                print(f"DirectML inference device: dml:{dml_device_index}")
+            else:
+                os.environ.pop("HACHIMIDX_DML_DEVICE_ID", None)
+            inference_device = S_Defs.get_runtime_inference_device(
                 model_backend,
                 inference_device,
             )

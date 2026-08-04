@@ -51,9 +51,10 @@ First-time setup requires configuring the model inference backend:
 2. In the "Model Inference" section, find the "Model Backend" option.
 3. Select an appropriate backend:
 
-   - CPU:      Slowest, but no GPU required, works on any computer
-   - NCNN:     Medium, uses a compatible GPU through Vulkan (AMD/Intel/NVIDIA)
-   - TensorRT: Fastest, requires NVIDIA GPU
+   - PyTorch:  Slowest, CPU only
+   - NCNN:     Slow, requires a Vulkan-compatible GPU
+   - DirectML: Medium, requires a DX12-compatible GPU
+   - TensorRT: Fastest, NVIDIA GPU only
    
 4. Click the "Check" button to verify your environment.
 5. If NCNN or TensorRT is selected, click the "Convert Model" button.
