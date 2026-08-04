@@ -1,0 +1,20 @@
+参考 issue:
+https://github.com/ultralytics/yolov5/issues/2995
+
+当前 ultralytics 不支持 DirectML，需要修改源码
+
+版本: ultralytics 8.4.115
+
+HachimiDX\python\Lib\site-packages\ultralytics
+
+修改内容：
+1. nn/backends/onnx.py
+   - 注释掉 load_model() 中的 line 66: check_requirements
+   - 注释掉 load_model() 中的 line 69-80: 选择 provider 逻辑
+   - 新增 load_model() 中的 line 82-88:
+     * 强制指定 DmlExecutionProvider
+     * 通过环境变量 HACHIMIDX_DML_DEVICE_ID 精准指定推理设备
+     * 未设置环境变量时，让 onnx 自行决定
+
+2. engine/exporter.py
+   - 注释掉 export_onnx() 中的 line 1036: check_requirements

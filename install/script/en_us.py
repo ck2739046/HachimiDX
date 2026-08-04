@@ -177,3 +177,29 @@ detect_ncnn = SN(
         "discrete": "discrete GPU",
     },
 )
+
+
+
+ask_install_dml = SN(
+    prompt = """
+DirectML can use GPUs from multiple brands (such as AMD, Intel, and NVIDIA) for hardware acceleration.
+Do you want to install DirectML?
+
+If you have a GPU that supports DirectML and performs significantly better than the CPU, it is highly recommended to choose \"Yes\".
+In other cases, please choose \"No\".
+
+1. Yes (Default)
+2. No
+3. Exit
+
+-> """,
+
+    defaulting = "Defaulting to Yes.",
+)
+
+
+
+modify_ultralytics_for_dml = SN(
+    file_not_exist = "Target file {file} does not exist.",
+    modify_failed = "An error occurred while replacing files: {e}",
+)

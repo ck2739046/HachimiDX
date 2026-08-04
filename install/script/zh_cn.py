@@ -177,3 +177,29 @@ detect_ncnn = SN(
         "discrete": "独立 GPU",
     },
 )
+
+
+
+ask_install_dml = SN(
+    prompt = """
+DirectML 能够调用多个品牌的 GPU（如 AMD、Intel、NVIDIA 等）进行硬件加速。
+你是否想安装 DirectML？
+
+如果你有支持 DirectML 的 GPU，并且性能显著优于 CPU，强烈建议选择"是"。
+其他情况请选择"否"。
+
+1. 是 (默认)
+2. 否
+3. 退出
+
+-> """,
+
+    defaulting = "默认选择「是」。",
+)
+
+
+
+modify_ultralytics_for_dml = SN(
+    file_not_exist = "目标文件 {file} 不存在。",
+    modify_failed = "替换文件时发生错误: {e}",
+)
