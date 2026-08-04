@@ -86,7 +86,7 @@ If you are in other regions, please choose \"No\".
 
 ask_install_trt = SN(
     prompt = """
-TensorRT can use NVIDIA GPUs for inference acceleration, significantly improving inference speed.
+TensorRT can use NVIDIA GPUs for model inference acceleration.
 Do you want to install NVIDIA TensorRT?
 
 If you have an NVIDIA GPU, it is highly recommended to choose \"Yes\".
@@ -119,10 +119,10 @@ Do you want to continue the installation?
 
 ask_install_ncnn = SN(
     prompt = """
-NCNN can use AMD, Intel, NVIDIA, and other GPUs through Vulkan for inference acceleration.
-Do you want to install the NCNN Vulkan backend?
+NCNN can use GPUs through Vulkan for model inference acceleration.
+Do you want to install the NCNN?
 
-If you have a Vulkan-capable GPU, it is recommended to choose \"Yes\".
+If you have a Vulkan-capable GPU, it is highly recommended to choose \"Yes\".
 In other cases, please choose \"No\".
 
 1. Yes (Default)
@@ -182,10 +182,10 @@ detect_ncnn = SN(
 
 ask_install_dml = SN(
     prompt = """
-DirectML can use GPUs from multiple brands (such as AMD, Intel, and NVIDIA) for hardware acceleration.
+DirectML can use GPUs for model inference acceleration.
 Do you want to install DirectML?
 
-If you have a GPU that supports DirectML and performs significantly better than the CPU, it is highly recommended to choose \"Yes\".
+If you have a DX12-capable GPU, it is highly recommended to choose \"Yes\".
 In other cases, please choose \"No\".
 
 1. Yes (Default)
