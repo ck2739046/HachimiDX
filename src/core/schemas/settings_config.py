@@ -74,7 +74,8 @@ class SettingsConfig_Definitions:
         type="str",
         group="model",
         default="cuda",
-        constraints={"options": ["cpu", "vulkan:0", "cuda"]},
+        # 允许 cpu / cuda / cuda:N / vulkan:N，具体校验由 SettingsModel 按后端归一化
+        constraints={},
     )
 
     @staticmethod

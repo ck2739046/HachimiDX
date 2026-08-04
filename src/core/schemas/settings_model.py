@@ -5,6 +5,28 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from .settings_config import SettingsConfig_Definitions as S_Defs
 
 
+def _normalize_inference_device(backend: str, value: str) -> str:
+    # 按后端归一化推理设备：cpu / cuda[N] / vulkan[N]，不匹配则回退后端默认值
+    v = str(value or "").strip()
+    if backend == "PyTorch":
+        return "cpu"
+    if backend == "TensorRT":
+        if v == "cuda":
+            return "cuda"
+        if v.startswith("cuda:"):
+            suffix = v[len("cuda:"):]
+            if suffix.isdigit() and int(suffix) >= 0:
+                return f"cuda:{int(suffix)}"
+        return "cuda"
+    if backend == "NCNN":
+        if v.startswith("vulkan:"):
+            suffix = v[len("vulkan:"):]
+            if suffix.isdigit() and int(suffix) >= 0:
+                return f"vulkan:{int(suffix)}"
+        return "vulkan:0"
+    return S_Defs.get_inference_device_by_backend(backend)
+
+
 class SettingsModel(BaseModel):
 
     model_config = ConfigDict(extra="allow")
@@ -42,10 +64,18 @@ class SettingsModel(BaseModel):
     @field_validator("inference_device")
     @classmethod
     def validate_inference_device_options(cls, v: str) -> str:
-        allowed = S_Defs.inference_device.constraints["options"]
-        if v not in allowed:
-            raise ValueError(f"inference_device must be one of {allowed}")
-        return v
+        # 仅做格式检查，实际归一化在 model_validator 中按后端进行
+        v = str(v or "").strip()
+        if v == "cpu" or v == "cuda":
+            return v
+        for prefix in ("cuda:", "vulkan:"):
+            if v.startswith(prefix):
+                suffix = v[len(prefix):]
+                if suffix.isdigit() and int(suffix) >= 0:
+                    return v
+        raise ValueError(
+            f"inference_device must be 'cpu', 'cuda', 'cuda:<n>' or 'vulkan:<n>', got '{v}'"
+        )
 
 
 
@@ -87,6 +117,6 @@ class SettingsModel(BaseModel):
 
     @model_validator(mode="after")
     def sync_inference_device_with_backend(self):
-        self.inference_device = S_Defs.get_inference_device_by_backend(self.model_backend)
+        self.inference_device = _normalize_inference_device(self.model_backend, self.inference_device)
         return self
 

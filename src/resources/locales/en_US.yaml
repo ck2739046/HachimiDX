@@ -536,6 +536,8 @@ en_US:
 
       ui_model_divider: "Model Inference"
       ui_model_backend_label: "Model Backend: "
+      ui_inference_device_label: "Inference Device: "
+      warning_inference_device_not_found: "Failed to parse available devices from the check result. Please retry later or check your driver."
       ui_model_backend_pytorch_tooltip: "slowest, no GPU required"
       ui_model_backend_ncnn_tooltip: "medium, uses a compatible GPU through Vulkan (AMD, Intel, NVIDIA)"
       ui_model_backend_tensorrt_tooltip: "fastest, requires NVIDIA GPU"
