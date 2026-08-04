@@ -5,6 +5,7 @@ from queue import Full
 
 from ...schemas.op_result import OpResult, ok, err
 from .note_definition import *
+from ..tool import release_ncnn_vulkan
 
 
 
@@ -14,7 +15,7 @@ _OUTPUT_QUEUE_STALL_TIMEOUT = 60.0
 
 
 
-def inference_worker_main(model_path, task_name, batch_size, inference_device,
+def inference_worker_main(model_path, task_name, inference_device,
                           coord_scale,
                           input_queue, output_queue, control_queue,
                           progress_ref, stop_event):
@@ -30,6 +31,8 @@ def inference_worker_main(model_path, task_name, batch_size, inference_device,
     会修改 output_queue 和 progress_ref.value, 其他参数均为只读
     """
 
+    model = None
+    results = None
     try:
         last_frame_idx = 0  # 仅用于报错提示
         model = YOLO(model_path, task=task_name)
@@ -49,12 +52,11 @@ def inference_worker_main(model_path, task_name, batch_size, inference_device,
             # 推理
             results = model.predict(
                 source=frames,
-                batch=batch_size,
+                batch=len(frames),
                 device=inference_device,
                 imgsz=imgsz_val,
                 max_det=50,
                 verbose=False,
-                half=True,
             )
 
             # 处理结果
@@ -100,6 +102,10 @@ def inference_worker_main(model_path, task_name, batch_size, inference_device,
         except Exception:
             pass
         raise  # 再次 raise 保持向上传播
+    finally:
+        results = None
+        model = None
+        release_ncnn_vulkan(inference_device)
 
 
 

@@ -9,7 +9,7 @@ from ...schemas.op_result import OpResult, ok, err
 from ..pipeline import Producer, Consumer, Pipeline
 from .note_definition import *
 from .track import _save_track_results, _load_track_results
-from ..tool import print_progress, SEEK_THRESHOLD
+from ..tool import print_progress, release_ncnn_vulkan, SEEK_THRESHOLD
 
 
 
@@ -175,6 +175,11 @@ class ClassifyConsumer(Consumer):
     def on_start(self, ctx):
         self.cls_ex_model = YOLO(self.cls_ex_model_path, task="classify")
         self.cls_break_model = YOLO(self.cls_break_model_path, task="classify")
+
+    def on_cleanup(self, ctx, error):
+        self.cls_ex_model = None
+        self.cls_break_model = None
+        release_ncnn_vulkan(self.inference_device)
 
     def consume(self, batch, stop, ctx):
         cls_results = _classify_image_batch(
@@ -415,6 +420,7 @@ def _classify_image_batch(consumed_batch, cls_ex_model, cls_break_model, inferen
         images_info = [(item['frame'], item['track_id'], item['sample_position'], item['note_type']) for item in consumed_batch]
 
         # 模型推理
+        batch_size = len(images)
         ex_results = cls_ex_model.predict(
             task='classify',
             source=images,
@@ -422,7 +428,7 @@ def _classify_image_batch(consumed_batch, cls_ex_model, cls_break_model, inferen
             verbose=False,
             device=inference_device,
             imgsz=imgsz,
-            half=True
+            batch=batch_size,
         )
         break_results = cls_break_model.predict(
             task='classify',
@@ -431,7 +437,7 @@ def _classify_image_batch(consumed_batch, cls_ex_model, cls_break_model, inferen
             verbose=False,
             device=inference_device,
             imgsz=imgsz,
-            half=True
+            batch=batch_size,
         )
 
         # 解析yolo结果

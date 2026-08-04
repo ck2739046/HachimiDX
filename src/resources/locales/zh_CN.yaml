@@ -531,8 +531,10 @@ zh_CN:
 
       ui_model_divider: "模型推理"
       ui_model_backend_label: "模型后端: "
-      ui_model_backend_cpu_tooltip: "最慢，不需要 GPU"
-      ui_model_backend_directml_tooltip: "中等，需要兼容的 GPU（NVIDIA、AMD、Intel）"
+      ui_inference_device_label: " 推理设备: "
+      warning_inference_device_not_found: "未能从检查结果中解析出可用设备，请稍后重试或检查驱动程序。"
+      ui_model_backend_pytorch_tooltip: "最慢，但不需要 GPU"
+      ui_model_backend_ncnn_tooltip: "中等，通过 Vulkan 使用兼容的 GPU（AMD、Intel、NVIDIA）"
       ui_model_backend_tensorrt_tooltip: "最快，需要 NVIDIA GPU"
       ui_check_model_button: "检测"
       ui_convert_model_button: "转换模型"
@@ -578,7 +580,7 @@ zh_CN:
 
         具体操作方法请参阅「安装指南.txt」。
         -- (位于项目根目录，很容易找到)
-      warning_cpu_model_missing: "CPU 模型文件缺失，无法转换。\n%{error}"
+      warning_pytorch_model_missing: "PyTorch 模型文件缺失，无法转换。\n%{error}"
       warning_convert_failed: "模型转换失败: %{backend}"
       warning_cuda_driver_outdated: |
         检测到 CUDA 初始化失败（错误码 35）
@@ -600,7 +602,7 @@ zh_CN:
       notice_convert_success: "模型转换完成并通过复检: %{backend}"
       notice_convert_cancelled: "模型转换已取消: %{backend}"
       notice_cancel_requested: "已发送取消请求，等待进程结束..."
-      notice_cpu_does_not_need_convert_model: "-\n提示：CPU 不需要转换模型，可以直接使用。"
+      notice_pytorch_does_not_need_convert_model: "-\n提示：PyTorch 后端不需要转换模型，可以直接使用。"
 
       notice_hw_detect_start: "开始检测 FFmpeg 硬件加速支持..."
       notice_hw_detect_result: "检测完成: 编码器=%{encoder}, 解码器=%{decoder}"

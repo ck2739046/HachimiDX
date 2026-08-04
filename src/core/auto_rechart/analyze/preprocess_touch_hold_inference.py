@@ -19,7 +19,7 @@ from ultralytics import YOLO
 from ...schemas.op_result import OpResult, err, ok
 from ..pipeline import Producer, Consumer, Pipeline
 from ..detect.note_definition import NoteType, get_imgsz
-from ..tool import calculate_all_position, print_progress, SEEK_THRESHOLD
+from ..tool import calculate_all_position, print_progress, release_ncnn_vulkan, SEEK_THRESHOLD
 from .shared_context import SharedContext
 
 
@@ -180,6 +180,10 @@ class TouchHoldConsumer(Consumer):
     def on_start(self, ctx):
         self._model = YOLO(self.model_path, task="detect")
 
+    def on_cleanup(self, ctx, error):
+        self._model = None
+        release_ncnn_vulkan(self.inference_device)
+
     def consume(self, batch, stop, ctx):
         images = [item["cropped_image"] for item in batch]
 
@@ -191,7 +195,6 @@ class TouchHoldConsumer(Consumer):
                 verbose=False,
                 device=self.inference_device,
                 imgsz=get_imgsz("touch_hold"),
-                half=True,
                 batch=len(images),
             )
         except Exception as e:

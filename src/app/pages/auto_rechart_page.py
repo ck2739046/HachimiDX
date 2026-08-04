@@ -749,14 +749,10 @@ class AutoRechartPage(BaseOutputPage):
                         reason = root_result.error_raw
                 except Exception:
                     pass
-                # 尝试直接访问模型缺失错误
-                try:
-                    root_result = result.inner.inner.inner
-                    if "get_path_by_backend()" in root_result.source.lower() and \
-                       "model file not found for backend" in root_result.error_msg.lower():
-                        reason = root_result.error_msg
-                except Exception:
-                    pass
+                # 如果是模型 artifact 错误，直接显示 artifact 错误信息
+                model_artifact_error = _find_model_artifact_error(result)
+                if model_artifact_error:
+                    reason = model_artifact_error
                 error_msg = i18n.t("app.media_subpages.run_ffmpeg.warning_task_submit_failed", error = reason)
                 show_notify_dialog("AutoRechartPipeline error", error_msg)
                 return
@@ -848,3 +844,20 @@ class AutoRechartPage(BaseOutputPage):
             return output
 
         return input
+
+
+
+
+def _find_model_artifact_error(result) -> str | None:
+    artifact_error = None
+    current = result
+    while current is not None:
+        source = str(getattr(current, "source", "")).lower()
+        error_msg = str(getattr(current, "error_msg", ""))
+        if (
+            "resolve_model_paths()" in source
+            or "validate_model_paths()" in source
+        ) and "model artifact" in error_msg.lower():
+            artifact_error = error_msg
+        current = getattr(current, "inner", None)
+    return artifact_error

@@ -61,7 +61,7 @@ def create_inferencer(detect_model_path, obb_model_path,
     # 创建推理 worker 进程 (detect/obb)
     process_detect = tmp.Process(
         target=inference_worker_main,
-        args=(detect_model_path, 'detect', batch_size, inference_device,
+        args=(detect_model_path, 'detect', inference_device,
               coord_scale,
               input_queue_detect, output_queue, control_queue_detect,
               progress_ref_detect, stop_event),
@@ -69,7 +69,7 @@ def create_inferencer(detect_model_path, obb_model_path,
     )
     process_obb = tmp.Process(
         target=inference_worker_main,
-        args=(obb_model_path, 'obb', batch_size, inference_device,
+        args=(obb_model_path, 'obb', inference_device,
               coord_scale,
               input_queue_obb, output_queue, control_queue_obb,
               progress_ref_obb, stop_event),
@@ -351,6 +351,24 @@ class Inferencer:
         if self._class_force_closed:
             return
         self._class_force_closed = True
+
+        input_queues = (self._input_queue_detect, self._input_queue_obb)
+        all_queues = (
+            *input_queues,
+            self._output_queue,
+            self._control_queue_detect,
+            self._control_queue_obb,
+        )
+        is_aborting = any(status != WorkerStatus.DONE for status in self._status.values())
+
+        # 异常关闭允许丢弃待发送帧，避免解释器等待 QueueFeederThread。
+        if is_aborting:
+            for q in input_queues:
+                try:
+                    q.cancel_join_thread()
+                except (AttributeError, OSError, ValueError):
+                    pass
+
         self._stop_event.set()
         for p in (self._process_detect, self._process_obb):
             if p is not None and p.is_alive():
@@ -360,7 +378,20 @@ class Inferencer:
                 p.join(timeout=_WORKER_EXIT_TIMEOUT)
                 # join 超时后, 使用 psutil 强杀整棵进程树
                 if p.is_alive():
-                    _kill_process_tree(p.pid)   
+                    _kill_process_tree(p.pid)
+
+        for q in all_queues:
+            try:
+                q.close()
+            except (AttributeError, OSError, ValueError):
+                pass
+
+        if not is_aborting:
+            for q in input_queues:
+                try:
+                    q.join_thread()
+                except (AttributeError, OSError, ValueError):
+                    pass
 
 
 

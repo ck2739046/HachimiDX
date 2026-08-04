@@ -53,11 +53,11 @@
 3. 选择合适的后端：
 
    - CPU:      最慢，但无需 GPU
-   - DirectML: 中等，需要兼容的显卡（NVIDIA/AMD/Intel）
+   - NCNN:     中等，通过 Vulkan 使用兼容的显卡（AMD/Intel/NVIDIA）
    - TensorRT: 最快，需要 NVIDIA 显卡
    
 4. 点击「检测」按钮检查环境
-5. 点击「转换模型」按钮
+5. 如果选择 NCNN 或 TensorRT，点击「转换模型」按钮
 6. 等待转换完成 (此过程可能需要 5-10 分钟)
 
 注意：此步骤只需执行一次，模型转换成功后即可正常使用软件。

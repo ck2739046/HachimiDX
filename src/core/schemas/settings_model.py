@@ -42,10 +42,10 @@ class SettingsModel(BaseModel):
     @field_validator("inference_device")
     @classmethod
     def validate_inference_device_options(cls, v: str) -> str:
-        allowed = S_Defs.inference_device.constraints["options"]
-        if v not in allowed:
-            raise ValueError(f"inference_device must be one of {allowed}")
-        return v
+        normalized = S_Defs.normalize_inference_device_id(v)
+        if normalized is None:
+            raise ValueError(f"invalid inference_device: '{v}'")
+        return normalized
 
 
 
@@ -87,6 +87,9 @@ class SettingsModel(BaseModel):
 
     @model_validator(mode="after")
     def sync_inference_device_with_backend(self):
-        self.inference_device = S_Defs.get_inference_device_by_backend(self.model_backend)
+        self.inference_device = S_Defs.normalize_inference_device_for_backend(
+            self.model_backend,
+            self.inference_device,
+        )
         return self
 

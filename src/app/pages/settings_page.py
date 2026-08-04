@@ -53,6 +53,13 @@ class SettingsPage(BaseOutputPage):
         self._task_state = _SettingsTaskState()
         self._show_convert_model_button = False
 
+        # 推理设备：缓存最近一次成功检查到的设备列表和当前已保存的设备 ID
+        self.inference_device_label = None
+        self.inference_device_combo_box = None
+        self._cached_device_items: list[tuple[str, str]] = []  # [(device_id, device_name)]
+        self._saved_inference_device: str | None = None
+        self._last_checked_backend: str | None = None
+
         self.check_update_checkbox = None
         self.check_update_now_button = None
         self.language_combo_box = None
@@ -69,6 +76,7 @@ class SettingsPage(BaseOutputPage):
 
         self._save_order_keys = [
             S_Defs.model_backend.key,
+            S_Defs.inference_device.key,
             S_Defs.ffmpeg_hw_encoder.key,
             S_Defs.language.key,
             S_Defs.check_update.key,
@@ -102,13 +110,19 @@ class SettingsPage(BaseOutputPage):
         self.check_model_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_check_model_button"))
         self.convert_model_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_convert_model_button"))
         self.cancel_convert_model_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_cancel_convert_model_button"))
+        self.inference_device_label = create_label(i18n.t(f"{I18N_Prefix}.ui_inference_device_label"))
+        self.inference_device_combo_box = create_combo_box(length=400)
         self.convert_model_button.setVisible(False)        # 默认隐藏
         self.cancel_convert_model_button.setVisible(False) # 默认隐藏
+        self.inference_device_label.setVisible(False)      # 默认隐藏
+        self.inference_device_combo_box.setVisible(False)  # 默认隐藏
 
         self.create_row(
             backend_label,
             self.model_backend_combo_box,
             self.check_model_button,
+            self.inference_device_label,
+            self.inference_device_combo_box,
             self.convert_model_button,
             self.cancel_convert_model_button,
             add_stretch=True,
@@ -289,6 +303,81 @@ class SettingsPage(BaseOutputPage):
         return encoder_value
 
 
+    @staticmethod
+    def _parse_inference_device_results(recent_output: str, backend: str) -> list[tuple[str, str]]:
+        # 解析 worker 输出的 "INFERENCE_DEVICE_RESULT:<id>|<name>" 行，返回 [(device_id, name)]
+        prefix = "INFERENCE_DEVICE_RESULT:"
+        results: list[tuple[str, str]] = []
+        seen_device_ids: set[str] = set()
+        for raw_line in recent_output.splitlines():
+            line = raw_line.strip()
+            if not line.startswith(prefix):
+                continue
+            payload = line[len(prefix):].strip()
+            if "|" not in payload:
+                continue
+            device_id, name = payload.split("|", 1)
+            device_id = device_id.strip()
+            name = name.strip()
+            if not device_id or not name or device_id in seen_device_ids:
+                continue
+            if not S_Defs.is_inference_device_supported_by_backend(backend, device_id):
+                continue
+            device_id = S_Defs.normalize_inference_device_id(device_id)
+            if device_id in seen_device_ids:
+                continue
+            seen_device_ids.add(device_id)
+            results.append((device_id, name))
+        return results
+
+
+    def _reset_inference_device_combo(self) -> None:
+        # 清空并隐藏设备控件
+        if self.inference_device_combo_box is None:
+            return
+        self.inference_device_combo_box.blockSignals(True)
+        self.inference_device_combo_box.clear()
+        self.inference_device_combo_box.blockSignals(False)
+        self.inference_device_label.setVisible(False)
+        self.inference_device_combo_box.setVisible(False)
+
+
+    def _populate_inference_device_combo(self, items: list[tuple[str, str]]) -> None:
+        self.inference_device_combo_box.blockSignals(True)
+        self.inference_device_combo_box.clear()
+        for device_id, device_name in items:
+            self.inference_device_combo_box.addItem(f"[{device_id}] {device_name}", device_id)
+
+        target_index = -1
+        if self._saved_inference_device:
+            target_index = self.inference_device_combo_box.findData(self._saved_inference_device)
+
+        if target_index < 0 and self.inference_device_combo_box.count() > 0:
+            target_index = 0
+
+        if target_index >= 0:
+            self.inference_device_combo_box.setCurrentIndex(target_index)
+
+        self.inference_device_combo_box.blockSignals(False)
+        self.inference_device_label.setVisible(True)
+        self.inference_device_combo_box.setVisible(True)
+
+
+    def _refresh_inference_device_ui_after_check(self, backend: str) -> None:
+        # 在环境检查成功后调用：解析设备结果并决定是否显示设备控件
+        recent_output = self.output_widget.get_recent_lines(100)
+        items = self._parse_inference_device_results(recent_output, backend)
+        self._cached_device_items = items
+        self._last_checked_backend = backend
+
+        # 只有模型产物也通过时才显示设备行，否则仅缓存
+        path_result = PathManage.resolve_model_paths(backend)
+        if path_result.is_ok and items:
+            self._populate_inference_device_combo(items)
+        else:
+            self._reset_inference_device_combo()
+
+
 
 
     def _load_settings_to_ui(self) -> None:
@@ -305,6 +394,13 @@ class SettingsPage(BaseOutputPage):
             settings[key] = result.value
 
         self._set_combo_value(self.model_backend_combo_box, settings[S_Defs.model_backend.key])
+        self._saved_inference_device = str(settings.get(S_Defs.inference_device.key, "")).strip() or None
+
+        if self._cached_device_items:
+            self._populate_inference_device_combo(self._cached_device_items)
+        else:
+            self._reset_inference_device_combo()
+
         self._set_combo_value(self.ffmpeg_hw_encoder_combo_box, settings[S_Defs.ffmpeg_hw_encoder.key])
         self._set_combo_value(self.language_combo_box, settings[S_Defs.language.key])
         self.check_update_checkbox.setChecked(bool(settings[S_Defs.check_update.key]))
@@ -319,7 +415,7 @@ class SettingsPage(BaseOutputPage):
 
     def _collect_form_data(self) -> dict:
 
-        return {
+        data = {
             S_Defs.model_backend.key: self.model_backend_combo_box.currentText().strip(),
             S_Defs.ffmpeg_hw_encoder.key: self.ffmpeg_hw_encoder_combo_box.currentText().strip(),
             S_Defs.language.key: self.language_combo_box.currentText().strip(),
@@ -328,6 +424,16 @@ class SettingsPage(BaseOutputPage):
             S_Defs.main_app_h_default.key: self.default_height_line_edit.text().strip(),
             S_Defs.main_app_ui_scale.key: str(self.ui_scale_slider.value()),
         }
+
+        # 推理设备：可见时取 ComboBox itemData；否则使用已保存值，由 SettingsModel 按后端归一化
+        backend = data[S_Defs.model_backend.key]
+        if self.inference_device_combo_box.isVisible():
+            current_data = self.inference_device_combo_box.currentData()
+            data[S_Defs.inference_device.key] = str(current_data) if current_data else (self._saved_inference_device or "")
+        else:
+            data[S_Defs.inference_device.key] = self._saved_inference_device or ""
+
+        return data
 
 
 
@@ -432,6 +538,7 @@ class SettingsPage(BaseOutputPage):
         self.check_ffmpeg_hw_accel_button.setEnabled(not is_busy)
         self.save_button.setEnabled(not is_busy)
         self.reset_button.setEnabled(not is_busy)
+        self.inference_device_combo_box.setEnabled(not is_busy)
 
         self.convert_model_button.setVisible(self._show_convert_model_button and not is_busy)
         self.cancel_convert_model_button.setVisible(self._task_state.can_cancel)
@@ -441,6 +548,10 @@ class SettingsPage(BaseOutputPage):
     def _on_backend_changed(self, _text: str) -> None:
         if not self._task_state.is_busy:
             self._show_convert_model_button = False
+        # 切换后端：清空缓存的设备列表并隐藏设备行
+        self._last_checked_backend = None
+        self._cached_device_items = []
+        self._reset_inference_device_combo()
         self._sync_ui_state()
 
 
@@ -476,6 +587,10 @@ class SettingsPage(BaseOutputPage):
         if self._has_active_runner():
             return
         self._show_convert_model_button = False
+        # 开始新检查：清空缓存的设备列表并隐藏设备行
+        self._last_checked_backend = None
+        self._cached_device_items = []
+        self._reset_inference_device_combo()
         self._sync_ui_state()
         backend = self.model_backend_combo_box.currentText().strip()
         self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_check_start", backend=backend))
@@ -500,9 +615,9 @@ class SettingsPage(BaseOutputPage):
             return
         backend = self.model_backend_combo_box.currentText().strip()
 
-        # 特例：cpu 不应该触发转换按钮
-        if backend == "CPU":
-            self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_cpu_does_not_need_convert_model"))
+        # 特例：pytorch 后端不应该触发转换按钮
+        if backend == "PyTorch":
+            self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_pytorch_does_not_need_convert_model"))
             return
 
         detect_batch_result = SettingsManage.get(S_Defs.predict_batch_size_detect_obb.key)
@@ -623,33 +738,43 @@ class SettingsPage(BaseOutputPage):
         # 进程正常结束
         self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_check_pass", backend=backend))
 
+        # 解析设备列表并按需显示推理设备行
+        self._refresh_inference_device_ui_after_check(backend)
+
         # 环境检查通过
         # 下一步，检查模型文件是否存在
 
         # 模型检查通过
-        path_result = S_Defs.get_path_by_backend(backend)
+        path_result = PathManage.resolve_model_paths(backend)
         if path_result.is_ok:
             self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_model_ready", backend=backend))
-            # 特例 cpu 提示无需转换
-            if backend == "CPU":
-                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_cpu_does_not_need_convert_model"))
-                self._sync_ui_state()
+            # 特例：pytorch 后端不需要转换模型
+            if backend == "PyTorch":
+                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_pytorch_does_not_need_convert_model"))
+            self._sync_ui_state()
             return
 
-        # 模型检查失败
+        # 模型检查失败：隐藏设备控件（保留缓存以便转换后使用）
+        if self._cached_device_items:
+            self._reset_inference_device_combo()
+
+        model_error = (
+            f"{path_result.error_msg}\n\n"
+            f"{i18n.t(f'{I18N_Prefix}.warning_model_not_found_for_backend')}"
+        )
         self.output_widget.append_text(
             i18n.t(
                 f"{I18N_Prefix}.warning_model_missing",
                 backend=backend,
-                error=path_result.error_msg,
+                error=model_error,
             )
         )
 
-        # 特例：cpu 不显示转换按钮，直接报错
-        if backend == "CPU":
+        # 特例：pytorch 后端不显示转换按钮，直接报错
+        if backend == "PyTorch":
             show_notify_dialog(
                 i18n.t(f"{I18N_Prefix}.dialog_title"),
-                i18n.t(f"{I18N_Prefix}.warning_cpu_model_missing", error=path_result.error_msg),
+                i18n.t(f"{I18N_Prefix}.warning_pytorch_model_missing", error=model_error),
             )
             self._sync_ui_state()
             return
@@ -687,13 +812,17 @@ class SettingsPage(BaseOutputPage):
             return
 
         # 进程正常结束，二次复查模型文件是否存在
-        path_result = S_Defs.get_path_by_backend(backend)
+        path_result = PathManage.resolve_model_paths(backend)
         if not path_result.is_ok:
+            model_error = (
+                f"{path_result.error_msg}\n\n"
+                f"{i18n.t(f'{I18N_Prefix}.warning_model_not_found_for_backend')}"
+            )
             self.output_widget.append_text(
                 i18n.t(
                     f"{I18N_Prefix}.warning_convert_incomplete",
                     backend=backend,
-                    error=path_result.error_msg,
+                    error=model_error,
                 )
             )
             self._sync_ui_state()
@@ -702,6 +831,9 @@ class SettingsPage(BaseOutputPage):
         # 模型转换成功
         self._show_convert_model_button = False
         self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_convert_success", backend=backend))
+        # 转换成功后，若已有缓存的设备列表则填充并显示设备行
+        if backend in {"NCNN", "TensorRT"} and self._cached_device_items:
+            self._populate_inference_device_combo(self._cached_device_items)
         self._sync_ui_state()
 
 

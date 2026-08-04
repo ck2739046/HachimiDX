@@ -5,6 +5,7 @@ from ultralytics import YOLO
 
 from ..detect.note_definition import *
 from ..detect.classify import classify_note_path
+from ..tool import release_ncnn_vulkan
 from .shared_context import *
 from .analyze_tap import analyze_tap_time
 
@@ -39,13 +40,15 @@ def analyze_slide_time(shared_context, slide_head_data, slide_tail_data,
     )
     
     if unmatched_heads:
-        # 一笔画的多个星星尾可能会被视为一条，可能需要分割
-        matched_tails_by_head, unmatched_heads = try_split_slide_tail(
-            shared_context, matched_tails_by_head, unmatched_heads,
-            bpm_segments,
-            cls_ex_model_path, cls_break_model_path,
-            inference_device, batch_cls,
-        )
+        try:
+            matched_tails_by_head, unmatched_heads = try_split_slide_tail(
+                shared_context, matched_tails_by_head, unmatched_heads,
+                bpm_segments,
+                cls_ex_model_path, cls_break_model_path,
+                inference_device, batch_cls,
+            )
+        finally:
+            release_ncnn_vulkan(inference_device)
 
     # 合并头尾，生成最终slide信息
     final_slide_info = merge_slide_info(shared_context, matched_tails_by_head, unmatched_heads)

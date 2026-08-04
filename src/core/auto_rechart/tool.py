@@ -1,4 +1,7 @@
 import numpy as np
+import gc
+
+from ..schemas.settings_config import SettingsConfig_Definitions as S_Defs
 
 
 SEEK_THRESHOLD = 200
@@ -9,6 +12,18 @@ def print_progress(name, counter, total):
     """{name} progress: counter/total (percent%)"""
     progress = (counter / total) * 100 if total else 0.0
     print(f"{name} progress: {counter}/{total} ({progress:.1f}%)     ", end="\r", flush=True)
+
+
+def release_ncnn_vulkan(inference_device) -> None:
+    parsed_device = S_Defs.parse_inference_device(inference_device)
+    if parsed_device is None or parsed_device[0] != "vulkan":
+        return
+    gc.collect()
+    try:
+        import ncnn
+        ncnn.destroy_gpu_instance()
+    except Exception as e:
+        print(f"Failed to release NCNN Vulkan instance: {e}")
 
 
 def calculate_oct_position(circle_center_x, circle_center_y, note_x, note_y):

@@ -23,27 +23,35 @@ class OutputLogWidget(QWidget):
         super().__init__(parent)
         self._current_runner_id: set = set()
 
-        # 全局日志过滤：行中包含以下任一关键词时忽略该行
-        self._ignore_contains_filters: list[str] = [
-            
+        # 全局日志过滤
+        # 外层每项是一个关键词列表
+        # 行中包含内层列表中所有 str 才忽略该行
+        self._ignore_contains_filters: list[list[str]] = [
+
+            # NCNN 在创建 Vulkan GPU 实例时默认写入
+            ["[", "queueC=", "queueT=", "rebar=", "r-score="],
+            ["[", "fp16-p/s/u/a=", "int8-p/s/u/a="],
+            ["[", "subgroup=", "ops="],
+            ["[", "fp16-cm=", "int8-cm="],
+
             # TensorRT 推理 detect/obb
-            "[TRT] [I] Loaded engine size: ",
-            "[TRT] [I] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: ",
-            "[TRT] [W] WARNING The logger passed into createInferRuntime differs from one already registered for an existing builder, runtime, or refitter. ",
-            
+            ["[TRT] [I] Loaded engine size: "],
+            ["[TRT] [I] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: "],
+            ["[TRT] [W] WARNING The logger passed into createInferRuntime differs from one already registered for an existing builder, runtime, or refitter. "],
+
             # TensorRT 推理 classify
-            "[TRT] [I] [MS] Running engine with multi stream info",
-            "[TRT] [I] [MS] Number of aux streams is",
-            "[TRT] [I] [MS] Number of total worker streams is",
-            "[TRT] [I] [MS] The main stream provided by execute/enqueue calls is the first worker stream",
-            
+            ["[TRT] [I] [MS] Running engine with multi stream info"],
+            ["[TRT] [I] [MS] Number of aux streams is"],
+            ["[TRT] [I] [MS] Number of total worker streams is"],
+            ["[TRT] [I] [MS] The main stream provided by execute/enqueue calls is the first worker stream"],
+
             # TensorRT 转换模型
-            "[TRT] [W] Requested amount of GPU memory ",
-            "[TRT] [W] UNSUPPORTED_STATE: Skipping tactic",
-            "[TRT] [E] [virtualMemoryBuffer.cpp::nvinfer1::StdVirtualMemoryBufferImpl::resizePhysical::154] Error Code",
+            ["[TRT] [W] Requested amount of GPU memory "],
+            ["[TRT] [W] UNSUPPORTED_STATE: Skipping tactic"],
+            ["[TRT] [E] [virtualMemoryBuffer.cpp::nvinfer1::StdVirtualMemoryBufferImpl::resizePhysical::154] Error Code"],
 
             # Librosa 加载音频 (detect click start)
-            "error: No comment text / valid description?"
+            ["error: No comment text / valid description?"],
         ]
 
         # 保存的最大行数
@@ -262,9 +270,8 @@ class OutputLogWidget(QWidget):
         """根据包含词过滤列表判断该行是否应忽略"""
         if not text:
             return False
-
-        for keyword in self._ignore_contains_filters:
-            if keyword and keyword in text:
+        for keywords in self._ignore_contains_filters:
+            if all(keyword and keyword in text for keyword in keywords):
                 return True
         return False
 

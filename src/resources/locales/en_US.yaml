@@ -536,8 +536,10 @@ en_US:
 
       ui_model_divider: "Model Inference"
       ui_model_backend_label: "Model Backend: "
-      ui_model_backend_cpu_tooltip: "slowest, no GPU required"
-      ui_model_backend_directml_tooltip: "medium, requires compatible GPU (NVIDIA, AMD, Intel)"
+      ui_inference_device_label: " Inference Device: "
+      warning_inference_device_not_found: "Failed to parse available devices from the check result. Please retry later or check your driver."
+      ui_model_backend_pytorch_tooltip: "slowest, no GPU required"
+      ui_model_backend_ncnn_tooltip: "medium, uses a compatible GPU through Vulkan (AMD, Intel, NVIDIA)"
       ui_model_backend_tensorrt_tooltip: "fastest, requires NVIDIA GPU"
       ui_check_model_button: "Check"
       ui_convert_model_button: "Convert Model"
@@ -583,7 +585,7 @@ en_US:
         
         Please refer to the "Installation_Guide.txt" for detailed instructions.
         -- (located in the project root directory, easy to find)
-      warning_cpu_model_missing: "CPU model files are missing and cannot be converted.\n%{error}"
+      warning_pytorch_model_missing: "PyTorch model files are missing and cannot be converted.\n%{error}"
       warning_convert_failed: "Model conversion failed: %{backend}"
       warning_cuda_driver_outdated: |
         CUDA initialization failure detected (error code 35).
@@ -605,7 +607,7 @@ en_US:
       notice_convert_success: "Model conversion finished and passed validation: %{backend}"
       notice_convert_cancelled: "Model conversion cancelled: %{backend}"
       notice_cancel_requested: "Cancel requested. Waiting for process to stop..."
-      notice_cpu_does_not_need_convert_model: "-\nNotice: CPU does not need to convert models, you can use it directly."
+      notice_pytorch_does_not_need_convert_model: "-\nNotice: The PyTorch backend does not need model conversion."
 
       notice_hw_detect_start: "Starting FFmpeg hardware acceleration detection..."
       notice_hw_detect_result: "Detection complete: encoder=%{encoder}, decoder=%{decoder}"

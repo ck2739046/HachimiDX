@@ -50,9 +50,6 @@ def main(std_video_path,
         # 检查模型配置
         if batch_detect <= 0 or batch_cls <= 0:
             raise ValueError(f"batch_detect 或 batch_cls 参数无效, 必须大于0: batch_detect={batch_detect}, batch_cls={batch_cls}")
-        inference_device = str(inference_device)
-        if inference_device.lower() == 'none':
-            inference_device = None
 
         # 统一通过 ffprobe 逐帧时间戳计算总帧数，避免 VFR 下 OpenCV 帧数不准
         total_frames_result = _get_total_frames_by_ffprobe(std_video_path)

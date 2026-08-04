@@ -6,11 +6,11 @@ cd /d "%~dp0"
 :: 更新 pip
 "..\python\python.exe" -m pip install --upgrade pip --no-warn-script-location
 
-::更新 wheel
+:: 更新 wheel
 "..\python\python.exe" -m pip install wheel --no-warn-script-location
 
-:: 运行脚本
-"..\python\python.exe" -u ".\script\install.py"
+:: 运行安装脚本
+"..\python\python.exe" -u -m script.main
 
 @echo off
 pause

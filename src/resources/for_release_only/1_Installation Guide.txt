@@ -52,11 +52,11 @@ First-time setup requires configuring the model inference backend:
 3. Select an appropriate backend:
 
    - CPU:      Slowest, but no GPU required, works on any computer
-   - DirectML: Medium, requires compatible GPU (NVIDIA/AMD/Intel)
+   - NCNN:     Medium, uses a compatible GPU through Vulkan (AMD/Intel/NVIDIA)
    - TensorRT: Fastest, requires NVIDIA GPU
    
 4. Click the "Check" button to verify your environment.
-5. Click the "Convert Model" button.
+5. If NCNN or TensorRT is selected, click the "Convert Model" button.
 6. Wait for the conversion to complete (this may take 5-10 minutes).
 
 Note: This step only needs to be performed once. After successful model conversion, you can use the software normally.
