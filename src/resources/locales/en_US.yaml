@@ -448,11 +448,11 @@ en_US:
       ui_skip_export_tracked_label: "Skip Export Tracked Video: "
       ui_skip_export_tracked_help: "Skip exporting the video with note tracking overlays."
 
-      ui_enable_reid_label: "Enable ReID: "
-      ui_enable_reid_help: |
-        Enable appearance Re-Identification (ReID) to assist tracking HOLD notes.
-        Enabling this option can improve the stability and accuracy of tracking, but it will significantly increase the tracking time.
-        Recommended to enable only for videos with 30/60 FPS.
+      # ui_enable_reid_label: "Enable ReID: "
+      # ui_enable_reid_help: |
+      #   Enable appearance Re-Identification (ReID) to assist tracking HOLD notes.
+      #   Enabling this option can improve the stability and accuracy of tracking, but it will significantly increase the tracking time.
+      #   Recommended to enable only for videos with 30/60 FPS.
 
       ui_bpm_type_label: "BPM Type: "
       ui_bpm_type_static: "Static"

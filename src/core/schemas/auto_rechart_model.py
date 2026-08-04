@@ -53,7 +53,7 @@ class AutoRechartModel(BaseModel):
 
     skip_export_tracked_video: Optional[bool] = Field(default=AC_Defs.skip_export_tracked_video.default)
 
-    enable_reid: Optional[bool] = Field(default=AC_Defs.enable_reid.default)
+    # enable_reid: Optional[bool] = Field(default=AC_Defs.enable_reid.default)
 
 
 

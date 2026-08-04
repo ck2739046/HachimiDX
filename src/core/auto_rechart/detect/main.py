@@ -33,7 +33,7 @@ def main(std_video_path,
          batch_detect, batch_cls, inference_device,
          detect_model_path, obb_model_path, cls_ex_model_path, cls_break_model_path,
          skip_detect=False, skip_cls=False, skip_export_tracked_video=False,
-         enable_reid=True
+         # enable_reid=True
         ) -> OpResult[None]:
     try:
         # 检查输入文件
@@ -70,7 +70,8 @@ def main(std_video_path,
             print("跳过检测模块，使用已有检测结果...")
 
         # 追踪模块
-        result = track_module(std_video_path, total_frames, enable_reid)
+        # result = track_module(std_video_path, total_frames, enable_reid)
+        result = track_module(std_video_path, total_frames)
         if not result.is_ok:
             return err("追踪模块失败", inner=result)
 

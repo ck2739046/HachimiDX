@@ -43,7 +43,7 @@ class AutoRechartPage(BaseOutputPage):
         # target_res 暂时不设置
 
         # detect panel
-        self.enable_reid_check_box = None
+        # self.enable_reid_check_box = None
         self.skip_detect_label = None # adv 由row控制
         self.skip_detect_check_box = None # adv 由row控制
         self.skip_detect_help = None # adv 由row控制
@@ -180,7 +180,7 @@ class AutoRechartPage(BaseOutputPage):
         self.video_range_visualizer.update_val(None, None, None)
 
         # Reset detect panel
-        self.enable_reid_check_box.setChecked(AC_Defs.enable_reid.default)
+        # self.enable_reid_check_box.setChecked(AC_Defs.enable_reid.default)
         self.skip_detect_check_box.setChecked(AC_Defs.skip_detect.default)
         self.skip_cls_check_box.setChecked(AC_Defs.skip_cls.default)
         self.skip_export_tracked_check_box.setChecked(
@@ -278,18 +278,18 @@ class AutoRechartPage(BaseOutputPage):
         self._sync_taskname_from_name(Path(self.chart_confirm_video_input.get_path()).stem)
         # 更新视频范围可视化器
         self._update_video_range_visualizer()
-        # 根据预设fps阈值自动切换 ReID
-        self._toggle_reid_by_fps_threshold()
+        # # 根据预设fps阈值自动切换 ReID
+        # self._toggle_reid_by_fps_threshold()
 
-    def _toggle_reid_by_fps_threshold(self) -> None:
-        fps = self.chart_confirm_video_input.selected_video_fps
-        if fps is None: return
-        try: fps_val = float(fps)
-        except: return
-        if fps_val >= AC_Defs.REID_MAX_FPS_THRESHOLD:
-            self.enable_reid_check_box.setChecked(False)
-        else:
-            self.enable_reid_check_box.setChecked(True)
+    # def _toggle_reid_by_fps_threshold(self) -> None:
+    #     fps = self.chart_confirm_video_input.selected_video_fps
+    #     if fps is None: return
+    #     try: fps_val = float(fps)
+    #     except: return
+    #     if fps_val >= AC_Defs.REID_MAX_FPS_THRESHOLD:
+    #         self.enable_reid_check_box.setChecked(False)
+    #     else:
+    #         self.enable_reid_check_box.setChecked(True)
 
     def _sync_taskname_from_name(self, name: str) -> None:
         """更新 task name 输入框内容为给定的名称（文件名/文件夹名）。"""
@@ -411,9 +411,9 @@ class AutoRechartPage(BaseOutputPage):
         layout.addWidget(detect_divider)
 
         # Settings
-        enable_reid_label = create_label(i18n.t(f"{I18N_Prefix}.ui_enable_reid_label"))
-        self.enable_reid_check_box = create_check_box(AC_Defs.enable_reid.default)
-        enable_reid_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_enable_reid_help"))
+        # enable_reid_label = create_label(i18n.t(f"{I18N_Prefix}.ui_enable_reid_label"))
+        # self.enable_reid_check_box = create_check_box(AC_Defs.enable_reid.default)
+        # enable_reid_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_enable_reid_help"))
 
         self.skip_detect_label = create_label(i18n.t(f"{I18N_Prefix}.ui_skip_detect_label"))
         self.skip_detect_check_box = create_check_box(AC_Defs.skip_detect.default)
@@ -428,8 +428,8 @@ class AutoRechartPage(BaseOutputPage):
         self.skip_export_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_skip_export_tracked_help"))
 
         # 此处手动创建是要保存 row 引用，以便后续控制 显示/隐藏
-        row = _create_row(enable_reid_label, self.enable_reid_check_box, enable_reid_help,
-                          self.skip_detect_label, self.skip_detect_check_box, self.skip_detect_help,
+        # row = _create_row(enable_reid_label, self.enable_reid_check_box, enable_reid_help,
+        row = _create_row(self.skip_detect_label, self.skip_detect_check_box, self.skip_detect_help,
                           self.skip_cls_label, self.skip_cls_check_box, self.skip_cls_help,
                           self.skip_export_label, self.skip_export_tracked_check_box, self.skip_export_help,
                           add_stretch=True)
@@ -705,7 +705,7 @@ class AutoRechartPage(BaseOutputPage):
                     AC_Defs.skip_detect.key: self.skip_detect_check_box.isChecked(),
                     AC_Defs.skip_cls.key: self.skip_cls_check_box.isChecked(),
                     AC_Defs.skip_export_tracked_video.key: self.skip_export_tracked_check_box.isChecked(),
-                    AC_Defs.enable_reid.key: self.enable_reid_check_box.isChecked(),
+                    # AC_Defs.enable_reid.key: self.enable_reid_check_box.isChecked(),
                 })
                 
             if raw_data[AC_Defs.is_analyze_enabled.key]:

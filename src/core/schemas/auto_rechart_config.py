@@ -171,16 +171,16 @@ class AutoRechartConfig_Definitions:
         default=False
     )
 
-    enable_reid = AutoRechartConfig_Definition(
-        key="enable_reid",
-        type="bool",
-        group="detect",
-        default=True
-    )
+    # enable_reid = AutoRechartConfig_Definition(
+    #     key="enable_reid",
+    #     type="bool",
+    #     group="detect",
+    #     default=True
+    # )
 
-    # 当视频 FPS 达到此阈值时，自动关闭 ReID
-    # 因为帧率已经够高了，ReID 的作用不大
-    REID_MAX_FPS_THRESHOLD = 90.0
+    # # 当视频 FPS 达到此阈值时，自动关闭 ReID
+    # # 因为帧率已经够高了，ReID 的作用不大
+    # REID_MAX_FPS_THRESHOLD = 90.0
 
 
 

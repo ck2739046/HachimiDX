@@ -443,11 +443,11 @@ zh_CN:
       ui_skip_export_tracked_label: "跳过导出追踪视频: "
       ui_skip_export_tracked_help: "跳过导出带有音符追踪信息的视频。"
 
-      ui_enable_reid_label: "启用 ReID: "
-      ui_enable_reid_help: |
-        启用外观重识别(ReID)辅助追踪 HOLD 音符。
-        启用此选项，可以提高追踪的稳定性和准确性，但是追踪耗时会显著增加。
-        仅推荐在 30/60 帧的视频中启用。
+      # ui_enable_reid_label: "启用 ReID: "
+      # ui_enable_reid_help: |
+      #   启用外观重识别(ReID)辅助追踪 HOLD 音符。
+      #   启用此选项，可以提高追踪的稳定性和准确性，但是追踪耗时会显著增加。
+      #   仅推荐在 30/60 帧的视频中启用。
 
       ui_bpm_type_label: "BPM 类型: "
       ui_bpm_type_static: "静态 BPM"

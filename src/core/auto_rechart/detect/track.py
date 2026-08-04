@@ -9,10 +9,11 @@ from ultralytics.engine.results import OBB
 from pathlib import Path
 
 from ...schemas.op_result import OpResult, ok, err
-from src.services import PathManage
+# from src.services import PathManage
 from .note_definition import *
 from .detect import _load_detect_results
-from ..tool import print_progress, SEEK_THRESHOLD
+from ..tool import print_progress
+# from ..tool import print_progress, SEEK_THRESHOLD
 from .custom_oc_sort.oc_sort import OCSort
 
 
@@ -28,7 +29,8 @@ TRACKER_NOTE_TYPES = [
 DEBUG = False
 
 
-def _build_botsort_tracker(fps: float, with_reid: bool = False) -> BOTSORT:
+def _build_botsort_tracker(fps: float) -> BOTSORT:
+    # def _build_botsort_tracker(fps: float, with_reid: bool = False) -> BOTSORT:
     tracker_args = SimpleNamespace(
         tracker_type='botsort',
 
@@ -59,17 +61,21 @@ def _build_botsort_tracker(fps: float, with_reid: bool = False) -> BOTSORT:
         # 画面稳定，不需要 gmc 全局运动补偿
         gmc_method='none',
 
-        # 是否启用 ReID
-        with_reid=with_reid,
-        model=str(PathManage.REID_PT_PATH) if with_reid else 'HachimiDX',
-        # 开启 reid 的最小 iou 阈值
-        # 只有两个框的 iou ≥ proximity_thresh 时，才会启用 reid 特征进行匹配
-        # 值越高，越不容易启用 reid
-        # 值越低，越容易启用 reid，越不容易视为新 id
-        proximity_thresh=0.8 if with_reid else 273,
-        # 外观相似度
-        # 值越低，外观就不需要那么相似也能匹配上，越不容易视为新 id
-        appearance_thresh=0.8 if with_reid else 478,
+        # # 是否启用 ReID
+        # with_reid=with_reid,
+        # model=str(PathManage.REID_PT_PATH) if with_reid else 'HachimiDX',
+        # # 开启 reid 的最小 iou 阈值
+        # # 只有两个框的 iou ≥ proximity_thresh 时，才会启用 reid 特征进行匹配
+        # # 值越高，越不容易启用 reid
+        # # 值越低，越容易启用 reid，越不容易视为新 id
+        # proximity_thresh=0.8 if with_reid else 273,
+        # # 外观相似度
+        # # 值越低，外观就不需要那么相似也能匹配上，越不容易视为新 id
+        # appearance_thresh=0.8 if with_reid else 478,
+        with_reid=False,
+        model='HachimiDX',
+        proximity_thresh=273,
+        appearance_thresh=478,
     )
     return BOTSORT(tracker_args)
 
@@ -200,7 +206,7 @@ def _reverse_track_slide(track_geos, fps, detections_by_frame):
 
 def main(std_video_path: Path,
          total_frames: int,
-         enable_reid: bool,
+         # enable_reid: bool,
         ) -> OpResult[None]:
     try:
         # 读取检测结果
@@ -218,25 +224,26 @@ def main(std_video_path: Path,
         for note_type in TRACKER_NOTE_TYPES:
             if note_type == NoteType.SLIDE:
                 trackers_by_type[note_type] = _build_ocsort_tracker(fps, debug=DEBUG)
-            elif note_type == NoteType.HOLD:
-                trackers_by_type[note_type] = _build_botsort_tracker(fps, with_reid=enable_reid)
+            # elif note_type == NoteType.HOLD:
+            #     trackers_by_type[note_type] = _build_botsort_tracker(fps, with_reid=enable_reid)
             else:
-                trackers_by_type[note_type] = _build_botsort_tracker(fps, with_reid=False)
+                # trackers_by_type[note_type] = _build_botsort_tracker(fps, with_reid=False)
+                trackers_by_type[note_type] = _build_botsort_tracker(fps)
 
         # 按帧号重新组织detect_results
         detections_by_frame = defaultdict(list)
         for detection in detect_results:
             detections_by_frame[detection.frame].append(detection)
 
-        # ReID 按需解码
-        # 只解码含 HOLD 音符的帧, 供 reid 提取外观特征
-        hold_frames_set = (
-            {f for f, dets in detections_by_frame.items()
-             if any(d.note_type == NoteType.HOLD for d in dets)}
-            if enable_reid else set()  # enable_reid 关闭时不解码
-        )
-        # 已解码到的最后一帧号, (用于 seek/grab 决策)
-        last_decoded_frame = -1
+        # # ReID 按需解码
+        # # 只解码含 HOLD 音符的帧, 供 reid 提取外观特征
+        # hold_frames_set = (
+        #     {f for f, dets in detections_by_frame.items()
+        #      if any(d.note_type == NoteType.HOLD for d in dets)}
+        #     if enable_reid else set()  # enable_reid 关闭时不解码
+        # )
+        # # 已解码到的最后一帧号, (用于 seek/grab 决策)
+        # last_decoded_frame = -1
 
         # 定义一些变量
         counter = 0
@@ -258,24 +265,24 @@ def main(std_video_path: Path,
 
             # 按需解码视频帧
             frame = None
-            if enable_reid and frame_number in hold_frames_set:
-                # seek 优化: 小跳用 grab() 推进指针不解码, 大跳用 set()
-                gap = frame_number - last_decoded_frame
-                if last_decoded_frame < 0:
-                    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
-                elif gap == 1:
-                    pass
-                elif gap <= SEEK_THRESHOLD:
-                    for _ in range(gap - 1):
-                        cap.grab()
-                else:
-                    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
+            # if enable_reid and frame_number in hold_frames_set:
+            #     # seek 优化: 小跳用 grab() 推进指针不解码, 大跳用 set()
+            #     gap = frame_number - last_decoded_frame
+            #     if last_decoded_frame < 0:
+            #         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
+            #     elif gap == 1:
+            #         pass
+            #     elif gap <= SEEK_THRESHOLD:
+            #         for _ in range(gap - 1):
+            #             cap.grab()
+            #     else:
+            #         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
 
-                ret, frame = cap.read()
-                if not ret:
-                    frame = None
-                else:
-                    last_decoded_frame = frame_number
+            #     ret, frame = cap.read()
+            #     if not ret:
+            #         frame = None
+            #     else:
+            #         last_decoded_frame = frame_number
 
             # 获取当前帧的检测结果
             single_frame_detections = detections_by_frame.get(frame_number, [])

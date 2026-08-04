@@ -129,7 +129,7 @@ def main(args: list[str]) -> bool:
                 skip_detect=_get_cfg(cfg, "skip_detect", _as_bool),
                 skip_cls=_get_cfg(cfg, "skip_cls", _as_bool),
                 skip_export_tracked_video=_get_cfg(cfg, "skip_export_tracked_video", _as_bool),
-                enable_reid=_get_cfg(cfg, "enable_reid", _as_bool),
+                # enable_reid=_get_cfg(cfg, "enable_reid", _as_bool),
             )
             if not result.is_ok:
                 return _fail(print_op_result(result))
