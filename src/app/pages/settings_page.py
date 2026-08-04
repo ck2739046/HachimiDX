@@ -349,18 +349,14 @@ class SettingsPage(BaseOutputPage):
         for device_id, device_name in items:
             self.inference_device_combo_box.addItem(f"[{device_id}] {device_name}", device_id)
 
-        # 优先选中已保存的设备；不在列表中则选第一项；旧默认 "cuda" 匹配首个 CUDA 设备
         target_index = -1
-        if self._saved_inference_device:
-            if self._saved_inference_device == "cuda":
-                # 旧默认值匹配首个 CUDA 设备（itemData 为 "cuda" 或 "cuda:0"）
-                for i in range(self.inference_device_combo_box.count()):
-                    data = self.inference_device_combo_box.itemData(i)
-                    if data in ("cuda", "cuda:0"):
-                        target_index = i
-                        break
-            else:
-                target_index = self.inference_device_combo_box.findData(self._saved_inference_device)
+        saved_device = self._saved_inference_device
+        if saved_device == "cpu" or (
+            saved_device
+            and saved_device.startswith(("cuda:", "vulkan:"))
+            and saved_device.partition(":")[2].isdigit()
+        ):
+            target_index = self.inference_device_combo_box.findData(saved_device)
 
         if target_index < 0 and self.inference_device_combo_box.count() > 0:
             target_index = 0
