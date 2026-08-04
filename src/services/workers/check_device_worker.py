@@ -177,6 +177,75 @@ def _check_ncnn_vulkan() -> list[tuple[str, str]] | None:
 
 
 
+def _check_directml() -> list[tuple[str, str]] | None:
+
+    # 检查 PyTorch 是否安装
+    ok, _ = _check_torch_installed()
+    if not ok:
+        return None
+
+    # 检查 ONNX Runtime 是否安装
+    try:
+        import onnxruntime as ort
+        print(f"ONNX Runtime installed, version {ort.__version__}")
+    except ImportError as e:
+        print(f"ONNX Runtime is not installed: {e!r}")
+        return None
+
+    # 检查 DirectML 支持
+    providers = ort.get_available_providers()
+    print(f"Available providers: {providers}")
+    if "DmlExecutionProvider" not in providers:
+        print("DirectML execution provider is unavailable")
+        return None
+    print("DirectML execution provider is available")
+
+    # 获取 DirectML 支持的设备列表
+    try:
+        # 获取所有设备
+        get_ep_devices = getattr(ort, "get_ep_devices", None)
+        if not callable(get_ep_devices):
+            print("ONNX Runtime does not support EP device enumeration")
+            return None
+
+        devices: list[tuple[str, str]] = []
+        seen_indexes: set[int] = set()
+        for ep_device in get_ep_devices():
+            if getattr(ep_device, "ep_name", "") != "DmlExecutionProvider":
+                continue
+
+            hardware_device = getattr(ep_device, "device", None)
+            metadata = getattr(hardware_device, "metadata", {}) or {}
+            index_text = str(metadata.get("DxgiAdapterNumber", "")).strip()
+            if not index_text.isdigit():
+                print(f"DirectML device has no valid DXGI adapter number: {metadata}")
+                continue
+
+            index = int(index_text)
+            if index in seen_indexes:
+                continue
+            seen_indexes.add(index)
+            name = str(metadata.get("Description", "")).strip() or f"DirectML device {index}"
+            devices.append((f"dml:{index}", name))
+
+        if not devices:
+            print("No available DirectML devices found")
+            return None
+
+        devices.sort(key=lambda item: int(item[0].partition(":")[2]))
+        print("DirectML devices:")
+        for device_id, device_name in devices:
+            print(f"  - {device_id}: {device_name}")
+        return devices
+
+    except Exception as e:
+        print(f"Failed to read DirectML devices: {e}")
+        return None
+
+
+
+
+
 def _emit_device_result(devices: list[tuple[str, str]] | None) -> None:
     # 设备列表协议：成功时输出若干 "INFERENCE_DEVICE_RESULT:<id>|<name>"，失败时不输出
     if not devices:
@@ -198,6 +267,8 @@ def main(runtime: str) -> bool:
         devices = _check_cuda_or_tensorrt()
     elif runtime_norm == "ncnn":
         devices = _check_ncnn_vulkan()
+    elif runtime_norm in {"directml", "dml", "onnx"}:
+        devices = _check_directml()
     else:
         print(f"Unknown runtime: {runtime}")
         return False

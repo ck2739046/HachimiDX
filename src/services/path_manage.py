@@ -72,6 +72,12 @@ class PathManage:
     CLS_EX_ENGINE_PATH: Path = MODELS_DIR / "cls-ex.engine"
     TOUCH_HOLD_ENGINE_PATH: Path = MODELS_DIR / "detect-touch-hold.engine"
 
+    DETECT_DIRECTML_ONNX_PATH: Path = MODELS_DIR / "detect_DirectML.onnx"
+    OBB_DIRECTML_ONNX_PATH: Path = MODELS_DIR / "obb_DirectML.onnx"
+    CLS_BREAK_DIRECTML_ONNX_PATH: Path = MODELS_DIR / "cls-break_DirectML.onnx"
+    CLS_EX_DIRECTML_ONNX_PATH: Path = MODELS_DIR / "cls-ex_DirectML.onnx"
+    TOUCH_HOLD_DIRECTML_ONNX_PATH: Path = MODELS_DIR / "detect-touch-hold_DirectML.onnx"
+
     DETECT_NCNN_PATH: Path = MODELS_DIR / "detect_ncnn_model"
     OBB_NCNN_PATH: Path = MODELS_DIR / "obb_ncnn_model"
     CLS_BREAK_NCNN_PATH: Path = MODELS_DIR / "cls-break_ncnn_model"
@@ -112,6 +118,14 @@ class PathManage:
                 cls_break=cls.CLS_BREAK_ENGINE_PATH,
                 cls_ex=cls.CLS_EX_ENGINE_PATH,
                 touch_hold=cls.TOUCH_HOLD_ENGINE_PATH,
+            ))
+        if backend == "DirectML":
+            return ok(ModelPaths(
+                detect=cls.DETECT_DIRECTML_ONNX_PATH,
+                obb=cls.OBB_DIRECTML_ONNX_PATH,
+                cls_break=cls.CLS_BREAK_DIRECTML_ONNX_PATH,
+                cls_ex=cls.CLS_EX_DIRECTML_ONNX_PATH,
+                touch_hold=cls.TOUCH_HOLD_DIRECTML_ONNX_PATH,
             ))
         if backend == "NCNN":
             return ok(ModelPaths(
