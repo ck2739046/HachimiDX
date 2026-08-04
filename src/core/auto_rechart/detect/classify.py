@@ -63,12 +63,15 @@ def main(std_video_path: Path,
         if not pipeline_r.is_ok:
             return err("[classify] pipeline failed", inner=pipeline_r)
 
+        # 最后再打印一次进度
+        print_progress('分类', len(consumer.results), total_cls_quantity, final=True)
+
         # 根据分类结果，更新track_results
         track_results = _merge_cls_into_track_results(track_results, consumer.results)
 
         # 结束
         finish_time = time.time()
-        print(f"\n分类模块完成, 耗时{finish_time - start_time:.1f}s                       ")
+        print(f"分类模块完成, 耗时{finish_time - start_time:.1f}s                       ")
 
         # 保存到文件
         _save_track_results(track_results, std_video_path.parent, call_fn="classify")

@@ -143,6 +143,10 @@ class ExportConsumer(Consumer):
         self.start_time = 0.0
         self.elapsed_time = 0.0
 
+    @property
+    def processed_frames(self) -> int:
+        return self._frame_number
+
 
     def on_start(self, ctx):
         print("Running FFmpeg command:", " ".join(self.ffmpeg_cmd))
@@ -238,7 +242,6 @@ class ExportConsumer(Consumer):
             try:
                 if self.count_in_batch > 0 and self.stdin is not None:
                     self.stdin.write(self.batch_mv[:self.off])
-                    print()
             except Exception:
                 pass
 
@@ -643,6 +646,9 @@ def main(std_video_path: Path, total_frames: int) -> OpResult[Path]:
         ).run()
         if not pipeline_r.is_ok:
             return err("[export_track_video] pipeline failed", inner=pipeline_r)
+
+        # 最后再打印一次进度
+        print_progress('export', consumer.processed_frames, total_frames, final=True)
 
         # 正常结束: 打印耗时
         average_fps = total_frames / consumer.elapsed_time if consumer.elapsed_time > 0 else 0

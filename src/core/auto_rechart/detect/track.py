@@ -334,12 +334,12 @@ def main(std_video_path: Path,
 
         # 最后再打印一次进度
         time.sleep(0.1)  # 等待全部结果完成
-        print_progress('追踪', total_frames, total_frames)
+        print_progress('追踪', counter, total_frames, final=True)
                         
         # 结束
         if cap and cap.isOpened(): cap.release()
         finish_time = time.time()
-        print(f"\n追踪模块完成, 耗时{finish_time - start_time:.1f}s, 平均{total_frames / (finish_time - start_time):.1f}fps       ")
+        print(f"追踪模块完成, 耗时{finish_time - start_time:.1f}s, 平均{total_frames / (finish_time - start_time):.1f}fps       ")
 
         # === 反向追踪 slide tracks ===
         # 对每条 slide track 尝试反向追踪

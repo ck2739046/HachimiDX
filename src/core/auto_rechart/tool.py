@@ -8,10 +8,14 @@ SEEK_THRESHOLD = 200
 
 
 
-def print_progress(name, counter, total):
+def print_progress(name, counter, total, *, final: bool = False):
     """{name} progress: counter/total (percent%)"""
     progress = (counter / total) * 100 if total else 0.0
-    print(f"{name} progress: {counter}/{total} ({progress:.1f}%)     ", end="\r", flush=True)
+    print(
+        f"{name} progress: {counter}/{total} ({progress:.1f}%)     ",
+        end="\n" if final else "\r",
+        flush=True,
+    )
 
 
 def release_ncnn_vulkan(inference_device) -> None:

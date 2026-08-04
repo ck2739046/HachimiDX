@@ -11,6 +11,7 @@ Touch-Hold YOLO 推理模块（生产者-消费者流水线）
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
+import time
 
 import cv2
 import numpy as np
@@ -65,6 +66,8 @@ def run_touch_hold_inference(shared_context: SharedContext,
     crop_size = calc_touch_hold_crop_size(shared_context.std_video_size, shared_context.is_big_touch)
     total_samples = sum(len(v) for v in frame_plan.values())
 
+    start_time = time.time()
+
     # 生产者（视频解码 + 裁剪图像）
     producer = TouchHoldProducer(
         str(shared_context.std_video_path), frame_plan, crop_size, batch_touch_hold,
@@ -78,7 +81,8 @@ def run_touch_hold_inference(shared_context: SharedContext,
     if not pipeline_r.is_ok:
         return err("[touch_hold_inference] pipeline failed", inner=pipeline_r)
 
-    print(f"run_touch_hold_inference: processed {total_samples}/{total_samples} samples... Done")
+    elapsed = time.time() - start_time
+    print(f"touch-hold inference complete, processed {consumer.processed_samples}/{total_samples} samples, cost {elapsed:.1f}s.")
     return ok((consumer.light_results, track_meta))
 
 
@@ -176,6 +180,10 @@ class TouchHoldConsumer(Consumer):
         self._model = None
         self._processed_samples = 0
         self._last_printed_samples = 0
+
+    @property
+    def processed_samples(self) -> int:
+        return self._processed_samples
 
     def on_start(self, ctx):
         self._model = YOLO(self.model_path, task="detect")
