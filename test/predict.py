@@ -23,7 +23,7 @@ def detect_video(
         output_path (str, optional): 输出视频文件的路径。如果为None，则自动生成：
             <视频目录>/<视频名>_detected.mp4
         conf_threshold (float): 置信度阈值，低于此阈值的检测框将被过滤
-        device (str): 运行设备，例如 'cpu', 'cuda', 'cuda:0'
+        device (str): 运行设备，例如 'cpu', 'cuda:0'
         show_progress (bool): 是否在控制台显示处理进度
 
     Returns:

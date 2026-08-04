@@ -33,6 +33,7 @@ from src.core.auto_rechart.detect.main import main as detect_main
 from src.core.auto_rechart.analyze.main import main as analyze_main
 from src.core.schemas.media_config import MediaType
 from src.core.schemas.op_result import print_op_result
+from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
 from src.services import PathManage
 from src.main import VERSION
 
@@ -73,10 +74,20 @@ def main(args: list[str]) -> bool:
         std_video_path = _get_cfg(cfg, "std_video_path", Path)
 
         model_paths = None
+        inference_device = None
         if is_detect_enabled or is_analyze_enabled:
             model_backend = _get_cfg(cfg, "model_backend")
             if model_backend is None:
                 return _fail("Missing model_backend")
+            inference_device = _get_cfg(cfg, "inference_device")
+            if not S_Defs.is_inference_device_supported_by_backend(model_backend, inference_device):
+                return _fail(
+                    f"Invalid inference_device '{inference_device}' for backend '{model_backend}'"
+                )
+            inference_device = S_Defs.normalize_inference_device_for_backend(
+                model_backend,
+                inference_device,
+            )
             model_paths_result = PathManage.resolve_model_paths(model_backend)
             if not model_paths_result.is_ok:
                 return _fail(print_op_result(model_paths_result))
@@ -110,7 +121,7 @@ def main(args: list[str]) -> bool:
                 std_video_path=std_video_path,
                 batch_detect=_get_cfg(cfg, "predict_batch_size_detect_obb", int),
                 batch_cls=_get_cfg(cfg, "predict_batch_size_classify", int),
-                inference_device=_get_cfg(cfg, "inference_device"),
+                inference_device=inference_device,
                 detect_model_path=model_paths.detect,
                 obb_model_path=model_paths.obb,
                 cls_ex_model_path=model_paths.cls_ex,
@@ -135,7 +146,7 @@ def main(args: list[str]) -> bool:
                 chart_lv=_get_cfg(cfg, "chart_lv", int),
                 base_denominator=_get_cfg(cfg, "base_denominator", int),
                 duration_denominator=_get_cfg(cfg, "duration_denominator", int),
-                inference_device=_get_cfg(cfg, "inference_device"),
+                inference_device=inference_device,
                 batch_touch_hold=_get_cfg(cfg, "predict_batch_size_touch_hold", int),
                 touch_hold_model_path=model_paths.touch_hold,
                 batch_cls=_get_cfg(cfg, "predict_batch_size_classify", int),

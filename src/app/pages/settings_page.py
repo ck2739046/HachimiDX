@@ -321,11 +321,10 @@ class SettingsPage(BaseOutputPage):
             name = name.strip()
             if not device_id or not name or device_id in seen_device_ids:
                 continue
-            if backend == "PyTorch" and device_id != "cpu":
+            if not S_Defs.is_inference_device_supported_by_backend(backend, device_id):
                 continue
-            if backend == "TensorRT" and not device_id.startswith("cuda:"):
-                continue
-            if backend == "NCNN" and not device_id.startswith("vulkan:"):
+            device_id = S_Defs.normalize_inference_device_id(device_id)
+            if device_id in seen_device_ids:
                 continue
             seen_device_ids.add(device_id)
             results.append((device_id, name))
@@ -350,13 +349,8 @@ class SettingsPage(BaseOutputPage):
             self.inference_device_combo_box.addItem(f"[{device_id}] {device_name}", device_id)
 
         target_index = -1
-        saved_device = self._saved_inference_device
-        if saved_device == "cpu" or (
-            saved_device
-            and saved_device.startswith(("cuda:", "vulkan:"))
-            and saved_device.partition(":")[2].isdigit()
-        ):
-            target_index = self.inference_device_combo_box.findData(saved_device)
+        if self._saved_inference_device:
+            target_index = self.inference_device_combo_box.findData(self._saved_inference_device)
 
         if target_index < 0 and self.inference_device_combo_box.count() > 0:
             target_index = 0

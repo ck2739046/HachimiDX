@@ -1,6 +1,8 @@
 import numpy as np
 import gc
 
+from ..schemas.settings_config import SettingsConfig_Definitions as S_Defs
+
 
 SEEK_THRESHOLD = 200
 
@@ -13,7 +15,8 @@ def print_progress(name, counter, total):
 
 
 def release_ncnn_vulkan(inference_device) -> None:
-    if not str(inference_device or "").lower().startswith("vulkan"):
+    parsed_device = S_Defs.parse_inference_device(inference_device)
+    if parsed_device is None or parsed_device[0] != "vulkan":
         return
     gc.collect()
     try:

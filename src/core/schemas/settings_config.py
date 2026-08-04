@@ -73,21 +73,59 @@ class SettingsConfig_Definitions:
         key="inference_device",
         type="str",
         group="model",
-        default="cuda",
-        # 允许 cpu / cuda / cuda:N / vulkan:N，具体校验由 SettingsModel 按后端归一化
+        default="cuda:0",
         constraints={},
     )
 
-    @staticmethod
-    def get_inference_device_by_backend(backend):
-        if backend == "PyTorch":
-            return "cpu"
-        elif backend == "NCNN":
-            return "vulkan:0"
-        elif backend == "TensorRT":
-            return "cuda"
-        else:
-            return "cpu" # default to cpu if unknown backend
+    _INFERENCE_DEVICE_SCHEMES = {
+        "cpu": False,
+        "cuda": True,
+        "vulkan": True,
+    }
+    _INFERENCE_DEVICE_BACKEND_RULES = {
+        "PyTorch": {"schemes": frozenset({"cpu"}), "default": "cpu"},
+        "NCNN": {"schemes": frozenset({"vulkan"}), "default": "vulkan:0"},
+        "TensorRT": {"schemes": frozenset({"cuda"}), "default": "cuda:0"},
+    }
+
+    @classmethod
+    def parse_inference_device(cls, value) -> tuple[str, int | None] | None:
+        device_id = str(value or "").strip()
+        requires_index = cls._INFERENCE_DEVICE_SCHEMES.get(device_id)
+        if requires_index is False:
+            return device_id, None
+
+        scheme, separator, index_text = device_id.partition(":")
+        if separator != ":" or cls._INFERENCE_DEVICE_SCHEMES.get(scheme) is not True:
+            return None
+        if not index_text.isdigit():
+            return None
+        return scheme, int(index_text)
+
+    @classmethod
+    def normalize_inference_device_id(cls, value) -> str | None:
+        parsed = cls.parse_inference_device(value)
+        if parsed is None:
+            return None
+        scheme, index = parsed
+        return scheme if index is None else f"{scheme}:{index}"
+
+    @classmethod
+    def is_inference_device_supported_by_backend(cls, backend, value) -> bool:
+        parsed = cls.parse_inference_device(value)
+        rule = cls._INFERENCE_DEVICE_BACKEND_RULES.get(str(backend).strip())
+        return parsed is not None and rule is not None and parsed[0] in rule["schemes"]
+
+    @classmethod
+    def get_inference_device_by_backend(cls, backend) -> str:
+        rule = cls._INFERENCE_DEVICE_BACKEND_RULES.get(str(backend).strip())
+        return rule["default"] if rule is not None else "cpu"
+
+    @classmethod
+    def normalize_inference_device_for_backend(cls, backend, value) -> str:
+        if not cls.is_inference_device_supported_by_backend(backend, value):
+            return cls.get_inference_device_by_backend(backend)
+        return cls.normalize_inference_device_id(value)
 
     # ffmpeg
 
