@@ -39,9 +39,10 @@ class SettingsConfig_Definitions:
         type="str",
         group="model",
         default="TensorRT",
-        constraints={"options": ["PyTorch", "NCNN", "TensorRT"],
-                 "options_tooltips": ["ui_model_backend_pytorch_tooltip",
+        constraints={"options": ["PyTorch", "NCNN", "DirectML", "TensorRT"],
+                     "options_tooltips": ["ui_model_backend_pytorch_tooltip",
                                           "ui_model_backend_ncnn_tooltip",
+                                          "ui_model_backend_directml_tooltip",
                                           "ui_model_backend_tensorrt_tooltip"]},
     )
 
@@ -80,11 +81,13 @@ class SettingsConfig_Definitions:
     _INFERENCE_DEVICE_SCHEMES = {
         "cpu": False,
         "cuda": True,
+        "dml": True,
         "vulkan": True,
     }
     _INFERENCE_DEVICE_BACKEND_RULES = {
         "PyTorch": {"schemes": frozenset({"cpu"}), "default": "cpu"},
         "NCNN": {"schemes": frozenset({"vulkan"}), "default": "vulkan:0"},
+        "DirectML": {"schemes": frozenset({"dml"}), "default": "dml:0"},
         "TensorRT": {"schemes": frozenset({"cuda"}), "default": "cuda:0"},
     }
 
@@ -126,6 +129,18 @@ class SettingsConfig_Definitions:
         if not cls.is_inference_device_supported_by_backend(backend, value):
             return cls.get_inference_device_by_backend(backend)
         return cls.normalize_inference_device_id(value)
+
+    @classmethod
+    def get_runtime_inference_device(cls, backend, value) -> str:
+        normalized = cls.normalize_inference_device_for_backend(backend, value)
+        return "cpu" if str(backend).strip() == "DirectML" else normalized
+
+    @classmethod
+    def get_directml_device_index(cls, value) -> int | None:
+        parsed = cls.parse_inference_device(value)
+        if parsed is None or parsed[0] != "dml":
+            return None
+        return parsed[1]
 
     # ffmpeg
 

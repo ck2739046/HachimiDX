@@ -832,7 +832,7 @@ class SettingsPage(BaseOutputPage):
         self._show_convert_model_button = False
         self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_convert_success", backend=backend))
         # 转换成功后，若已有缓存的设备列表则填充并显示设备行
-        if backend in {"NCNN", "TensorRT"} and self._cached_device_items:
+        if self._cached_device_items:
             self._populate_inference_device_combo(self._cached_device_items)
         self._sync_ui_state()
 
