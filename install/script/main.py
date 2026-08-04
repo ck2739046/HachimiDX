@@ -101,8 +101,9 @@ def reinstall_backend() -> OpResult[None]:
     # 删除相关库
     print(f"\n-----\n\n{T.reinstall_backend.start_uninstall}\n")
     cmd = [sys.executable, "-m", "pip", "uninstall",
-        "onnxruntime", "onnxruntime-gpu", "onnxruntime-directml",
-        "torch", "torchvision", "tensorrt", "ncnn", "pnnx", "-y"]
+        "onnxruntime", "onnxruntime-gpu",
+        "torch", "torchvision",
+        "tensorrt", "ncnn", "pnnx", "-y"]
     try:
         subprocess.run(cmd, check=True)
         print("\n-----\n")
