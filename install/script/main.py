@@ -150,10 +150,10 @@ def install() -> OpResult[None]:
                 sys.exit(1)
 
     # ask install NCNN (if no trt)
-    install_ncnn = False
+    install_ncnn_ = False
     if nvidia_gpu_config is None:
-        install_ncnn = ask_install_ncnn()
-    if install_ncnn:
+        install_ncnn_ = ask_install_ncnn()
+    if install_ncnn_:
         # 检测是否可用
         result = detect_ncnn_availability(T)
         if not result.is_ok:
@@ -162,7 +162,7 @@ def install() -> OpResult[None]:
             does_continue = ask_continue_install()
             if not does_continue:
                 sys.exit(1)
-            install_ncnn = False
+            install_ncnn_ = False
 
     # install pytorch
     success = install_pytorch(nvidia_gpu_config)
@@ -179,7 +179,7 @@ def install() -> OpResult[None]:
         # install TensorRT
         is_success = install_tensorrt(nvidia_gpu_config)
         if not is_success: sys.exit(1)
-    elif install_ncnn:
+    elif install_ncnn_:
         # install NCNN
         is_success = install_ncnn()
         if not is_success: sys.exit(1)
