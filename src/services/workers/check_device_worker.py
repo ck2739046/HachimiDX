@@ -4,6 +4,7 @@
 import sys
 from pathlib import Path
 import io
+import subprocess
 
 # 解决 Windows 控制台 Unicode 编码问题
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', write_through=True)
@@ -35,25 +36,50 @@ def _check_torch_installed() -> tuple[bool, object | None]:
 
 
 
-def _check_cpu() -> bool:
+def _get_windows_cpu_name() -> str:
+    if sys.platform != "win32":
+        return ""
 
-    # 仅检查 PyTorch 是否安装
+    try:
+        result = subprocess.run(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                "Get-CimInstance Win32_Processor | Select-Object -First 1 -ExpandProperty Name",
+            ],
+            capture_output=True,
+            check=False,
+            encoding="utf-8",
+            errors="replace",
+            timeout=5,
+        )
+        return result.stdout.strip() if result.returncode == 0 else ""
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+
+def _check_cpu() -> list[tuple[str, str]] | None:
+
     ok, _ = _check_torch_installed()
-    if ok:
-        print("CPU runtime check passed")
-    return ok
+    if not ok:
+        return None
+    cpu_name = _get_windows_cpu_name()
+    print("CPU runtime check passed")
+    return [("cpu", cpu_name or "CPU")]
 
 
 
 
 
-def _check_cuda_or_tensorrt() -> bool:
+def _check_cuda_or_tensorrt() -> list[tuple[str, str]] | None:
 
     # 检查 PyTorch 是否安装
     ok, torch = _check_torch_installed()
     if not ok:
-        return False
-    
+        return None
+
     # 检查 PyTorch 是否支持 cuda
     cuda_support = torch.cuda.is_available()
     cud_version = torch.version.cuda if hasattr(torch.version, "cuda") else "N/A"
@@ -61,7 +87,7 @@ def _check_cuda_or_tensorrt() -> bool:
     print(f"  - CUDA version: {cud_version}")
     if not cuda_support or cud_version == "N/A":
         print("CUDA support is not available in PyTorch")
-        return False
+        return None
 
     # 检查 TensorRT 是否安装
     try:
@@ -69,31 +95,33 @@ def _check_cuda_or_tensorrt() -> bool:
         print(f"TensorRT installed, version {tensorrt.__version__}")
     except ImportError as e:
         print(f"TensorRT is not installed: {e!r}")
-        return False
+        return None
 
     # 列出所有 CUDA 设备
     device_count = torch.cuda.device_count()
     if device_count == 0:
         print("No available CUDA devices found")
-        return False
+        return None
 
+    devices: list[tuple[str, str]] = []
     print("CUDA devices:")
     for i in range(device_count):
         device_name = torch.cuda.get_device_name(i)
         print(f"  - {i}: {device_name}")
+        devices.append((f"cuda:{i}", device_name))
 
-    return True
-
-
-
+    return devices
 
 
-def _check_ncnn_vulkan() -> bool:
+
+
+
+def _check_ncnn_vulkan() -> list[tuple[str, str]] | None:
 
     # 检查 PyTorch 是否安装
     ok, _ = _check_torch_installed()
     if not ok:
-        return False
+        return None
 
     # 检查 ncnn 是否安装
     try:
@@ -101,38 +129,46 @@ def _check_ncnn_vulkan() -> bool:
         print(f"NCNN installed, version {ncnn.__version__}")
     except ImportError as e:
         print(f"NCNN is not installed: {e!r}")
-        return False
+        return None
 
-    # 检查 Vulkan 是否可用
     gpu_instance_created = False
     try:
         create_result = ncnn.create_gpu_instance()
         if create_result != 0:
             print(f"Failed to initialize NCNN Vulkan, error code: {create_result}")
-            return False
+            return None
         gpu_instance_created = True
 
-        # 列出可用的 Vulkan 设备
         gpu_count = ncnn.get_gpu_count()
         if gpu_count <= 0:
             print("No available NCNN Vulkan devices found")
-            return False
+            return None
 
+        # 逐个设备做实际绑定检查，单个失败不影响其他设备
+        devices: list[tuple[str, str]] = []
         print("NCNN Vulkan devices:")
         for index in range(gpu_count):
             gpu_info = ncnn.get_gpu_info(index)
-            print(f"  - {index}: {gpu_info.device_name()}")
+            device_name = gpu_info.device_name()
+            print(f"  - {index}: {device_name}")
+            try:
+                net = ncnn.Net()
+                net.opt.use_vulkan_compute = True
+                net.set_vulkan_device(index)
+                del net
+                devices.append((f"vulkan:{index}", device_name))
+            except Exception as e:
+                print(f"  - {index}: unavailable ({e})")
 
-        net = ncnn.Net()
-        net.opt.use_vulkan_compute = True
-        net.set_vulkan_device(0)
-        del net
-        print("NCNN Vulkan device 0 is available")
-        return True
+        if not devices:
+            print("No NCNN Vulkan device passed the binding check")
+            return None
+
+        return devices
 
     except Exception as e:
         print(f"Failed to initialize NCNN Vulkan: {e}")
-        return False
+        return None
     finally:
         if gpu_instance_created:
             ncnn.destroy_gpu_instance()
@@ -141,34 +177,12 @@ def _check_ncnn_vulkan() -> bool:
 
 
 
-def _check_openvino() -> bool:
-
-    # 检查 PyTorch 是否安装
-    ok, _ = _check_torch_installed()
-    if not ok:
-        return False
-    
-    # 检查 OpenVINO 是否安装
-    try:
-        import openvino
-        print(f"OpenVINO installed, version {openvino.__version__}")
-    except ImportError as e:
-        print(f"OpenVINO is not installed: {e!r}")
-        return False
-    
-    # 列出可用设备
-    core = openvino.Core()
-    devices = core.available_devices
+def _emit_device_result(devices: list[tuple[str, str]] | None) -> None:
+    # 设备列表协议：成功时输出若干 "INFERENCE_DEVICE_RESULT:<id>|<name>"，失败时不输出
     if not devices:
-        print("No available OpenVINO devices found")
-        return False
-
-    print("OpenVINO devices:")
-    for device in devices:
-        device_name = core.get_property(device, "FULL_DEVICE_NAME")
-        print(f"  - '{device}': {device_name}")
-
-    return True
+        return
+    for device_id, name in devices:
+        print(f"INFERENCE_DEVICE_RESULT:{device_id}|{name}")
 
 
 
@@ -177,17 +191,21 @@ def _check_openvino() -> bool:
 def main(runtime: str) -> bool:
     runtime_norm = str(runtime or "").strip().lower()
 
+    devices: list[tuple[str, str]] | None
     if runtime_norm in {"pytorch", "cpu"}:
-        return _check_cpu()
-    if runtime_norm in {"cuda", "tensorrt"}:
-        return _check_cuda_or_tensorrt()
-    if runtime_norm == "ncnn":
-        return _check_ncnn_vulkan()
-    # if runtime_norm == "openvino":
-        # return _check_openvino()
+        devices = _check_cpu()
+    elif runtime_norm in {"cuda", "tensorrt"}:
+        devices = _check_cuda_or_tensorrt()
+    elif runtime_norm == "ncnn":
+        devices = _check_ncnn_vulkan()
+    else:
+        print(f"Unknown runtime: {runtime}")
+        return False
 
-    print(f"Unknown runtime: {runtime}")
-    return False
+    if devices is None:
+        return False
+    _emit_device_result(devices)
+    return True
 
 
 
