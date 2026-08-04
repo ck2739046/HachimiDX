@@ -87,13 +87,21 @@ class ONNXBackend(BaseBackend):
             else:
                 providers = ["DmlExecutionProvider", "CPUExecutionProvider"]
 
+            session_options = onnxruntime.SessionOptions()
+            session_options.enable_mem_pattern = False
+            session_options.execution_mode = onnxruntime.ExecutionMode.ORT_SEQUENTIAL
+
             LOGGER.info(
                 f"Using ONNX Runtime {onnxruntime.__version__} with "
                 f"{providers[0] if isinstance(providers[0], str) else providers[0][0]}"
             )
 
             try:
-                self.session = onnxruntime.InferenceSession(weight, providers=providers)
+                self.session = onnxruntime.InferenceSession(
+                    weight,
+                    sess_options=session_options,
+                    providers=providers,
+                )
             except onnxruntime.capi.onnxruntime_pybind11_state.InvalidProtobuf as e:
                 # ONNX Runtime reports an unparsable graph as a raw protobuf error naming neither the problem
                 # nor a remedy. Only this one type is caught: other load failures are execution-provider or

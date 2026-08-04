@@ -11,10 +11,11 @@ HachimiDX\python\Lib\site-packages\ultralytics
 1. nn/backends/onnx.py
    - 注释掉 load_model() 中的 line 66: check_requirements
    - 注释掉 load_model() 中的 line 69-80: 选择 provider 逻辑
-   - 新增 load_model() 中的 line 82-88:
+   - 新增 load_model() 中的 line 82-104:
      * 强制指定 DmlExecutionProvider
-     * 通过环境变量 HACHIMIDX_DML_DEVICE_ID 精准指定推理设备
-     * 未设置环境变量时，让 onnx 自行决定
+     * 设置 DirectML 所需的顺序执行和内存配置
+     * 通过环境变量 HACHIMIDX_DML_DEVICE_ID 精准指定 DXGI adapter number
+     * 未设置环境变量时，让 onnx 自行决定推理设备
 
 2. engine/exporter.py
    - 注释掉 export_onnx() 中的 line 1036: check_requirements
