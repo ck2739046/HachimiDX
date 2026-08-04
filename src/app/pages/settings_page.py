@@ -405,9 +405,12 @@ class SettingsPage(BaseOutputPage):
 
         self._set_combo_value(self.model_backend_combo_box, settings[S_Defs.model_backend.key])
         self._saved_inference_device = str(settings.get(S_Defs.inference_device.key, "")).strip() or None
-        self._last_checked_backend = None
-        self._cached_device_items = []
-        self._reset_inference_device_combo()
+
+        if self._cached_device_items:
+            self._populate_inference_device_combo(self._cached_device_items)
+        else:
+            self._reset_inference_device_combo()
+
         self._set_combo_value(self.ffmpeg_hw_encoder_combo_box, settings[S_Defs.ffmpeg_hw_encoder.key])
         self._set_combo_value(self.language_combo_box, settings[S_Defs.language.key])
         self.check_update_checkbox.setChecked(bool(settings[S_Defs.check_update.key]))
