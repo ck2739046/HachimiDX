@@ -1,5 +1,4 @@
 import ctypes
-from dataclasses import dataclass
 
 from .op_result import OpResult, err, ok
 
@@ -12,23 +11,12 @@ VK_QUEUE_COMPUTE_BIT = 0x00000002
 VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU = 1
 VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU = 2
 VK_MAX_PHYSICAL_DEVICE_NAME_SIZE = 256
-VK_UUID_SIZE = 16
 LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
 
 
 VkInstance = ctypes.c_void_p
 VkPhysicalDevice = ctypes.c_void_p
 VkResult = ctypes.c_int32
-
-
-@dataclass(slots=True)
-class ncnn_gpu_info:
-    index: int
-    gpu_name: str
-    device_type: str
-    api_version: tuple[int, int, int]
-    vendor_id: int
-    device_id: int
 
 
 class _VkApplicationInfo(ctypes.Structure):
@@ -57,16 +45,11 @@ class _VkInstanceCreateInfo(ctypes.Structure):
 
 
 class _VkPhysicalDeviceProperties(ctypes.Structure):
-    # Only the stable prefix is read; this buffer receives the remaining Vulkan 1.0 fields.
     _fields_ = [
-        ("apiVersion", ctypes.c_uint32),
-        ("driverVersion", ctypes.c_uint32),
-        ("vendorID", ctypes.c_uint32),
-        ("deviceID", ctypes.c_uint32),
+        ("_header", ctypes.c_uint32 * 4),
         ("deviceType", ctypes.c_uint32),
         ("deviceName", ctypes.c_char * VK_MAX_PHYSICAL_DEVICE_NAME_SIZE),
-        ("pipelineCacheUUID", ctypes.c_uint8 * VK_UUID_SIZE),
-        ("_remaining", ctypes.c_uint8 * 1024),
+        ("_remaining", ctypes.c_uint8 * 1040),
     ]
 
 
@@ -89,10 +72,6 @@ class _VkQueueFamilyProperties(ctypes.Structure):
 
 def _make_version(major: int, minor: int, patch: int) -> int:
     return (major << 22) | (minor << 12) | patch
-
-
-def _parse_version(version: int) -> tuple[int, int, int]:
-    return version >> 22, (version >> 12) & 0x3FF, version & 0xFFF
 
 
 def _configure_vulkan_functions(vulkan) -> None:
@@ -188,15 +167,7 @@ def _has_compute_queue(vulkan, device: VkPhysicalDevice) -> bool:
     )
 
 
-def _device_type_name(device_type: int) -> str:
-    if device_type == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
-        return "integrated"
-    if device_type == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
-        return "discrete"
-    return "unsupported"
-
-
-def _get_vulkan_gpu_info(T) -> OpResult[list[ncnn_gpu_info]]:
+def _get_vulkan_gpu_names(T) -> OpResult[list[str]]:
     try:
         vulkan = ctypes.WinDLL("vulkan-1.dll", winmode=LOAD_LIBRARY_SEARCH_SYSTEM32)
     except OSError as e:
@@ -211,11 +182,9 @@ def _get_vulkan_gpu_info(T) -> OpResult[list[ncnn_gpu_info]]:
     try:
         instance = _create_instance(vulkan)
         devices = _enumerate_physical_devices(vulkan, instance)
-        if not devices:
-            return err(T.detect_ncnn.no_physical_devices)
 
         gpus = []
-        for index, device in enumerate(devices):
+        for device in devices:
             properties = _VkPhysicalDeviceProperties()
             vulkan.vkGetPhysicalDeviceProperties(device, ctypes.byref(properties))
 
@@ -228,16 +197,7 @@ def _get_vulkan_gpu_info(T) -> OpResult[list[ncnn_gpu_info]]:
                 continue
 
             gpu_name = bytes(properties.deviceName).split(b"\0", 1)[0].decode("utf-8", errors="replace")
-            gpus.append(
-                ncnn_gpu_info(
-                    index=index,
-                    gpu_name=gpu_name,
-                    device_type=_device_type_name(properties.deviceType),
-                    api_version=_parse_version(properties.apiVersion),
-                    vendor_id=properties.vendorID,
-                    device_id=properties.deviceID,
-                )
-            )
+            gpus.append(gpu_name)
 
         if not gpus:
             return err(T.detect_ncnn.no_compute_gpu)
@@ -249,26 +209,15 @@ def _get_vulkan_gpu_info(T) -> OpResult[list[ncnn_gpu_info]]:
             vulkan.vkDestroyInstance(instance, None)
 
 
-def detect_ncnn_availability(T) -> OpResult[list[ncnn_gpu_info]]:
+def detect_ncnn_availability(T) -> OpResult[list[str]]:
     print(f"\n-----\n\n{T.detect_ncnn.start}\n")
 
-    result = _get_vulkan_gpu_info(T)
+    result = _get_vulkan_gpu_names(T)
     if not result.is_ok:
         return result
 
     print(T.detect_ncnn.gpu_detected_title)
-    for gpu in result.value:
-        api_version = ".".join(str(part) for part in gpu.api_version)
-        device_type = T.detect_ncnn.device_types.get(gpu.device_type, gpu.device_type)
-        print(
-            T.detect_ncnn.gpu_info.format(
-                index=gpu.index,
-                gpu_name=gpu.gpu_name,
-                device_type=device_type,
-                api_version=api_version,
-                vendor_id=gpu.vendor_id,
-                device_id=gpu.device_id,
-            )
-        )
+    for index, gpu_name in enumerate(result.value):
+        print(T.detect_ncnn.gpu_info.format(index=index, gpu_name=gpu_name))
 
     return result

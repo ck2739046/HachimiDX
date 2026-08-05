@@ -168,15 +168,10 @@ detect_ncnn = SN(
     start = "Checking whether an NCNN Vulkan GPU is available...",
     loader_unavailable = "The system Vulkan Loader was not found. Install or update the GPU driver.",
     api_unavailable = "The system Vulkan Loader does not provide the required Vulkan 1.0 API.",
-    no_physical_devices = "Vulkan did not detect any physical devices.",
     no_compute_gpu = "No integrated or discrete GPU with a Vulkan compute queue was detected.",
     check_failed = "An error occurred while checking Vulkan GPUs.",
     gpu_detected_title = "Detected GPU available for NCNN Vulkan:",
-    gpu_info = "{index}. {gpu_name}, {device_type}, Vulkan {api_version}, vendor 0x{vendor_id:04X}, device 0x{device_id:04X}",
-    device_types = {
-        "integrated": "integrated GPU",
-        "discrete": "discrete GPU",
-    },
+    gpu_info = "{index}. {gpu_name}",
 )
 
 
@@ -185,11 +180,10 @@ detect_dml = SN(
     start = "Checking for a DirectX 12 GPU required by DirectML...",
     loader_unavailable = "The system DXGI or Direct3D 12 runtime was not found. Update Windows and the GPU driver.",
     api_unavailable = "The system does not provide the required DXGI or Direct3D 12 API.",
-    no_hardware_adapters = "DXGI did not detect any hardware graphics adapters.",
     no_d3d12_gpu = "No hardware GPU capable of creating a Direct3D 12 device was detected. Update the GPU driver or use another backend.",
     check_failed = "An error occurred while checking DirectX 12 GPUs.",
     gpu_detected_title = "Detected DirectX 12 GPU available for DirectML:",
-    gpu_info = "{index}. {gpu_name}, dedicated memory {dedicated_video_memory_mib} MiB, shared memory {shared_system_memory_mib} MiB, vendor 0x{vendor_id:04X}, device 0x{device_id:04X}",
+    gpu_info = "{index}. {gpu_name}",
 )
 
 

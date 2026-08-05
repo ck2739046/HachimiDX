@@ -168,15 +168,10 @@ detect_ncnn = SN(
     start = "正在检测 NCNN Vulkan GPU 是否可用...",
     loader_unavailable = "未找到系统 Vulkan Loader，请安装或升级显卡驱动。",
     api_unavailable = "系统 Vulkan Loader 缺少必要的 Vulkan 1.0 API。",
-    no_physical_devices = "Vulkan 未检测到任何物理设备。",
     no_compute_gpu = "未检测到具有 Vulkan 计算队列的独立或集成 GPU。",
     check_failed = "检测 Vulkan GPU 时发生错误。",
     gpu_detected_title = "检测到可用于 NCNN Vulkan 的 GPU:",
-    gpu_info = "{index}. {gpu_name}, {device_type}, Vulkan {api_version}, vendor 0x{vendor_id:04X}, device 0x{device_id:04X}",
-    device_types = {
-        "integrated": "集成 GPU",
-        "discrete": "独立 GPU",
-    },
+    gpu_info = "{index}. {gpu_name}",
 )
 
 
@@ -185,11 +180,10 @@ detect_dml = SN(
     start = "正在检测 DirectML 所需的 DirectX 12 GPU...",
     loader_unavailable = "未找到系统 DXGI 或 Direct3D 12 运行库，请更新 Windows 和显卡驱动。",
     api_unavailable = "系统缺少所需的 DXGI 或 Direct3D 12 API。",
-    no_hardware_adapters = "DXGI 未检测到硬件图形适配器。",
     no_d3d12_gpu = "未检测到可创建 Direct3D 12 设备的硬件 GPU，请更新显卡驱动或使用其他后端。",
     check_failed = "检测 DirectX 12 GPU 时发生错误。",
     gpu_detected_title = "检测到可用于 DirectML 的 DirectX 12 GPU:",
-    gpu_info = "{index}. {gpu_name}, 专用显存 {dedicated_video_memory_mib} MiB, 共享显存 {shared_system_memory_mib} MiB, vendor 0x{vendor_id:04X}, device 0x{device_id:04X}",
+    gpu_info = "{index}. {gpu_name}",
 )
 
 

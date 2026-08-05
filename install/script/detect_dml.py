@@ -1,7 +1,6 @@
 import ctypes
 import uuid
 from ctypes import wintypes
-from dataclasses import dataclass
 
 from .op_result import OpResult, err, ok
 
@@ -23,24 +22,12 @@ class _GUID(ctypes.Structure):
     ]
 
 
-class _LUID(ctypes.Structure):
-    _fields_ = [
-        ("LowPart", wintypes.DWORD),
-        ("HighPart", wintypes.LONG),
-    ]
-
-
 class _DXGI_ADAPTER_DESC1(ctypes.Structure):
     _fields_ = [
         ("Description", wintypes.WCHAR * 128),
-        ("VendorId", wintypes.UINT),
-        ("DeviceId", wintypes.UINT),
-        ("SubSysId", wintypes.UINT),
-        ("Revision", wintypes.UINT),
-        ("DedicatedVideoMemory", ctypes.c_size_t),
-        ("DedicatedSystemMemory", ctypes.c_size_t),
-        ("SharedSystemMemory", ctypes.c_size_t),
-        ("AdapterLuid", _LUID),
+        ("_unused_ids", wintypes.UINT * 4),
+        ("_unused_memory", ctypes.c_size_t * 3),
+        ("_unused_luid", ctypes.c_byte * 8),
         ("Flags", wintypes.UINT),
     ]
 
@@ -51,16 +38,6 @@ IID_IDXGIFactory1 = _GUID.from_buffer_copy(
 IID_ID3D12Device = _GUID.from_buffer_copy(
     uuid.UUID("189819f1-1db6-4b57-be54-1821339b85f7").bytes_le
 )
-
-
-@dataclass(slots=True)
-class dml_gpu_info:
-    index: int
-    gpu_name: str
-    vendor_id: int
-    device_id: int
-    dedicated_video_memory_mib: int
-    shared_system_memory_mib: int
 
 
 def _hresult_code(result: int) -> int:
@@ -146,7 +123,7 @@ def _supports_d3d12(d3d12, adapter: ctypes.c_void_p) -> bool:
     return not _failed(result)
 
 
-def _enumerate_d3d12_gpus(dxgi, d3d12) -> tuple[list[dml_gpu_info], bool]:
+def _enumerate_d3d12_gpu_names(dxgi, d3d12) -> list[str]:
     factory = _create_dxgi_factory(dxgi)
     try:
         enum_adapters1 = _get_com_method(
@@ -157,7 +134,6 @@ def _enumerate_d3d12_gpus(dxgi, d3d12) -> tuple[list[dml_gpu_info], bool]:
             ctypes.POINTER(ctypes.c_void_p),
         )
         gpus = []
-        hardware_adapter_seen = False
         index = 0
 
         while True:
@@ -171,36 +147,25 @@ def _enumerate_d3d12_gpus(dxgi, d3d12) -> tuple[list[dml_gpu_info], bool]:
                     f"with HRESULT 0x{_hresult_code(result):08X}"
                 )
 
-            adapter_index = index
             index += 1
             try:
                 desc = _get_adapter_desc(adapter)
                 if desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE:
                     continue
 
-                hardware_adapter_seen = True
                 if not _supports_d3d12(d3d12, adapter):
                     continue
 
-                gpus.append(
-                    dml_gpu_info(
-                        index=adapter_index,
-                        gpu_name=desc.Description.rstrip("\0"),
-                        vendor_id=desc.VendorId,
-                        device_id=desc.DeviceId,
-                        dedicated_video_memory_mib=desc.DedicatedVideoMemory // (1024 * 1024),
-                        shared_system_memory_mib=desc.SharedSystemMemory // (1024 * 1024),
-                    )
-                )
+                gpus.append(desc.Description.rstrip("\0"))
             finally:
                 _release_com_object(adapter)
 
-        return gpus, hardware_adapter_seen
+        return gpus
     finally:
         _release_com_object(factory)
 
 
-def _get_dml_gpu_info(T) -> OpResult[list[dml_gpu_info]]:
+def _get_dml_gpu_names(T) -> OpResult[list[str]]:
     try:
         dxgi = ctypes.WinDLL("dxgi.dll", winmode=LOAD_LIBRARY_SEARCH_SYSTEM32)
         d3d12 = ctypes.WinDLL("d3d12.dll", winmode=LOAD_LIBRARY_SEARCH_SYSTEM32)
@@ -213,9 +178,7 @@ def _get_dml_gpu_info(T) -> OpResult[list[dml_gpu_info]]:
         return err(T.detect_dml.api_unavailable, error_raw=e)
 
     try:
-        gpus, hardware_adapter_seen = _enumerate_d3d12_gpus(dxgi, d3d12)
-        if not hardware_adapter_seen:
-            return err(T.detect_dml.no_hardware_adapters)
+        gpus = _enumerate_d3d12_gpu_names(dxgi, d3d12)
         if not gpus:
             return err(T.detect_dml.no_d3d12_gpu)
         return ok(gpus)
@@ -223,24 +186,15 @@ def _get_dml_gpu_info(T) -> OpResult[list[dml_gpu_info]]:
         return err(T.detect_dml.check_failed, error_raw=e)
 
 
-def detect_dml_availability(T) -> OpResult[list[dml_gpu_info]]:
+def detect_dml_availability(T) -> OpResult[list[str]]:
     print(f"\n-----\n\n{T.detect_dml.start}\n")
 
-    result = _get_dml_gpu_info(T)
+    result = _get_dml_gpu_names(T)
     if not result.is_ok:
         return result
 
     print(T.detect_dml.gpu_detected_title)
-    for gpu in result.value:
-        print(
-            T.detect_dml.gpu_info.format(
-                index=gpu.index,
-                gpu_name=gpu.gpu_name,
-                dedicated_video_memory_mib=gpu.dedicated_video_memory_mib,
-                shared_system_memory_mib=gpu.shared_system_memory_mib,
-                vendor_id=gpu.vendor_id,
-                device_id=gpu.device_id,
-            )
-        )
+    for index, gpu_name in enumerate(result.value):
+        print(T.detect_dml.gpu_info.format(index=index, gpu_name=gpu_name))
 
     return result
