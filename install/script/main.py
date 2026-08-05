@@ -1,5 +1,4 @@
 import sys
-import re
 import subprocess
 from pathlib import Path
 import shutil
@@ -10,6 +9,7 @@ from .op_result import OpResult, ok, err, print_op_result
 from .detect_trt import detect_trt_availability, nvidia_config
 from .detect_ncnn import detect_ncnn_availability
 from .detect_dml import detect_dml_availability
+from .download_legacy_trt import install_legacy_tensorrt, remove_legacy_tensorrt_runtime
 
 
 ROOT = Path(__file__).resolve().parents[2] # 往上三级目录
@@ -61,12 +61,12 @@ def main():
         if choice == "1":
             result = install()
             if not result.is_ok:
-                print_op_result(result)
+                print(print_op_result(result))
 
         elif choice == "2":
             result = reinstall_backend()
             if not result.is_ok:
-                print_op_result(result)
+                print(print_op_result(result))
 
         elif choice == "3":
             sys.exit(0)
@@ -75,7 +75,7 @@ def main():
             print(T.main_menu.defaulting)
             result = install()
             if not result.is_ok:
-                print_op_result(result)
+                print(print_op_result(result))
 
     except KeyboardInterrupt:
         print("\nKeyboardInterrupt detected, exiting...")
@@ -110,13 +110,19 @@ def reinstall_backend() -> OpResult[None]:
     cmd = [sys.executable, "-m", "pip", "uninstall",
         "onnxruntime", "onnxruntime-gpu", "onnxruntime-directml",
         "torch", "torchvision",
-        "tensorrt", "ncnn", "pnnx", "-y"]
+        "tensorrt", "opencv-python",
+        "ncnn", "pnnx", "-y"]
     try:
         subprocess.run(cmd, check=True)
-        print("\n-----\n")
-        print(T.reinstall_backend.uninstall_done)
     except Exception as e:
         return err("failed to uninstall existing backend.", error_raw=e)
+
+    result = remove_legacy_tensorrt_runtime(ROOT)
+    if not result.is_ok:
+        return err("failed to remove legacy TensorRT runtime.", inner=result)
+    
+    print("\n-----\n")
+    print(T.reinstall_backend.uninstall_done)
 
     # 3. 进入安装流程
     result = install()
@@ -204,8 +210,8 @@ def install() -> OpResult[None]:
         # modify ultralytics for DirectML
         result = modify_ultralytics_for_dml()
         if not result.is_ok:
-            print_op_result(result)
-            sys.exit(1)    
+            print(print_op_result(result))
+            sys.exit(1)
     elif install_ncnn_:
         # install NCNN
         is_success = install_ncnn()
@@ -354,24 +360,16 @@ def install_ultralytics_onnx(nvidia_gpu_config: nvidia_config|None, install_dml:
     is_success = general_pip_install("ONNX Runtime", cmd)
     if not is_success:
         return False
-        
-    # 安装 ultralytics
-    cmd = [sys.executable, "-m", "pip", "install",
-           "ultralytics==8.4.115", "--no-warn-script-location"]
-    is_success = general_pip_install("Ultralytics", cmd)
-    if not is_success:
-        return False
-    
-    # 安装其他依赖
-    if nvidia_gpu_config is not None:
-        numpy_ver = nvidia_gpu_config.numpy_ver
-    else:
-        numpy_ver = "2.4.3"
 
-    libs = ["lap==0.5.13", f"numpy=={numpy_ver}"]
+    # 安装 Ultralytics
+    numpy_ver = nvidia_gpu_config.numpy_ver if nvidia_gpu_config is not None else "2.4.3"
+    libs = ["ultralytics==8.4.115", "lap==0.5.13", f"numpy=={numpy_ver}"]
+    if nvidia_gpu_config is not None:
+        libs += [f"opencv-python=={nvidia_gpu_config.opencv_ver}"]
+
     cmd = [sys.executable, "-m", "pip", "install",
            *libs, "--no-warn-script-location"]
-    is_success = general_pip_install("lap & numpy", cmd)
+    is_success = general_pip_install("Ultralytics", cmd)
     if not is_success:
         return False
     
@@ -383,13 +381,24 @@ def install_ultralytics_onnx(nvidia_gpu_config: nvidia_config|None, install_dml:
 
 def install_tensorrt(nvidia_gpu_config: nvidia_config) -> bool:
 
+    if nvidia_gpu_config.is_trt_legacy:
+        print(f"\n-----\n")
+        result = install_legacy_tensorrt(T, ROOT, sys.executable,
+                                         nvidia_gpu_config.tensorRT_ver)
+        if not result.is_ok:
+            print(print_op_result(result))
+            return False
+        return True
+
+    # 以下是 not trt legacy 安装
+
     # 先安装 wheel-stub
     cmd = [sys.executable, "-m", "pip", "install",
            "wheel-stub==0.4.2", "--no-warn-script-location"]
     is_success = general_pip_install("wheel-stub", cmd)
     if not is_success:
         return False
-    
+
     # 再安装 NVIDIA TensorRT
     cmd = [sys.executable, "-m", "pip", "install",
            f"tensorrt=={nvidia_gpu_config.tensorRT_ver}",
