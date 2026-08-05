@@ -153,6 +153,24 @@ pip_install = SN(
 
 
 
+legacy_trt = SN(
+    unsupported_version = "TensorRT {version} is not supported by the ZIP installer.",
+    download_start = "Downloading {filename} from NVIDIA...",
+    download_progress = "Downloaded {downloaded:.1f}/{total:.1f} MB ({percent:.1f}%)",
+    download_progress_unknown = "Downloaded {downloaded:.1f} MB",
+    download_failed = "An error occurred while downloading the TensorRT ZIP: {e}",
+    invalid_archive = "The downloaded TensorRT file is not a valid ZIP archive.",
+    install_wheel = "Installing TensorRT Python wheel: {filename}",
+    invalid_version = "Invalid TensorRT version: {version}",
+    runtime_install_failed = "An error occurred while deploying TensorRT DLLs: {e}",
+    verify_success = "TensorRT {version} load verification succeeded.",
+    verify_failed = "TensorRT installation verification failed: {e}",
+    success = "TensorRT {version} installation completed.",
+    install_failed = "An error occurred while installing legacy TensorRT: {e}",
+)
+
+
+
 detect_trt = SN(
     start = "Checking whether TensorRT is available...",
     gpu_detected_title = "Detected NVIDIA GPU:",
