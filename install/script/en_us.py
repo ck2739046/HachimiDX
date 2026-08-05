@@ -59,7 +59,8 @@ Are you sure you want to continue?
 install = SN(
     start = "Starting HachimiDX installation...",
     detect_trt_failed = "TensorRT is unavailable.",
-    detect_ncnn_failed = "No compatible NCNN Vulkan GPU is available.",
+    detect_dml_failed = "DirectML is unavailable.",
+    detect_ncnn_failed = "NCNN is unavailable.",
     done = "HachimiDX installation completed.",
 )
 
@@ -176,6 +177,19 @@ detect_ncnn = SN(
         "integrated": "integrated GPU",
         "discrete": "discrete GPU",
     },
+)
+
+
+
+detect_dml = SN(
+    start = "Checking for a DirectX 12 GPU required by DirectML...",
+    loader_unavailable = "The system DXGI or Direct3D 12 runtime was not found. Update Windows and the GPU driver.",
+    api_unavailable = "The system does not provide the required DXGI or Direct3D 12 API.",
+    no_hardware_adapters = "DXGI did not detect any hardware graphics adapters.",
+    no_d3d12_gpu = "No hardware GPU capable of creating a Direct3D 12 device was detected. Update the GPU driver or use another backend.",
+    check_failed = "An error occurred while checking DirectX 12 GPUs.",
+    gpu_detected_title = "Detected DirectX 12 GPU available for DirectML:",
+    gpu_info = "{index}. {gpu_name}, dedicated memory {dedicated_video_memory_mib} MiB, shared memory {shared_system_memory_mib} MiB, vendor 0x{vendor_id:04X}, device 0x{device_id:04X}",
 )
 
 

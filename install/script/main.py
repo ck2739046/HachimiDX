@@ -9,6 +9,7 @@ from .op_result import OpResult, ok, err, print_op_result
 
 from .detect_trt import detect_trt_availability, nvidia_config
 from .detect_ncnn import detect_ncnn_availability
+from .detect_dml import detect_dml_availability
 
 
 ROOT = Path(__file__).resolve().parents[2] # 往上三级目录
@@ -159,6 +160,15 @@ def install() -> OpResult[None]:
     install_dml = False
     if nvidia_gpu_config is None:
         install_dml = ask_install_dml()
+    if install_dml:
+        result = detect_dml_availability(T)
+        if not result.is_ok:
+            print(print_op_result(result))
+            print(f"\n{T.install.detect_dml_failed}")
+            does_continue = ask_continue_install()
+            if not does_continue:
+                sys.exit(1)
+            install_dml = False
 
     # ask install NCNN (if no trt/dml)
     install_ncnn_ = False
