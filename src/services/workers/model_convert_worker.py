@@ -27,11 +27,11 @@ from src.core.auto_rechart.detect.note_definition import get_imgsz
 
 
 models = [
-    ("detect", "detect", PathManage.DETECT_PT_PATH, PathManage.DETECT_NCNN_PATH, PathManage.DETECT_DIRECTML_ONNX_PATH, PathManage.TEMP_TRT_DETECT_ONNX_PATH),
-    ("obb", "obb", PathManage.OBB_PT_PATH, PathManage.OBB_NCNN_PATH, PathManage.OBB_DIRECTML_ONNX_PATH, PathManage.TEMP_TRT_OBB_ONNX_PATH),
-    ("cls_break", "classify", PathManage.CLS_BREAK_PT_PATH, PathManage.CLS_BREAK_NCNN_PATH, PathManage.CLS_BREAK_DIRECTML_ONNX_PATH, PathManage.TEMP_TRT_CLS_BREAK_ONNX_PATH),
-    ("cls_ex", "classify", PathManage.CLS_EX_PT_PATH, PathManage.CLS_EX_NCNN_PATH, PathManage.CLS_EX_DIRECTML_ONNX_PATH, PathManage.TEMP_TRT_CLS_EX_ONNX_PATH),
-    ("touch_hold", "detect", PathManage.TOUCH_HOLD_PT_PATH, PathManage.TOUCH_HOLD_NCNN_PATH, PathManage.TOUCH_HOLD_DIRECTML_ONNX_PATH, PathManage.TEMP_TRT_TOUCH_HOLD_ONNX_PATH),
+    ("detect", "detect", PathManage.DETECT_PT_PATH, PathManage.DETECT_NCNN_PATH, PathManage.DETECT_DIRECTML_ONNX_PATH, PathManage.TEMP_TRT_DETECT_ONNX_PATH, PathManage.DETECT_ENGINE_PATH),
+    ("obb", "obb", PathManage.OBB_PT_PATH, PathManage.OBB_NCNN_PATH, PathManage.OBB_DIRECTML_ONNX_PATH, PathManage.TEMP_TRT_OBB_ONNX_PATH, PathManage.OBB_ENGINE_PATH),
+    ("cls_break", "classify", PathManage.CLS_BREAK_PT_PATH, PathManage.CLS_BREAK_NCNN_PATH, PathManage.CLS_BREAK_DIRECTML_ONNX_PATH, PathManage.TEMP_TRT_CLS_BREAK_ONNX_PATH, PathManage.CLS_BREAK_ENGINE_PATH),
+    ("cls_ex", "classify", PathManage.CLS_EX_PT_PATH, PathManage.CLS_EX_NCNN_PATH, PathManage.CLS_EX_DIRECTML_ONNX_PATH, PathManage.TEMP_TRT_CLS_EX_ONNX_PATH, PathManage.CLS_EX_ENGINE_PATH),
+    ("touch_hold", "detect", PathManage.TOUCH_HOLD_PT_PATH, PathManage.TOUCH_HOLD_NCNN_PATH, PathManage.TOUCH_HOLD_DIRECTML_ONNX_PATH, PathManage.TEMP_TRT_TOUCH_HOLD_ONNX_PATH, PathManage.TOUCH_HOLD_ENGINE_PATH),
 ]
 
 
@@ -49,9 +49,10 @@ def _get_batch_size(model_name, detect_obb_batch, cls_batch, touch_hold_batch):
 
 def _convert_to_tensorrt(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
     try:
-        for model_name, task, pt_path, _, _, temp_onnx_path in models:
+        for model_name, task, pt_path, _, _, temp_onnx_path, engine_path in models:
 
             temp_onnx_path.unlink(missing_ok=True)
+            engine_path.unlink(missing_ok=True)
 
             print(f"- Export engine from: {pt_path.name}")
 
@@ -70,6 +71,12 @@ def _convert_to_tensorrt(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
                     workspace=None,
                     batch=batch
                 )
+                exported_path = pt_path.with_suffix(".engine")
+                if not exported_path.is_file():
+                    raise RuntimeError(f"TensorRT engine export is incomplete, missing: {exported_path}")
+                if exported_path.resolve() != engine_path.resolve():
+                    engine_path.unlink(missing_ok=True)
+                    exported_path.replace(engine_path)
             finally:
                 temp_onnx_path.unlink(missing_ok=True)
 

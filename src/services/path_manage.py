@@ -66,11 +66,11 @@ class PathManage:
     MajdataEdit_CONTROL_TXT_PATH: Path = RESOURCES_DIR / "majdata" / "HachimiDX_MajdataEdit_Control.txt"
     TEMP_WAV_IMAGE_PATH: Path = TEMP_DIR / "wav_image.png"
 
-    DETECT_ENGINE_PATH: Path = MODELS_DIR / "detect.engine"
-    OBB_ENGINE_PATH: Path = MODELS_DIR / "obb.engine"
-    CLS_BREAK_ENGINE_PATH: Path = MODELS_DIR / "cls-break.engine"
-    CLS_EX_ENGINE_PATH: Path = MODELS_DIR / "cls-ex.engine"
-    TOUCH_HOLD_ENGINE_PATH: Path = MODELS_DIR / "detect-touch-hold.engine"
+    DETECT_ENGINE_PATH: Path = MODELS_DIR / "detect_TensorRT.engine"
+    OBB_ENGINE_PATH: Path = MODELS_DIR / "obb_TensorRT.engine"
+    CLS_BREAK_ENGINE_PATH: Path = MODELS_DIR / "cls-break_TensorRT.engine"
+    CLS_EX_ENGINE_PATH: Path = MODELS_DIR / "cls-ex_TensorRT.engine"
+    TOUCH_HOLD_ENGINE_PATH: Path = MODELS_DIR / "detect-touch-hold_TensorRT.engine"
 
     DETECT_DIRECTML_ONNX_PATH: Path = MODELS_DIR / "detect_DirectML.onnx"
     OBB_DIRECTML_ONNX_PATH: Path = MODELS_DIR / "obb_DirectML.onnx"
