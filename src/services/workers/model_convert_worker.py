@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from typing import NamedTuple
 import io
 import shutil
 
@@ -26,12 +27,52 @@ from src.core.auto_rechart.detect.note_definition import get_imgsz
 
 
 
-models = [
-    ("detect", "detect", PathManage.DETECT_PT_PATH, PathManage.DETECT_NCNN_PATH, PathManage.DETECT_DIRECTML_ONNX_PATH, PathManage.TEMP_TRT_DETECT_ONNX_PATH, PathManage.DETECT_ENGINE_PATH),
-    ("obb", "obb", PathManage.OBB_PT_PATH, PathManage.OBB_NCNN_PATH, PathManage.OBB_DIRECTML_ONNX_PATH, PathManage.TEMP_TRT_OBB_ONNX_PATH, PathManage.OBB_ENGINE_PATH),
-    ("cls_break", "classify", PathManage.CLS_BREAK_PT_PATH, PathManage.CLS_BREAK_NCNN_PATH, PathManage.CLS_BREAK_DIRECTML_ONNX_PATH, PathManage.TEMP_TRT_CLS_BREAK_ONNX_PATH, PathManage.CLS_BREAK_ENGINE_PATH),
-    ("cls_ex", "classify", PathManage.CLS_EX_PT_PATH, PathManage.CLS_EX_NCNN_PATH, PathManage.CLS_EX_DIRECTML_ONNX_PATH, PathManage.TEMP_TRT_CLS_EX_ONNX_PATH, PathManage.CLS_EX_ENGINE_PATH),
-    ("touch_hold", "detect", PathManage.TOUCH_HOLD_PT_PATH, PathManage.TOUCH_HOLD_NCNN_PATH, PathManage.TOUCH_HOLD_DIRECTML_ONNX_PATH, PathManage.TEMP_TRT_TOUCH_HOLD_ONNX_PATH, PathManage.TOUCH_HOLD_ENGINE_PATH),
+class ModelEntry(NamedTuple):
+    name: str
+    task: str
+    pt_path: Path
+    ncnn_path: Path
+    directml_path: Path
+    trt_onnx_path: Path
+    engine_path: Path
+
+
+models: list[ModelEntry] = [
+    ModelEntry(
+        "detect", "detect",
+        PathManage.DETECT_PT_PATH,
+        PathManage.DETECT_NCNN_PATH,
+        PathManage.DETECT_DIRECTML_ONNX_PATH,
+        PathManage.TEMP_TRT_DETECT_ONNX_PATH,
+        PathManage.DETECT_ENGINE_PATH),
+
+    ModelEntry("obb", "obb",
+               PathManage.OBB_PT_PATH,
+               PathManage.OBB_NCNN_PATH,
+               PathManage.OBB_DIRECTML_ONNX_PATH,
+               PathManage.TEMP_TRT_OBB_ONNX_PATH,
+               PathManage.OBB_ENGINE_PATH),
+
+    ModelEntry("cls_break", "classify",
+               PathManage.CLS_BREAK_PT_PATH,
+               PathManage.CLS_BREAK_NCNN_PATH,
+               PathManage.CLS_BREAK_DIRECTML_ONNX_PATH,
+               PathManage.TEMP_TRT_CLS_BREAK_ONNX_PATH,
+               PathManage.CLS_BREAK_ENGINE_PATH),
+
+    ModelEntry("cls_ex", "classify",
+               PathManage.CLS_EX_PT_PATH,
+               PathManage.CLS_EX_NCNN_PATH,
+               PathManage.CLS_EX_DIRECTML_ONNX_PATH,
+               PathManage.TEMP_TRT_CLS_EX_ONNX_PATH,
+               PathManage.CLS_EX_ENGINE_PATH),
+
+    ModelEntry("touch_hold", "detect",
+               PathManage.TOUCH_HOLD_PT_PATH,
+               PathManage.TOUCH_HOLD_NCNN_PATH,
+               PathManage.TOUCH_HOLD_DIRECTML_ONNX_PATH,
+               PathManage.TEMP_TRT_TOUCH_HOLD_ONNX_PATH,
+               PathManage.TOUCH_HOLD_ENGINE_PATH),
 ]
 
 
@@ -49,17 +90,17 @@ def _get_batch_size(model_name, detect_obb_batch, cls_batch, touch_hold_batch):
 
 def _convert_to_tensorrt(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
     try:
-        for model_name, task, pt_path, _, _, temp_onnx_path, engine_path in models:
+        for m in models:
 
-            temp_onnx_path.unlink(missing_ok=True)
-            engine_path.unlink(missing_ok=True)
+            m.trt_onnx_path.unlink(missing_ok=True)
+            m.engine_path.unlink(missing_ok=True)
 
-            print(f"- Export engine from: {pt_path.name}")
+            print(f"- Export engine from: {m.pt_path.name}")
 
-            model = YOLO(str(pt_path), task=task)
+            model = YOLO(str(m.pt_path), task=m.task)
 
-            imgsz = get_imgsz(model_name)
-            batch = _get_batch_size(model_name, detect_obb_batch, cls_batch, touch_hold_batch)
+            imgsz = get_imgsz(m.name)
+            batch = _get_batch_size(m.name, detect_obb_batch, cls_batch, touch_hold_batch)
 
             try:
                 model.export(
@@ -71,14 +112,14 @@ def _convert_to_tensorrt(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
                     workspace=None,
                     batch=batch
                 )
-                exported_path = pt_path.with_suffix(".engine")
+                exported_path = m.pt_path.with_suffix(".engine")
                 if not exported_path.is_file():
                     raise RuntimeError(f"TensorRT engine export is incomplete, missing: {exported_path}")
-                if exported_path.resolve() != engine_path.resolve():
-                    engine_path.unlink(missing_ok=True)
-                    exported_path.replace(engine_path)
+                if exported_path.resolve() != m.engine_path.resolve():
+                    m.engine_path.unlink(missing_ok=True)
+                    exported_path.replace(m.engine_path)
             finally:
-                temp_onnx_path.unlink(missing_ok=True)
+                m.trt_onnx_path.unlink(missing_ok=True)
 
         return True
     
@@ -93,19 +134,19 @@ def _convert_to_tensorrt(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
 def _convert_to_ncnn(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
     current_ncnn_path = None
     try:
-        for model_name, task, pt_path, ncnn_path, _, _ in models:
-            current_ncnn_path = ncnn_path
+        for m in models:
+            current_ncnn_path = m.ncnn_path
 
-            if ncnn_path.exists():
-                if not ncnn_path.is_dir():
-                    raise RuntimeError(f"NCNN output path is not a directory: {ncnn_path}")
-                shutil.rmtree(ncnn_path)
+            if m.ncnn_path.exists():
+                if not m.ncnn_path.is_dir():
+                    raise RuntimeError(f"NCNN output path is not a directory: {m.ncnn_path}")
+                shutil.rmtree(m.ncnn_path)
 
-            print(f"- Export NCNN from: {pt_path.name}")
+            print(f"- Export NCNN from: {m.pt_path.name}")
 
-            model = YOLO(str(pt_path), task=task)
+            model = YOLO(str(m.pt_path), task=m.task)
 
-            imgsz = get_imgsz(model_name)
+            imgsz = get_imgsz(m.name)
             exported_path = Path(model.export(
                 format="ncnn",
                 imgsz=imgsz,
@@ -114,15 +155,15 @@ def _convert_to_ncnn(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
                 device="cpu",
             )).resolve()
 
-            if exported_path != ncnn_path.resolve():
+            if exported_path != m.ncnn_path.resolve():
                 raise RuntimeError(
-                    f"Unexpected NCNN export path: expected {ncnn_path}, got {exported_path}"
+                    f"Unexpected NCNN export path: expected {m.ncnn_path}, got {exported_path}"
                 )
 
             missing_files = [
-                ncnn_path / file_name
+                m.ncnn_path / file_name
                 for file_name in PathManage.NCNN_REQUIRED_FILE_NAMES
-                if not (ncnn_path / file_name).is_file()
+                if not (m.ncnn_path / file_name).is_file()
             ]
             if missing_files:
                 raise RuntimeError(f"NCNN export is incomplete, missing: {missing_files[0]}")
@@ -142,18 +183,18 @@ def _convert_to_ncnn(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
 def _convert_to_onnx(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
     current_temp_path = None
     try:
-        for model_name, task, pt_path, _, directml_path, temp_onnx_path in models:
-            current_temp_path = temp_onnx_path
-            temp_onnx_path.unlink(missing_ok=True)
+        for m in models:
+            current_temp_path = m.trt_onnx_path
+            m.trt_onnx_path.unlink(missing_ok=True)
 
-            if directml_path.exists() and not directml_path.is_file():
-                raise RuntimeError(f"DirectML output path is not a file: {directml_path}")
+            if m.directml_path.exists() and not m.directml_path.is_file():
+                raise RuntimeError(f"DirectML output path is not a file: {m.directml_path}")
 
-            print(f"- Export DirectML ONNX from: {pt_path.name}")
+            print(f"- Export DirectML ONNX from: {m.pt_path.name}")
 
-            model = YOLO(str(pt_path), task=task)
-            imgsz = get_imgsz(model_name)
-            batch = _get_batch_size(model_name, detect_obb_batch, cls_batch, touch_hold_batch)
+            model = YOLO(str(m.pt_path), task=m.task)
+            imgsz = get_imgsz(m.name)
+            batch = _get_batch_size(m.name, detect_obb_batch, cls_batch, touch_hold_batch)
             exported_path = Path(model.export(
                 format="onnx",
                 opset=17,
@@ -164,14 +205,14 @@ def _convert_to_onnx(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
                 device="cpu",
             )).resolve()
 
-            if exported_path != temp_onnx_path.resolve():
+            if exported_path != m.trt_onnx_path.resolve():
                 raise RuntimeError(
-                    f"Unexpected ONNX export path: expected {temp_onnx_path}, got {exported_path}"
+                    f"Unexpected ONNX export path: expected {m.trt_onnx_path}, got {exported_path}"
                 )
             if not exported_path.is_file():
                 raise RuntimeError(f"DirectML ONNX export is incomplete: {exported_path}")
 
-            exported_path.replace(directml_path)
+            exported_path.replace(m.directml_path)
 
         return True
 
