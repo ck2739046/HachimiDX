@@ -65,3 +65,7 @@ if os.name == "nt" and hasattr(os, "add_dll_directory"):
     except (OSError, ValueError):
         pass
 
+
+# redirect pip cache into the portable python folder
+os.environ["PIP_CACHE_DIR"] = str((Path(__file__).resolve().parent / "pip-cache").resolve())
+
