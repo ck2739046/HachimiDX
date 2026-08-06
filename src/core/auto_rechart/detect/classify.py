@@ -12,6 +12,10 @@ from .track import _save_track_results, _load_track_results
 from ..tool import print_progress, release_ncnn_vulkan, SEEK_THRESHOLD
 
 
+class ClassificationInferenceError(RuntimeError):
+    pass
+
+
 
 
 def main(std_video_path: Path,
@@ -478,8 +482,7 @@ def _classify_image_batch(consumed_batch, cls_ex_model, cls_break_model, inferen
         return final_cls_results
 
     except Exception as e:
-        print(f"批量分类错误: {e}")
-        return None
+        raise ClassificationInferenceError("批量分类推理失败") from e
 
 
 

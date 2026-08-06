@@ -4,7 +4,7 @@ from collections import defaultdict
 from ultralytics import YOLO
 
 from ..detect.note_definition import *
-from ..detect.classify import classify_note_path
+from ..detect.classify import ClassificationInferenceError, classify_note_path
 from ..tool import release_ncnn_vulkan
 from .shared_context import *
 from .analyze_tap import analyze_tap_time
@@ -429,6 +429,8 @@ def _classify_note_path(shared_context, note_path, tract_data_key,
                     return variant
         
         return None
+    except ClassificationInferenceError:
+        raise
     except Exception as e:
         print(f"try_split_slide_tail: failed to re-classify tail {tract_data_key[0]}: {e}")
         return None
