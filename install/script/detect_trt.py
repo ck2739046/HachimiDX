@@ -121,7 +121,15 @@ def _get_nvidia_gpu_info(T) -> OpResult[list[_gpu_info]]:
         try:
             result = subprocess.run(cmd, check=True, capture_output=True, text=True)
         except Exception as e:
-            return err("Failed to run nvidia-smi command.", error_raw=e)
+            if e.stdout and e.stderr:
+                output = f"stdout: {e.stdout}\nstderr: {e.stderr}"
+            elif e.stdout:
+                output = e.stdout
+            elif e.stderr:
+                output = e.stderr
+            else:
+                output = "no output"
+            return err(f"Failed to run nvidia-smi command: {output}", error_raw=e)
 
         lines = [line for line in result.stdout.splitlines() if line.strip()]
         if not lines:
