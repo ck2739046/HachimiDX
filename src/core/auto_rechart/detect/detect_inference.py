@@ -1,5 +1,4 @@
 import time
-import traceback
 import torch.multiprocessing as tmp
 from queue import Empty, Full
 from dataclasses import dataclass

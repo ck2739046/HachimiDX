@@ -1,6 +1,5 @@
 from ultralytics import YOLO
 import time
-import traceback
 from queue import Full
 
 from ...schemas.op_result import OpResult, ok, err
@@ -96,8 +95,7 @@ def inference_worker_main(model_path, task_name, inference_device,
 
     except BaseException as e:  # 使用 base exception 捕获所有异常
         try:
-            trace = traceback.format_exc()
-            error_msg = f"{task_name} model inferencer failed to process frame {last_frame_idx}:\n{trace}"
+            error_msg = f"{task_name} model inferencer failed to process frame {last_frame_idx}"
             control_queue.put(err(error_msg, error_raw=e))
         except Exception:
             pass
