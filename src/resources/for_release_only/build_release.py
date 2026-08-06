@@ -60,6 +60,9 @@ def copy_app_resources():
     python_path = FOR_RELEASE_ONLY_DIR / "python_portable" / "python.zip"
     python_target_path = RELEASE_DIR / "python"
     extract_with_bandizip(python_path, python_target_path, mode='dir')
+    # 复制 sitecustomize.py 到 python 目录
+    sitecustomize_path = FOR_RELEASE_ONLY_DIR / "python_portable" / "sitecustomize.py"
+    copy_to_release(sitecustomize_path, python_target_path / "sitecustomize.py")
 
     # 解压 ffmpeg 到目录
     ffmpeg_path = FOR_RELEASE_ONLY_DIR / "ffmpeg-8.0.1-essentials_build.7z"
