@@ -83,7 +83,7 @@ A tool for the rhythm game **maimai** that converts chart confirmation videos in
 
 
 
-## 🎯 Model Training Data
+## 🎯 Model Training
 
 All training data was collected in-house:
 
@@ -92,9 +92,9 @@ All training data was collected in-house:
 
 - **Task-specific training**
     - Each model uses a dedicated dataset and is optimized for its own task.
-    - `train_detect` — identifies note positions
-    - `train_detect_touch_hold` — identifies touch-hold positions/progress.
-    - `train_obb` — identifies slide rotation angles
+    - `train_detect` — identifies tap/slide/touch/touch-hold notes
+    - `train_obb` — identifies hold notes
+    - `train_detect_touch_hold` — identifies touch-hold progress.
     - `train_classify` — determines variants such as ex and break
 
 
@@ -116,7 +116,7 @@ Code lives in `src/`, organized in three layers. The middle layer drives the cor
     - **Process manager**: owns all `QProcess` instances, assigns runner IDs, merges output, and flushes periodically.
     - **Standalone pipelines** (`AutoRechartPipeline` / `MediaPipeline`): validate params with **pydantic**, assemble CLI argv, and submit tasks to the scheduler.
     - Subtasks run as separate **worker subprocesses** (rechart, audio alignment, model conversion, hardware checks, etc), scheduled by the process manager.
-    - **Video sync server**: bridges MajdataEdit / MajdataView over UDP (play / pause / seek) with time-tolerance and debounce handling.
+    - **Video sync server**: receives commands from MajdataEdit / MajdataView over UDP and drives the embedded player.
     - **Watchdog**: a subprocess cleans up orphaned Majdata processes on exit.
     - Built-in GitHub Releases update checker.
 - **Core layer (`src/core`)** — the auto-rechart pipeline runs in three stages, `standardize → detect → analyze`:
@@ -126,7 +126,7 @@ Code lives in `src/`, organized in three layers. The middle layer drives the cor
     - **Detection & tracking**:
         - **Object Detection**: YOLO (ultralytics) runs `detect` and `obb` models as parallel multiprocess streaming workers.
         - **Variant classification**: ex / break classification uses a producer-consumer pipeline (decode thread + GPU inference, double-buffered) for CPU/GPU overlap.
-        - **Path tracking**: fuses **BOTSORT** + a custom **OCSort**, with optional re-id.
+        - **Path tracking**: uses **BOTSORT** and custom **OCSort** for notes tracking.
     - **Note analysis**: per-type preprocess → speed estimation → timing/duration inference (tap / touch / hold / touch-hold / slide) → slide movement syntax analyze.
     - **simai conversion**: outputs `maidata.txt`.
     - **Audio processing**: librosa + scipy cross-correlation audio matching & sync, confirmation-click detection, arcade-timing inference.

@@ -13,7 +13,7 @@
 
 **小团体不拉我，拿不到最新最热，所以自己抄谱** 😡😡😡😭😭😭🤔🤔🤔😋😋😋
 
-为音乐游戏 **maimai** 设计的工具，自动将谱面确认视频转换为 simai 格式 (`maidata.txt`)。
+为音乐游戏 **maimai** 设计的工具，自动将谱面确认视频转换为 simai 格式 (`maidata.txt`)
 
 <br>
 
@@ -28,7 +28,7 @@
 
 </div>
 
-> <img src="src/resources/doc/images/qq_icon.svg" width="14px" style="vertical-align: middle;"> 如果在使用中遇到问题、需要帮助、想反馈 Bug 或提出建议，亦或参与开发讨论，欢迎加入 QQ 交流群 **`868888361`**。
+> <img src="src/resources/doc/images/qq_icon.svg" width="14px" style="vertical-align: middle;"> 如果在使用中遇到问题、需要帮助、想反馈 Bug 或提出建议，亦或参与开发讨论，欢迎加入 QQ 交流群 **`868888361`**
 
 <br>
 
@@ -85,7 +85,7 @@
 
 
 
-## 🎯 关于模型训练数据
+## 🎯 模型训练
 
 模型训练数据均为自行采集：
 
@@ -94,9 +94,9 @@
 
 - **分任务训练**
     - 各个模型各自使用专门的数据集，针对性优化。
-    - `train_detect` — 识别音符位置
-    - `train_detect_touch_hold` — 识别 touch-hold 位置与进度
-    - `train_obb` — 识别 slide 旋转角度
+    - `train_detect` — 识别 tap/slide/touch/touch-hold 音符
+    - `train_obb` — 识别 hold 音符
+    - `train_detect_touch_hold` — 识别 touch-hold 进度
     - `train_classify` — 判断 ex、break 等变体类型
 
 
@@ -118,7 +118,7 @@
     - **进程管理器**：统一托管 `QProcess`，为子任务分配 runner_id、合并输出并定时刷新
     - **独立管线**（`AutoRechartPipeline` / `MediaPipeline`）：用 **pydantic** 校验参数、组装 CLI 指令并提交调度器
     - 子任务以独立 **worker 子进程** 运行（抄谱 / 音频对齐 / 模型转换 / 硬件检测等），由进程管理器统一调度
-    - **视频同步服务**：通过 UDP 与 MajdataEdit / MajdataView 双向联动（播放 / 暂停 / 跳转），内置时间容差与防抖
+    - **视频同步服务**：通过 UDP 接收 MajdataEdit / MajdataView 的转指令，驱动内嵌播放器
     - **看门狗**：子进程在退出时清理残留 Majdata 进程；
     - 内置 GitHub Releases 版本更新检查
 - **核心算法层 (`src/core`)** — 抄谱按 `standardize → detect → analyze` 三阶段运行：
@@ -128,7 +128,7 @@
     - **检测与追踪**：
         - **目标检测**：**YOLO**（ultralytics）多进程流式并行推理 `detect` 与 `obb` 模型
         - **变体分类**：ex / break 采用生产者-消费者管线（解码线程 + GPU 推理，双缓冲）实现 CPU/GPU 重叠
-        - **路径追踪**：融合 **BOTSORT** + 自定义 **OCSort**，可选 re-id 重识别
+        - **路径追踪**：使用 **BOTSORT** 和自定义 **OCSort** 追踪音符
     - **音符分析**：按 tap / touch / hold / touch-hold / slide 分别做预处理 → 速度估计 → 时差 / 时值推演 → slide 移动模式分析
     - **simai 语法转换**：输出 `maidata.txt`
     - **音频处理**：**librosa + scipy** 互相关做匹配同步、确认点击起点检测、街机延时 (arcade timing) 推演
