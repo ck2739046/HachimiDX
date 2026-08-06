@@ -1,4 +1,4 @@
-2026.07.15 安装了 3.13.14
+2026.07.29: 当前版本 python 3.11.15
 
 
 1. 下载 micromamba 本体，放到项目根目录
@@ -29,4 +29,4 @@ python=3.11: 安装 python 3.11 本体
 
 将本文档同位置的 sitecustomize.py 放入 python/ 内
 
-然后将整个 python 文件夹打包成 zip 放到 for_release_only 内
+可选：将整个 python 文件夹打包成 zip 放到 for_release_only 内
