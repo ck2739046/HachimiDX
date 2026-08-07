@@ -131,7 +131,7 @@ def estimate_touch_DefaultMsec(shared_context, touch_data, touch_hold_data):
     max = np.max(DefaultMsecs)
     median = np.median(DefaultMsecs)
     std_dev = np.std(DefaultMsecs)
-    print_info1 = f"touch DefaultMsec {length}: [Median {median:.3f}], Min {min:.3f}, Max {max:.3f}, Mean {mean:.3f}, Std Dev {std_dev:.3f}"
+    print_info1 = f"speed of {length} touch notes: [Median {median:.3f}], Min {min:.3f}, Max {max:.3f}, Mean {mean:.3f}, Std Dev {std_dev:.3f}"
 
     touch_DefaultMsec, touch_OptionNotespeed, touch_SpeedIndex, print_info2 = get_touch_DefaultMsec(median)
     return touch_DefaultMsec, touch_OptionNotespeed, touch_SpeedIndex, f"{print_info1}\n{print_info2}"
