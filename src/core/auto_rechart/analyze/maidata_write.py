@@ -221,17 +221,17 @@ def _emit_bar_text(events, gaps, seg_map) -> str:
 
 class _LayoutEngine:
     """
-    simai 谱面排版引擎
+    simai 谱面排版引擎 (全局间隔版)
 
-    排版规则:
-      - 将谱面按小节分割，一行一个小节
-      - 每个小节完全独立, 互不影响
-      - 每个行首固定写一次 {N}
+    核心规则:
+      - 相邻音符之间的间隔不被小节边界拆分
+      - BPM 变化作为间隔硬边界, 前后间隔分别独立计算
+      - 一行可以跨多小节 (当间隔跨小节时)
 
     分音策略:
-      - 每个小节内部尽量减少 {N} 切换次数
-      - 每个小节内部尽量减少逗号总数
-      - 连续逗号不能超过 _MAX_COMMAS 个, 如果超过就拆成多段
+      - 全局最小化 {N} 切换次数
+      - 全局最小化逗号总数
+      - 连续逗号不能超过 _MAX_COMMAS 个, 超过则拆段
     """
 
     def layout(self, items: list[MaidataItem]) -> str:
@@ -240,58 +240,254 @@ class _LayoutEngine:
         # 特例: 空谱面
         if not items:
             return "{1},,,E"
-        
-        # 函数级缓存: 每次 layout 调用新建, 仅对单张谱面有效
+
         self._gap_cache = {}
 
-        # 将所有音符按小节分组, 方便后续逐小节排版
-        bars = {}  # key: 小节序号, value: list[MaidataItem]
-        for item in items:
-            # 音符落在第几小节 (向下取整)
-            bar = item.time.numerator // item.time.denominator
-            # 本小节的所有音符写入一个列表
-            if bar not in bars: bars[bar] = []
-            bars[bar].append(item)
+        # --- 按绝对时间分组为 anchors ---
+        anchors: list[tuple[Fraction, str, str]] = []  # (time, bpm_text, note_text)
+        for time, group in groupby(items, key=lambda it: it.time):
+            g1, g2 = tee(group, 2)
+            bpm_parts  = [it.content for it in g1 if     it.is_bpm]
+            note_parts = [it.content for it in g2 if not it.is_bpm]
+            bpm_text = bpm_parts[0] if bpm_parts else ""
+            note_text = "/".join(note_parts)
+            anchors.append((time, bpm_text, note_text))
 
-        # 主循环: 逐小节排版
-        final_texts = []
-        empty_run = 0
-        for bar_index in range(max(bars) + 1):
+        n = len(anchors)
 
-            this_bar_notes = bars.get(bar_index)
+        # --- 构建间隔列表 ---
+        # gap_list[0]     = 谱面开头 → anchor[0]  (leading)
+        # gap_list[i]     = anchor[i-1] → anchor[i]  (1 ≤ i ≤ n-1)
+        # gap_list[n]     = anchor[n-1] → 下一小节边界 (trailing)
+        gap_list: list[Fraction] = [anchors[0][0]]
+        for i in range(n - 1):
+            gap_list.append(anchors[i + 1][0] - anchors[i][0])
+        last_time = anchors[-1][0]
+        next_bar = Fraction(last_time.numerator // last_time.denominator + 1)
+        gap_list.append(next_bar - last_time)
 
-            # 如果是空小节, 更新计数器
-            if not this_bar_notes:
-                empty_run += 1
-                continue
-            # flush 累积的连续空小节, 合并为单行 {1} + K 逗号
-            if empty_run > 0:
-                final_texts.append("{1}" + empty_run * "," + "\n")
-                empty_run = 0
+        # --- 为每个非零间隔求分音方案 ---
+        active: list[tuple[int, dict]] = []
+        for idx, g in enumerate(gap_list):
+            if g > 0:
+                start = Fraction(0) if idx == 0 else anchors[idx - 1][0]
+                active.append((idx, self._resolve_gap(start, start + g)))
 
-            # 已经在 maidata_generate.py 中排序过了
-            # this_bar = sorted(this_bar, key=lambda x: (x[0], 0 if x[1].is_bpm else 1, x[1].content))
+        # --- BPM 前后分别做跨间隔 DP ---
+        block_starts = {
+            idx + 1 for idx, (_, bpm_text, _) in enumerate(anchors) if bpm_text
+        }
+        chosen = []
+        block = []
+        for entry in active:
+            if entry[0] in block_starts and block:
+                chosen.extend(self._cross_gap_dp(block))
+                block = []
+            block.append(entry)
+        if block:
+            chosen.extend(self._cross_gap_dp(block))
+        seg_map = dict(chosen)
 
-            # 生成该小节的 events
-            events = []
-            # 按 relative_time 将音符分组
-            for relative_time, group in groupby(this_bar_notes, key=lambda it: it.relative_time):
-                g1, g2 = tee(group, 2)  # group 是一次性迭代器, 需要 tee 复制两份
-                bpm_parts  = [it.content for it in g1 if     it.is_bpm]
-                note_parts = [it.content for it in g2 if not it.is_bpm]
-                # 用 "/" 连接 each 音符
-                note_content = "/".join(note_parts)
-                # 假设同一时间不可能出现多个 BPM
-                bpm_text = bpm_parts[0] if bpm_parts else ""
-                # 写入 events
-                event = (relative_time, bpm_text, note_content)
-                events.append(event)
-            
-            # 排版生成该小节 maidata 文本
-            maidata_text = self._layout_bar(events)
-            final_texts.append(maidata_text)
-            
-        return "".join(final_texts) + "{1},,,E"
+        # --- 输出 ---
+        return self._emit(anchors, gap_list, seg_map)
+
+
+    def _resolve_gap(self, start: Fraction, end: Fraction) -> dict:
+        """按实际小节边界顺序生成一个逻辑间隔的候选方案"""
+        g = end - start
+        if g <= 0:
+            return {}
+        if g.denominator == 1:
+            return self._resolve_gap_span(g)
+
+        next_boundary = Fraction(start.numerator // start.denominator + 1)
+        if end <= next_boundary:
+            return self._resolve_gap_span(g)
+
+        spans: list[Fraction] = []
+        cur = start
+        if cur.denominator != 1:
+            spans.append(next_boundary - cur)
+            cur = next_boundary
+
+        end_floor = Fraction(end.numerator // end.denominator)
+        whole = int(end_floor - cur)
+        if whole <= 0:
+            return self._resolve_gap_span(g)
+
+        if whole > 0:
+            spans.append(Fraction(whole))
+            cur += whole
+
+        if cur < end:
+            spans.append(end - cur)
+
+        configs = self._resolve_gap_span(spans[0])
+        for span in spans[1:]:
+            configs = self._combine_gap_configs(
+                configs, self._resolve_gap_span(span))
+        return configs
+
+
+    def _resolve_gap_span(self, g: Fraction) -> dict:
+        """生成不跨小节边界的一段候选方案"""
+        if g.denominator != 1:
+            return self._gap_configs_cached(g, g.denominator)
+
+        segs = []
+        remaining = int(g)
+        while remaining > 0:
+            k = min(remaining, _MAX_COMMAS)
+            segs.append((1, k))
+            remaining -= k
+        return {(1, 1): (0, segs)}
+
+
+    @staticmethod
+    def _combine_gap_configs(left: dict, right: dict) -> dict:
+        """按时间顺序连接同一逻辑间隔的跨小节候选"""
+        combined = {}
+        for (lfd, lld), (lsw, lsegs) in left.items():
+            for (rfd, rld), (rsw, rsegs) in right.items():
+                sw = lsw + (0 if lld == rfd else 1) + rsw
+                segs = lsegs + rsegs
+                key = (lfd, rld)
+                commas = sum(k for _, k in segs)
+                cur = combined.get(key)
+                if cur is None:
+                    combined[key] = (sw, segs)
+                    continue
+                cur_sw, cur_segs = cur
+                cur_commas = sum(k for _, k in cur_segs)
+                if sw < cur_sw or (sw == cur_sw and commas < cur_commas):
+                    combined[key] = (sw, segs)
+        return combined
+
+
+    @staticmethod
+    def _cross_gap_dp(active: list[tuple[int, dict]]) -> list[tuple[int, list]]:
+        """
+        跨间隔 DP, 最小化 {N} 切换次数 + 逗号数
+
+        active: [(gap_idx, configs), ...]
+        返回:   [(gap_idx, [(N,k), ...]), ...]
+
+        使用回溯 (parent pointer) 而非逐层拷贝列表, 避免 O(n²) 开销
+        """
+        if not active:
+            return []
+
+        # dp[i] = {last_div: (cost, prev_last_div, segs)}
+        first_idx, first_cfg = active[0]
+        dp: list[dict] = [{}]
+        for (fd, ld), (sw, segs) in first_cfg.items():
+            commas = sum(k for (_, k) in segs)
+            cost = sw * _MAX_COMMAS + commas
+            if ld not in dp[0] or cost < dp[0][ld][0]:
+                dp[0][ld] = (cost, None, segs)
+
+        for a_idx in range(1, len(active)):
+            gi, cfg = active[a_idx]
+            prev_layer = dp[a_idx - 1]
+            cur_layer: dict = {}
+            for (fd, ld), (sw, segs) in cfg.items():
+                seg_commas = sum(k for (_, k) in segs)
+                best_cost = None
+                best_prev = None
+                for prev_ld, (prev_cost, _, _) in prev_layer.items():
+                    tot = prev_cost + (0 if prev_ld == fd else 1) * _MAX_COMMAS \
+                          + sw * _MAX_COMMAS + seg_commas
+                    if best_cost is None or tot < best_cost:
+                        best_cost = tot
+                        best_prev = prev_ld
+                if best_cost is not None:
+                    cur = cur_layer.get(ld)
+                    if cur is None or best_cost < cur[0]:
+                        cur_layer[ld] = (best_cost, best_prev, segs)
+            dp.append(cur_layer)
+
+        # 回溯重建
+        last_dp = dp[-1]
+        best_ld = min(last_dp, key=lambda ld: last_dp[ld][0])
+        result = []
+        cur_ld = best_ld
+        for i in range(len(active) - 1, -1, -1):
+            _, prev_ld, segs = dp[i][cur_ld]
+            result.append((active[i][0], segs))
+            cur_ld = prev_ld
+        result.reverse()
+        return result
+
+
+    @staticmethod
+    def _emit(anchors: list[tuple[Fraction, str, str]],
+              gap_list: list[Fraction],
+              seg_map: dict) -> str:
+        """
+        全局排版输出
+
+        anchors:   [(time, bpm_text, note_text), ...]
+        gap_list:  [leading, after_anchor_0, ..., trailing]
+        seg_map:   {gap_idx: [(N, k), ...]}
+        """
+        n = len(anchors)
+        lines: list[str] = []
+        buf: list[str] = []
+        cur_div: int | None = None
+        cur_pos = Fraction(0)
+        line_start = Fraction(0)
+
+        def emit_div(D):
+            nonlocal cur_div
+            if D != cur_div:
+                buf.append(f"{{{D}}}")
+                cur_div = D
+
+        def flush():
+            nonlocal buf, cur_div
+            if buf:
+                lines.append("".join(buf) + "\n")
+                buf = []
+                cur_div = None
+
+        # leading gap
+        if gap_list[0] > 0 and 0 in seg_map:
+            for (N, k) in seg_map[0]:
+                emit_div(N)
+                buf.append("," * k)
+                cur_pos += Fraction(k, N)
+
+        # 逐 anchor 输出
+        for i in range(n):
+            _, bpm_text, note_text = anchors[i]
+            gap_idx = i + 1
+
+            if bpm_text:
+                buf.append(bpm_text)
+
+            segs = seg_map.get(gap_idx)
+
+            # 为后续逗号设置分音
+            if segs:
+                emit_div(segs[0][0])
+
+            if note_text:
+                buf.append(note_text)
+
+            # 间隔逗号
+            if segs:
+                for (N, k) in segs:
+                    emit_div(N)
+                    buf.append("," * k)
+                    cur_pos += Fraction(k, N)
+
+            # 换行判定: 当前行 ≥ 1 小节
+            if cur_pos - line_start >= 1 and i < n - 1:
+                flush()
+                line_start = cur_pos
+
+        flush()
+        return "".join(lines) + "{1},,,E"
 
 
 
