@@ -187,8 +187,16 @@ class MajdataPage(QWidget):
         audio_files = [f for f in os.listdir(song_path)
                        if f.lower().endswith((".mp3", ".ogg"))]
         if audio_files:
-            self._track_combo.addItems(sorted(audio_files))
-            self._track_combo.setCurrentIndex(0)
+            audio_files = sorted(audio_files)
+            self._track_combo.addItems(audio_files)
+            # 优先选择 track/sync
+            for preferred in ("track.mp3", "track.ogg", "sync.mp3", "sync.ogg"):
+                if preferred in audio_files:
+                    self._track_combo.setCurrentIndex(audio_files.index(preferred))
+                    break
+            # 否则默认选择第一个
+            else:
+                self._track_combo.setCurrentIndex(0)
 
         # scan mp4 and add to video_combo
         video_files = [f for f in os.listdir(song_path)
