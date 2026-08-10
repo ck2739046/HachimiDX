@@ -176,6 +176,7 @@ detect_trt = SN(
     gpu_detected_title = "Detected NVIDIA GPU:",
     select_gpu_prompt = "Select the GPU number to use (0, 1, 2, ...): ",
     select_gpu_try_again = "  Invalid input. Please try again.",
+    insufficient_memory = "GPU VRAM {real_vram} GB is below the minimum requirement of {min_vram} GB. Please use another GPU or backend.",
     low_compute_cap = "GPU compute capability {compute_cap} is below the minimum requirement {min_compute_cap}. Please upgrade the GPU or use another backend.",
     invalid_driver_version = "GPU driver version {driver_version} is below the minimum requirement {min_driver_version}. Please upgrade the GPU driver or use another backend.",
 )

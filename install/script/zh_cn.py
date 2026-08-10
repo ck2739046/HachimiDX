@@ -176,6 +176,7 @@ detect_trt = SN(
     gpu_detected_title="检测到 NVIDIA 显卡:",
     select_gpu_prompt="请选择要使用的显卡编号 (0, 1, 2, ...): ",
     select_gpu_try_again="  输入无效，请重新输入。",
+    insufficient_memory="显卡的显存 {real_vram} GB 低于最低要求 {min_vram} GB，请更换显卡或使用其他后端。",
     low_compute_cap="显卡的计算能力 {compute_cap} 低于最低要求 {min_compute_cap}, 请升级显卡或使用其他后端。",
     invalid_driver_version="显卡的驱动版本 {driver_version} 低于最低要求 {min_driver_version}, 请升级显卡驱动或使用其他后端。",
 )

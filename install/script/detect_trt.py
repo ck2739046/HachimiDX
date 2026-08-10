@@ -2,6 +2,15 @@ from dataclasses import dataclass
 import subprocess
 from .op_result import OpResult, ok, err, print_op_result
 
+# 最低显存需要 3GB
+MIN_TRT_VRAM_MIB = 3 * 1024
+
+
+def _format_mb_to_gb(mib: int) -> str:
+    # 最多 1 位小数，整数时去掉 ".0"
+    text = f"{mib / 1024:.1f}"
+    return text[:-2] if text.endswith(".0") else text
+
 @dataclass
 class nvidia_config:
     compute_capability:  tuple[int, int] 
@@ -21,6 +30,7 @@ class _gpu_info:
     gpu_name: str
     compute_capability: tuple[int, int]
     driver_version: tuple[int, int]
+    vram_mib: int
 
 
 # 以 sm 从高到低排序
@@ -102,7 +112,12 @@ def detect_trt_availability(T) -> OpResult[nvidia_config]:
         selected_gpu = gpus[0]
 
     # 检查显卡是否可用
-    gpu_config = _is_gpu_valid(T, selected_gpu.compute_capability, selected_gpu.driver_version)
+    gpu_config = _is_gpu_valid(
+        T,
+        selected_gpu.compute_capability,
+        selected_gpu.driver_version,
+        selected_gpu.vram_mib,
+    )
     if gpu_config is None:
         return err("Selected GPU is not valid.")
     
@@ -116,8 +131,8 @@ def _get_nvidia_gpu_info(T) -> OpResult[list[_gpu_info]]:
     try:
         # 获取 nvidia-smi 输出
         cmd = ["nvidia-smi",
-               "--query-gpu=name,compute_cap,driver_version",
-               "--format=csv,noheader"]
+             "--query-gpu=name,compute_cap,driver_version,memory.total",
+             "--format=csv,noheader,nounits"]
         try:
             result = subprocess.run(cmd, check=True, capture_output=True, text=True)
         except Exception as e:
@@ -138,16 +153,20 @@ def _get_nvidia_gpu_info(T) -> OpResult[list[_gpu_info]]:
         # 解析输出
         gpus = []
         for line in lines:
-            gpu_name_str, compute_cap_str, driver_version_str = (p.strip() for p in line.split(",", 2))
+            gpu_name_str, compute_cap_str, driver_version_str, vram_str = (
+                p.strip() for p in line.split(",", 3)
+            )
             compute_cap_parts = compute_cap_str.split(".")
             driver_version_parts = driver_version_str.split(".")
             compute_cap = (int(compute_cap_parts[0]), int(compute_cap_parts[1]))
             driver_version = (int(driver_version_parts[0]), int(driver_version_parts[1]))
+            vram_mib = int(vram_str)
 
             gpu_info = _gpu_info(
                 gpu_name=gpu_name_str,
                 compute_capability=compute_cap,
-                driver_version=driver_version
+                driver_version=driver_version,
+                vram_mib=vram_mib,
             )
             gpus.append(gpu_info)
 
@@ -158,9 +177,12 @@ def _get_nvidia_gpu_info(T) -> OpResult[list[_gpu_info]]:
         print(T.detect_trt.gpu_detected_title)
         index = 0
         for gpu in gpus:
-            compute_cap_print = f"sm {gpu.compute_capability[0]}.{gpu.compute_capability[1]}"
+            compute_cap_print = f"{gpu.compute_capability[0]}.{gpu.compute_capability[1]}"
             driver_ver_print = f"{gpu.driver_version[0]}.{gpu.driver_version[1]}"
-            print(f"{index}. {gpu.gpu_name}, {compute_cap_print}, driver {driver_ver_print}")
+            print(
+                f"{index}. {gpu.gpu_name}, VRAM: {_format_mb_to_gb(gpu.vram_mib)} GB, "
+                f"SM: {compute_cap_print}, Driver: {driver_ver_print}"
+            )
             index += 1
 
         return ok(gpus)
@@ -175,14 +197,24 @@ def _get_nvidia_gpu_info(T) -> OpResult[list[_gpu_info]]:
 def _is_gpu_valid(T,
                   compute_cap: tuple[int, int],
                   driver_ver:  tuple[int, int],
+                  vram_mib: int,
                  ) -> nvidia_config | None:
     """
-    根据计算能力和驱动版本判断显卡是否可用，并返回对应的配置。
+    根据 显存/计算能力/驱动版本 判断显卡是否可用，并返回对应的配置。
 
     返回：nvidia_config | None: 可用时返回对应的配置，否则返回 None
     """
 
     target_cfg: nvidia_config | None = None
+
+    # 检查显存是否达标
+    if vram_mib < MIN_TRT_VRAM_MIB:
+        print()
+        print(T.detect_trt.insufficient_memory.format(
+            real_vram=_format_mb_to_gb(vram_mib),
+            min_vram=_format_mb_to_gb(MIN_TRT_VRAM_MIB),
+        ))
+        return None
 
     # 计算输入的 compute_cap 属于哪一个配置
     for cfg in nvidia_config_list:
