@@ -165,3 +165,16 @@
 
 运行 `install/script/install.py` 安装依赖。<br>
 运行 `src/main.py` 启动程序。
+
+
+
+
+## 💖 捐赠
+
+如果这个项目对你有帮助，欢迎捐赠支持一下！❤️
+
+<div align="center">
+
+<img src="src/resources/doc/images/donate_wechat.png" width="130" alt="WeChat donation QR code">
+
+</div>

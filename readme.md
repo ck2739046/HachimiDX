@@ -163,3 +163,16 @@ Compile [Bpm-Measurer](https://github.com/ck2739046/Bpm-Measurer) and place the 
 
 Run `install/script/install.py` to install dependencies.<br>
 Run `src/main.py` to launch the application.
+
+
+
+
+## 💖 Donate
+
+If this project helps you, feel free to support it with a donation! ❤️
+
+<div align="center">
+
+<img src="src/resources/doc/images/donate_wechat.png" width="130" alt="WeChat donation QR code">
+
+</div>
