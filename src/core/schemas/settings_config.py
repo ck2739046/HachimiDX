@@ -23,7 +23,7 @@ class SettingsConfig_Definition:
     """
 
     key: str
-    type: Literal["str", "int", "bool"]
+    type: Literal["str", "int", "bool", "object"]
     group: Literal["model", "ffmpeg", "general", "window"]
     default: any = None
     constraints: dict | None = None
@@ -205,4 +205,18 @@ class SettingsConfig_Definitions:
         group="window",
         default=100,
         constraints={"ge": 50, "le": 200},
+    )
+
+    main_app_remember_window_state = SettingsConfig_Definition(
+        key="main_app_remember_window_state",
+        type="bool",
+        group="window",
+        default=True,
+    )
+
+    main_app_window_state = SettingsConfig_Definition(
+        key="main_app_window_state",
+        type="object",
+        group="window",
+        default=None,
     )

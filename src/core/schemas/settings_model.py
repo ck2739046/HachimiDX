@@ -2,7 +2,27 @@ from datetime import date
 from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from .settings_config import SettingsConfig_Definitions as S_Defs
+from .settings_config import (
+    MAIN_APP_H_MAX,
+    MAIN_APP_H_MIN,
+    MAIN_APP_W_MAX,
+    MAIN_APP_W_MIN,
+    SettingsConfig_Definitions as S_Defs,
+)
+
+
+class MainAppWindowState(BaseModel):
+
+    model_config = ConfigDict(extra="forbid")
+
+    x: int
+    y: int
+    width: Annotated[int, Field(ge=MAIN_APP_W_MIN, le=MAIN_APP_W_MAX)]
+    height: Annotated[int, Field(ge=MAIN_APP_H_MIN, le=MAIN_APP_H_MAX)]
+    ui_scale: Annotated[int, Field(
+        ge=S_Defs.main_app_ui_scale.constraints["ge"],
+        le=S_Defs.main_app_ui_scale.constraints["le"],
+    )]
 
 
 class SettingsModel(BaseModel):
@@ -26,6 +46,8 @@ class SettingsModel(BaseModel):
     main_app_h_default: Annotated[int, Field(ge=S_Defs.main_app_h_default.constraints["ge"], le=S_Defs.main_app_h_default.constraints["le"])] = S_Defs.main_app_h_default.default
     # 界面缩放
     main_app_ui_scale: Annotated[int, Field(ge=S_Defs.main_app_ui_scale.constraints["ge"], le=S_Defs.main_app_ui_scale.constraints["le"])] = S_Defs.main_app_ui_scale.default
+    main_app_remember_window_state: bool = S_Defs.main_app_remember_window_state.default
+    main_app_window_state: MainAppWindowState | None = S_Defs.main_app_window_state.default
 
 
 
