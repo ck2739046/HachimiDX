@@ -71,6 +71,8 @@ class SettingsPage(BaseOutputPage):
         self.ui_scale_slider = None
         self.ui_scale_display = None
         self.remember_window_state_checkbox = None
+        self.reset_window_state_label = None
+        self.reset_window_state_button = None
 
         self.save_button = None
         self.reset_button = None
@@ -215,14 +217,20 @@ class SettingsPage(BaseOutputPage):
         )
 
         remember_window_state_label = create_label(
-            i18n.t(f"{I18N_Prefix}.ui_remember_window_state_label")
-        )
+            i18n.t(f"{I18N_Prefix}.ui_remember_window_state_label"))
         self.remember_window_state_checkbox = create_check_box()
+        self.reset_window_state_label = create_label(
+            i18n.t(f"{I18N_Prefix}.ui_reset_window_state_label"))
+        self.reset_window_state_button = create_stated_button(
+            i18n.t(f"{I18N_Prefix}.ui_reset_window_state_button"))
         self.create_row(
             remember_window_state_label,
             self.remember_window_state_checkbox,
+            self.reset_window_state_label,
+            self.reset_window_state_button,
             add_stretch=True,
         )
+        self.reset_window_state_button.clicked.connect(self._on_reset_window_state_clicked)
 
 
 
@@ -555,6 +563,7 @@ class SettingsPage(BaseOutputPage):
         self.save_button.setEnabled(not is_busy)
         self.reset_button.setEnabled(not is_busy)
         self.inference_device_combo_box.setEnabled(not is_busy)
+        self.reset_window_state_button.setEnabled(not is_busy)
 
         self.convert_model_button.setVisible(self._show_convert_model_button and not is_busy)
         self.cancel_convert_model_button.setVisible(self._task_state.can_cancel)
@@ -856,6 +865,15 @@ class SettingsPage(BaseOutputPage):
 
     def _on_check_update_now_clicked(self) -> None:
         check_update(force=True)
+
+
+    def _on_reset_window_state_clicked(self) -> None:
+        result = self.window().reset_window_to_default()
+        if result.is_ok:
+            self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.log_window_state_reset"))
+        else:
+            self.output_widget.append_text(
+                i18n.t(f"{I18N_Prefix}.log_window_state_reset_failed", error=result.error_msg))
 
 
 

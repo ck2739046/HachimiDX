@@ -560,12 +560,17 @@ zh_CN:
       ui_default_size_label: "默认窗口尺寸 (宽×高): "
       ui_ui_scale_label: "界面缩放: "
       ui_remember_window_state_label: "记忆上次窗口尺寸/位置: "
+      ui_reset_window_state_label: " 重置窗口尺寸/位置为默认: "
+      ui_reset_window_state_button: "重置"
 
       ui_save_button: "保存"
       ui_reset_button: "重置"
 
       ui_reset_confirm_title: "重置确认"
       ui_reset_confirm_text: "确认将所有设置项重置为默认值吗？"
+
+      log_window_state_reset: "已重置窗口尺寸/位置为默认"
+      log_window_state_reset_failed: "重置窗口状态失败: %{error}"
 
       warning_load_failed: "读取设置失败: %{item_key}\n%{error}"
       warning_save_item_failed: "保存配置项失败: %{item_key}\n%{error}"

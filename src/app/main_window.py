@@ -23,6 +23,7 @@ from .pages.settings_page import SettingsPage
 import i18n
 from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
 from src.core.schemas.settings_config import MAIN_APP_W_MIN, MAIN_APP_W_MAX, MAIN_APP_H_MIN, MAIN_APP_H_MAX
+from src.core.schemas.op_result import ok, err, OpResult
 from src.services import SettingsManage, PathManage, MajdataSession, VideoSyncServer, check_update
 
 
@@ -336,6 +337,26 @@ class MainWindow(QMainWindow):
         if not save_result.is_ok:
             print(f"--Warning: Failed to save main window state: {save_result.error_msg}")
 
+
+
+    def reset_window_to_default(self) -> OpResult:
+        """重置窗口尺寸为默认值并居中显示，不修改已记忆的窗口状态。"""
+        w = SettingsManage.get(S_Defs.main_app_w_default.key)
+        h = SettingsManage.get(S_Defs.main_app_h_default.key)
+        if not w.is_ok or not h.is_ok:
+            return err(f"Failed to load default window size: {w.error_msg} / {h.error_msg}")
+
+        self.resize(w.value, h.value)
+
+        screen = QApplication.primaryScreen()
+        if screen is not None:
+            available = screen.availableGeometry()
+            self.move(
+                available.x() + (available.width() - self.width()) // 2,
+                available.y() + (available.height() - self.height()) // 2,
+            )
+
+        return ok()
 
 
     def _init_video_player(self) -> None:

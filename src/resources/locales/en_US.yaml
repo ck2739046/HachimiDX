@@ -565,12 +565,17 @@ en_US:
       ui_default_size_label: "Default Window Size (W×H): "
       ui_ui_scale_label: "UI Scale: "
       ui_remember_window_state_label: "Remember Last Window Size/Position: "
+      ui_reset_window_state_label: " Reset Window Size/Position to Default: "
+      ui_reset_window_state_button: "Reset"
 
       ui_save_button: "Save"
       ui_reset_button: "Reset"
 
       ui_reset_confirm_title: "Reset Confirmation"
       ui_reset_confirm_text: "Are you sure you want to reset all settings to defaults?"
+
+      log_window_state_reset: "Window size/position reset to default."
+      log_window_state_reset_failed: "Failed to reset window state: %{error}"
 
       warning_load_failed: "Failed to load setting: %{item_key}\n%{error}"
       warning_save_item_failed: "Failed to save setting item: %{item_key}\n%{error}"
