@@ -55,7 +55,7 @@ class OutputLogWidget(QWidget):
         ]
 
         # 保存的最大行数
-        self.max_output_lines = 1000
+        self.max_output_lines = 4000
         # 标记最后一行是否可被替换 (用于处理 \r)
         self._is_last_line_replaceable = False
         # ANSI 转义序列的正则表达式
