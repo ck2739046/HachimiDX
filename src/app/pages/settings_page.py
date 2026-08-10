@@ -70,6 +70,7 @@ class SettingsPage(BaseOutputPage):
         self.min_height_line_edit = None
         self.ui_scale_slider = None
         self.ui_scale_display = None
+        self.remember_window_state_checkbox = None
 
         self.save_button = None
         self.reset_button = None
@@ -83,6 +84,7 @@ class SettingsPage(BaseOutputPage):
             S_Defs.main_app_w_default.key,
             S_Defs.main_app_h_default.key,
             S_Defs.main_app_ui_scale.key,
+            S_Defs.main_app_remember_window_state.key,
         ]
 
         self._build_model_section()
@@ -209,6 +211,16 @@ class SettingsPage(BaseOutputPage):
             ui_scale_label,
             self.ui_scale_slider,
             self.ui_scale_display,
+            add_stretch=True,
+        )
+
+        remember_window_state_label = create_label(
+            i18n.t(f"{I18N_Prefix}.ui_remember_window_state_label")
+        )
+        self.remember_window_state_checkbox = create_check_box()
+        self.create_row(
+            remember_window_state_label,
+            self.remember_window_state_checkbox,
             add_stretch=True,
         )
 
@@ -408,6 +420,9 @@ class SettingsPage(BaseOutputPage):
         self.default_width_line_edit.setText(str(settings[S_Defs.main_app_w_default.key]))
         self.default_height_line_edit.setText(str(settings[S_Defs.main_app_h_default.key]))
         self.ui_scale_slider.setValue(int(settings[S_Defs.main_app_ui_scale.key]))
+        self.remember_window_state_checkbox.setChecked(
+            bool(settings[S_Defs.main_app_remember_window_state.key])
+        )
         self._sync_ui_state()
 
 
@@ -423,6 +438,7 @@ class SettingsPage(BaseOutputPage):
             S_Defs.main_app_w_default.key: self.default_width_line_edit.text().strip(),
             S_Defs.main_app_h_default.key: self.default_height_line_edit.text().strip(),
             S_Defs.main_app_ui_scale.key: str(self.ui_scale_slider.value()),
+            S_Defs.main_app_remember_window_state.key: self.remember_window_state_checkbox.isChecked(),
         }
 
         # 推理设备：可见时取 ComboBox itemData；否则使用已保存值，由 SettingsModel 按后端归一化
