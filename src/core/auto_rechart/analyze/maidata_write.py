@@ -221,7 +221,7 @@ def _emit_bar_text(events, gaps, seg_map) -> str:
 
 class _LayoutEngine:
     """
-    simai 谱面排版引擎 (全局间隔版)
+    simai 谱面排版引擎
 
     核心规则:
       - 相邻音符之间的间隔不被小节边界拆分
@@ -229,8 +229,8 @@ class _LayoutEngine:
       - 一行可以跨多小节 (当间隔跨小节时)
 
     分音策略:
-      - 全局最小化 {N} 切换次数
-      - 全局最小化逗号总数
+      - 每行独立最小化 {N} 切换次数
+      - 每行独立最小化逗号总数
       - 连续逗号不能超过 _MAX_COMMAS 个, 超过则拆段
     """
 
@@ -266,30 +266,66 @@ class _LayoutEngine:
         next_bar = Fraction(last_time.numerator // last_time.denominator + 1)
         gap_list.append(next_bar - last_time)
 
-        # --- 为每个非零间隔求分音方案 ---
-        active: list[tuple[int, dict]] = []
+        # --- 为每个非零间隔求候选方案 ---
+        gap_configs = {}
         for idx, g in enumerate(gap_list):
             if g > 0:
                 start = Fraction(0) if idx == 0 else anchors[idx - 1][0]
-                active.append((idx, self._resolve_gap(start, start + g)))
+                gap_configs[idx] = self._resolve_gap(start, start + g)
 
-        # --- BPM 前后分别做跨间隔 DP ---
+        line_ranges = self._plan_lines(gap_list, n)
+
+        # --- 每行独立 DP, 行内 BPM 前后分别计算 ---
         block_starts = {
             idx + 1 for idx, (_, bpm_text, _) in enumerate(anchors) if bpm_text
         }
+        seg_map = {}
+        for anchor_start, anchor_end in line_ranges:
+            gap_start = 0 if anchor_start == 0 else anchor_start + 1
+            gap_end = anchor_end + 1
+            active = [
+                (idx, gap_configs[idx])
+                for idx in range(gap_start, gap_end + 1)
+                if idx in gap_configs
+            ]
+            seg_map.update(self._optimize_line(active, block_starts))
+
+        # --- 输出 ---
+        return self._emit(anchors, gap_list, seg_map, line_ranges)
+
+
+    @staticmethod
+    def _plan_lines(gap_list: list[Fraction], anchor_count: int) -> list[tuple[int, int]]:
+        """完整间隔累计满一小节后，在下一个 anchor 前换行"""
+        lines = []
+        anchor_start = 0
+        line_length = gap_list[0]
+
+        for anchor_idx in range(anchor_count):
+            line_length += gap_list[anchor_idx + 1]
+            if line_length >= 1 and anchor_idx < anchor_count - 1:
+                lines.append((anchor_start, anchor_idx))
+                anchor_start = anchor_idx + 1
+                line_length = Fraction(0)
+
+        lines.append((anchor_start, anchor_count - 1))
+        return lines
+
+
+    @classmethod
+    def _optimize_line(cls, active: list[tuple[int, dict]],
+                       block_starts: set[int]) -> dict:
+        """一行内独立优化, BPM 后的间隔开启新分块"""
         chosen = []
         block = []
         for entry in active:
             if entry[0] in block_starts and block:
-                chosen.extend(self._cross_gap_dp(block))
+                chosen.extend(cls._cross_gap_dp(block))
                 block = []
             block.append(entry)
         if block:
-            chosen.extend(self._cross_gap_dp(block))
-        seg_map = dict(chosen)
-
-        # --- 输出 ---
-        return self._emit(anchors, gap_list, seg_map)
+            chosen.extend(cls._cross_gap_dp(block))
+        return dict(chosen)
 
 
     def _resolve_gap(self, start: Fraction, end: Fraction) -> dict:
@@ -422,71 +458,54 @@ class _LayoutEngine:
     @staticmethod
     def _emit(anchors: list[tuple[Fraction, str, str]],
               gap_list: list[Fraction],
-              seg_map: dict) -> str:
+              seg_map: dict,
+              line_ranges: list[tuple[int, int]]) -> str:
         """
-        全局排版输出
+        按预先规划的行输出
 
         anchors:   [(time, bpm_text, note_text), ...]
         gap_list:  [leading, after_anchor_0, ..., trailing]
         seg_map:   {gap_idx: [(N, k), ...]}
+        line_ranges: [(首 anchor 索引, 末 anchor 索引), ...]
         """
-        n = len(anchors)
         lines: list[str] = []
-        buf: list[str] = []
-        cur_div: int | None = None
-        cur_pos = Fraction(0)
-        line_start = Fraction(0)
 
-        def emit_div(D):
-            nonlocal cur_div
-            if D != cur_div:
-                buf.append(f"{{{D}}}")
-                cur_div = D
+        for anchor_start, anchor_end in line_ranges:
+            buf: list[str] = []
+            cur_div: int | None = None
 
-        def flush():
-            nonlocal buf, cur_div
-            if buf:
-                lines.append("".join(buf) + "\n")
-                buf = []
-                cur_div = None
+            def emit_div(D):
+                nonlocal cur_div
+                if D != cur_div:
+                    buf.append(f"{{{D}}}")
+                    cur_div = D
 
-        # leading gap
-        if gap_list[0] > 0 and 0 in seg_map:
-            for (N, k) in seg_map[0]:
-                emit_div(N)
-                buf.append("," * k)
-                cur_pos += Fraction(k, N)
-
-        # 逐 anchor 输出
-        for i in range(n):
-            _, bpm_text, note_text = anchors[i]
-            gap_idx = i + 1
-
-            if bpm_text:
-                buf.append(bpm_text)
-
-            segs = seg_map.get(gap_idx)
-
-            # 为后续逗号设置分音
-            if segs:
-                emit_div(segs[0][0])
-
-            if note_text:
-                buf.append(note_text)
-
-            # 间隔逗号
-            if segs:
-                for (N, k) in segs:
+            if anchor_start == 0 and gap_list[0] > 0 and 0 in seg_map:
+                for (N, k) in seg_map[0]:
                     emit_div(N)
                     buf.append("," * k)
-                    cur_pos += Fraction(k, N)
 
-            # 换行判定: 当前行 ≥ 1 小节
-            if cur_pos - line_start >= 1 and i < n - 1:
-                flush()
-                line_start = cur_pos
+            for anchor_idx in range(anchor_start, anchor_end + 1):
+                _, bpm_text, note_text = anchors[anchor_idx]
+                gap_idx = anchor_idx + 1
 
-        flush()
+                if bpm_text:
+                    buf.append(bpm_text)
+
+                segs = seg_map.get(gap_idx)
+                if segs:
+                    emit_div(segs[0][0])
+
+                if note_text:
+                    buf.append(note_text)
+
+                if segs:
+                    for (N, k) in segs:
+                        emit_div(N)
+                        buf.append("," * k)
+
+            lines.append("".join(buf) + "\n")
+
         return "".join(lines) + "{1},,,E"
 
 

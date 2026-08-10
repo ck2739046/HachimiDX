@@ -58,6 +58,26 @@ class MaidataLayoutTests(unittest.TestCase):
 
         self.assertIn("{4}1,(120),(180),2,", body)
 
+    def test_lines_choose_divisions_independently(self):
+        items = [
+            MaidataItem(Fraction(0), "1"),
+            MaidataItem(Fraction(31, 32), "2"),
+            MaidataItem(Fraction(1), "3"),
+            MaidataItem(Fraction(9, 8), "4"),
+            MaidataItem(Fraction(5, 4), "5"),
+            MaidataItem(Fraction(11, 8), "6"),
+            MaidataItem(Fraction(3, 2), "7"),
+            MaidataItem(Fraction(13, 8), "8"),
+            MaidataItem(Fraction(7, 4), "1"),
+            MaidataItem(Fraction(15, 8), "2"),
+            MaidataItem(Fraction(2), "3"),
+        ]
+
+        lines = _LayoutEngine().layout(items).splitlines()
+
+        self.assertIn("{32}", lines[0])
+        self.assertEqual(lines[1], "{8}3,4,5,6,7,8,1,2,")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
