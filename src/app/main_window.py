@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Optional
 
 from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QStackedWidget, QLabel, QSizePolicy
-from PyQt6.QtCore import Qt, QSize, QObject, pyqtSignal, pyqtSlot, QUrl, QTimer
+from PyQt6.QtCore import Qt, QSize, QPoint, QObject, pyqtSignal, pyqtSlot, QUrl, QTimer
 from PyQt6.QtGui import QIcon, QWindow
 from PyQt6.QtMultimedia import QMediaPlayer
 from PyQt6.QtMultimediaWidgets import QVideoWidget
@@ -215,6 +215,13 @@ class MainWindow(QMainWindow):
         self._majdata_session = None
         self._closing: bool = False
 
+        scale_result = SettingsManage.get(S_Defs.main_app_ui_scale.key)
+        self._runtime_ui_scale = (
+            int(scale_result.value)
+            if scale_result.is_ok
+            else S_Defs.main_app_ui_scale.default
+        )
+
         # Video player
         self._media_player: Optional[QMediaPlayer] = None
         self._video_widget: Optional[QVideoWidget] = None
@@ -274,6 +281,9 @@ class MainWindow(QMainWindow):
         # Init Video player
         self._init_video_player()
 
+        # 恢复上次窗口尺寸/位置
+        self._restore_window_state()
+
         # 启动 MajdataSession
         self._majdata_session = MajdataSession(self)
         self._majdata_session.ready.connect(self._on_majdata_ready)
@@ -283,6 +293,48 @@ class MainWindow(QMainWindow):
 
         # 检查更新 (延迟1s)
         QTimer.singleShot(1000, check_update)
+
+
+
+    def _restore_window_state(self) -> None:
+        # 是否启用了 "记住窗口状态" 功能
+        res = SettingsManage.get(S_Defs.main_app_remember_window_state.key)
+        if res.is_ok and res.value is True:
+            # 已启用，获取上次保存的窗口状态
+            result = SettingsManage.get(S_Defs.main_app_window_state.key)
+            state = result.value if result.is_ok else None
+            if state is not None and state.ui_scale == self._runtime_ui_scale:
+                # 成功获取到上次窗口状态，尝试恢复
+                center = QPoint(state.x + state.width // 2, state.y + state.height // 2)
+                if any(screen.availableGeometry().contains(center) for screen in QApplication.screens()):
+                    self.setGeometry(state.x, state.y, state.width, state.height)
+                    return
+        # fallback: 居中显示
+        screen = QApplication.primaryScreen()
+        if screen is None: return
+        available = screen.availableGeometry()
+        self.move(available.x() + (available.width() - self.width()) // 2,
+                  available.y() + (available.height() - self.height()) // 2)
+
+
+    def _save_window_state(self) -> None:
+        # 是否启用了 "记住窗口状态" 功能
+        res = SettingsManage.get(S_Defs.main_app_remember_window_state.key)
+        if not res.is_ok or not res.value: return
+        # 已启用，保存当前窗口状态
+        geometry = self.normalGeometry()
+        save_result = SettingsManage.set(
+            S_Defs.main_app_window_state.key,
+            {
+                "x": geometry.x(),
+                "y": geometry.y(),
+                "width": geometry.width(),
+                "height": geometry.height(),
+                "ui_scale": self._runtime_ui_scale,
+            },
+        )
+        if not save_result.is_ok:
+            print(f"--Warning: Failed to save main window state: {save_result.error_msg}")
 
 
 
@@ -331,6 +383,9 @@ class MainWindow(QMainWindow):
             return
 
         self._closing = True
+
+        # 保存本次窗口尺寸/位置
+        self._save_window_state()
 
         # Reset video player
         if self._media_player is not None:
