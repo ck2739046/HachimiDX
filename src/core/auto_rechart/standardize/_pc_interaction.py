@@ -66,6 +66,9 @@ class InteractionMixin:
         if self.quad_points is None or self.left_panel_meta is None:
             return
 
+        x = self._unscale_ui_coord(x)
+        y = self._unscale_ui_coord(y)
+
         if self._handle_slider_event(event, x, y):
             return
 

@@ -7,6 +7,61 @@ from typing import Dict
 
 class DrawingMixin:
 
+    def _ui_point(self, point) -> tuple[int, int]:
+        return self._scale_ui_coord(point[0]), self._scale_ui_coord(point[1])
+
+    def _ui_thickness(self, thickness: int) -> int:
+        return thickness if thickness < 0 else self._scale_ui_length(thickness)
+
+    def _draw_line(self, image, start, end, color, thickness=1) -> None:
+        cv2.line(
+            image,
+            self._ui_point(start),
+            self._ui_point(end),
+            color,
+            self._ui_thickness(thickness),
+        )
+
+    def _draw_circle(self, image, center, radius, color, thickness=1) -> None:
+        cv2.circle(
+            image,
+            self._ui_point(center),
+            self._scale_ui_length(radius),
+            color,
+            self._ui_thickness(thickness),
+        )
+
+    def _draw_rectangle(self, image, start, end, color, thickness=1) -> None:
+        cv2.rectangle(
+            image,
+            self._ui_point(start),
+            self._ui_point(end),
+            color,
+            self._ui_thickness(thickness),
+        )
+
+    def _draw_text(self, image, text, origin, font_scale, color, thickness=1) -> None:
+        cv2.putText(
+            image,
+            text,
+            self._ui_point(origin),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            font_scale * self.ui_scale_factor,
+            color,
+            self._ui_thickness(thickness),
+            cv2.LINE_AA,
+        )
+
+    def _draw_polylines(self, image, points, color, thickness=1) -> None:
+        scaled_points = np.rint(points.astype(np.float32) * self.ui_scale_factor).astype(np.int32)
+        cv2.polylines(
+            image,
+            [scaled_points],
+            isClosed=True,
+            color=color,
+            thickness=self._ui_thickness(thickness),
+        )
+
     def _compose_panel(self, frame, zoom_percent: float, offset_x: int = 0, offset_y: int = 0):
         """
         将原始帧绘制到 800×800 黑色画布上
@@ -23,20 +78,24 @@ class DrawingMixin:
         """
 
         # 空画布
-        canvas = np.zeros((self.FRAME_PREVIEW_SIZE, self.FRAME_PREVIEW_SIZE, 3), dtype=np.uint8)
+        canvas = np.zeros((self.frame_preview_size_px, self.frame_preview_size_px, 3), dtype=np.uint8)
 
         frame_h, frame_w = frame.shape[:2]
-        scaled_w = max(1, int(round(frame_w * zoom_percent / 100)))
-        scaled_h = max(1, int(round(frame_h * zoom_percent / 100)))
+        logical_scaled_w = max(1, int(round(frame_w * zoom_percent / 100)))
+        logical_scaled_h = max(1, int(round(frame_h * zoom_percent / 100)))
+        scaled_w = self._scale_ui_length(logical_scaled_w)
+        scaled_h = self._scale_ui_length(logical_scaled_h)
         scaled = cv2.resize(frame, (scaled_w, scaled_h), interpolation=cv2.INTER_LINEAR)
 
-        top_left_x = int(round((self.FRAME_PREVIEW_SIZE - scaled_w) * 0.5 + offset_x))
-        top_left_y = int(round((self.FRAME_PREVIEW_SIZE - scaled_h) * 0.5 + offset_y))
+        logical_top_left_x = int(round((self.FRAME_PREVIEW_SIZE - logical_scaled_w) * 0.5 + offset_x))
+        logical_top_left_y = int(round((self.FRAME_PREVIEW_SIZE - logical_scaled_h) * 0.5 + offset_y))
+        top_left_x = self._scale_ui_coord(logical_top_left_x)
+        top_left_y = self._scale_ui_coord(logical_top_left_y)
 
         dst_x1 = max(0, top_left_x)
         dst_y1 = max(0, top_left_y)
-        dst_x2 = min(self.FRAME_PREVIEW_SIZE, top_left_x + scaled_w)
-        dst_y2 = min(self.FRAME_PREVIEW_SIZE, top_left_y + scaled_h)
+        dst_x2 = min(self.frame_preview_size_px, top_left_x + scaled_w)
+        dst_y2 = min(self.frame_preview_size_px, top_left_y + scaled_h)
 
         src_x1 = max(0, -top_left_x)
         src_y1 = max(0, -top_left_y)
@@ -48,8 +107,8 @@ class DrawingMixin:
 
         meta = {
             "zoom_percent": float(zoom_percent),
-            "top_left_x": float(top_left_x),
-            "top_left_y": float(top_left_y),
+            "top_left_x": float(logical_top_left_x),
+            "top_left_y": float(logical_top_left_y),
         }
         return canvas, meta
 
@@ -72,8 +131,16 @@ class DrawingMixin:
         step = dash_deg + gap_deg
         while angle < 360.0:
             end = min(angle + dash_deg, 360.0)
-            cv2.ellipse(panel, center, (radius, radius), 0,
-                        angle, end, color, thickness)
+            cv2.ellipse(
+                panel,
+                self._ui_point(center),
+                (self._scale_ui_length(radius), self._scale_ui_length(radius)),
+                0,
+                angle,
+                end,
+                color,
+                self._ui_thickness(thickness),
+            )
             angle += step
 
     def _draw_reference_marks(self, panel: np.ndarray) -> None:
@@ -84,7 +151,8 @@ class DrawingMixin:
             八个判定红点
             九宫格分隔线
         """
-        height, width = panel.shape[:2]
+        height = self.FRAME_PREVIEW_SIZE
+        width = self.FRAME_PREVIEW_SIZE
         center_x = width // 2
         center_y = height // 2
         
@@ -100,7 +168,7 @@ class DrawingMixin:
             rad = np.deg2rad(deg)
             px = int(round(inner_cx + inner_r * np.cos(rad)))
             py = int(round(inner_cy + inner_r * np.sin(rad)))
-            cv2.circle(panel, (px, py), 9, (0, 0, 255), 2)
+            self._draw_circle(panel, (px, py), 9, (0, 0, 255), 2)
 
         # 外圆 屏幕边缘
         outer_radius = min(width, height) // 2
@@ -112,12 +180,12 @@ class DrawingMixin:
         line_offset = int(round(inner_r * np.sin(np.deg2rad(22.5))))
         v_line1_x = inner_cx - line_offset
         v_line2_x = inner_cx + line_offset
-        cv2.line(panel, (v_line1_x, 0), (v_line1_x, height), (0, 255, 0), 1)
-        cv2.line(panel, (v_line2_x, 0), (v_line2_x, height), (0, 255, 0), 1)
+        self._draw_line(panel, (v_line1_x, 0), (v_line1_x, height), (0, 255, 0), 1)
+        self._draw_line(panel, (v_line2_x, 0), (v_line2_x, height), (0, 255, 0), 1)
         h_line1_y = inner_cy - line_offset
         h_line2_y = inner_cy + line_offset
-        cv2.line(panel, (0, h_line1_y), (width, h_line1_y), (0, 255, 0), 1)
-        cv2.line(panel, (0, h_line2_y), (width, h_line2_y), (0, 255, 0), 1)
+        self._draw_line(panel, (0, h_line1_y), (width, h_line1_y), (0, 255, 0), 1)
+        self._draw_line(panel, (0, h_line2_y), (width, h_line2_y), (0, 255, 0), 1)
 
 
 
@@ -140,29 +208,21 @@ class DrawingMixin:
 
         # 直线连接 固定中心红点 -> 当前拖拽点
         if (cx, cy) != (fixed_cx, fixed_cy):
-            cv2.line(panel, (fixed_cx, fixed_cy), (cx, cy),
-                     self.CENTER_REF_LINE_COLOR, self.CENTER_REF_LINE_THICK)
+            self._draw_line(panel, (fixed_cx, fixed_cy), (cx, cy),
+                            self.CENTER_REF_LINE_COLOR, self.CENTER_REF_LINE_THICK)
 
         # 固定中心: 实心小红点
-        cv2.circle(panel, (fixed_cx, fixed_cy),
-                   self.CENTER_REF_RADIUS,
-                   self.CENTER_REF_COLOR, -1)
+        self._draw_circle(panel, (fixed_cx, fixed_cy),
+                          self.CENTER_REF_RADIUS,
+                          self.CENTER_REF_COLOR, -1)
 
-        cv2.circle(panel, (cx, cy),
-                   self.PERSPECTIVE_POINT_RADIUS,
-                   self.POINT_COLOR, 1)
-        cv2.circle(panel, (cx, cy),
-                   self.PERSPECTIVE_POINT_RADIUS + self.OUTER_RADIUS_PLUS,
-                   (255, 255, 255), 1)
-        cv2.putText(
-            panel, "C",
-            (cx + 10, cy - 10),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            (255, 255, 255),
-            1,
-            cv2.LINE_AA,
-        )
+        self._draw_circle(panel, (cx, cy),
+                          self.PERSPECTIVE_POINT_RADIUS,
+                          self.POINT_COLOR, 1)
+        self._draw_circle(panel, (cx, cy),
+                          self.PERSPECTIVE_POINT_RADIUS + self.OUTER_RADIUS_PLUS,
+                          (255, 255, 255), 1)
+        self._draw_text(panel, "C", (cx + 10, cy - 10), 0.5, (255, 255, 255), 1)
 
 
 
@@ -176,28 +236,27 @@ class DrawingMixin:
         canvas_points = []
         for pt in self.quad_points:
             canvas_points.append(self._frame_to_panel(pt, meta))
-        canvas_points = np.array(canvas_points, dtype=np.int32)
+        canvas_points = np.array(canvas_points, dtype=np.float32)
 
-        cv2.polylines(panel, [canvas_points], isClosed=True, color=(0, 255, 0), thickness=1)
+        self._draw_polylines(panel, canvas_points, (0, 255, 0), 1)
 
         for i, pt in enumerate(canvas_points):
-            cv2.circle(panel, (int(pt[0]), int(pt[1])),
-                       self.PERSPECTIVE_POINT_RADIUS,
-                       self.POINT_COLOR, 1)
-            cv2.circle(panel, (int(pt[0]), int(pt[1])),
-                       self.PERSPECTIVE_POINT_RADIUS + self.OUTER_RADIUS_PLUS,
-                       (255, 255, 255), 1)
+            point = (float(pt[0]), float(pt[1]))
+            self._draw_circle(panel, point,
+                              self.PERSPECTIVE_POINT_RADIUS,
+                              self.POINT_COLOR, 1)
+            self._draw_circle(panel, point,
+                              self.PERSPECTIVE_POINT_RADIUS + self.OUTER_RADIUS_PLUS,
+                              (255, 255, 255), 1)
             
             # 在点旁边标记序号
-            cv2.putText(
+            self._draw_text(
                 panel,
                 str(i + 1),
-                (int(pt[0]) + 10, int(pt[1]) - 10),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5,  # 字体大小
+                (float(pt[0]) + 10, float(pt[1]) - 10),
+                0.5,
                 (255, 255, 255),
-                1,    # 字体粗细
-                cv2.LINE_AA,
+                1,
             )
 
 
@@ -213,7 +272,7 @@ class DrawingMixin:
         """
         
         # 中间纵向的分割线
-        cv2.line(canvas, (self.FRAME_PREVIEW_SIZE, 0), (self.FRAME_PREVIEW_SIZE, self.FRAME_PREVIEW_SIZE), (255, 255, 255), 1)
+        self._draw_line(canvas, (self.FRAME_PREVIEW_SIZE, 0), (self.FRAME_PREVIEW_SIZE, self.FRAME_PREVIEW_SIZE), (255, 255, 255), 1)
 
         self._draw_slider_panel(canvas, 0, # 左侧 panel
                                 "Scale", input_zoom_percent, "input")
@@ -228,29 +287,11 @@ class DrawingMixin:
         hint_text = "SPACE: pause/play  ESC: exit"
         hint_y = self.WINDOW_HEIGHT - 15
         hint_x = 12
-        cv2.putText(
-            canvas,
-            hint_text,
-            (hint_x, hint_y),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.6,
-            (255, 255, 255),
-            1,
-            cv2.LINE_AA,
-        )
+        self._draw_text(canvas, hint_text, (hint_x, hint_y), 0.6, (255, 255, 255), 1)
 
         if not is_playing:
             # PAUSED 放到 hint 行右侧
-            cv2.putText(
-                canvas,
-                "PAUSED",
-                (hint_x + 300, hint_y),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                (0, 255, 255), # yellow
-                2,
-                cv2.LINE_AA,
-            )
+            self._draw_text(canvas, "PAUSED", (hint_x + 300, hint_y), 0.6, (0, 255, 255), 2)
 
 
 
@@ -268,7 +309,7 @@ class DrawingMixin:
         control_bottom = self.WINDOW_HEIGHT
 
         # 清空旧 slider 区域
-        cv2.rectangle(
+        self._draw_rectangle(
             canvas,
             (panel_offset_x, control_top),
             (panel_offset_x + self.FRAME_PREVIEW_SIZE, control_bottom),
@@ -276,7 +317,7 @@ class DrawingMixin:
             -1,
         )
 
-        cv2.rectangle(
+        self._draw_rectangle(
             canvas,
             (panel_offset_x, control_top),
             (panel_offset_x + self.FRAME_PREVIEW_SIZE - 1, control_bottom - 1),
@@ -362,25 +403,21 @@ class DrawingMixin:
         h_x = geo["input"]["x1"]
         v_x = self.FRAME_PREVIEW_SIZE // 4
 
-        cv2.putText(
+        self._draw_text(
             canvas,
             f"H offset: {self.input_offset_x_px}px",
             (h_x, text_y),
-            cv2.FONT_HERSHEY_SIMPLEX,
             0.46,
             (255, 255, 255),
             1,
-            cv2.LINE_AA,
         )
-        cv2.putText(
+        self._draw_text(
             canvas,
             f"V offset: {self.input_offset_y_px}px",
             (v_x, text_y),
-            cv2.FONT_HERSHEY_SIMPLEX,
             0.46,
             (255, 255, 255),
             1,
-            cv2.LINE_AA,
         )
 
 
@@ -473,38 +510,27 @@ class DrawingMixin:
         
         # slider 左上方的标签
         label_y = track_y - 14
-        cv2.putText(
-            canvas,
-            label,
-            (track_x1, label_y),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.46,
-            (255, 255, 255),
-            1,
-            cv2.LINE_AA,
-        )
+        self._draw_text(canvas, label, (track_x1, label_y), 0.46, (255, 255, 255), 1)
 
         # 滑轨
-        cv2.line(canvas, (track_x1, track_y), (track_x2, track_y), (170, 170, 170), 2)
+        self._draw_line(canvas, (track_x1, track_y), (track_x2, track_y), (170, 170, 170), 2)
 
         # 滑块
         knob_x = int(round(self._slider_percent_to_x(percent_value, track_x1, track_x2, min_percent, max_percent)))
         knob_color = self.POINT_COLOR if not is_selected else (0, 200, 255)
-        cv2.circle(canvas, (knob_x, track_y),
-                   self.SLIDER_KNOB_RADIUS,
-                   knob_color, -1) # 实心
-        cv2.circle(canvas, (knob_x, track_y),
-                   self.SLIDER_KNOB_RADIUS + self.OUTER_RADIUS_PLUS,
-                   (255, 255, 255), 1)
+        self._draw_circle(canvas, (knob_x, track_y),
+                  self.SLIDER_KNOB_RADIUS,
+                  knob_color, -1)
+        self._draw_circle(canvas, (knob_x, track_y),
+                  self.SLIDER_KNOB_RADIUS + self.OUTER_RADIUS_PLUS,
+                  (255, 255, 255), 1)
         
         # slider 右上方的数值
-        cv2.putText(
+        self._draw_text(
             canvas,
             value_text,
             (track_x2 - 94, label_y),
-            cv2.FONT_HERSHEY_SIMPLEX,
             0.46,
             (200, 200, 200),
             1,
-            cv2.LINE_AA,
         )

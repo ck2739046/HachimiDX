@@ -63,7 +63,8 @@ class PerspectiveCorrection(DrawingMixin, TransformMixin, InteractionMixin):
                  circle_center: Tuple[int, int],
                  circle_radius: int,
                  start_sec: float,
-                 end_sec: float):
+                 end_sec: float,
+                 ui_scale: int):
         """
         Args:
             input_video(Path): 输入视频路径
@@ -71,7 +72,13 @@ class PerspectiveCorrection(DrawingMixin, TransformMixin, InteractionMixin):
             circle_radius(int): 圆半径
             start_sec(float): 开始时间(秒)
             end_sec(float): 结束时间(秒)
+            ui_scale(int): 界面缩放百分比
         """
+
+        self.ui_scale_factor = int(ui_scale) / 100.0
+        self.frame_preview_size_px = self._scale_ui_length(self.FRAME_PREVIEW_SIZE)
+        self.window_width_px = self._scale_ui_length(self.WINDOW_WIDTH)
+        self.window_height_px = self._scale_ui_length(self.WINDOW_HEIGHT)
 
         self.circle_center = circle_center
         self.circle_radius = circle_radius
@@ -111,6 +118,18 @@ class PerspectiveCorrection(DrawingMixin, TransformMixin, InteractionMixin):
         self.output_fine_offset_x_px = self.FINE_OFFSET_DEFAULT_PX
         self.output_fine_offset_y_px = self.FINE_OFFSET_DEFAULT_PX
         self.output_brightness_percent = self.BRIGHTNESS_DEFAULT_PERCENT
+
+
+    def _scale_ui_coord(self, value: float) -> int:
+        return int(round(float(value) * self.ui_scale_factor))
+
+
+    def _scale_ui_length(self, value: float) -> int:
+        return max(1, self._scale_ui_coord(value))
+
+
+    def _unscale_ui_coord(self, value: float) -> float:
+        return float(value) / self.ui_scale_factor
 
 
 
@@ -161,15 +180,15 @@ class PerspectiveCorrection(DrawingMixin, TransformMixin, InteractionMixin):
             # 2. 创建 OpenCV 窗口
             window_name = "Screen Rectification"
             cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
-            cv2.resizeWindow(window_name, self.WINDOW_WIDTH, self.WINDOW_HEIGHT)
+            cv2.resizeWindow(window_name, self.window_width_px, self.window_height_px)
             cv2.setMouseCallback(window_name, self._on_mouse_event)
             # 使用 ctypes 获取屏幕尺寸
             user32 = ctypes.windll.user32
             screen_width = user32.GetSystemMetrics(0)
             screen_height = user32.GetSystemMetrics(1)
             # 每次打开窗口都默认居中显示
-            pos_x = (screen_width - self.WINDOW_WIDTH) // 2
-            pos_y = (screen_height - self.WINDOW_HEIGHT) // 2
+            pos_x = (screen_width - self.window_width_px) // 2
+            pos_y = (screen_height - self.window_height_px) // 2
             cv2.moveWindow(window_name, pos_x, pos_y)
 
 
@@ -296,9 +315,10 @@ class PerspectiveCorrection(DrawingMixin, TransformMixin, InteractionMixin):
 
 
                 # 5d. 绘制最终整体画布
-                canvas = np.zeros((self.WINDOW_HEIGHT, self.WINDOW_WIDTH, 3), dtype=np.uint8)
-                canvas[:self.FRAME_PREVIEW_SIZE, :self.FRAME_PREVIEW_SIZE] = left_panel
-                canvas[:self.FRAME_PREVIEW_SIZE, self.FRAME_PREVIEW_SIZE:] = right_panel
+                canvas = np.zeros((self.window_height_px, self.window_width_px, 3), dtype=np.uint8)
+                panel_size = self.frame_preview_size_px
+                canvas[:panel_size, :panel_size] = left_panel
+                canvas[:panel_size, panel_size:self.window_width_px] = right_panel
                 self._draw_combined_overlay(canvas, is_playing,
                                             current_input_zoom_percent,
                                             current_output_zoom_percent)

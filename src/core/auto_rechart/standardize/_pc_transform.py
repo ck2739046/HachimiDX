@@ -166,7 +166,15 @@ class TransformMixin:
                       [0.0, z, tly],
                       [0.0, 0.0, 1.0]], dtype=np.float32)
 
-        return (t @ s @ m_warp).astype(np.float32)
+        ui_scale = np.array(
+            [
+                [self.ui_scale_factor, 0.0, 0.0],
+                [0.0, self.ui_scale_factor, 0.0],
+                [0.0, 0.0, 1.0],
+            ],
+            dtype=np.float32,
+        )
+        return (ui_scale @ t @ s @ m_warp).astype(np.float32)
 
 
 
@@ -178,7 +186,7 @@ class TransformMixin:
         panel = cv2.warpPerspective(
             raw_frame,
             matrix,
-            (self.FRAME_PREVIEW_SIZE, self.FRAME_PREVIEW_SIZE),
+            (self.frame_preview_size_px, self.frame_preview_size_px),
             flags=cv2.INTER_LINEAR,
             borderMode=cv2.BORDER_CONSTANT,
             borderValue=(0, 0, 0),
