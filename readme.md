@@ -77,9 +77,11 @@ A tool for the rhythm game **maimai** that converts chart confirmation videos in
 
 - Fake jumps (`` ` ``) are not supported.
 
-- Camera-captured footage (off-screen recordings) may suffer from angle, color cast, or exposure issues. This may hurts accuracy of auto rechart.
+- Camera-captured footage (off-screen recordings) may suffer from skew, color shift, abnormal exposure, or ghosting, which may reduce recharting accuracy.
 
-- Parallel slide notes with partially overlapping trajectories may cause some to be missed (e.g., `1v6[8:1]/3v6[8:1]`).
+- Parallel slide notes with partially overlapping trajectories may fail to be recognized (e.g., `1v6[8:1]/3v6[8:1]`).
+
+- Slide notes with abnormal startup delay are not supported.
 
 
 
