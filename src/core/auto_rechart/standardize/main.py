@@ -21,7 +21,8 @@ def main(input_video: Path,
          start_sec: float,
          end_sec: float,
          need_screen_rectification: bool,
-         target_res: int
+         target_res: int,
+         ui_scale: int
         ) -> OpResult[None]:
 
     """
@@ -38,6 +39,7 @@ def main(input_video: Path,
         end_sec(float): 结束时间(秒)
         need_screen_rectification(bool): 是否需要画面矫正
         target_res(int): 目标分辨率(边长)
+        ui_scale(int): 矫正窗口界面缩放百分比
 
     Returns:
         OpResult[None]
@@ -70,6 +72,7 @@ def main(input_video: Path,
                 circle_radius=circle_radius,
                 start_sec=start_sec,
                 end_sec=end_sec,
+                ui_scale=ui_scale,
             ).main()
             if not result.is_ok:
                 return err("Failed to manual adjust circle.", inner=result)

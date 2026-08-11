@@ -6,10 +6,11 @@ from PyQt6.QtWidgets import QVBoxLayout, QWidget
 from .base_output_page import BaseOutputPage, _create_row
 from ..ui_style import UI_Style
 from ..widgets import *
-from src.services import AutoRechartPipeline, process_manager_api
+from src.services import AutoRechartPipeline, SettingsManage, process_manager_api
 from src.core.tools import show_confirm_dialog, show_notify_dialog
 from src.core.schemas.op_result import OpResult, ok, err, print_op_result
 from src.core.schemas.auto_rechart_config import AutoRechartConfig_Definitions as AC_Defs
+from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
 import i18n
 
 I18N_Prefix = "app.auto_rechart_page"
@@ -695,6 +696,13 @@ class AutoRechartPage(BaseOutputPage):
                     AC_Defs.need_screen_rectification.key: self.need_screen_rectification_check_box.isChecked(),
                     AC_Defs.target_res.key: 1080, # 暂时不修改
                 })
+                # 添加 ui_scale 值
+                ui_scale_result = SettingsManage.get(S_Defs.main_app_ui_scale.key)
+                raw_data[AC_Defs.ui_scale.key] = (
+                    int(ui_scale_result.value)
+                    if ui_scale_result.is_ok
+                    else AC_Defs.ui_scale.default
+                )
             else:
                 raw_data.update({
                     AC_Defs.selected_folder.key: self.selected_output_dir_display.text().strip() or None

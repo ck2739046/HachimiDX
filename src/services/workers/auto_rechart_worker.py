@@ -122,6 +122,7 @@ def main(args: list[str]) -> bool:
                 end_sec=_get_cfg(cfg, "end_sec", float),
                 need_screen_rectification=_get_cfg(cfg, "need_screen_rectification", _as_bool),
                 target_res=_get_cfg(cfg, "target_res", int),
+                ui_scale=_get_cfg(cfg, "ui_scale", int),
             )
             if not result.is_ok:
                 return _fail(print_op_result(result))     

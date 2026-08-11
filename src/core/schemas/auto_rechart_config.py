@@ -5,6 +5,7 @@ from typing import Literal
 from .op_result import OpResult, ok, err
 from ..tools.validate_windows_filename import validate_windows_filename
 from .media_config import MediaType
+from .settings_config import SettingsConfig_Definitions as S_Defs
 
 
 
@@ -144,6 +145,17 @@ class AutoRechartConfig_Definitions:
         group="standardize",
         default=1080,
         constraints={"gt": 0}
+    )
+
+    ui_scale = AutoRechartConfig_Definition(
+        key="ui_scale",
+        type="int",
+        group="standardize",
+        default=S_Defs.main_app_ui_scale.default,
+        constraints={
+            "ge": S_Defs.main_app_ui_scale.constraints["ge"],
+            "le": S_Defs.main_app_ui_scale.constraints["le"],
+        },
     )
 
 

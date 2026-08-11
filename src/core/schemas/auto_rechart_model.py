@@ -42,6 +42,12 @@ class AutoRechartModel(BaseModel):
 
     target_res: Optional[int] = Field(default=AC_Defs.target_res.default, gt=AC_Defs.target_res.constraints["gt"])
 
+    ui_scale: Optional[int] = Field(
+        default=AC_Defs.ui_scale.default,
+        ge=AC_Defs.ui_scale.constraints["ge"],
+        le=AC_Defs.ui_scale.constraints["le"],
+    )
+
 
 
 
