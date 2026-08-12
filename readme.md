@@ -79,9 +79,9 @@ A tool for the rhythm game **maimai** that converts chart confirmation videos in
 
 - Camera-captured footage (off-screen recordings) may suffer from skew, color shift, abnormal exposure, or ghosting, which may reduce recharting accuracy.
 
-- Parallel slide notes with partially overlapping trajectories may fail to be recognized (e.g., `1v6[8:1]/3v6[8:1]`).
+- When multiple slides exist simultaneously and some trajectories overlap or intersect, they may fail to be recognized (e.g., `1v6[8:1]/3v6[8:1]`).
 
-- Slide notes with abnormal startup delay are not supported.
+- Slide notes with non-standard startup waiting time are not supported.
 
 
 
