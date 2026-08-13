@@ -1,3 +1,4 @@
+import sys
 from dataclasses import dataclass, fields
 from typing import Any, Callable
 
@@ -304,7 +305,7 @@ def _ask_backend(
         if content == "":
             return ok(default_backend)
         if content == "6":
-            return err(T.choose_backend.user_cancelled)
+            sys.exit(0)
         try:
             selected_index = int(content)
         except ValueError:
@@ -363,7 +364,7 @@ def _choose_tensorrt_config(
     while True:
         content = ask(T.choose_backend.trt_gpu_prompt)
         if content == "6":
-            return err(T.choose_backend.user_cancelled)
+            sys.exit(0)
         try:
             selected_index = int(content)
         except ValueError:
@@ -420,7 +421,7 @@ def _choose_pytorch_cuda_config(
     while True:
         content = ask(T.choose_backend.pytorch_cuda_gpu_prompt)
         if content == "6":
-            return err(T.choose_backend.user_cancelled)
+            sys.exit(0)
         try:
             selected_index = int(content)
         except ValueError:

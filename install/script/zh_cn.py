@@ -113,7 +113,6 @@ choose_backend = SN(
     invalid_backend_choice = "输入无效，请重新输入。",
     backend_not_available = "该后端不可用，请选择可用后端。",
     backend_selection_failed = "后端选择失败。",
-    user_cancelled = "用户取消了后端选择。",
     trt_not_available = "没有可用的 NVIDIA 显卡。",
     trt_selection_failed = "TensorRT 显卡配置选择失败。",
     trt_gpu_menu_title = "检测到多张配置不同的可用 NVIDIA 显卡，请选择显卡：",

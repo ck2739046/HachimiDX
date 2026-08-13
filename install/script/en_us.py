@@ -113,7 +113,6 @@ choose_backend = SN(
     invalid_backend_choice = "Invalid input. Please try again.",
     backend_not_available = "That backend is unavailable. Please select an available backend.",
     backend_selection_failed = "Backend selection failed.",
-    user_cancelled = "Backend selection was canceled.",
     trt_not_available = "No usable NVIDIA GPU was detected.",
     trt_selection_failed = "TensorRT GPU configuration selection failed.",
     trt_gpu_menu_title = "Multiple usable NVIDIA GPUs have different configurations. Select a GPU:",
