@@ -63,6 +63,20 @@ def copy_app_resources():
     # 复制 sitecustomize.py 到 python 目录
     sitecustomize_path = FOR_RELEASE_ONLY_DIR / "python_portable" / "sitecustomize.py"
     copy_to_release(sitecustomize_path, python_target_path / "sitecustomize.py")
+    # 更新 pip
+    python_exe = python_target_path / "python.exe"
+    result = subprocess.run([str(python_exe), "-m", "pip", "install",
+                             "--upgrade", "pip", "--no-warn-script-location"])
+    if result.returncode != 0:
+        raise RuntimeError(f"更新 pip 失败: {result.stderr}")
+    # 删除 pip 缓存
+    pip_cache_dir = python_target_path / "pip-cache"
+    if pip_cache_dir.is_dir():
+        shutil.rmtree(pip_cache_dir)
+    # 删除 pycache
+    pycache_dir = python_target_path / "__pycache__"
+    if pycache_dir.is_dir():
+        shutil.rmtree(pycache_dir)
 
     # 解压 ffmpeg 到目录
     ffmpeg_path = FOR_RELEASE_ONLY_DIR / "ffmpeg-8.0.1-essentials_build.7z"
