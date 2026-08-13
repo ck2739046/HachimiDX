@@ -98,6 +98,7 @@ choose_backend = SN(
     nvidia_gpu_details = ", VRAM {vram} GB, SM {compute_cap}, driver {driver}, config {config}",
     cpu_backend = "PyTorch CPU",
     trt_backend = "TensorRT",
+    pytorch_cuda_backend = "PyTorch CUDA",
     dml_backend = "DirectML",
     ncnn_backend = "NCNN Vulkan",
     no_available_gpu = "No usable GPU was detected.",
@@ -108,7 +109,7 @@ choose_backend = SN(
     backend_option = "{index}. {backend} [{status}]",
     backend_recommendation = "{backend} is the recommended and default option.",
     backend_prompt = "Please enter the backend number (1, 2, 3, ...)\n-> ",
-    exit_option = "5. Exit",
+    exit_option = "6. Exit",
     invalid_backend_choice = "Invalid input. Please try again.",
     backend_not_available = "That backend is unavailable. Please select an available backend.",
     backend_selection_failed = "Backend selection failed.",
@@ -118,6 +119,11 @@ choose_backend = SN(
     trt_gpu_menu_title = "Multiple usable NVIDIA GPUs have different configurations. Select a GPU:",
     trt_gpu_option = "{index}. {gpu_name}, VRAM {vram} GB, SM {compute_cap}, driver {driver}, config {config}",
     trt_gpu_prompt = "Please enter the GPU number (0, 1, 2, ...)\n-> ",
+    pytorch_cuda_not_available = "No NVIDIA GPU is available for PyTorch CUDA.",
+    pytorch_cuda_selection_failed = "PyTorch CUDA GPU configuration selection failed.",
+    pytorch_cuda_gpu_menu_title = "Multiple usable NVIDIA GPUs have different configurations. Select the PyTorch CUDA installation configuration:",
+    pytorch_cuda_gpu_option = "{index}. {gpu_name}, VRAM {vram} GB, SM {compute_cap}, driver {driver}, config {config}",
+    pytorch_cuda_gpu_prompt = "Please enter the GPU number (0, 1, 2, ...)\n-> ",
     invalid_gpu_choice = "Invalid input. Please try again.",
 )
 
@@ -163,6 +169,13 @@ detect_trt = SN(
     select_gpu_prompt = "Select the GPU number to use (0, 1, 2, ...): ",
     select_gpu_try_again = "  Invalid input. Please try again.",
     insufficient_memory = "GPU VRAM {real_vram} GB is below the minimum requirement of {min_vram} GB. Please use another GPU or backend.",
+    low_compute_cap = "GPU compute capability {compute_cap} is below the minimum requirement {min_compute_cap}. Please upgrade the GPU or use another backend.",
+    invalid_driver_version = "GPU driver version {driver_version} is below the minimum requirement {min_driver_version}. Please upgrade the GPU driver or use another backend.",
+)
+
+
+
+detect_pytorch_cuda = SN(
     low_compute_cap = "GPU compute capability {compute_cap} is below the minimum requirement {min_compute_cap}. Please upgrade the GPU or use another backend.",
     invalid_driver_version = "GPU driver version {driver_version} is below the minimum requirement {min_driver_version}. Please upgrade the GPU driver or use another backend.",
 )

@@ -98,6 +98,7 @@ choose_backend = SN(
     nvidia_gpu_details = "，显存 {vram} GB，SM {compute_cap}，驱动 {driver}，配置 {config}",
     cpu_backend = "PyTorch CPU",
     trt_backend = "TensorRT",
+    pytorch_cuda_backend = "PyTorch CUDA",
     dml_backend = "DirectML",
     ncnn_backend = "NCNN Vulkan",
     no_available_gpu = "没有可用的 GPU。",
@@ -108,7 +109,7 @@ choose_backend = SN(
     backend_option = "{index}. {backend} [{status}]",
     backend_recommendation = "推荐安装 {backend}（此为默认选项）",
     backend_prompt = "请输入后端编号（1, 2, 3, ...）\n-> ",
-    exit_option = "5. 退出",
+    exit_option = "6. 退出",
     invalid_backend_choice = "输入无效，请重新输入。",
     backend_not_available = "该后端不可用，请选择可用后端。",
     backend_selection_failed = "后端选择失败。",
@@ -118,6 +119,11 @@ choose_backend = SN(
     trt_gpu_menu_title = "检测到多张配置不同的可用 NVIDIA 显卡，请选择显卡：",
     trt_gpu_option = "{index}. {gpu_name}，显存 {vram} GB，SM {compute_cap}，驱动 {driver}，配置 {config}",
     trt_gpu_prompt = "请输入显卡编号（0, 1, 2, ...）\n-> ",
+    pytorch_cuda_not_available = "没有可用于 PyTorch CUDA 的 NVIDIA 显卡。",
+    pytorch_cuda_selection_failed = "PyTorch CUDA 显卡配置选择失败。",
+    pytorch_cuda_gpu_menu_title = "检测到多张配置不同的可用 NVIDIA 显卡，请选择 PyTorch CUDA 使用的安装配置：",
+    pytorch_cuda_gpu_option = "{index}. {gpu_name}，显存 {vram} GB，SM {compute_cap}，驱动 {driver}，配置 {config}",
+    pytorch_cuda_gpu_prompt = "请输入显卡编号（0, 1, 2, ...）\n-> ",
     invalid_gpu_choice = "输入无效，请重新输入。",
 )
 
@@ -165,6 +171,13 @@ detect_trt = SN(
     insufficient_memory="显卡的显存 {real_vram} GB 低于最低要求 {min_vram} GB，请更换显卡或使用其他后端。",
     low_compute_cap="显卡的计算能力 {compute_cap} 低于最低要求 {min_compute_cap}, 请升级显卡或使用其他后端。",
     invalid_driver_version="显卡的驱动版本 {driver_version} 低于最低要求 {min_driver_version}, 请升级显卡驱动或使用其他后端。",
+)
+
+
+
+detect_pytorch_cuda = SN(
+    low_compute_cap = "显卡的计算能力 {compute_cap} 低于最低要求 {min_compute_cap}，请升级显卡或使用其他后端。",
+    invalid_driver_version = "显卡的驱动版本 {driver_version} 低于最低要求 {min_driver_version}，请升级显卡驱动或使用其他后端。",
 )
 
 

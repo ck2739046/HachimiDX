@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-import subprocess
+from .detect_nvidia import NvidiaGpuInfo, get_nvidia_gpu_info
 from .op_result import OpResult, ok, err
 
 # 最低显存需要 3GB
@@ -23,14 +23,6 @@ class nvidia_config:
     is_trt_legacy:       bool
     numpy_ver:           str
     opencv_ver:          str
-
-
-@dataclass
-class _gpu_info:
-    gpu_name: str
-    compute_capability: tuple[int, int]
-    driver_version: tuple[int, int]
-    vram_mib: int
 
 
 @dataclass
@@ -94,14 +86,19 @@ nvidia_config_list: list[nvidia_config] = [
 
 
 
-def detect_trt_availability(T) -> OpResult[list[NvidiaGpuDetection]]:
+def detect_trt_availability(
+    T,
+    gpus: list[NvidiaGpuInfo] | None = None,
+) -> OpResult[list[NvidiaGpuDetection]]:
     """detect_trt.py 主入口"""
 
-    # 获取 NVIDIA GPU 信息
-    result = _get_nvidia_gpu_info(T)
-    if not result.is_ok:
-        return err("Failed to get nvidia gpu info.", inner=result)
-    gpus = result.value
+    if gpus is None:
+        result = get_nvidia_gpu_info()
+        if not result.is_ok:
+            return err("Failed to get nvidia gpu info.", inner=result)
+        gpus = result.value
+    if gpus is None:
+        return err("NVIDIA GPU detection did not contain a value.")
 
     detections = []
     for gpu in gpus:
@@ -124,68 +121,6 @@ def detect_trt_availability(T) -> OpResult[list[NvidiaGpuDetection]]:
         )
 
     return ok(detections)
-
-
-
-
-def _get_nvidia_gpu_info(T) -> OpResult[list[_gpu_info]]:
-
-    try:
-        # 获取 nvidia-smi 输出
-        cmd = ["nvidia-smi",
-             "--query-gpu=name,compute_cap,driver_version,memory.total",
-             "--format=csv,noheader,nounits"]
-        try:
-            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-        except Exception as e:
-            stdout = getattr(e, "stdout", None)
-            stderr = getattr(e, "stderr", None)
-            if stdout and stderr:
-                output = f"stdout: {stdout}\nstderr: {stderr}"
-            elif stdout:
-                output = stdout
-            elif stderr:
-                output = stderr
-            else:
-                output = "no output"
-            return err(f"Failed to run nvidia-smi command: {output}", error_raw=e)
-
-        lines = [line for line in result.stdout.splitlines() if line.strip()]
-        if not lines:
-            return err("No output from nvidia-smi command.")
-
-        # 解析输出
-        gpus = []
-        for line in lines:
-            gpu_name_str, compute_cap_str, driver_version_str, vram_str = (
-                p.strip() for p in line.split(",", 3)
-            )
-            compute_cap_parts = compute_cap_str.split(".")
-            driver_version_parts = driver_version_str.split(".")
-            compute_cap = (int(compute_cap_parts[0]), int(compute_cap_parts[1]))
-            driver_version = (int(driver_version_parts[0]), int(driver_version_parts[1]))
-            vram_mib = int(vram_str)
-
-            gpu_info = _gpu_info(
-                gpu_name=gpu_name_str,
-                compute_capability=compute_cap,
-                driver_version=driver_version,
-                vram_mib=vram_mib,
-            )
-            gpus.append(gpu_info)
-
-        if not gpus:
-            return err("No NVIDIA GPU detected.")
-        
-        return ok(gpus)
-    
-    except Exception as e:
-        return err("Failed to get NVIDIA GPU info.", error_raw=e)
-
-
-
-
-
 def _check_gpu(
     T,
     compute_cap: tuple[int, int],
