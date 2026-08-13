@@ -15,6 +15,7 @@ from .detect_trt import (
     tensorrt_config as TensorRTConfig,
 )
 from .op_result import OpResult, err, ok
+from .console_input import ask
 
 
 @dataclass(slots=True, frozen=True)
@@ -163,12 +164,6 @@ def _print_summary(
 
     _print_backend_status(
         T,
-        T.choose_backend.cpu_backend,
-        availability["cpu"],
-        None,
-    )
-    _print_backend_status(
-        T,
         T.choose_backend.trt_backend,
         availability["trt"],
         reasons["trt"] if not availability["trt"] else None,
@@ -198,6 +193,13 @@ def _print_summary(
         reasons["ncnn"] if not availability["ncnn"] else None,
     )
     _print_gpu_results(T, ncnn_result, "ncnn")
+
+    _print_backend_status(
+        T,
+        T.choose_backend.cpu_backend,
+        availability["cpu"],
+        None,
+    )
 
 
 def _print_backend_status(T, backend_name: str, is_available: bool, reason: str | None) -> None:
@@ -298,7 +300,7 @@ def _ask_backend(
     print()
 
     while True:
-        content = input(T.choose_backend.backend_prompt).strip()
+        content = ask(T.choose_backend.backend_prompt)
         if content == "":
             return ok(default_backend)
         if content == "6":
@@ -359,7 +361,7 @@ def _choose_tensorrt_config(
     print()
 
     while True:
-        content = input(T.choose_backend.trt_gpu_prompt).strip()
+        content = ask(T.choose_backend.trt_gpu_prompt)
         if content == "6":
             return err(T.choose_backend.user_cancelled)
         try:
@@ -416,7 +418,7 @@ def _choose_pytorch_cuda_config(
     print()
 
     while True:
-        content = input(T.choose_backend.pytorch_cuda_gpu_prompt).strip()
+        content = ask(T.choose_backend.pytorch_cuda_gpu_prompt)
         if content == "6":
             return err(T.choose_backend.user_cancelled)
         try:

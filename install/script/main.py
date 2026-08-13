@@ -5,6 +5,7 @@ import shutil
 
 from . import en_us, zh_cn
 from .op_result import OpResult, ok, err, print_op_result
+from .console_input import ask
 
 from .choose_backend import choose_backend
 from .detect_pytorch_cuda import pytorch_cuda_config
@@ -43,7 +44,7 @@ def main():
     try:
         # ask language
         global T
-        language = input(en_us.ask_language.prompt).strip()
+        language = ask(en_us.ask_language.prompt)
         if language == "1":
             T = zh_cn
         elif language == "2":
@@ -56,8 +57,7 @@ def main():
 
         # main menu
         print("\n-----")
-        choice = input(T.main_menu.prompt).strip()
-
+        choice = ask(T.main_menu.prompt)
         if choice == "1":
             result = install()
             if not result.is_ok:
@@ -94,7 +94,7 @@ def reinstall_backend() -> OpResult[None]:
 
     # 确认
     print("\n-----")
-    confirm = input(T.reinstall_backend.prompt).strip()
+    confirm = ask(T.reinstall_backend.prompt)
     if confirm != "2":
         print(T.reinstall_backend.abort)
         return ok()
@@ -214,7 +214,7 @@ def install() -> OpResult[None]:
 def ask_use_pypi_mirror():
     global USE_PyPI_Mirror
     print("\n-----")
-    use_mirror = input(T.ask_use_pypi_mirror.prompt).strip()
+    use_mirror = ask(T.ask_use_pypi_mirror.prompt)
     if use_mirror == "1":
         USE_PyPI_Mirror = True
     elif use_mirror == "2":
