@@ -12,7 +12,7 @@ def _format_mb_to_gb(mib: int) -> str:
     return text[:-2] if text.endswith(".0") else text
 
 @dataclass
-class nvidia_config:
+class tensorrt_config:
     compute_capability:  tuple[int, int] 
     win_driver_ver:      tuple[int, int]
     torch_ver:           str
@@ -26,21 +26,21 @@ class nvidia_config:
 
 
 @dataclass
-class NvidiaGpuDetection:
+class TensorRTGpuDetection:
     gpu_name: str
     compute_capability: tuple[int, int]
     driver_version: tuple[int, int]
     vram_mib: int
     is_available: bool
     reason: str | None = None
-    config: nvidia_config | None = None
+    config: tensorrt_config | None = None
 
 
 # 以 sm 从高到低排序
-nvidia_config_list: list[nvidia_config] = [
+tensorrt_config_list: list[tensorrt_config] = [
 
     # sm7.5, Turing and later
-    nvidia_config( 
+    tensorrt_config( 
         compute_capability= (7, 5),
         win_driver_ver=     (572, 61),
         torch_ver=          "2.10.0",
@@ -54,7 +54,7 @@ nvidia_config_list: list[nvidia_config] = [
     ),
 
     # sm6.0 Pascal & sm7.0 Volta
-    nvidia_config( 
+    tensorrt_config( 
         compute_capability= (6, 0),
         win_driver_ver=     (452, 39),
         torch_ver=          "2.3.1",      # 最后 cudnn 8 的版本
@@ -69,7 +69,7 @@ nvidia_config_list: list[nvidia_config] = [
 
     # 已禁用，因为 trt 8.5.3 zip 需要登录英伟达账户才能下载
     # # sm5.0 Maxwell
-    # nvidia_config( 
+    # tensorrt_config( 
     #     compute_capability= (5, 0),
     #     win_driver_ver=     (452, 39),
     #     torch_ver=          "2.3.1",      # 最后 cudnn 8 的版本
@@ -89,7 +89,7 @@ nvidia_config_list: list[nvidia_config] = [
 def detect_trt_availability(
     T,
     gpus: list[NvidiaGpuInfo] | None = None,
-) -> OpResult[list[NvidiaGpuDetection]]:
+) -> OpResult[list[TensorRTGpuDetection]]:
     """detect_trt.py 主入口"""
 
     if gpus is None:
@@ -102,21 +102,21 @@ def detect_trt_availability(
 
     detections = []
     for gpu in gpus:
-        gpu_config, reason = _check_gpu(
+        config, reason = _check_gpu(
             T,
             gpu.compute_capability,
             gpu.driver_version,
             gpu.vram_mib,
         )
         detections.append(
-            NvidiaGpuDetection(
+            TensorRTGpuDetection(
                 gpu_name=gpu.gpu_name,
                 compute_capability=gpu.compute_capability,
                 driver_version=gpu.driver_version,
                 vram_mib=gpu.vram_mib,
-                is_available=gpu_config is not None,
+                is_available=config is not None,
                 reason=reason,
-                config=gpu_config,
+                config=config,
             )
         )
 
@@ -126,14 +126,14 @@ def _check_gpu(
     compute_cap: tuple[int, int],
     driver_ver: tuple[int, int],
     vram_mib: int,
-) -> tuple[nvidia_config | None, str | None]:
+) -> tuple[tensorrt_config | None, str | None]:
     """
     根据 显存/计算能力/驱动版本 判断显卡是否可用，并返回对应的配置。
 
     返回配置和不可用原因。
     """
 
-    target_cfg: nvidia_config | None = None
+    target_config: tensorrt_config | None = None
 
     # 检查显存是否达标
     if vram_mib < MIN_TRT_VRAM_MIB:
@@ -143,22 +143,22 @@ def _check_gpu(
         )
 
     # 计算输入的 compute_cap 属于哪一个配置
-    for cfg in nvidia_config_list:
-        if compute_cap >= cfg.compute_capability:
-            if target_cfg is None or cfg.compute_capability > target_cfg.compute_capability:
-                target_cfg = cfg
-    if target_cfg is None:
+    for config in tensorrt_config_list:
+        if compute_cap >= config.compute_capability:
+            if target_config is None or config.compute_capability > target_config.compute_capability:
+                target_config = config
+    if target_config is None:
         # 计算能力低于最低配置
         return None, T.detect_trt.low_compute_cap.format(
             compute_cap=f"sm {compute_cap[0]}.{compute_cap[1]}",
-            min_compute_cap=f"sm {nvidia_config_list[-1].compute_capability[0]}.{nvidia_config_list[-1].compute_capability[1]}",
+            min_compute_cap=f"sm {tensorrt_config_list[-1].compute_capability[0]}.{tensorrt_config_list[-1].compute_capability[1]}",
         )
 
     # 驱动版本不达标：不允许回退到其他区间，直接判为不可用
-    if driver_ver < target_cfg.win_driver_ver:
+    if driver_ver < target_config.win_driver_ver:
         return None, T.detect_trt.invalid_driver_version.format(
             driver_version=f"{driver_ver[0]}.{driver_ver[1]}",
-            min_driver_version=f"{target_cfg.win_driver_ver[0]}.{target_cfg.win_driver_ver[1]}",
+            min_driver_version=f"{target_config.win_driver_ver[0]}.{target_config.win_driver_ver[1]}",
         )
 
-    return target_cfg, None
+    return target_config, None

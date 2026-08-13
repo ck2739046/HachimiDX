@@ -10,7 +10,7 @@ from install.script.detect_pytorch_cuda import (
     PytorchCudaGpuDetection,
     pytorch_cuda_config,
 )
-from install.script.detect_trt import NvidiaGpuDetection, nvidia_config
+from install.script.detect_trt import TensorRTGpuDetection, tensorrt_config
 from install.script.op_result import err, ok
 
 
@@ -69,7 +69,7 @@ class TestChooseBackend(unittest.TestCase):
         ]
 
     def _config(self, trt_version):
-        return nvidia_config(
+        return tensorrt_config(
             compute_capability=(7, 5),
             win_driver_ver=(572, 61),
             torch_ver="2.10.0",
@@ -83,7 +83,7 @@ class TestChooseBackend(unittest.TestCase):
         )
 
     def _gpu(self, name, available, config=None):
-        return NvidiaGpuDetection(
+        return TensorRTGpuDetection(
             gpu_name=name,
             compute_capability=(7, 5),
             driver_version=(572, 61),
@@ -172,7 +172,7 @@ class TestChooseBackend(unittest.TestCase):
 
         self.assertTrue(result.is_ok)
         self.assertEqual(result.value.backend, "trt")
-        self.assertEqual(result.value.nvidia_gpu_config.tensorRT_ver, config.tensorRT_ver)
+        self.assertEqual(result.value.tensorrt_config.tensorRT_ver, config.tensorRT_ver)
         self.assertEqual(input_mock.call_count, 1)
 
     @patch.object(module, "get_nvidia_gpu_info")
@@ -197,7 +197,7 @@ class TestChooseBackend(unittest.TestCase):
 
         self.assertTrue(result.is_ok)
         self.assertEqual(result.value.backend, "trt")
-        self.assertEqual(result.value.nvidia_gpu_config.tensorRT_ver, "8.6.1")
+        self.assertEqual(result.value.tensorrt_config.tensorRT_ver, "8.6.1")
         self.assertEqual(input_mock.call_count, 2)
 
     @patch.object(module, "get_nvidia_gpu_info")
@@ -248,7 +248,7 @@ class TestChooseBackend(unittest.TestCase):
 
         self.assertTrue(result.is_ok)
         self.assertEqual(result.value.backend, "trt")
-        self.assertEqual(result.value.nvidia_gpu_config, trt_config)
+        self.assertEqual(result.value.tensorrt_config, trt_config)
 
     @patch.object(module, "get_nvidia_gpu_info")
     @patch.object(module, "detect_trt_availability")

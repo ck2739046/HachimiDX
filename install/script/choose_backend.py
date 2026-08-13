@@ -9,14 +9,18 @@ from .detect_pytorch_cuda import (
     detect_pytorch_cuda_availability,
     pytorch_cuda_config as PytorchCudaConfig,
 )
-from .detect_trt import NvidiaGpuDetection, detect_trt_availability, nvidia_config
+from .detect_trt import (
+    TensorRTGpuDetection,
+    detect_trt_availability,
+    tensorrt_config as TensorRTConfig,
+)
 from .op_result import OpResult, err, ok
 
 
 @dataclass(slots=True, frozen=True)
 class BackendChoice:
     backend: str
-    nvidia_gpu_config: nvidia_config | None = None
+    tensorrt_config: TensorRTConfig | None = None
     pytorch_cuda_config: PytorchCudaConfig | None = None
 
 
@@ -96,12 +100,12 @@ def choose_backend(T) -> OpResult[BackendChoice]:
         return ok(BackendChoice(backend=backend))
 
     # 特例: TensorRT 可能需要进一步选择 GPU 配置
-    config_result = _choose_trt_config(T, trt_result)
+    config_result = _choose_tensorrt_config(T, trt_result)
     if not config_result.is_ok:
         return err(T.choose_backend.trt_selection_failed, inner=config_result)
 
     return ok(BackendChoice(backend="trt",
-                            nvidia_gpu_config=config_result.value))
+                            tensorrt_config=config_result.value))
 
 
 
@@ -246,7 +250,7 @@ def _format_driver(driver_version: tuple[int, int]) -> str:
 
 def _format_config(
     backend: str,
-    config: nvidia_config | PytorchCudaConfig | None,
+    config: TensorRTConfig | PytorchCudaConfig | None,
 ) -> str:
     if config is None:
         return "-"
@@ -315,23 +319,23 @@ def _ask_backend(
         return ok(selected_backend)
 
 
-def _choose_trt_config(
+def _choose_tensorrt_config(
     T,
     result: OpResult[Any],
-) -> OpResult[nvidia_config]:
+) -> OpResult[TensorRTConfig]:
     if not result.is_ok or result.value is None:
         return err(T.choose_backend.trt_not_available)
 
-    candidates: list[NvidiaGpuDetection] = [
+    candidates: list[TensorRTGpuDetection] = [
         gpu for gpu in result.value
         if gpu.is_available and gpu.config is not None
     ]
     if not candidates:
         return err(T.choose_backend.trt_not_available)
 
-    config_groups: dict[tuple[Any, ...], list[NvidiaGpuDetection]] = {}
+    config_groups: dict[tuple[Any, ...], list[TensorRTGpuDetection]] = {}
     for gpu in candidates:
-        key = tuple(getattr(gpu.config, field.name) for field in fields(nvidia_config))
+        key = tuple(getattr(gpu.config, field.name) for field in fields(TensorRTConfig))
         config_groups.setdefault(key, []).append(gpu)
 
     if len(config_groups) == 1:

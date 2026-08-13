@@ -8,7 +8,7 @@ from .op_result import OpResult, ok, err, print_op_result
 
 from .choose_backend import choose_backend
 from .detect_pytorch_cuda import pytorch_cuda_config
-from .detect_trt import nvidia_config
+from .detect_trt import tensorrt_config
 from .download_legacy_trt import install_legacy_tensorrt, remove_legacy_tensorrt_runtime
 
 
@@ -154,25 +154,25 @@ def install() -> OpResult[None]:
 
     backend_choice = result.value
     backend = backend_choice.backend
-    nvidia_gpu_config = backend_choice.nvidia_gpu_config
+    tensorrt_gpu_config = backend_choice.tensorrt_config
     pytorch_gpu_config = backend_choice.pytorch_cuda_config
     install_dml = backend == "dml"
     install_ncnn_ = backend == "ncnn"
 
     # install pytorch
-    success = install_pytorch(nvidia_gpu_config, pytorch_gpu_config)
+    success = install_pytorch(tensorrt_gpu_config, pytorch_gpu_config)
     if not success:
         return err("Failed to install pytorch.")
 
     # install ultralytics + onnxruntime
-    success = install_ultralytics_onnx(backend, nvidia_gpu_config)
+    success = install_ultralytics_onnx(backend, tensorrt_gpu_config)
     if not success:
         return err("Failed to install ultralytics or onnxruntime.")
 
     # model inference acceleration
-    if backend == "trt" and nvidia_gpu_config is not None:
+    if backend == "trt" and tensorrt_gpu_config is not None:
         # install TensorRT
-        is_success = install_tensorrt(nvidia_gpu_config)
+        is_success = install_tensorrt(tensorrt_gpu_config)
         if not is_success: sys.exit(1)
     elif install_dml:
         # modify ultralytics for DirectML
@@ -226,7 +226,7 @@ def ask_use_pypi_mirror():
         USE_PyPI_Mirror = True
 
 def install_pytorch(
-    nvidia_gpu_config: nvidia_config | None,
+    tensorrt_gpu_config: tensorrt_config | None,
     pytorch_gpu_config: pytorch_cuda_config | None,
 ) -> bool:
 
@@ -236,11 +236,11 @@ def install_pytorch(
     else:
         base_url = "https://download.pytorch.org/whl"
 
-    if nvidia_gpu_config is not None:
+    if tensorrt_gpu_config is not None:
         # 使用配置指定的版本
-        torch_ver = nvidia_gpu_config.torch_ver
-        torchvision_ver = nvidia_gpu_config.torchvision_ver
-        target = nvidia_gpu_config.torch_cuda_ver
+        torch_ver = tensorrt_gpu_config.torch_ver
+        torchvision_ver = tensorrt_gpu_config.torchvision_ver
+        target = tensorrt_gpu_config.torch_cuda_ver
     elif pytorch_gpu_config is not None:
         torch_ver = pytorch_gpu_config.torch_ver
         torchvision_ver = pytorch_gpu_config.torchvision_ver
@@ -266,14 +266,14 @@ def install_pytorch(
 
 def install_ultralytics_onnx(
     backend: str,
-    nvidia_gpu_config: nvidia_config | None,
+    tensorrt_gpu_config: tensorrt_config | None,
 ) -> bool:
 
     # onnx/onnxslim 必装
     libs = ["onnx==1.20.1", "onnxslim==0.1.90"]
     # onnxruntime 三选一
-    if backend == "trt" and nvidia_gpu_config is not None:
-        libs += [f"onnxruntime-gpu=={nvidia_gpu_config.onnxruntime_gpu_ver}"]
+    if backend == "trt" and tensorrt_gpu_config is not None:
+        libs += [f"onnxruntime-gpu=={tensorrt_gpu_config.onnxruntime_gpu_ver}"]
     elif backend == "dml":
         libs += ["onnxruntime-directml==1.24.4"]
     else:
@@ -287,13 +287,13 @@ def install_ultralytics_onnx(
 
     # 安装 Ultralytics
     numpy_ver = (
-        nvidia_gpu_config.numpy_ver
-        if backend == "trt" and nvidia_gpu_config is not None
+        tensorrt_gpu_config.numpy_ver
+        if backend == "trt" and tensorrt_gpu_config is not None
         else "2.4.3"
     )
     libs = ["ultralytics==8.4.115", "lap==0.5.13", f"numpy=={numpy_ver}"]
-    if backend == "trt" and nvidia_gpu_config is not None:
-        libs += [f"opencv-python=={nvidia_gpu_config.opencv_ver}"]
+    if backend == "trt" and tensorrt_gpu_config is not None:
+        libs += [f"opencv-python=={tensorrt_gpu_config.opencv_ver}"]
 
     cmd = [sys.executable, "-m", "pip", "install",
            *libs, "--no-warn-script-location"]
@@ -307,12 +307,12 @@ def install_ultralytics_onnx(
 
 
 
-def install_tensorrt(nvidia_gpu_config: nvidia_config) -> bool:
+def install_tensorrt(config: tensorrt_config) -> bool:
 
-    if nvidia_gpu_config.is_trt_legacy:
+    if config.is_trt_legacy:
         print(f"\n-----\n")
         result = install_legacy_tensorrt(T, ROOT, sys.executable,
-                                         nvidia_gpu_config.tensorRT_ver)
+                                         config.tensorRT_ver)
         if not result.is_ok:
             print(print_op_result(result))
             return False
@@ -329,7 +329,7 @@ def install_tensorrt(nvidia_gpu_config: nvidia_config) -> bool:
 
     # 再安装 NVIDIA TensorRT
     cmd = [sys.executable, "-m", "pip", "install",
-           f"tensorrt=={nvidia_gpu_config.tensorRT_ver}",
+           f"tensorrt=={config.tensorRT_ver}",
            "--no-warn-script-location",
            "--extra-index-url", "https://pypi.nvidia.com"]
     is_success = general_pip_install("TensorRT", cmd)
