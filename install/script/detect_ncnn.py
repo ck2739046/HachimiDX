@@ -1,4 +1,5 @@
 import ctypes
+from dataclasses import dataclass
 
 from .op_result import OpResult, err, ok
 
@@ -17,6 +18,13 @@ LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
 VkInstance = ctypes.c_void_p
 VkPhysicalDevice = ctypes.c_void_p
 VkResult = ctypes.c_int32
+
+
+@dataclass(slots=True)
+class NcnnGpuDetection:
+    gpu_name: str
+    is_available: bool
+    reason: str | None = None
 
 
 class _VkApplicationInfo(ctypes.Structure):
@@ -167,7 +175,7 @@ def _has_compute_queue(vulkan, device: VkPhysicalDevice) -> bool:
     )
 
 
-def _get_vulkan_gpu_names(T) -> OpResult[list[str]]:
+def _get_vulkan_gpus(T) -> OpResult[list[NcnnGpuDetection]]:
     try:
         vulkan = ctypes.WinDLL("vulkan-1.dll", winmode=LOAD_LIBRARY_SEARCH_SYSTEM32)
     except OSError as e:
@@ -193,11 +201,17 @@ def _get_vulkan_gpu_names(T) -> OpResult[list[str]]:
                 VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU,
             }:
                 continue
-            if not _has_compute_queue(vulkan, device):
-                continue
-
             gpu_name = bytes(properties.deviceName).split(b"\0", 1)[0].decode("utf-8", errors="replace")
-            gpus.append(gpu_name)
+            if _has_compute_queue(vulkan, device):
+                gpus.append(NcnnGpuDetection(gpu_name, True))
+            else:
+                gpus.append(
+                    NcnnGpuDetection(
+                        gpu_name,
+                        False,
+                        T.detect_ncnn.no_compute_queue,
+                    )
+                )
 
         if not gpus:
             return err(T.detect_ncnn.no_compute_gpu)
@@ -209,15 +223,5 @@ def _get_vulkan_gpu_names(T) -> OpResult[list[str]]:
             vulkan.vkDestroyInstance(instance, None)
 
 
-def detect_ncnn_availability(T) -> OpResult[list[str]]:
-    print(f"\n-----\n\n{T.detect_ncnn.start}\n")
-
-    result = _get_vulkan_gpu_names(T)
-    if not result.is_ok:
-        return result
-
-    print(T.detect_ncnn.gpu_detected_title)
-    for index, gpu_name in enumerate(result.value):
-        print(T.detect_ncnn.gpu_info.format(index=index, gpu_name=gpu_name))
-
-    return result
+def detect_ncnn_availability(T) -> OpResult[list[NcnnGpuDetection]]:
+    return _get_vulkan_gpus(T)

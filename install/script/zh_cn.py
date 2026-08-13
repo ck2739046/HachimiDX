@@ -85,54 +85,40 @@ PyPI 镜像可以显著加速国内的下载和安装。
 
 
 
-ask_install_trt = SN(
-    prompt = """
-TensorRT 能够调用 NVIDIA GPU 进行模型推理加速。
-你是否想安装 NVIDIA TensorRT?
-
-如果你有 NVIDIA GPU，强烈建议选择"是"。
-其他情况请选择"否"。
-
-1. 是 (默认)
-2. 否
-3. 退出
-
--> """,
-
-    defaulting = "默认选择「是」。",
-)
-
-
-
-ask_continue_install = SN(
-    prompt = """
-是否继续安装？
-
-1. 否 (默认)
-2. 是
-
--> """,
-
-    defaulting = "默认选择「否」。",
-)
-
-
-
-ask_install_ncnn = SN(
-    prompt = """
-NCNN 可以通过 Vulkan 调用 GPU 进行模型推理加速。
-你是否想安装 NCNN 后端？
-
-如果你有兼容 Vulkan 的 GPU，强烈建议选择"是"。
-其他情况请选择"否"。
-
-1. 是 (默认)
-2. 否
-3. 退出
-
--> """,
-
-    defaulting = "默认选择「是」。",
+choose_backend = SN(
+    detect_start = "正在检测所有推理后端和显卡...",
+    summary_title = "推理后端检测结果：",
+    available = "可用",
+    unavailable = "不可用",
+    unavailable_with_reason = "不可用：{reason}",
+    backend_status = "{backend}：{status}",
+    backend_reason = "  原因：{reason}",
+    gpu_status = "  GPU {index}：{gpu_name}{details} —— {status}",
+    gpu_unavailable = "不可用：{reason}",
+    nvidia_gpu_details = "，显存 {vram} GB，SM {compute_cap}，驱动 {driver}，配置 {config}",
+    cpu_backend = "PyTorch CPU",
+    trt_backend = "TensorRT",
+    dml_backend = "DirectML",
+    ncnn_backend = "NCNN Vulkan",
+    no_available_gpu = "没有可用的 GPU。",
+    no_gpu_detected = "没有检测到目标 GPU。",
+    unknown_detection_error = "检测失败。",
+    detection_exception = "{backend} 检测时发生异常：{error}",
+    backend_menu_title = "请选择要安装的推理后端：",
+    backend_option = "{index}. {backend} [{status}]",
+    backend_recommendation = "推荐安装 {backend}（此为默认选项）",
+    backend_prompt = "请输入后端编号（1, 2, 3, ...）\n-> ",
+    exit_option = "5. 退出",
+    invalid_backend_choice = "输入无效，请重新输入。",
+    backend_not_available = "该后端不可用，请选择可用后端。",
+    backend_selection_failed = "后端选择失败。",
+    user_cancelled = "用户取消了后端选择。",
+    trt_not_available = "没有可用的 NVIDIA 显卡。",
+    trt_selection_failed = "TensorRT 显卡配置选择失败。",
+    trt_gpu_menu_title = "检测到多张配置不同的可用 NVIDIA 显卡，请选择显卡：",
+    trt_gpu_option = "{index}. {gpu_name}，显存 {vram} GB，SM {compute_cap}，驱动 {driver}，配置 {config}",
+    trt_gpu_prompt = "请输入显卡编号（0, 1, 2, ...）\n-> ",
+    invalid_gpu_choice = "输入无效，请重新输入。",
 )
 
 
@@ -188,6 +174,7 @@ detect_ncnn = SN(
     loader_unavailable = "未找到系统 Vulkan Loader，请安装或升级显卡驱动。",
     api_unavailable = "系统 Vulkan Loader 缺少必要的 Vulkan 1.0 API。",
     no_compute_gpu = "未检测到具有 Vulkan 计算队列的独立或集成 GPU。",
+    no_compute_queue = "没有 Vulkan 计算队列。",
     check_failed = "检测 Vulkan GPU 时发生错误。",
     gpu_detected_title = "检测到可用于 NCNN Vulkan 的 GPU:",
     gpu_info = "{index}. {gpu_name}",
@@ -200,28 +187,10 @@ detect_dml = SN(
     loader_unavailable = "未找到系统 DXGI 或 Direct3D 12 运行库，请更新 Windows 和显卡驱动。",
     api_unavailable = "系统缺少所需的 DXGI 或 Direct3D 12 API。",
     no_d3d12_gpu = "未检测到可创建 Direct3D 12 设备的硬件 GPU，请更新显卡驱动或使用其他后端。",
+    device_unavailable = "无法创建 Direct3D 12 设备。",
     check_failed = "检测 DirectX 12 GPU 时发生错误。",
     gpu_detected_title = "检测到可用于 DirectML 的 DirectX 12 GPU:",
     gpu_info = "{index}. {gpu_name}",
-)
-
-
-
-ask_install_dml = SN(
-    prompt = """
-DirectML 能够调用 GPU 进行模型推理加速。
-你是否想安装 DirectML？
-
-如果你有兼容 DX12 的 GPU，强烈建议选择"是"。
-其他情况请选择"否"。
-
-1. 是 (默认)
-2. 否
-3. 退出
-
--> """,
-
-    defaulting = "默认选择「是」。",
 )
 
 

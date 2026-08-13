@@ -6,9 +6,8 @@ import shutil
 from . import en_us, zh_cn
 from .op_result import OpResult, ok, err, print_op_result
 
-from .detect_trt import detect_trt_availability, nvidia_config
-from .detect_ncnn import detect_ncnn_availability
-from .detect_dml import detect_dml_availability
+from .choose_backend import choose_backend
+from .detect_trt import nvidia_config
 from .download_legacy_trt import install_legacy_tensorrt, remove_legacy_tensorrt_runtime
 
 
@@ -146,50 +145,17 @@ def install() -> OpResult[None]:
 
     ask_use_pypi_mirror()
 
-    # ask install TensorRT
-    nvidia_gpu_config: nvidia_config|None = None
-    install_trt = ask_install_trt()
-    if install_trt:
-        # 检测是否可用
-        result = detect_trt_availability(T)
-        if result.is_ok:
-            nvidia_gpu_config = result.value
-        else:
-            print(print_op_result(result))
-            print(f"\n{T.install.detect_trt_failed}")
-            # 不可用，询问是否继续安装
-            does_continue = ask_continue_install()
-            if not does_continue:
-                sys.exit(1)
+    result = choose_backend(T)
+    if not result.is_ok:
+        return err("Failed to choose inference backend.", inner=result)
+    if result.value is None:
+        return err("Backend choice did not contain a value.", inner=result)
 
-    # ask install DirectML (if no trt)
-    install_dml = False
-    if nvidia_gpu_config is None:
-        install_dml = ask_install_dml()
-    if install_dml:
-        result = detect_dml_availability(T)
-        if not result.is_ok:
-            print(print_op_result(result))
-            print(f"\n{T.install.detect_dml_failed}")
-            does_continue = ask_continue_install()
-            if not does_continue:
-                sys.exit(1)
-            install_dml = False
-
-    # ask install NCNN (if no trt/dml)
-    install_ncnn_ = False
-    if nvidia_gpu_config is None and not install_dml:
-        install_ncnn_ = ask_install_ncnn()
-    if install_ncnn_:
-        # 检测是否可用
-        result = detect_ncnn_availability(T)
-        if not result.is_ok:
-            print(print_op_result(result))
-            print(f"\n{T.install.detect_ncnn_failed}")
-            does_continue = ask_continue_install()
-            if not does_continue:
-                sys.exit(1)
-            install_ncnn_ = False
+    backend_choice = result.value
+    backend = backend_choice.backend
+    nvidia_gpu_config = backend_choice.nvidia_gpu_config
+    install_dml = backend == "dml"
+    install_ncnn_ = backend == "ncnn"
 
     # install pytorch
     success = install_pytorch(nvidia_gpu_config)
@@ -256,60 +222,6 @@ def ask_use_pypi_mirror():
     else:
         print(T.ask_use_pypi_mirror.defaulting)
         USE_PyPI_Mirror = True
-
-def ask_install_trt() -> bool:
-    print("\n-----")
-    install_trt = input(T.ask_install_trt.prompt).strip()
-    if install_trt == "1":
-        return True
-    elif install_trt == "2":
-        return False
-    elif install_trt == "3":
-        sys.exit(0)
-    else:
-        print(T.ask_install_trt.defaulting)
-        return True
-
-def ask_continue_install() -> bool:
-    print("\n-----")
-    continue_install = input(T.ask_continue_install.prompt).strip()
-    if continue_install == "1":
-        return False
-    elif continue_install == "2":
-        return True
-    else:
-        print(T.ask_continue_install.defaulting)
-        return False
-
-def ask_install_dml() -> bool:
-    print("\n-----")
-    install_dml = input(T.ask_install_dml.prompt).strip()
-    if install_dml == "1":
-        return True
-    elif install_dml == "2":
-        return False
-    elif install_dml == "3":
-        sys.exit(0)
-    else:
-        print(T.ask_install_dml.defaulting)
-        return True
-
-def ask_install_ncnn() -> bool:
-    print("\n-----")
-    install_ncnn = input(T.ask_install_ncnn.prompt).strip()
-    if install_ncnn == "1":
-        return True
-    elif install_ncnn == "2":
-        return False
-    elif install_ncnn == "3":
-        sys.exit(0)
-    else:
-        print(T.ask_install_ncnn.defaulting)
-        return True
-
-
-
-
 
 def install_pytorch(nvidia_gpu_config: nvidia_config|None) -> bool:
 

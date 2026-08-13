@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import subprocess
-from .op_result import OpResult, ok, err, print_op_result
+from .op_result import OpResult, ok, err
 
 # 最低显存需要 3GB
 MIN_TRT_VRAM_MIB = 3 * 1024
@@ -31,6 +31,17 @@ class _gpu_info:
     compute_capability: tuple[int, int]
     driver_version: tuple[int, int]
     vram_mib: int
+
+
+@dataclass
+class NvidiaGpuDetection:
+    gpu_name: str
+    compute_capability: tuple[int, int]
+    driver_version: tuple[int, int]
+    vram_mib: int
+    is_available: bool
+    reason: str | None = None
+    config: nvidia_config | None = None
 
 
 # 以 sm 从高到低排序
@@ -83,10 +94,8 @@ nvidia_config_list: list[nvidia_config] = [
 
 
 
-def detect_trt_availability(T) -> OpResult[nvidia_config]:
+def detect_trt_availability(T) -> OpResult[list[NvidiaGpuDetection]]:
     """detect_trt.py 主入口"""
-
-    print(f"\n-----\n\n{T.detect_trt.start}\n")
 
     # 获取 NVIDIA GPU 信息
     result = _get_nvidia_gpu_info(T)
@@ -94,34 +103,27 @@ def detect_trt_availability(T) -> OpResult[nvidia_config]:
         return err("Failed to get nvidia gpu info.", inner=result)
     gpus = result.value
 
-    # 选择要使用的显卡
-    if len(gpus) > 1:
-        while True:
-            try:
-                content = input(T.detect_trt.select_gpu_prompt).strip()
-                selected_index = int(content)
-                if selected_index < 0 or selected_index >= len(gpus):
-                    print(T.detect_trt.select_gpu_try_again)
-                    continue
-                selected_gpu = gpus[selected_index]
-                break
-            except ValueError:
-                print(T.detect_trt.select_gpu_try_again)
-                continue
-    else:
-        selected_gpu = gpus[0]
+    detections = []
+    for gpu in gpus:
+        gpu_config, reason = _check_gpu(
+            T,
+            gpu.compute_capability,
+            gpu.driver_version,
+            gpu.vram_mib,
+        )
+        detections.append(
+            NvidiaGpuDetection(
+                gpu_name=gpu.gpu_name,
+                compute_capability=gpu.compute_capability,
+                driver_version=gpu.driver_version,
+                vram_mib=gpu.vram_mib,
+                is_available=gpu_config is not None,
+                reason=reason,
+                config=gpu_config,
+            )
+        )
 
-    # 检查显卡是否可用
-    gpu_config = _is_gpu_valid(
-        T,
-        selected_gpu.compute_capability,
-        selected_gpu.driver_version,
-        selected_gpu.vram_mib,
-    )
-    if gpu_config is None:
-        return err("Selected GPU is not valid.")
-    
-    return ok(gpu_config)
+    return ok(detections)
 
 
 
@@ -136,12 +138,14 @@ def _get_nvidia_gpu_info(T) -> OpResult[list[_gpu_info]]:
         try:
             result = subprocess.run(cmd, check=True, capture_output=True, text=True)
         except Exception as e:
-            if e.stdout and e.stderr:
-                output = f"stdout: {e.stdout}\nstderr: {e.stderr}"
-            elif e.stdout:
-                output = e.stdout
-            elif e.stderr:
-                output = e.stderr
+            stdout = getattr(e, "stdout", None)
+            stderr = getattr(e, "stderr", None)
+            if stdout and stderr:
+                output = f"stdout: {stdout}\nstderr: {stderr}"
+            elif stdout:
+                output = stdout
+            elif stderr:
+                output = stderr
             else:
                 output = "no output"
             return err(f"Failed to run nvidia-smi command: {output}", error_raw=e)
@@ -173,18 +177,6 @@ def _get_nvidia_gpu_info(T) -> OpResult[list[_gpu_info]]:
         if not gpus:
             return err("No NVIDIA GPU detected.")
         
-        # 打印显卡信息
-        print(T.detect_trt.gpu_detected_title)
-        index = 0
-        for gpu in gpus:
-            compute_cap_print = f"{gpu.compute_capability[0]}.{gpu.compute_capability[1]}"
-            driver_ver_print = f"{gpu.driver_version[0]}.{gpu.driver_version[1]}"
-            print(
-                f"{index}. {gpu.gpu_name}, VRAM: {_format_mb_to_gb(gpu.vram_mib)} GB, "
-                f"SM: {compute_cap_print}, Driver: {driver_ver_print}"
-            )
-            index += 1
-
         return ok(gpus)
     
     except Exception as e:
@@ -194,27 +186,26 @@ def _get_nvidia_gpu_info(T) -> OpResult[list[_gpu_info]]:
 
 
 
-def _is_gpu_valid(T,
-                  compute_cap: tuple[int, int],
-                  driver_ver:  tuple[int, int],
-                  vram_mib: int,
-                 ) -> nvidia_config | None:
+def _check_gpu(
+    T,
+    compute_cap: tuple[int, int],
+    driver_ver: tuple[int, int],
+    vram_mib: int,
+) -> tuple[nvidia_config | None, str | None]:
     """
     根据 显存/计算能力/驱动版本 判断显卡是否可用，并返回对应的配置。
 
-    返回：nvidia_config | None: 可用时返回对应的配置，否则返回 None
+    返回配置和不可用原因。
     """
 
     target_cfg: nvidia_config | None = None
 
     # 检查显存是否达标
     if vram_mib < MIN_TRT_VRAM_MIB:
-        print()
-        print(T.detect_trt.insufficient_memory.format(
+        return None, T.detect_trt.insufficient_memory.format(
             real_vram=_format_mb_to_gb(vram_mib),
             min_vram=_format_mb_to_gb(MIN_TRT_VRAM_MIB),
-        ))
-        return None
+        )
 
     # 计算输入的 compute_cap 属于哪一个配置
     for cfg in nvidia_config_list:
@@ -223,20 +214,16 @@ def _is_gpu_valid(T,
                 target_cfg = cfg
     if target_cfg is None:
         # 计算能力低于最低配置
-        print()
-        print(T.detect_trt.low_compute_cap.format(
+        return None, T.detect_trt.low_compute_cap.format(
             compute_cap=f"sm {compute_cap[0]}.{compute_cap[1]}",
             min_compute_cap=f"sm {nvidia_config_list[-1].compute_capability[0]}.{nvidia_config_list[-1].compute_capability[1]}",
-        ))
-        return None
+        )
 
     # 驱动版本不达标：不允许回退到其他区间，直接判为不可用
     if driver_ver < target_cfg.win_driver_ver:
-        print()
-        print(T.detect_trt.invalid_driver_version.format(
+        return None, T.detect_trt.invalid_driver_version.format(
             driver_version=f"{driver_ver[0]}.{driver_ver[1]}",
             min_driver_version=f"{target_cfg.win_driver_ver[0]}.{target_cfg.win_driver_ver[1]}",
-        ))
-        return None
+        )
 
-    return target_cfg
+    return target_cfg, None

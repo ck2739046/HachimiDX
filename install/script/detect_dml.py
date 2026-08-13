@@ -1,5 +1,6 @@
 import ctypes
 import uuid
+from dataclasses import dataclass
 from ctypes import wintypes
 
 from .op_result import OpResult, err, ok
@@ -11,6 +12,13 @@ DXGI_ERROR_NOT_FOUND = 0x887A0002
 LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
 
 HRESULT = ctypes.c_long
+
+
+@dataclass(slots=True)
+class DmlGpuDetection:
+    gpu_name: str
+    is_available: bool
+    reason: str | None = None
 
 
 class _GUID(ctypes.Structure):
@@ -123,7 +131,7 @@ def _supports_d3d12(d3d12, adapter: ctypes.c_void_p) -> bool:
     return not _failed(result)
 
 
-def _enumerate_d3d12_gpu_names(dxgi, d3d12) -> list[str]:
+def _enumerate_d3d12_gpus(T, dxgi, d3d12) -> list[DmlGpuDetection]:
     factory = _create_dxgi_factory(dxgi)
     try:
         enum_adapters1 = _get_com_method(
@@ -153,10 +161,17 @@ def _enumerate_d3d12_gpu_names(dxgi, d3d12) -> list[str]:
                 if desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE:
                     continue
 
-                if not _supports_d3d12(d3d12, adapter):
-                    continue
-
-                gpus.append(desc.Description.rstrip("\0"))
+                gpu_name = desc.Description.rstrip("\0")
+                if _supports_d3d12(d3d12, adapter):
+                    gpus.append(DmlGpuDetection(gpu_name, True))
+                else:
+                    gpus.append(
+                        DmlGpuDetection(
+                            gpu_name,
+                            False,
+                            T.detect_dml.device_unavailable,
+                        )
+                    )
             finally:
                 _release_com_object(adapter)
 
@@ -165,7 +180,7 @@ def _enumerate_d3d12_gpu_names(dxgi, d3d12) -> list[str]:
         _release_com_object(factory)
 
 
-def _get_dml_gpu_names(T) -> OpResult[list[str]]:
+def _get_dml_gpus(T) -> OpResult[list[DmlGpuDetection]]:
     try:
         dxgi = ctypes.WinDLL("dxgi.dll", winmode=LOAD_LIBRARY_SEARCH_SYSTEM32)
         d3d12 = ctypes.WinDLL("d3d12.dll", winmode=LOAD_LIBRARY_SEARCH_SYSTEM32)
@@ -178,23 +193,10 @@ def _get_dml_gpu_names(T) -> OpResult[list[str]]:
         return err(T.detect_dml.api_unavailable, error_raw=e)
 
     try:
-        gpus = _enumerate_d3d12_gpu_names(dxgi, d3d12)
-        if not gpus:
-            return err(T.detect_dml.no_d3d12_gpu)
-        return ok(gpus)
+        return ok(_enumerate_d3d12_gpus(T, dxgi, d3d12))
     except Exception as e:
         return err(T.detect_dml.check_failed, error_raw=e)
 
 
-def detect_dml_availability(T) -> OpResult[list[str]]:
-    print(f"\n-----\n\n{T.detect_dml.start}\n")
-
-    result = _get_dml_gpu_names(T)
-    if not result.is_ok:
-        return result
-
-    print(T.detect_dml.gpu_detected_title)
-    for index, gpu_name in enumerate(result.value):
-        print(T.detect_dml.gpu_info.format(index=index, gpu_name=gpu_name))
-
-    return result
+def detect_dml_availability(T) -> OpResult[list[DmlGpuDetection]]:
+    return _get_dml_gpus(T)
