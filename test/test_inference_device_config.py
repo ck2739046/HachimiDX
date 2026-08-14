@@ -34,8 +34,10 @@ class TestInferenceDeviceConfig(unittest.TestCase):
 
     def test_backend_rules_and_fallbacks(self):
         cases = {
-            ("PyTorch", "cpu"): "cpu",
-            ("PyTorch", "cuda:1"): "cpu",
+            ("PyTorch CPU", "cpu"): "cpu",
+            ("PyTorch CPU", "cuda:1"): "cpu",
+            ("PyTorch CUDA", "cuda:1"): "cuda:1",
+            ("PyTorch CUDA", "cpu"): "cuda:0",
             ("TensorRT", "cuda:1"): "cuda:1",
             ("TensorRT", "vulkan:1"): "cuda:0",
             ("NCNN", "vulkan:1"): "vulkan:1",
@@ -54,6 +56,10 @@ class TestInferenceDeviceConfig(unittest.TestCase):
         with self.assertRaises(ValidationError):
             SettingsModel(model_backend="TensorRT", inference_device="cuda")
 
+    def test_settings_model_rejects_old_pytorch_backend_name(self):
+        with self.assertRaises(ValidationError):
+            SettingsModel(model_backend="PyTorch", inference_device="cpu")
+
     def test_settings_model_uses_central_backend_rules(self):
         self.assertEqual(
             SettingsModel(model_backend="TensorRT", inference_device="cuda:01").inference_device,
@@ -67,12 +73,22 @@ class TestInferenceDeviceConfig(unittest.TestCase):
             SettingsModel(model_backend="DirectML", inference_device="dml:01").inference_device,
             "dml:1",
         )
+        self.assertEqual(
+            SettingsModel(model_backend="PyTorch CPU", inference_device="cuda:1").inference_device,
+            "cpu",
+        )
+        self.assertEqual(
+            SettingsModel(model_backend="PyTorch CUDA", inference_device="cuda:01").inference_device,
+            "cuda:1",
+        )
 
     def test_directml_runtime_device_mapping(self):
         self.assertEqual(S_Defs.get_directml_device_index("dml:2"), 2)
         self.assertIsNone(S_Defs.get_directml_device_index("cuda:2"))
         self.assertEqual(S_Defs.get_runtime_inference_device("DirectML", "dml:2"), "cpu")
         self.assertEqual(S_Defs.get_runtime_inference_device("TensorRT", "cuda:2"), "cuda:2")
+        self.assertEqual(S_Defs.get_runtime_inference_device("PyTorch CPU", "cpu"), "cpu")
+        self.assertEqual(S_Defs.get_runtime_inference_device("PyTorch CUDA", "cuda:2"), "cuda:2")
 
 
 if __name__ == "__main__":

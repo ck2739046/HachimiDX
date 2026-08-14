@@ -73,8 +73,7 @@ def _check_cpu() -> list[tuple[str, str]] | None:
 
 
 
-def _check_cuda_or_tensorrt() -> list[tuple[str, str]] | None:
-
+def _check_cuda() -> list[tuple[str, str]] | None:
     # 检查 PyTorch 是否安装
     ok, torch = _check_torch_installed()
     if not ok:
@@ -85,16 +84,8 @@ def _check_cuda_or_tensorrt() -> list[tuple[str, str]] | None:
     cud_version = torch.version.cuda if hasattr(torch.version, "cuda") else "N/A"
     print(f"  - CUDA available: {cuda_support}")
     print(f"  - CUDA version: {cud_version}")
-    if not cuda_support or cud_version == "N/A":
+    if not cuda_support or not cud_version or cud_version == "N/A":
         print("CUDA support is not available in PyTorch")
-        return None
-
-    # 检查 TensorRT 是否安装
-    try:
-        import tensorrt
-        print(f"TensorRT installed, version {tensorrt.__version__}")
-    except ImportError as e:
-        print(f"TensorRT is not installed: {e!r}")
         return None
 
     # 列出所有 CUDA 设备
@@ -106,9 +97,29 @@ def _check_cuda_or_tensorrt() -> list[tuple[str, str]] | None:
     devices: list[tuple[str, str]] = []
     print("CUDA devices:")
     for i in range(device_count):
-        device_name = torch.cuda.get_device_name(i)
-        print(f"  - {i}: {device_name}")
-        devices.append((f"cuda:{i}", device_name))
+        try:
+            device_name = torch.cuda.get_device_name(i)
+            print(f"  - {i}: {device_name}")
+            devices.append((f"cuda:{i}", device_name))
+        except Exception as e:
+            print(f"  - {i}: unavailable ({e})")
+
+    return devices or None
+
+
+def _check_tensorrt() -> list[tuple[str, str]] | None:
+    # 检查 PyTorch 是否支持 cuda
+    devices = _check_cuda()
+    if not devices:
+        return None
+
+    # 检查 TensorRT 是否安装
+    try:
+        import tensorrt
+        print(f"TensorRT installed, version {tensorrt.__version__}")
+    except ImportError as e:
+        print(f"TensorRT is not installed: {e!r}")
+        return None
 
     return devices
 
@@ -261,10 +272,12 @@ def main(runtime: str) -> bool:
     runtime_norm = str(runtime or "").strip().lower()
 
     devices: list[tuple[str, str]] | None
-    if runtime_norm in {"pytorch", "cpu"}:
+    if runtime_norm in {"pytorch_cpu", "cpu"}:
         devices = _check_cpu()
-    elif runtime_norm in {"cuda", "tensorrt"}:
-        devices = _check_cuda_or_tensorrt()
+    elif runtime_norm in {"pytorch_cuda", "cuda"}:
+        devices = _check_cuda()
+    elif runtime_norm == "tensorrt":
+        devices = _check_tensorrt()
     elif runtime_norm == "ncnn":
         devices = _check_ncnn_vulkan()
     elif runtime_norm in {"directml", "dml", "onnx"}:

@@ -103,7 +103,7 @@ class PathManage:
     @classmethod
     def get_model_paths(cls, backend: str) -> OpResult[ModelPaths]:
         backend = str(backend).strip()
-        if backend == "PyTorch":
+        if backend in {"PyTorch CPU", "PyTorch CUDA"}:
             return ok(ModelPaths(
                 detect=cls.DETECT_PT_PATH,
                 obb=cls.OBB_PT_PATH,
@@ -201,7 +201,7 @@ class PathManage:
                 error_msg = f"Critical Error: Required file not found: {file_path}"
                 return err(error_msg)
 
-        model_result = cls.resolve_model_paths("PyTorch")
+        model_result = cls.resolve_model_paths("PyTorch CPU")
         if not model_result.is_ok:
             return err("Critical Error: Required PyTorch model artifact not found", inner=model_result)
             
