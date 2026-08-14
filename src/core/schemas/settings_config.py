@@ -39,11 +39,17 @@ class SettingsConfig_Definitions:
         type="str",
         group="model",
         default="TensorRT",
-        constraints={"options": ["PyTorch", "NCNN", "DirectML", "TensorRT"],
-                     "options_tooltips": ["ui_model_backend_pytorch_tooltip",
-                                          "ui_model_backend_ncnn_tooltip",
-                                          "ui_model_backend_directml_tooltip",
-                                          "ui_model_backend_tensorrt_tooltip"]},
+        constraints={
+            # 顺序按推理速度从慢到快
+            "options": ["PyTorch CPU", "NCNN", "DirectML", "PyTorch CUDA", "TensorRT"],
+            "options_tooltips": [
+                "ui_model_backend_pytorch_cpu_tooltip",
+                "ui_model_backend_ncnn_tooltip",
+                "ui_model_backend_directml_tooltip",
+                "ui_model_backend_pytorch_cuda_tooltip",
+                "ui_model_backend_tensorrt_tooltip",
+            ],
+        },
     )
 
     predict_batch_size_detect_obb = SettingsConfig_Definition(
@@ -85,7 +91,8 @@ class SettingsConfig_Definitions:
         "vulkan": True,
     }
     _INFERENCE_DEVICE_BACKEND_RULES = {
-        "PyTorch": {"schemes": frozenset({"cpu"}), "default": "cpu"},
+        "PyTorch CPU": {"schemes": frozenset({"cpu"}), "default": "cpu"},
+        "PyTorch CUDA": {"schemes": frozenset({"cuda"}), "default": "cuda:0"},
         "NCNN": {"schemes": frozenset({"vulkan"}), "default": "vulkan:0"},
         "DirectML": {"schemes": frozenset({"dml"}), "default": "dml:0"},
         "TensorRT": {"schemes": frozenset({"cuda"}), "default": "cuda:0"},

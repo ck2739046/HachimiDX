@@ -15,6 +15,7 @@ from src.core.build_worker_cmd import build_cmd_head_python_exe
 from src.services import PathManage, SettingsManage, process_manager_api, check_update
 
 I18N_Prefix = "app.settings_page"
+PYTORCH_BACKENDS = frozenset({"PyTorch CPU", "PyTorch CUDA"})
 
 
 @dataclass(slots=True)
@@ -110,7 +111,7 @@ class SettingsPage(BaseOutputPage):
         self.content_layout.addWidget(create_divider(i18n.t(f"{I18N_Prefix}.ui_model_divider")))
 
         backend_label = create_label(i18n.t(f"{I18N_Prefix}.ui_model_backend_label"))
-        self.model_backend_combo_box = self._create_combo_from_definition(S_Defs.model_backend, length=100)
+        self.model_backend_combo_box = self._create_combo_from_definition(S_Defs.model_backend, length=140)
         self.check_model_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_check_model_button"))
         self.convert_model_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_convert_model_button"))
         self.cancel_convert_model_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_cancel_convert_model_button"))
@@ -620,7 +621,8 @@ class SettingsPage(BaseOutputPage):
         backend = self.model_backend_combo_box.currentText().strip()
         self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_check_start", backend=backend))
         cmd = build_cmd_head_python_exe(PathManage.CHECK_DEVICE_WORKER_PATH)
-        cmd.append(backend.lower())
+        # "PyTorch CPU" -> "pytorch_cpu"
+        cmd.append(backend.lower().replace(" ", "_"))
         self._start_worker_cmd(cmd, "check", backend)
 
 
@@ -641,7 +643,7 @@ class SettingsPage(BaseOutputPage):
         backend = self.model_backend_combo_box.currentText().strip()
 
         # 特例：pytorch 后端不应该触发转换按钮
-        if backend == "PyTorch":
+        if backend in PYTORCH_BACKENDS:
             self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_pytorch_does_not_need_convert_model"))
             return
 
@@ -774,7 +776,7 @@ class SettingsPage(BaseOutputPage):
         if path_result.is_ok:
             self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_model_ready", backend=backend))
             # 特例：pytorch 后端不需要转换模型
-            if backend == "PyTorch":
+            if backend in PYTORCH_BACKENDS:
                 self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_pytorch_does_not_need_convert_model"))
             self._sync_ui_state()
             return
@@ -796,7 +798,7 @@ class SettingsPage(BaseOutputPage):
         )
 
         # 特例：pytorch 后端不显示转换按钮，直接报错
-        if backend == "PyTorch":
+        if backend in PYTORCH_BACKENDS:
             show_notify_dialog(
                 i18n.t(f"{I18N_Prefix}.dialog_title"),
                 i18n.t(f"{I18N_Prefix}.warning_pytorch_model_missing", error=model_error),
