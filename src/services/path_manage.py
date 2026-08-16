@@ -54,7 +54,7 @@ class PathManage:
     # worker 脚本
 
     AUTO_RECHART_WORKER_PATH: Path = WORKERS_DIR / "auto_rechart_worker.py"
-    CHECK_DEVICE_WORKER_PATH: Path = WORKERS_DIR / "check_device_worker.py"
+    CHECK_DEVICE_WORKER_PATH: Path = WORKERS_DIR / "check_device" / "main.py"
     MODEL_CONVERT_WORKER_PATH: Path = WORKERS_DIR / "model_convert_worker.py"
     AUDIO_ALIGN_WORKER_PATH: Path = WORKERS_DIR / "audio_align_worker.py"
     CHECK_FFMPEG_HW_ACCEL_WORKER_PATH: Path = WORKERS_DIR / "check_ffmpeg_hw_accel_worker.py"
