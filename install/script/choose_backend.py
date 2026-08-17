@@ -220,7 +220,6 @@ def _print_gpu_results(T, result: OpResult[Any], backend: str) -> None:
                 vram=_format_vram(gpu.vram_mib),
                 compute_cap=_format_compute_cap(gpu.compute_capability),
                 driver=_format_driver(gpu.driver_version),
-                config=_format_config(backend, gpu.config),
             )
         else:
             details = ""
@@ -249,17 +248,6 @@ def _format_compute_cap(compute_capability: tuple[int, int]) -> str:
 
 def _format_driver(driver_version: tuple[int, int]) -> str:
     return f"{driver_version[0]}.{driver_version[1]}"
-
-
-def _format_config(
-    backend: str,
-    config: TensorRTConfig | OnnxCudaConfig | None,
-) -> str:
-    if config is None:
-        return "-"
-    if backend == "trt":
-        return f"TensorRT {config.tensorRT_ver}"
-    return f"ONNX Runtime {config.onnxruntime_gpu_ver} / PyTorch {config.torch_ver} ({config.torch_cuda_ver})"
 
 
 def _ask_backend(
@@ -355,7 +343,6 @@ def _choose_tensorrt_config(
                 vram=_format_vram(gpu.vram_mib),
                 compute_cap=_format_compute_cap(gpu.compute_capability),
                 driver=_format_driver(gpu.driver_version),
-                config=_format_config("trt", gpu.config),
             )
         )
     print(T.choose_backend.exit_option)
@@ -412,7 +399,6 @@ def _choose_onnx_cuda_config(
                 vram=_format_vram(gpu.vram_mib),
                 compute_cap=_format_compute_cap(gpu.compute_capability),
                 driver=_format_driver(gpu.driver_version),
-                config=_format_config("onnx_cuda", gpu.config),
             )
         )
     print(T.choose_backend.exit_option)
