@@ -130,10 +130,13 @@ choose_backend = SN(
 
 pip_install = SN(
     mirror_names = {
-        "tsinghua": "清华源",
+        "thu": "清华大学",
         "tencent": "腾讯云",
         "huawei": "华为云",
         "aliyun": "阿里云",
+        "nju": "南京大学",
+        "sjtu": "上海交大",
+        "aliyun_pytorch": "阿里云 (PyTorch)",
     },
     start = "正在安装 {package_name}...",
     success = "{package_name} 安装完成。",

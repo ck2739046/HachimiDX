@@ -233,12 +233,6 @@ def install_pytorch(tensorrt_gpu_config: tensorrt_config | None,
                     onnx_cuda_gpu_config: onnx_cuda_config | None,
                    ) -> bool:
 
-    if USE_PyPI_Mirror:
-        # 南京大学源有 pytorch cuda 本体
-        base_url = "https://mirrors.nju.edu.cn/pytorch/whl"
-    else:
-        base_url = "https://download.pytorch.org/whl"
-
     if tensorrt_gpu_config is not None:
         # 使用配置指定的版本
         torch_ver = tensorrt_gpu_config.torch_ver
@@ -255,13 +249,23 @@ def install_pytorch(tensorrt_gpu_config: tensorrt_config | None,
         torchvision_ver = "0.25.0"
         target = "cpu"
 
+    # 包含 PyTorch Cuda 本体的镜像列表
+    pytorch_mirrors = [
+        ("nju",  ["-i", f"https://mirrors.nju.edu.cn/pytorch/whl/{target}"]),
+        ("aliyun_pytorch", ["-f", f"https://mirrors.aliyun.com/pytorch-wheels/{target}"]),
+        ("sjtu", ["-i", f"https://mirror.sjtu.edu.cn/pytorch-wheels/{target}"]),
+    ]
+
     cmd = [sys.executable, "-m", "pip", "install",
            f"torch=={torch_ver}",
            f"torchvision=={torchvision_ver}",
-           "--index-url", f"{base_url}/{target}",
            "--no-warn-script-location"]
-    
-    return general_pip_install(f"PyTorch ({target})", cmd, add_pypi_mirror=False)  # 显式禁用镜像，已经指定了南京大学
+    if not USE_PyPI_Mirror:
+        # 不使用镜像时, 附加官方 whl 地址
+        cmd.append("-i")
+        cmd.append(f"https://download.pytorch.org/whl/{target}")
+
+    return general_pip_install(f"PyTorch ({target})", cmd, pypi_mirrors=pytorch_mirrors)
 
 
 
@@ -415,7 +419,8 @@ def modify_ultralytics_for_dml(recover: bool = False) -> OpResult[None]:
 
 
 def general_pip_install(package_name, cmd: list[str],
-                        add_pypi_mirror: bool | None = None) -> bool:
+                        add_pypi_mirror: bool | None = None,
+                        pypi_mirrors: list[tuple[str, list[str]]] | None = None) -> bool:
     """
     执行一次 pip 安装，自动处理镜像切换。
 
@@ -423,22 +428,26 @@ def general_pip_install(package_name, cmd: list[str],
       - None： 跟随全局 USE_PyPI_Mirror
       - False：强制禁用 PyPI 镜像（即使全局启用）
       - True： 不支持强制启用, 视为 None
+    pypi_mirrors（可选）:
+      自定义镜像列表（key, args_list），默认使用内置 PYPI_MIRRORS。
     """
 
     # PyPI 镜像列表（key, args_list）优先级从上到下，首选清华源
     PYPI_MIRRORS = [
-        ("tsinghua", ["-i", "https://pypi.tuna.tsinghua.edu.cn/simple"]),
-        ("tencent",  ["-i", "https://mirrors.cloud.tencent.com/pypi/simple"]),
-        ("huawei",   ["-i", "https://repo.huaweicloud.com/repository/pypi/simple"]),
-        ("aliyun",   ["-i", "https://mirrors.aliyun.com/pypi/simple"]),
+        ("thu",     ["-i", "https://pypi.tuna.tsinghua.edu.cn/simple"]),
+        ("tencent", ["-i", "https://mirrors.cloud.tencent.com/pypi/simple"]),
+        ("huawei",  ["-i", "https://repo.huaweicloud.com/repository/pypi/simple"]),
+        ("aliyun",  ["-i", "https://mirrors.aliyun.com/pypi/simple"]),
     ]
 
     use_mirror = bool(USE_PyPI_Mirror) and add_pypi_mirror is not False
 
     # 构造使用每个镜像源的完整命令
     if use_mirror:
+        # 优先使用自定义镜像列表，否则使用默认 PYPI_MIRRORS
+        mirror_list = pypi_mirrors if pypi_mirrors is not None else PYPI_MIRRORS
         attempts = [(name, cmd + mirror_args)
-                    for name, mirror_args in PYPI_MIRRORS]
+                    for name, mirror_args in mirror_list]
     else:
         attempts = [("None", cmd)]
 
