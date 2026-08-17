@@ -2,13 +2,13 @@ import sys
 from dataclasses import dataclass, fields
 from typing import Any, Callable
 
-from .detect_dml import detect_dml_availability
+from .detect_onnx_dml import detect_dml_availability
 from .detect_ncnn import detect_ncnn_availability
 from .detect_nvidia import get_nvidia_gpu_info
-from .detect_pytorch_cuda import (
-    PytorchCudaGpuDetection,
-    detect_pytorch_cuda_availability,
-    pytorch_cuda_config as PytorchCudaConfig,
+from .detect_onnx_cuda import (
+    OnnxCudaGpuDetection,
+    detect_onnx_cuda_availability,
+    onnx_cuda_config as OnnxCudaConfig,
 )
 from .detect_trt import (
     TensorRTGpuDetection,
@@ -23,7 +23,7 @@ from .console_input import ask
 class BackendChoice:
     backend: str
     tensorrt_config: TensorRTConfig | None = None
-    pytorch_cuda_config: PytorchCudaConfig | None = None
+    onnx_cuda_config: OnnxCudaConfig | None = None
 
 
 def choose_backend(T) -> OpResult[BackendChoice]:
@@ -38,17 +38,17 @@ def choose_backend(T) -> OpResult[BackendChoice]:
             "TensorRT",
             lambda current_text: detect_trt_availability(current_text, gpus),
         )
-        pytorch_cuda_result = _safe_detect(
+        onnx_cuda_result = _safe_detect(
             T,
-            "PyTorch CUDA",
-            lambda current_text: detect_pytorch_cuda_availability(current_text, gpus),
+            "ONNX CUDA",
+            lambda current_text: detect_onnx_cuda_availability(current_text, gpus),
         )
     else:
         trt_result = err("Failed to get NVIDIA GPU info.", inner=nvidia_result)
-        pytorch_cuda_result = err("Failed to get NVIDIA GPU info.", inner=nvidia_result)
+        onnx_cuda_result = err("Failed to get NVIDIA GPU info.", inner=nvidia_result)
     dml_result = _safe_detect(
         T,
-        "DirectML",
+        "ONNX DML",
         detect_dml_availability,
     )
     ncnn_result = _safe_detect(
@@ -59,22 +59,22 @@ def choose_backend(T) -> OpResult[BackendChoice]:
 
     availability = {
         "trt": _has_available_gpu(trt_result),
-        "pytorch_cuda": _has_available_gpu(pytorch_cuda_result),
-        "dml": _has_available_gpu(dml_result),
+        "onnx_cuda": _has_available_gpu(onnx_cuda_result),
+        "onnx_dml": _has_available_gpu(dml_result),
         "ncnn": _has_available_gpu(ncnn_result),
-        "cpu": True,
+        "onnx_cpu": True,
     }
     reasons = {
         "trt": _get_backend_error(T, trt_result),
-        "pytorch_cuda": _get_backend_error(T, pytorch_cuda_result),
-        "dml": _get_backend_error(T, dml_result),
+        "onnx_cuda": _get_backend_error(T, onnx_cuda_result),
+        "onnx_dml": _get_backend_error(T, dml_result),
         "ncnn": _get_backend_error(T, ncnn_result),
     }
 
     _print_summary(
         T,
         trt_result,
-        pytorch_cuda_result,
+        onnx_cuda_result,
         dml_result,
         ncnn_result,
         availability,
@@ -88,14 +88,14 @@ def choose_backend(T) -> OpResult[BackendChoice]:
     backend = backend_result.value
     if backend is None:
         return err(T.choose_backend.backend_selection_failed)
-    if backend == "pytorch_cuda":
-        config_result = _choose_pytorch_cuda_config(T, pytorch_cuda_result)
+    if backend == "onnx_cuda":
+        config_result = _choose_onnx_cuda_config(T, onnx_cuda_result)
         if not config_result.is_ok:
-            return err(T.choose_backend.pytorch_cuda_selection_failed, inner=config_result)
+            return err(T.choose_backend.onnx_cuda_selection_failed, inner=config_result)
         return ok(
             BackendChoice(
-                backend="pytorch_cuda",
-                pytorch_cuda_config=config_result.value,
+                backend="onnx_cuda",
+                onnx_cuda_config=config_result.value,
             )
         )
     if backend != "trt":
@@ -153,7 +153,7 @@ def _get_backend_error(T, result: OpResult[Any]) -> str | None:
 def _print_summary(
     T,
     trt_result: OpResult[Any],
-    pytorch_cuda_result: OpResult[Any],
+    onnx_cuda_result: OpResult[Any],
     dml_result: OpResult[Any],
     ncnn_result: OpResult[Any],
     availability: dict[str, bool],
@@ -173,19 +173,19 @@ def _print_summary(
 
     _print_backend_status(
         T,
-        T.choose_backend.pytorch_cuda_backend,
-        availability["pytorch_cuda"],
-        reasons["pytorch_cuda"] if not availability["pytorch_cuda"] else None,
+        T.choose_backend.onnx_cuda_backend,
+        availability["onnx_cuda"],
+        reasons["onnx_cuda"] if not availability["onnx_cuda"] else None,
     )
-    _print_gpu_results(T, pytorch_cuda_result, "pytorch_cuda")
+    _print_gpu_results(T, onnx_cuda_result, "onnx_cuda")
 
     _print_backend_status(
         T,
-        T.choose_backend.dml_backend,
-        availability["dml"],
-        reasons["dml"] if not availability["dml"] else None,
+        T.choose_backend.onnx_dml_backend,
+        availability["onnx_dml"],
+        reasons["onnx_dml"] if not availability["onnx_dml"] else None,
     )
-    _print_gpu_results(T, dml_result, "dml")
+    _print_gpu_results(T, dml_result, "onnx_dml")
 
     _print_backend_status(
         T,
@@ -197,8 +197,8 @@ def _print_summary(
 
     _print_backend_status(
         T,
-        T.choose_backend.cpu_backend,
-        availability["cpu"],
+        T.choose_backend.onnx_cpu_backend,
+        availability["onnx_cpu"],
         None,
     )
 
@@ -215,7 +215,7 @@ def _print_gpu_results(T, result: OpResult[Any], backend: str) -> None:
         return
 
     for index, gpu in enumerate(result.value):
-        if backend in {"trt", "pytorch_cuda"}:
+        if backend in {"trt", "onnx_cuda"}:
             details = T.choose_backend.nvidia_gpu_details.format(
                 vram=_format_vram(gpu.vram_mib),
                 compute_cap=_format_compute_cap(gpu.compute_capability),
@@ -253,13 +253,13 @@ def _format_driver(driver_version: tuple[int, int]) -> str:
 
 def _format_config(
     backend: str,
-    config: TensorRTConfig | PytorchCudaConfig | None,
+    config: TensorRTConfig | OnnxCudaConfig | None,
 ) -> str:
     if config is None:
         return "-"
     if backend == "trt":
         return f"TensorRT {config.tensorRT_ver}"
-    return f"PyTorch {config.torch_ver} ({config.torch_cuda_ver})"
+    return f"ONNX Runtime {config.onnxruntime_gpu_ver} / PyTorch {config.torch_ver} ({config.torch_cuda_ver})"
 
 
 def _ask_backend(
@@ -267,13 +267,13 @@ def _ask_backend(
     availability: dict[str, bool],
     reasons: dict[str, str | None],
 ) -> OpResult[str]:
-    backend_order = ["trt", "pytorch_cuda", "dml", "ncnn", "cpu"]
+    backend_order = ["trt", "onnx_cuda", "onnx_dml", "ncnn", "onnx_cpu"]
     labels = {
         "trt": T.choose_backend.trt_backend,
-        "pytorch_cuda": T.choose_backend.pytorch_cuda_backend,
-        "dml": T.choose_backend.dml_backend,
+        "onnx_cuda": T.choose_backend.onnx_cuda_backend,
+        "onnx_dml": T.choose_backend.onnx_dml_backend,
         "ncnn": T.choose_backend.ncnn_backend,
-        "cpu": T.choose_backend.cpu_backend,
+        "onnx_cpu": T.choose_backend.onnx_cpu_backend,
     }
     default_backend = next(backend for backend in backend_order if availability[backend])
 
@@ -376,25 +376,25 @@ def _choose_tensorrt_config(
         return ok(candidates[selected_index].config)
 
 
-def _choose_pytorch_cuda_config(
+def _choose_onnx_cuda_config(
     T,
     result: OpResult[Any],
-) -> OpResult[PytorchCudaConfig]:
+) -> OpResult[OnnxCudaConfig]:
     if not result.is_ok or result.value is None:
-        return err(T.choose_backend.pytorch_cuda_not_available)
+        return err(T.choose_backend.onnx_cuda_not_available)
 
-    candidates: list[PytorchCudaGpuDetection] = [
+    candidates: list[OnnxCudaGpuDetection] = [
         gpu for gpu in result.value
         if gpu.is_available and gpu.config is not None
     ]
     if not candidates:
-        return err(T.choose_backend.pytorch_cuda_not_available)
+        return err(T.choose_backend.onnx_cuda_not_available)
 
-    config_groups: dict[tuple[Any, ...], list[PytorchCudaGpuDetection]] = {}
+    config_groups: dict[tuple[Any, ...], list[OnnxCudaGpuDetection]] = {}
     for gpu in candidates:
         key = tuple(
             getattr(gpu.config, field.name)
-            for field in fields(PytorchCudaConfig)
+            for field in fields(OnnxCudaConfig)
         )
         config_groups.setdefault(key, []).append(gpu)
 
@@ -402,24 +402,24 @@ def _choose_pytorch_cuda_config(
         return ok(candidates[0].config)
 
     print("\n-----\n")
-    print(T.choose_backend.pytorch_cuda_gpu_menu_title)
+    print(T.choose_backend.onnx_cuda_gpu_menu_title)
     print()
     for index, gpu in enumerate(candidates):
         print(
-            T.choose_backend.pytorch_cuda_gpu_option.format(
+            T.choose_backend.onnx_cuda_gpu_option.format(
                 index=index,
                 gpu_name=gpu.gpu_name,
                 vram=_format_vram(gpu.vram_mib),
                 compute_cap=_format_compute_cap(gpu.compute_capability),
                 driver=_format_driver(gpu.driver_version),
-                config=_format_config("pytorch_cuda", gpu.config),
+                config=_format_config("onnx_cuda", gpu.config),
             )
         )
     print(T.choose_backend.exit_option)
     print()
 
     while True:
-        content = ask(T.choose_backend.pytorch_cuda_gpu_prompt)
+        content = ask(T.choose_backend.onnx_cuda_gpu_prompt)
         if content == "6":
             sys.exit(0)
         try:

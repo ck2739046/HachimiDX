@@ -59,7 +59,7 @@ Are you sure you want to continue?
 install = SN(
     start = "Starting HachimiDX installation...",
     detect_trt_failed = "TensorRT is unavailable.",
-    detect_dml_failed = "DirectML is unavailable.",
+    detect_dml_failed = "ONNX DML is unavailable.",
     detect_ncnn_failed = "NCNN is unavailable.",
     done = "HachimiDX installation completed.",
 )
@@ -96,10 +96,10 @@ choose_backend = SN(
     gpu_status = "  GPU {index}: {gpu_name}{details} -- {status}",
     gpu_unavailable = "Unavailable: {reason}",
     nvidia_gpu_details = ", VRAM {vram} GB, SM {compute_cap}, driver {driver}, config {config}",
-    cpu_backend = "PyTorch CPU",
+    onnx_cpu_backend = "ONNX CPU",
     trt_backend = "TensorRT",
-    pytorch_cuda_backend = "PyTorch CUDA",
-    dml_backend = "DirectML",
+    onnx_cuda_backend = "ONNX CUDA",
+    onnx_dml_backend = "ONNX DML",
     ncnn_backend = "NCNN Vulkan",
     no_available_gpu = "No usable GPU was detected.",
     no_gpu_detected = "No target GPU was detected.",
@@ -118,11 +118,11 @@ choose_backend = SN(
     trt_gpu_menu_title = "Multiple usable NVIDIA GPUs have different configurations. Select a GPU:",
     trt_gpu_option = "{index}. {gpu_name}, VRAM {vram} GB, SM {compute_cap}, driver {driver}, config {config}",
     trt_gpu_prompt = "Please enter the GPU number (0, 1, 2, ...)\n-> ",
-    pytorch_cuda_not_available = "No NVIDIA GPU is available for PyTorch CUDA.",
-    pytorch_cuda_selection_failed = "PyTorch CUDA GPU configuration selection failed.",
-    pytorch_cuda_gpu_menu_title = "Multiple usable NVIDIA GPUs have different configurations. Select the PyTorch CUDA installation configuration:",
-    pytorch_cuda_gpu_option = "{index}. {gpu_name}, VRAM {vram} GB, SM {compute_cap}, driver {driver}, config {config}",
-    pytorch_cuda_gpu_prompt = "Please enter the GPU number (0, 1, 2, ...)\n-> ",
+    onnx_cuda_not_available = "No NVIDIA GPU is available for ONNX CUDA.",
+    onnx_cuda_selection_failed = "ONNX CUDA GPU configuration selection failed.",
+    onnx_cuda_gpu_menu_title = "Multiple usable NVIDIA GPUs have different configurations. Select the ONNX CUDA installation configuration:",
+    onnx_cuda_gpu_option = "{index}. {gpu_name}, VRAM {vram} GB, SM {compute_cap}, driver {driver}, config {config}",
+    onnx_cuda_gpu_prompt = "Please enter the GPU number (0, 1, 2, ...)\n-> ",
     invalid_gpu_choice = "Invalid input. Please try again.",
 )
 
@@ -174,7 +174,7 @@ detect_trt = SN(
 
 
 
-detect_pytorch_cuda = SN(
+detect_onnx_cuda = SN(
     low_compute_cap = "GPU compute capability {compute_cap} is below the minimum requirement {min_compute_cap}. Please upgrade the GPU or use another backend.",
     invalid_driver_version = "GPU driver version {driver_version} is below the minimum requirement {min_driver_version}. Please upgrade the GPU driver or use another backend.",
 )
@@ -195,13 +195,13 @@ detect_ncnn = SN(
 
 
 detect_dml = SN(
-    start = "Checking for a DirectX 12 GPU required by DirectML...",
+    start = "Checking for a DirectX 12 GPU required by ONNX DML...",
     loader_unavailable = "The system DXGI or Direct3D 12 runtime was not found. Update Windows and the GPU driver.",
     api_unavailable = "The system does not provide the required DXGI or Direct3D 12 API.",
     no_d3d12_gpu = "No hardware GPU capable of creating a Direct3D 12 device was detected. Update the GPU driver or use another backend.",
     device_unavailable = "A Direct3D 12 device could not be created.",
     check_failed = "An error occurred while checking DirectX 12 GPUs.",
-    gpu_detected_title = "Detected DirectX 12 GPU available for DirectML:",
+    gpu_detected_title = "Detected DirectX 12 GPU available for ONNX DML:",
     gpu_info = "{index}. {gpu_name}",
 )
 

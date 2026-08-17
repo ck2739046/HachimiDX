@@ -8,7 +8,7 @@ from .op_result import OpResult, ok, err, print_op_result
 from .console_input import ask
 
 from .choose_backend import choose_backend
-from .detect_pytorch_cuda import pytorch_cuda_config
+from .detect_onnx_cuda import onnx_cuda_config
 from .detect_trt import tensorrt_config
 from .download_legacy_trt import install_legacy_tensorrt, remove_legacy_tensorrt_runtime
 
@@ -155,17 +155,21 @@ def install() -> OpResult[None]:
     backend_choice = result.value
     backend = backend_choice.backend
     tensorrt_gpu_config = backend_choice.tensorrt_config
-    pytorch_gpu_config = backend_choice.pytorch_cuda_config
-    install_dml = backend == "dml"
+    onnx_cuda_gpu_config = backend_choice.onnx_cuda_config
+    install_dml = backend == "onnx_dml"
     install_ncnn_ = backend == "ncnn"
 
     # install pytorch
-    success = install_pytorch(tensorrt_gpu_config, pytorch_gpu_config)
+    success = install_pytorch(tensorrt_gpu_config, onnx_cuda_gpu_config)
     if not success:
         return err("Failed to install pytorch.")
 
     # install ultralytics + onnxruntime
-    success = install_ultralytics_onnx(backend, tensorrt_gpu_config)
+    success = install_ultralytics_onnx(
+        backend,
+        tensorrt_gpu_config,
+        onnx_cuda_gpu_config,
+    )
     if not success:
         return err("Failed to install ultralytics or onnxruntime.")
 
@@ -225,10 +229,9 @@ def ask_use_pypi_mirror():
         print(T.ask_use_pypi_mirror.defaulting)
         USE_PyPI_Mirror = True
 
-def install_pytorch(
-    tensorrt_gpu_config: tensorrt_config | None,
-    pytorch_gpu_config: pytorch_cuda_config | None,
-) -> bool:
+def install_pytorch(tensorrt_gpu_config: tensorrt_config | None,
+                    onnx_cuda_gpu_config: onnx_cuda_config | None,
+                   ) -> bool:
 
     if USE_PyPI_Mirror:
         # 南京大学源有 pytorch cuda 本体
@@ -241,10 +244,11 @@ def install_pytorch(
         torch_ver = tensorrt_gpu_config.torch_ver
         torchvision_ver = tensorrt_gpu_config.torchvision_ver
         target = tensorrt_gpu_config.torch_cuda_ver
-    elif pytorch_gpu_config is not None:
-        torch_ver = pytorch_gpu_config.torch_ver
-        torchvision_ver = pytorch_gpu_config.torchvision_ver
-        target = pytorch_gpu_config.torch_cuda_ver
+    elif onnx_cuda_gpu_config is not None:
+        # 使用配置指定的版本
+        torch_ver = onnx_cuda_gpu_config.torch_ver
+        torchvision_ver = onnx_cuda_gpu_config.torchvision_ver
+        target = onnx_cuda_gpu_config.torch_cuda_ver
     else:
         # 默认安装 cpu 版本
         torch_ver = "2.10.0"
@@ -264,17 +268,32 @@ def install_pytorch(
 
 
 
-def install_ultralytics_onnx(
-    backend: str,
-    tensorrt_gpu_config: tensorrt_config | None,
-) -> bool:
+def install_ultralytics_onnx(backend: str,
+                             tensorrt_gpu_config: tensorrt_config | None,
+                             onnx_cuda_gpu_config: onnx_cuda_config | None,
+                            ) -> bool:
+
+    # 检查 gpu_config 是否为 None
+    if backend == "trt":
+        if tensorrt_gpu_config is None:
+            print("Error: tensorrt_gpu_config is None while backend is 'trt'.")
+            return False
+        gpu_config = tensorrt_gpu_config
+    elif backend == "onnx_cuda":
+        if onnx_cuda_gpu_config is None:
+            print("Error: onnx_cuda_gpu_config is None while backend is 'onnx_cuda'.")
+            return False
+        gpu_config = onnx_cuda_gpu_config
+    else:
+        gpu_config = None
 
     # onnx/onnxslim 必装
     libs = ["onnx==1.20.1", "onnxslim==0.1.90"]
+
     # onnxruntime 三选一
-    if backend == "trt" and tensorrt_gpu_config is not None:
-        libs += [f"onnxruntime-gpu=={tensorrt_gpu_config.onnxruntime_gpu_ver}"]
-    elif backend == "dml":
+    if backend in ["trt", "onnx_cuda"]:
+        libs += [f"onnxruntime-gpu=={gpu_config.onnxruntime_gpu_ver}"]
+    elif backend == "onnx_dml":
         libs += ["onnxruntime-directml==1.24.4"]
     else:
         libs += ["onnxruntime==1.20.1"]
@@ -286,14 +305,11 @@ def install_ultralytics_onnx(
         return False
 
     # 安装 Ultralytics
-    numpy_ver = (
-        tensorrt_gpu_config.numpy_ver
-        if backend == "trt" and tensorrt_gpu_config is not None
-        else "2.4.3"
-    )
+    numpy_ver = gpu_config.numpy_ver if gpu_config is not None else "2.4.3"
     libs = ["ultralytics==8.4.115", "lap==0.5.13", f"numpy=={numpy_ver}"]
-    if backend == "trt" and tensorrt_gpu_config is not None:
-        libs += [f"opencv-python=={tensorrt_gpu_config.opencv_ver}"]
+    # 可选显式指定 cv2 版本，否则 ultralytics 会自动安装
+    if gpu_config is not None:
+        libs += [f"opencv-python=={gpu_config.opencv_ver}"]
 
     cmd = [sys.executable, "-m", "pip", "install",
            *libs, "--no-warn-script-location"]

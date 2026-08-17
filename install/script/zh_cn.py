@@ -59,7 +59,7 @@ reinstall_backend = SN(
 install = SN(
     start = "开始安装 HachimiDX...",
     detect_trt_failed = "检测到 TensorRT 不可用。",
-    detect_dml_failed = "检测到 DirectML 不可用。",
+    detect_dml_failed = "检测到 ONNX DML 不可用。",
     detect_ncnn_failed = "检测到 NCNN 不可用。",
     done = "HachimiDX 安装完成。",
 )
@@ -96,10 +96,10 @@ choose_backend = SN(
     gpu_status = "  GPU {index}：{gpu_name}{details} —— {status}",
     gpu_unavailable = "不可用：{reason}",
     nvidia_gpu_details = "，显存 {vram} GB，SM {compute_cap}，驱动 {driver}，配置 {config}",
-    cpu_backend = "PyTorch CPU",
+    onnx_cpu_backend = "ONNX CPU",
     trt_backend = "TensorRT",
-    pytorch_cuda_backend = "PyTorch CUDA",
-    dml_backend = "DirectML",
+    onnx_cuda_backend = "ONNX CUDA",
+    onnx_dml_backend = "ONNX DML",
     ncnn_backend = "NCNN Vulkan",
     no_available_gpu = "没有可用的 GPU。",
     no_gpu_detected = "没有检测到目标 GPU。",
@@ -118,11 +118,11 @@ choose_backend = SN(
     trt_gpu_menu_title = "检测到多张配置不同的可用 NVIDIA 显卡，请选择显卡：",
     trt_gpu_option = "{index}. {gpu_name}，显存 {vram} GB，SM {compute_cap}，驱动 {driver}，配置 {config}",
     trt_gpu_prompt = "请输入显卡编号（0, 1, 2, ...）\n-> ",
-    pytorch_cuda_not_available = "没有可用于 PyTorch CUDA 的 NVIDIA 显卡。",
-    pytorch_cuda_selection_failed = "PyTorch CUDA 显卡配置选择失败。",
-    pytorch_cuda_gpu_menu_title = "检测到多张配置不同的可用 NVIDIA 显卡，请选择 PyTorch CUDA 使用的安装配置：",
-    pytorch_cuda_gpu_option = "{index}. {gpu_name}，显存 {vram} GB，SM {compute_cap}，驱动 {driver}，配置 {config}",
-    pytorch_cuda_gpu_prompt = "请输入显卡编号（0, 1, 2, ...）\n-> ",
+    onnx_cuda_not_available = "没有可用于 ONNX CUDA 的 NVIDIA 显卡。",
+    onnx_cuda_selection_failed = "ONNX CUDA 显卡配置选择失败。",
+    onnx_cuda_gpu_menu_title = "检测到多张配置不同的可用 NVIDIA 显卡，请选择 ONNX CUDA 使用的安装配置：",
+    onnx_cuda_gpu_option = "{index}. {gpu_name}，显存 {vram} GB，SM {compute_cap}，驱动 {driver}，配置 {config}",
+    onnx_cuda_gpu_prompt = "请输入显卡编号（0, 1, 2, ...）\n-> ",
     invalid_gpu_choice = "输入无效，请重新输入。",
 )
 
@@ -174,7 +174,7 @@ detect_trt = SN(
 
 
 
-detect_pytorch_cuda = SN(
+detect_onnx_cuda = SN(
     low_compute_cap = "显卡的计算能力 {compute_cap} 低于最低要求 {min_compute_cap}，请升级显卡或使用其他后端。",
     invalid_driver_version = "显卡的驱动版本 {driver_version} 低于最低要求 {min_driver_version}，请升级显卡驱动或使用其他后端。",
 )
@@ -195,13 +195,13 @@ detect_ncnn = SN(
 
 
 detect_dml = SN(
-    start = "正在检测 DirectML 所需的 DirectX 12 GPU...",
+    start = "正在检测 ONNX DML 所需的 DirectX 12 GPU...",
     loader_unavailable = "未找到系统 DXGI 或 Direct3D 12 运行库，请更新 Windows 和显卡驱动。",
     api_unavailable = "系统缺少所需的 DXGI 或 Direct3D 12 API。",
     no_d3d12_gpu = "未检测到可创建 Direct3D 12 设备的硬件 GPU，请更新显卡驱动或使用其他后端。",
     device_unavailable = "无法创建 Direct3D 12 设备。",
     check_failed = "检测 DirectX 12 GPU 时发生错误。",
-    gpu_detected_title = "检测到可用于 DirectML 的 DirectX 12 GPU:",
+    gpu_detected_title = "检测到可用于 ONNX DML 的 DirectX 12 GPU:",
     gpu_info = "{index}. {gpu_name}",
 )
 
