@@ -14,6 +14,7 @@ from src.core.schemas.model_inference_config import (
     normalize_inference_device_for_backend,
     normalize_inference_device_id,
     parse_inference_device,
+    get_inference_device_by_backend,
 )
 from .path_manage import ModelPaths, PathManage
 
@@ -104,8 +105,6 @@ class ModelInferenceManage:
 
     @classmethod
     def get_inference_device_by_backend(cls, backend) -> str:
-        from .model_inference_config import get_inference_device_by_backend
-
         return get_inference_device_by_backend(backend)
 
     @classmethod
