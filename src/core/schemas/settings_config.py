@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Literal
 
+from .model_inference_config import MODEL_BACKEND_OPTIONS, MODEL_HALF_KEYS, MODEL_HALF_DEFAULT
+
 
 # 窗口尺寸硬性边界常量（不写入 settings.json，不在设置页配置）
 MAIN_APP_W_MIN = 1240
@@ -41,7 +43,7 @@ class SettingsConfig_Definitions:
         default="TensorRT",
         constraints={
             # 顺序按推理速度从慢到快
-            "options": ["PyTorch CPU", "NCNN", "DirectML", "PyTorch CUDA", "TensorRT"],
+            "options": MODEL_BACKEND_OPTIONS,
             "options_tooltips": [
                 "ui_model_backend_pytorch_cpu_tooltip",
                 "ui_model_backend_ncnn_tooltip",
@@ -84,70 +86,20 @@ class SettingsConfig_Definitions:
         constraints={},
     )
 
-    _INFERENCE_DEVICE_SCHEMES = {
-        "cpu": False,
-        "cuda": True,
-        "dml": True,
-        "vulkan": True,
-    }
-    _INFERENCE_DEVICE_BACKEND_RULES = {
-        "PyTorch CPU": {"schemes": frozenset({"cpu"}), "default": "cpu"},
-        "PyTorch CUDA": {"schemes": frozenset({"cuda"}), "default": "cuda:0"},
-        "NCNN": {"schemes": frozenset({"vulkan"}), "default": "vulkan:0"},
-        "DirectML": {"schemes": frozenset({"dml"}), "default": "dml:0"},
-        "TensorRT": {"schemes": frozenset({"cuda"}), "default": "cuda:0"},
-    }
+    inference_device_half = SettingsConfig_Definition(
+        key="inference_device_half",
+        type="bool",
+        group="model",
+        default=False,
+    )
 
-    @classmethod
-    def parse_inference_device(cls, value) -> tuple[str, int | None] | None:
-        device_id = str(value or "").strip()
-        requires_index = cls._INFERENCE_DEVICE_SCHEMES.get(device_id)
-        if requires_index is False:
-            return device_id, None
-
-        scheme, separator, index_text = device_id.partition(":")
-        if separator != ":" or cls._INFERENCE_DEVICE_SCHEMES.get(scheme) is not True:
-            return None
-        if not index_text.isdigit():
-            return None
-        return scheme, int(index_text)
-
-    @classmethod
-    def normalize_inference_device_id(cls, value) -> str | None:
-        parsed = cls.parse_inference_device(value)
-        if parsed is None:
-            return None
-        scheme, index = parsed
-        return scheme if index is None else f"{scheme}:{index}"
-
-    @classmethod
-    def is_inference_device_supported_by_backend(cls, backend, value) -> bool:
-        parsed = cls.parse_inference_device(value)
-        rule = cls._INFERENCE_DEVICE_BACKEND_RULES.get(str(backend).strip())
-        return parsed is not None and rule is not None and parsed[0] in rule["schemes"]
-
-    @classmethod
-    def get_inference_device_by_backend(cls, backend) -> str:
-        rule = cls._INFERENCE_DEVICE_BACKEND_RULES.get(str(backend).strip())
-        return rule["default"] if rule is not None else "cpu"
-
-    @classmethod
-    def normalize_inference_device_for_backend(cls, backend, value) -> str:
-        if not cls.is_inference_device_supported_by_backend(backend, value):
-            return cls.get_inference_device_by_backend(backend)
-        return cls.normalize_inference_device_id(value)
-
-    @classmethod
-    def get_runtime_inference_device(cls, backend, value) -> str:
-        normalized = cls.normalize_inference_device_for_backend(backend, value)
-        return "cpu" if str(backend).strip() == "DirectML" else normalized
-
-    @classmethod
-    def get_directml_device_index(cls, value) -> int | None:
-        parsed = cls.parse_inference_device(value)
-        if parsed is None or parsed[0] != "dml":
-            return None
-        return parsed[1]
+    model_half = SettingsConfig_Definition(
+        key="model_half",
+        type="object",
+        group="model",
+        default=MODEL_HALF_DEFAULT,
+        constraints={"keys": MODEL_HALF_KEYS},
+    )
 
     # ffmpeg
 

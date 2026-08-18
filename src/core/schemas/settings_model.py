@@ -1,6 +1,6 @@
 from datetime import date
 from typing import Annotated
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, field_validator, model_validator
 
 from .settings_config import (
     MAIN_APP_H_MAX,
@@ -8,6 +8,11 @@ from .settings_config import (
     MAIN_APP_W_MAX,
     MAIN_APP_W_MIN,
     SettingsConfig_Definitions as S_Defs,
+)
+from .model_inference_config import (
+    MODEL_HALF_DEFAULT,
+    normalize_inference_device_for_backend,
+    normalize_inference_device_id,
 )
 
 
@@ -25,6 +30,15 @@ class MainAppWindowState(BaseModel):
     )]
 
 
+class ModelHalfSettings(BaseModel):
+
+    model_config = ConfigDict(extra="forbid")
+
+    onnx: StrictBool | None = None
+    ncnn: StrictBool | None = None
+    trt: StrictBool | None = None
+
+
 class SettingsModel(BaseModel):
 
     model_config = ConfigDict(extra="allow")
@@ -32,6 +46,10 @@ class SettingsModel(BaseModel):
     # 模型推理相关
     model_backend: str = Field(default=S_Defs.model_backend.default)
     inference_device: str = Field(default=S_Defs.inference_device.default)
+    inference_device_half: StrictBool = Field(default=S_Defs.inference_device_half.default)
+    model_half: ModelHalfSettings = Field(
+        default_factory=lambda: ModelHalfSettings(**MODEL_HALF_DEFAULT)
+    )
     predict_batch_size_detect_obb: Annotated[int, Field(gt=S_Defs.predict_batch_size_detect_obb.constraints["gt"])] = S_Defs.predict_batch_size_detect_obb.default
     predict_batch_size_classify: Annotated[int, Field(gt=S_Defs.predict_batch_size_classify.constraints["gt"])] = S_Defs.predict_batch_size_classify.default
     predict_batch_size_touch_hold: Annotated[int, Field(gt=S_Defs.predict_batch_size_touch_hold.constraints["gt"])] = S_Defs.predict_batch_size_touch_hold.default
@@ -39,14 +57,14 @@ class SettingsModel(BaseModel):
     ffmpeg_hw_encoder: str = Field(default=S_Defs.ffmpeg_hw_encoder.default)
     # 应用通用设置
     language: str = Field(default=S_Defs.language.default)
-    check_update: bool = Field(default=S_Defs.check_update.default)
+    check_update: StrictBool = Field(default=S_Defs.check_update.default)
     last_check_update_time: str = Field(default=S_Defs.last_check_update_time.default)
     # 窗口大小
     main_app_w_default: Annotated[int, Field(ge=S_Defs.main_app_w_default.constraints["ge"], le=S_Defs.main_app_w_default.constraints["le"])] = S_Defs.main_app_w_default.default
     main_app_h_default: Annotated[int, Field(ge=S_Defs.main_app_h_default.constraints["ge"], le=S_Defs.main_app_h_default.constraints["le"])] = S_Defs.main_app_h_default.default
     # 界面缩放
     main_app_ui_scale: Annotated[int, Field(ge=S_Defs.main_app_ui_scale.constraints["ge"], le=S_Defs.main_app_ui_scale.constraints["le"])] = S_Defs.main_app_ui_scale.default
-    main_app_remember_window_state: bool = S_Defs.main_app_remember_window_state.default
+    main_app_remember_window_state: StrictBool = S_Defs.main_app_remember_window_state.default
     main_app_window_state: MainAppWindowState | None = S_Defs.main_app_window_state.default
 
 
@@ -64,12 +82,10 @@ class SettingsModel(BaseModel):
     @field_validator("inference_device")
     @classmethod
     def validate_inference_device_options(cls, v: str) -> str:
-        normalized = S_Defs.normalize_inference_device_id(v)
+        normalized = normalize_inference_device_id(v)
         if normalized is None:
             raise ValueError(f"invalid inference_device: '{v}'")
         return normalized
-
-
 
     @field_validator("ffmpeg_hw_encoder")
     @classmethod
@@ -109,7 +125,7 @@ class SettingsModel(BaseModel):
 
     @model_validator(mode="after")
     def sync_inference_device_with_backend(self):
-        self.inference_device = S_Defs.normalize_inference_device_for_backend(
+        self.inference_device = normalize_inference_device_for_backend(
             self.model_backend,
             self.inference_device,
         )

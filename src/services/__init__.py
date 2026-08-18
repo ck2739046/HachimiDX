@@ -8,6 +8,7 @@ _LAZY_MAP: dict[str, str] = {
     # 核心管理
     "PathManage":       ".path_manage",
     "SettingsManage":   ".settings_manage",
+    "ModelInferenceManage": ".model_inference_manage",
     "I18nManage":       ".i18n_manage",
 
     # majdata
@@ -48,6 +49,7 @@ __all__ = [
     "AllServices",
     "PathManage",
     "SettingsManage",
+    "ModelInferenceManage",
     "I18nManage",
     "MajdataSession", "stop_majdata",
     "VideoSyncServer",
