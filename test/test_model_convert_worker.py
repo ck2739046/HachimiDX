@@ -147,8 +147,8 @@ class TestModelConvertWorker(unittest.TestCase):
         self.assertEqual(model_convert_worker._get_batch_size("cls_ex", 2, 16, 8), 16)
         self.assertEqual(model_convert_worker._get_batch_size("touch_hold", 2, 16, 8), 8)
 
-    def test_directml_model_paths_use_explicit_suffix(self):
-        result = model_convert_worker.PathManage.get_model_paths("DirectML")
+    def test_onnx_model_paths_are_shared(self):
+        result = model_convert_worker.PathManage.get_model_paths("ONNX DML")
         self.assertTrue(result.is_ok)
         self.assertEqual(
             [path.name for path in (
@@ -159,12 +159,20 @@ class TestModelConvertWorker(unittest.TestCase):
                 result.value.touch_hold,
             )],
             [
-                "detect_DirectML.onnx",
-                "obb_DirectML.onnx",
-                "cls-break_DirectML.onnx",
-                "cls-ex_DirectML.onnx",
-                "detect-touch-hold_DirectML.onnx",
+                "detect_ONNX.onnx",
+                "obb_ONNX.onnx",
+                "cls-break_ONNX.onnx",
+                "cls-ex_ONNX.onnx",
+                "detect-touch-hold_ONNX.onnx",
             ],
+        )
+        self.assertEqual(
+            result.value,
+            model_convert_worker.PathManage.get_model_paths("ONNX CPU").value,
+        )
+        self.assertEqual(
+            result.value,
+            model_convert_worker.PathManage.get_model_paths("ONNX Cuda").value,
         )
 
     def test_removed_backends_are_rejected(self):

@@ -1,41 +1,37 @@
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import patch
-
 _WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 if str(_WORKSPACE_ROOT) not in sys.path:
     sys.path.insert(0, str(_WORKSPACE_ROOT))
 
-from src.app.pages.settings_page import PYTORCH_BACKENDS, SettingsPage
 from src.services.path_manage import PathManage
 
 
-class TestPytorchBackendSettingsPage(unittest.TestCase):
+class TestOnnxBackendPaths(unittest.TestCase):
 
-    def test_pytorch_backend_constant(self):
-        self.assertEqual(PYTORCH_BACKENDS, {"PyTorch CPU", "PyTorch CUDA"})
-
-    def test_device_results_are_filtered_by_pytorch_backend(self):
-        output = "\n".join([
-            "INFERENCE_DEVICE_RESULT:cpu|CPU",
-            "INFERENCE_DEVICE_RESULT:cuda:0|GPU 0",
-            "INFERENCE_DEVICE_RESULT:dml:0|DML GPU",
-        ])
-
-        cpu_items = SettingsPage._parse_inference_device_results(output, "PyTorch CPU")
-        cuda_items = SettingsPage._parse_inference_device_results(output, "PyTorch CUDA")
-
-        self.assertEqual(cpu_items, [("cpu", "CPU")])
-        self.assertEqual(cuda_items, [("cuda:0", "GPU 0")])
-
-    def test_pytorch_backends_resolve_same_model_paths(self):
-        cpu_paths = PathManage.get_model_paths("PyTorch CPU")
-        cuda_paths = PathManage.get_model_paths("PyTorch CUDA")
+    def test_onnx_backends_share_model_paths(self):
+        cpu_paths = PathManage.get_model_paths("ONNX CPU")
+        cuda_paths = PathManage.get_model_paths("ONNX Cuda")
+        dml_paths = PathManage.get_model_paths("ONNX DML")
 
         self.assertTrue(cpu_paths.is_ok)
         self.assertTrue(cuda_paths.is_ok)
+        self.assertTrue(dml_paths.is_ok)
         self.assertEqual(cpu_paths.value, cuda_paths.value)
+        self.assertEqual(cpu_paths.value, dml_paths.value)
+        self.assertEqual(cpu_paths.value.detect.name, "detect_ONNX.onnx")
+
+    def test_removed_pytorch_backends_are_rejected(self):
+        self.assertFalse(PathManage.get_model_paths("PyTorch CPU").is_ok)
+        self.assertFalse(PathManage.get_model_paths("PyTorch CUDA").is_ok)
+
+    def test_source_models_are_separate_from_runtime_paths(self):
+        source_paths = PathManage.get_source_model_paths()
+        runtime_paths = PathManage.get_model_paths("ONNX CPU").value
+        self.assertEqual(source_paths.detect.suffix, ".pt")
+        self.assertEqual(runtime_paths.detect.suffix, ".onnx")
+        self.assertNotEqual(source_paths, runtime_paths)
 
 
 if __name__ == "__main__":
