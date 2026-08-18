@@ -3,6 +3,7 @@ import os
 import tempfile
 import shutil
 import threading
+from copy import deepcopy
 from typing import Any, Optional
 
 from src.core.schemas.op_result import OpResult, ok, err
@@ -61,7 +62,7 @@ class SettingsManage:
             data = try_load_json()
             if data is not None:
                 need_return = True
-                has_changes, need_backup, new_data = cls._ckeck_data(data)
+                has_changes, need_backup, new_data = cls._check_data(data)
 
                 # 先备份损坏的配置文件
                 if need_backup:
@@ -109,9 +110,9 @@ class SettingsManage:
 
 
     @staticmethod
-    def _ckeck_data(input_data) -> tuple[bool, dict]:
+    def _check_data(input_data) -> tuple[bool, bool, dict]:
 
-        new_input_data = {}
+        new_input_data = deepcopy(SettingsModel().model_dump(mode="json"))
         default_data = SettingsModel().model_dump(mode='json')
         has_changes = False
         need_backup = False
@@ -126,9 +127,9 @@ class SettingsManage:
                 continue
 
             # 逐项校验：如果输入有异常项，将此项设为默认值
-            temp_default_data = default_data.copy()  # 创建默认值的副本
-            temp_default_data[key] = input_data[key] # 仅修改一项，如果没通过，一定是这一项有问题
-            temp_result = validate_pydantic(SettingsModel, temp_default_data)
+            candidate = deepcopy(new_input_data)
+            candidate[key] = input_data[key]
+            temp_result = validate_pydantic(SettingsModel, candidate)
             if not temp_result.is_ok:
                 print(f"--Warning: invalid value for key '{key}', reset to default.")
                 new_input_data[key] = default_value
@@ -136,8 +137,8 @@ class SettingsManage:
                 need_backup = True
                 continue
 
-            # 该项正常，保留输入值
-            new_input_data[key] = input_data[key]
+            normalized_data = temp_result.value.model_dump(mode="json")
+            new_input_data[key] = deepcopy(normalized_data[key])
 
         return has_changes, need_backup, new_input_data
 
@@ -230,10 +231,14 @@ class SettingsManage:
     def set(cls, key: str, value) -> OpResult[None]:
         """设置配置项（带校验和持久化）"""
         with cls._lock:
+            if cls._config is None:
+                init_result = cls.init()
+                if not init_result.is_ok:
+                    return err("Failed to initialize settings before set", inner=init_result)
             # 获取当前配置的副本
-            current_data = cls._config.model_dump()
+            current_data = cls._config.model_dump(mode="json")
             # 更新副本的值
-            current_data[key] = value
+            current_data[key] = deepcopy(value)
             # 尝试创建新模型（触发校验）
             result = validate_pydantic(SettingsModel, current_data)
             if result.is_ok:
