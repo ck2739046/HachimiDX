@@ -34,9 +34,9 @@ class ModelHalfSettings(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    onnx: StrictBool | None = None
-    ncnn: StrictBool | None = None
-    trt: StrictBool | None = None
+    onnx: StrictBool | None
+    ncnn: StrictBool | None
+    trt: StrictBool | None
 
 
 class SettingsModel(BaseModel):

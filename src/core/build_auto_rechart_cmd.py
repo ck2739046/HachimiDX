@@ -94,14 +94,9 @@ def build_auto_rechart_cmd(data: AutoRechartModel) -> OpResult[list[str]]:
 
         # add detect/analyze shared args
         if data.is_detect_enabled or data.is_analyze_enabled:
-            res = _get_inference_args_from_settings()
+            res = _build_inference_args()
             if not res.is_ok:
-                return err("Failed to get inference args from settings", inner=res)
-            cmd.extend(res.value)
-
-            res = _get_model_backend_arg()
-            if not res.is_ok:
-                return err("Failed to get model backend arg", inner=res)
+                return err("Failed to build inference args", inner=res)
             cmd.extend(res.value)
 
 
@@ -286,55 +281,83 @@ def _is_video_already_standardized(video_path: Path, data: AutoRechartModel) -> 
 
 
 
-def _get_inference_args_from_settings() -> OpResult[list]:
-                
-    cmd = []
+def _build_inference_args() -> OpResult[list[str]]:
+    setting_keys = (
+        SC_Defs.model_backend.key,
+        SC_Defs.inference_device.key,
+        SC_Defs.inference_device_half.key,
+        SC_Defs.model_half.key,
+        SC_Defs.predict_batch_size_detect_obb.key,
+        SC_Defs.predict_batch_size_classify.key,
+        SC_Defs.predict_batch_size_touch_hold.key,
+    )
+    settings_result = SettingsManage.get_many(setting_keys)
+    if not settings_result.is_ok:
+        return err("Failed to read inference settings", inner=settings_result)
+    settings = settings_result.value
 
-    res = SettingsManage.get(SC_Defs.inference_device.key)
-    if not res.is_ok:
-        return err(f"Failed to get {SC_Defs.inference_device.key} from settings", inner=res)
-    cmd.append(f"--{SC_Defs.inference_device.key}")
-    cmd.append(str(res.value))
+    model_backend = str(settings[SC_Defs.model_backend.key]).strip()
+    inference_device = settings[SC_Defs.inference_device.key]
+    inference_device_half = settings[SC_Defs.inference_device_half.key]
+    model_half = settings[SC_Defs.model_half.key]
+    if hasattr(model_half, "model_dump"):
+        model_half = model_half.model_dump(mode="python")
 
-    res = SettingsManage.get(SC_Defs.inference_device_half.key)
-    if not res.is_ok:
-        return err(f"Failed to get {SC_Defs.inference_device_half.key} from settings", inner=res)
-    cmd.append(f"--{SC_Defs.inference_device_half.key}")
-    cmd.append("true" if res.value else "false")
+    if not ModelInferenceManage.is_inference_device_supported_by_backend(
+        model_backend,
+        inference_device,
+    ):
+        return err(
+            f"Invalid inference_device '{inference_device}' for backend '{model_backend}'"
+        )
+    normalized_device = ModelInferenceManage.normalize_inference_device_for_backend(
+        model_backend,
+        inference_device,
+    )
+    runtime_device = ModelInferenceManage.get_runtime_inference_device(
+        model_backend,
+        normalized_device,
+    )
 
-    res = SettingsManage.get(SC_Defs.predict_batch_size_detect_obb.key)
-    if not res.is_ok:
-        return err(f"Failed to get {SC_Defs.predict_batch_size_detect_obb.key} from settings", inner=res)
-    cmd.append(f"--{SC_Defs.predict_batch_size_detect_obb.key}")
-    cmd.append(str(res.value))
+    model_result = ModelInferenceManage.inspect(
+        model_backend,
+        model_half=model_half,
+        device_half=inference_device_half,
+    )
+    if not model_result.is_ok:
+        return err(f"Failed to validate models for backend: {model_backend}", inner=model_result)
+    if not model_result.value.is_usable:
+        return err(
+            f"Models are not usable for backend '{model_backend}': "
+            f"{model_result.value.half_evaluation.status}"
+        )
 
-    res = SettingsManage.get(SC_Defs.predict_batch_size_classify.key)
-    if not res.is_ok:
-        return err(f"Failed to get {SC_Defs.predict_batch_size_classify.key} from settings", inner=res)
-    cmd.append(f"--{SC_Defs.predict_batch_size_classify.key}")
-    cmd.append(str(res.value))
+    batch_keys = (
+        SC_Defs.predict_batch_size_detect_obb.key,
+        SC_Defs.predict_batch_size_classify.key,
+        SC_Defs.predict_batch_size_touch_hold.key,
+    )
+    for key in batch_keys:
+        value = settings[key]
+        if type(value) is not int or value <= 0:
+            return err(f"{key} must be a positive integer, got {value}")
 
-    res = SettingsManage.get(SC_Defs.predict_batch_size_touch_hold.key)
-    if not res.is_ok:
-        return err(f"Failed to get {SC_Defs.predict_batch_size_touch_hold.key} from settings", inner=res)
-    cmd.append(f"--{SC_Defs.predict_batch_size_touch_hold.key}")
-    cmd.append(str(res.value))
+    cmd = [
+        f"--{SC_Defs.model_backend.key}",
+        model_backend,
+        f"--{SC_Defs.inference_device.key}",
+        runtime_device,
+        "--half",
+        "true" if model_result.value.model_half else "false",
+    ]
+    if model_backend == "ONNX DML":
+        directml_device_index = ModelInferenceManage.get_directml_device_index(
+            normalized_device
+        )
+        if directml_device_index is None:
+            return err(f"Invalid ONNX DML device: '{normalized_device}'")
+        cmd.extend(["--directml_device_index", str(directml_device_index)])
 
+    for key in batch_keys:
+        cmd.extend([f"--{key}", str(settings[key])])
     return ok(cmd)
-
-
-
-
-def _get_model_backend_arg() -> OpResult[list[str]]:
-    res = SettingsManage.get(SC_Defs.model_backend.key)
-    if not res.is_ok:
-        return err(f"Failed to get {SC_Defs.model_backend.key} from settings", inner=res)
-    model_backend = str(res.value).strip()
-
-    res = ModelInferenceManage.inspect(model_backend)
-    if not res.is_ok:
-        return err(f"Failed to validate models for backend: {model_backend}", inner=res)
-    if not res.value.is_usable:
-        return err(f"Models are not usable for backend: {model_backend}")
-
-    return ok([f"--{SC_Defs.model_backend.key}", model_backend])

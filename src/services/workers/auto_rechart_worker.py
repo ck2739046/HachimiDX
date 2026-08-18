@@ -34,7 +34,6 @@ from src.core.auto_rechart.detect.main import main as detect_main
 from src.core.auto_rechart.analyze.main import main as analyze_main
 from src.core.schemas.media_config import MediaType
 from src.core.schemas.op_result import print_op_result
-from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
 from src.services import PathManage
 from src.main import VERSION
 
@@ -77,36 +76,16 @@ def main(args: list[str]) -> bool:
         model_paths = None
         inference_device = None
         if is_detect_enabled or is_analyze_enabled:
-            model_backend = _get_cfg(cfg, "model_backend")
-            if model_backend is None:
-                return _fail("Missing model_backend")
-            inference_device = _get_cfg(cfg, "inference_device")
-            if not S_Defs.is_inference_device_supported_by_backend(model_backend, inference_device):
-                return _fail(
-                    f"Invalid inference_device '{inference_device}' for backend '{model_backend}'"
-                )
-            inference_device = S_Defs.normalize_inference_device_for_backend(
-                model_backend,
-                inference_device,
-            )
-            if model_backend == "DirectML":
-                dml_device_index = S_Defs.get_directml_device_index(inference_device)
-                if dml_device_index is None:
-                    return _fail(f"Invalid DirectML device: '{inference_device}'")
-                os.environ["HACHIMIDX_DML_DEVICE_ID"] = str(dml_device_index)
-                print(f"DirectML inference device: dml:{dml_device_index}")
+            model_backend = cfg["model_backend"]
+            inference_device = cfg["inference_device"]
+            _half = _as_bool(cfg["half"])
+            if model_backend == "ONNX DML":
+                directml_device_index = int(cfg["directml_device_index"])
+                os.environ["HACHIMIDX_DML_DEVICE_ID"] = str(directml_device_index)
+                print(f"ONNX DML inference device: dml:{directml_device_index}")
             else:
                 os.environ.pop("HACHIMIDX_DML_DEVICE_ID", None)
-            inference_device = S_Defs.get_runtime_inference_device(
-                model_backend,
-                inference_device,
-            )
-            model_paths_result = PathManage.resolve_model_paths(model_backend)
-            if not model_paths_result.is_ok:
-                return _fail(print_op_result(model_paths_result))
-            model_paths = model_paths_result.value
-            if model_paths is None:
-                return _fail("Resolved model paths are empty")
+            model_paths = PathManage.get_model_paths(model_backend).value
 
 
 

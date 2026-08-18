@@ -149,6 +149,8 @@ class ModelInferenceManage:
             return err(f"Unknown model backend: {backend}")
         if type(device_half) is not bool:
             return err("inference_device_half must be a bool")
+        if hasattr(model_half, "model_dump"):
+            model_half = model_half.model_dump(mode="python")
         if not isinstance(model_half, dict):
             return err("model_half must be an object")
         if set(model_half) != MODEL_HALF_KEYS:

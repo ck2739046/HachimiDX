@@ -226,6 +226,22 @@ class SettingsManage:
                 return err(f"Error retrieving config", error_raw = e)
 
 
+    @classmethod
+    def get_many(cls, keys: tuple[str, ...]) -> OpResult[dict[str, Any]]:
+        with cls._lock:
+            if cls._config is None:
+                init_res = cls.init()
+                if not init_res.is_ok:
+                    return err("Failed to initialize settings before get_many", inner=init_res)
+
+            try:
+                return ok({key: deepcopy(getattr(cls._config, key)) for key in keys})
+            except AttributeError as e:
+                return err("Config item not found", error_raw=e)
+            except Exception as e:
+                return err("Error retrieving config snapshot", error_raw=e)
+
+
 
     @classmethod
     def set(cls, key: str, value) -> OpResult[None]:
