@@ -72,11 +72,11 @@ class PathManage:
     CLS_EX_ENGINE_PATH: Path = MODELS_DIR / "cls-ex_TensorRT.engine"
     TOUCH_HOLD_ENGINE_PATH: Path = MODELS_DIR / "detect-touch-hold_TensorRT.engine"
 
-    DETECT_DIRECTML_ONNX_PATH: Path = MODELS_DIR / "detect_DirectML.onnx"
-    OBB_DIRECTML_ONNX_PATH: Path = MODELS_DIR / "obb_DirectML.onnx"
-    CLS_BREAK_DIRECTML_ONNX_PATH: Path = MODELS_DIR / "cls-break_DirectML.onnx"
-    CLS_EX_DIRECTML_ONNX_PATH: Path = MODELS_DIR / "cls-ex_DirectML.onnx"
-    TOUCH_HOLD_DIRECTML_ONNX_PATH: Path = MODELS_DIR / "detect-touch-hold_DirectML.onnx"
+    DETECT_ONNX_PATH: Path = MODELS_DIR / "detect_ONNX.onnx"
+    OBB_ONNX_PATH: Path = MODELS_DIR / "obb_ONNX.onnx"
+    CLS_BREAK_ONNX_PATH: Path = MODELS_DIR / "cls-break_ONNX.onnx"
+    CLS_EX_ONNX_PATH: Path = MODELS_DIR / "cls-ex_ONNX.onnx"
+    TOUCH_HOLD_ONNX_PATH: Path = MODELS_DIR / "detect-touch-hold_ONNX.onnx"
 
     DETECT_NCNN_PATH: Path = MODELS_DIR / "detect_ncnn_model"
     OBB_NCNN_PATH: Path = MODELS_DIR / "obb_ncnn_model"
@@ -101,15 +101,26 @@ class PathManage:
 
 
     @classmethod
+    def get_source_model_paths(cls) -> ModelPaths:
+        return ModelPaths(
+            detect=cls.DETECT_PT_PATH,
+            obb=cls.OBB_PT_PATH,
+            cls_break=cls.CLS_BREAK_PT_PATH,
+            cls_ex=cls.CLS_EX_PT_PATH,
+            touch_hold=cls.TOUCH_HOLD_PT_PATH,
+        )
+
+
+    @classmethod
     def get_model_paths(cls, backend: str) -> OpResult[ModelPaths]:
         backend = str(backend).strip()
-        if backend in {"PyTorch CPU", "PyTorch CUDA"}:
+        if backend in {"ONNX CPU", "ONNX DML", "ONNX Cuda"}:
             return ok(ModelPaths(
-                detect=cls.DETECT_PT_PATH,
-                obb=cls.OBB_PT_PATH,
-                cls_break=cls.CLS_BREAK_PT_PATH,
-                cls_ex=cls.CLS_EX_PT_PATH,
-                touch_hold=cls.TOUCH_HOLD_PT_PATH,
+                detect=cls.DETECT_ONNX_PATH,
+                obb=cls.OBB_ONNX_PATH,
+                cls_break=cls.CLS_BREAK_ONNX_PATH,
+                cls_ex=cls.CLS_EX_ONNX_PATH,
+                touch_hold=cls.TOUCH_HOLD_ONNX_PATH,
             ))
         if backend == "TensorRT":
             return ok(ModelPaths(
@@ -118,14 +129,6 @@ class PathManage:
                 cls_break=cls.CLS_BREAK_ENGINE_PATH,
                 cls_ex=cls.CLS_EX_ENGINE_PATH,
                 touch_hold=cls.TOUCH_HOLD_ENGINE_PATH,
-            ))
-        if backend == "DirectML":
-            return ok(ModelPaths(
-                detect=cls.DETECT_DIRECTML_ONNX_PATH,
-                obb=cls.OBB_DIRECTML_ONNX_PATH,
-                cls_break=cls.CLS_BREAK_DIRECTML_ONNX_PATH,
-                cls_ex=cls.CLS_EX_DIRECTML_ONNX_PATH,
-                touch_hold=cls.TOUCH_HOLD_DIRECTML_ONNX_PATH,
             ))
         if backend == "NCNN":
             return ok(ModelPaths(
@@ -201,9 +204,9 @@ class PathManage:
                 error_msg = f"Critical Error: Required file not found: {file_path}"
                 return err(error_msg)
 
-        model_result = cls.resolve_model_paths("PyTorch CPU")
+        model_result = cls.validate_model_paths(cls.get_source_model_paths())
         if not model_result.is_ok:
-            return err("Critical Error: Required PyTorch model artifact not found", inner=model_result)
+            return err("Critical Error: Required source model artifact not found", inner=model_result)
             
         # 检查 worker 是否存在
         for file_path in [cls.AUTO_RECHART_WORKER_PATH,

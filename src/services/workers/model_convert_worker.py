@@ -32,7 +32,7 @@ class ModelEntry(NamedTuple):
     task: str
     pt_path: Path
     ncnn_path: Path
-    directml_path: Path
+    onnx_path: Path
     trt_onnx_path: Path
     engine_path: Path
 
@@ -42,35 +42,35 @@ models: list[ModelEntry] = [
         "detect", "detect",
         PathManage.DETECT_PT_PATH,
         PathManage.DETECT_NCNN_PATH,
-        PathManage.DETECT_DIRECTML_ONNX_PATH,
+        PathManage.DETECT_ONNX_PATH,
         PathManage.TEMP_TRT_DETECT_ONNX_PATH,
         PathManage.DETECT_ENGINE_PATH),
 
     ModelEntry("obb", "obb",
                PathManage.OBB_PT_PATH,
                PathManage.OBB_NCNN_PATH,
-               PathManage.OBB_DIRECTML_ONNX_PATH,
+               PathManage.OBB_ONNX_PATH,
                PathManage.TEMP_TRT_OBB_ONNX_PATH,
                PathManage.OBB_ENGINE_PATH),
 
     ModelEntry("cls_break", "classify",
                PathManage.CLS_BREAK_PT_PATH,
                PathManage.CLS_BREAK_NCNN_PATH,
-               PathManage.CLS_BREAK_DIRECTML_ONNX_PATH,
+               PathManage.CLS_BREAK_ONNX_PATH,
                PathManage.TEMP_TRT_CLS_BREAK_ONNX_PATH,
                PathManage.CLS_BREAK_ENGINE_PATH),
 
     ModelEntry("cls_ex", "classify",
                PathManage.CLS_EX_PT_PATH,
                PathManage.CLS_EX_NCNN_PATH,
-               PathManage.CLS_EX_DIRECTML_ONNX_PATH,
+               PathManage.CLS_EX_ONNX_PATH,
                PathManage.TEMP_TRT_CLS_EX_ONNX_PATH,
                PathManage.CLS_EX_ENGINE_PATH),
 
     ModelEntry("touch_hold", "detect",
                PathManage.TOUCH_HOLD_PT_PATH,
                PathManage.TOUCH_HOLD_NCNN_PATH,
-               PathManage.TOUCH_HOLD_DIRECTML_ONNX_PATH,
+               PathManage.TOUCH_HOLD_ONNX_PATH,
                PathManage.TEMP_TRT_TOUCH_HOLD_ONNX_PATH,
                PathManage.TOUCH_HOLD_ENGINE_PATH),
 ]
@@ -187,10 +187,10 @@ def _convert_to_onnx(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
             current_temp_path = m.trt_onnx_path
             m.trt_onnx_path.unlink(missing_ok=True)
 
-            if m.directml_path.exists() and not m.directml_path.is_file():
-                raise RuntimeError(f"DirectML output path is not a file: {m.directml_path}")
+            if m.onnx_path.exists() and not m.onnx_path.is_file():
+                raise RuntimeError(f"ONNX output path is not a file: {m.onnx_path}")
 
-            print(f"- Export DirectML ONNX from: {m.pt_path.name}")
+            print(f"- Export ONNX from: {m.pt_path.name}")
 
             model = YOLO(str(m.pt_path), task=m.task)
             imgsz = get_imgsz(m.name)
@@ -210,16 +210,16 @@ def _convert_to_onnx(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
                     f"Unexpected ONNX export path: expected {m.trt_onnx_path}, got {exported_path}"
                 )
             if not exported_path.is_file():
-                raise RuntimeError(f"DirectML ONNX export is incomplete: {exported_path}")
+                raise RuntimeError(f"ONNX export is incomplete: {exported_path}")
 
-            exported_path.replace(m.directml_path)
+            exported_path.replace(m.onnx_path)
 
         return True
 
     except Exception as e:
         if current_temp_path is not None:
             current_temp_path.unlink(missing_ok=True)
-        print(f"DirectML ONNX conversion failed: {e}")
+        print(f"ONNX conversion failed: {e}")
         return False
 
 
@@ -245,7 +245,7 @@ def main(backend, detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
         return _convert_to_tensorrt(detect_obb_batch, cls_batch, touch_hold_batch)
     if backend == "ncnn":
         return _convert_to_ncnn(detect_obb_batch, cls_batch, touch_hold_batch)
-    if backend in {"directml", "onnx"}:
+    if backend in {"onnx"}:
         return _convert_to_onnx(detect_obb_batch, cls_batch, touch_hold_batch)
 
     print(f"Unsupported backend for conversion: {backend}")
