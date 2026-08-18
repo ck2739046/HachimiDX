@@ -41,7 +41,7 @@ class ModelHalfSettings(BaseModel):
 
 class SettingsModel(BaseModel):
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     # 模型推理相关
     model_backend: str = Field(default=S_Defs.model_backend.default)

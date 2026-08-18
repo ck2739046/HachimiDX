@@ -117,6 +117,9 @@ class SettingsManage:
         has_changes = False
         need_backup = False
 
+        if set(input_data) - set(default_data):
+            has_changes = True
+
         for key, default_value in default_data.items():
 
             # 逐项检验：如果输入有缺失项，将此项设为默认值
