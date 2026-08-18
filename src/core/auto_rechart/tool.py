@@ -1,7 +1,7 @@
 import numpy as np
 import gc
 
-from ..schemas.settings_config import SettingsConfig_Definitions as S_Defs
+from src.services.model_inference_manage import ModelInferenceManage
 
 
 SEEK_THRESHOLD = 200
@@ -19,7 +19,7 @@ def print_progress(name, counter, total, *, final: bool = False):
 
 
 def release_ncnn_vulkan(inference_device) -> None:
-    parsed_device = S_Defs.parse_inference_device(inference_device)
+    parsed_device = ModelInferenceManage.parse_inference_device(inference_device)
     if parsed_device is None or parsed_device[0] != "vulkan":
         return
     gc.collect()

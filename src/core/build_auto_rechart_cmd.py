@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 import cv2
 
-from src.services import PathManage, SettingsManage
+from src.services import ModelInferenceManage, PathManage, SettingsManage
 
 from .schemas.auto_rechart_model import AutoRechartModel
 from .schemas.auto_rechart_config import AutoRechartConfig_Definitions as AC_Defs
@@ -296,6 +296,12 @@ def _get_inference_args_from_settings() -> OpResult[list]:
     cmd.append(f"--{SC_Defs.inference_device.key}")
     cmd.append(str(res.value))
 
+    res = SettingsManage.get(SC_Defs.inference_device_half.key)
+    if not res.is_ok:
+        return err(f"Failed to get {SC_Defs.inference_device_half.key} from settings", inner=res)
+    cmd.append(f"--{SC_Defs.inference_device_half.key}")
+    cmd.append("true" if res.value else "false")
+
     res = SettingsManage.get(SC_Defs.predict_batch_size_detect_obb.key)
     if not res.is_ok:
         return err(f"Failed to get {SC_Defs.predict_batch_size_detect_obb.key} from settings", inner=res)
@@ -325,8 +331,10 @@ def _get_model_backend_arg() -> OpResult[list[str]]:
         return err(f"Failed to get {SC_Defs.model_backend.key} from settings", inner=res)
     model_backend = str(res.value).strip()
 
-    res = PathManage.resolve_model_paths(model_backend)
+    res = ModelInferenceManage.inspect(model_backend)
     if not res.is_ok:
-        return err(f"Failed to validate model paths for backend: {model_backend}", inner=res)
+        return err(f"Failed to validate models for backend: {model_backend}", inner=res)
+    if not res.value.is_usable:
+        return err(f"Models are not usable for backend: {model_backend}")
 
     return ok([f"--{SC_Defs.model_backend.key}", model_backend])

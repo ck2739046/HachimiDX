@@ -9,6 +9,7 @@ from .base_output_page import BaseOutputPage
 from ..widgets import *
 from ..ui_style import UI_Style
 from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
+from src.services.model_inference_manage import ModelInferenceManage
 from src.core.schemas.op_result import print_op_result, ok, err
 from src.core.tools import show_notify_dialog
 from src.core.build_worker_cmd import build_cmd_head_python_exe
@@ -342,9 +343,9 @@ class SettingsPage(BaseOutputPage):
             name = name.strip()
             if not device_id or not name or device_id in seen_device_ids:
                 continue
-            if not S_Defs.is_inference_device_supported_by_backend(backend, device_id):
+            if not ModelInferenceManage.is_inference_device_supported_by_backend(backend, device_id):
                 continue
-            device_id = S_Defs.normalize_inference_device_id(device_id)
+            device_id = ModelInferenceManage.normalize_inference_device_id(device_id)
             if device_id in seen_device_ids:
                 continue
             seen_device_ids.add(device_id)
