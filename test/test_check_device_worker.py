@@ -16,7 +16,6 @@ from src.services.path_manage import PathManage
 from src.services.workers.check_device import (
     check_dml,
     check_ncnn,
-    check_pytorch_cpu,
     check_pytorch_cuda,
     check_trt,
     common,
@@ -70,8 +69,9 @@ class TestEntryAndPath(unittest.TestCase):
 
     def test_runtime_routes_and_output_protocol(self):
         cases = {
-            "pytorch_cpu": ("check_cpu", [common.DeviceResult("cpu", "CPU", False)]),
-            "pytorch_cuda": ("check_cuda", [common.DeviceResult("cuda:0", "GPU", True)]),
+            "onnx_cpu": ("check_onnx_cpu", [common.DeviceResult("cpu", "CPU", False)]),
+            "onnx_cuda": ("check_onnx_cuda", [common.DeviceResult("cuda:0", "GPU", True)]),
+            "onnx_dml": ("check_onnx_dml", [common.DeviceResult("dml:0", "GPU", True)]),
             "tensorrt": ("check_tensorrt", [common.DeviceResult("cuda:0", "GPU", True)]),
         }
         for runtime, (attr_name, devices) in cases.items():
@@ -90,19 +90,6 @@ class TestEntryAndPath(unittest.TestCase):
         with redirect_stdout(output):
             self.assertFalse(main_module.main("unknown"))
         self.assertIn("Unknown runtime: unknown", output.getvalue())
-
-
-class TestPyTorchCpu(unittest.TestCase):
-
-    def test_returns_only_cpu(self):
-        with (
-            patch.object(check_pytorch_cpu, "check_torch_installed", return_value=(True, object())),
-            patch.object(check_pytorch_cpu, "get_windows_cpu_name", return_value="Test CPU"),
-        ):
-            self.assertEqual(
-                check_pytorch_cpu.check(),
-                [common.DeviceResult("cpu", "Test CPU", False)],
-            )
 
 
 class TestPyTorchCuda(unittest.TestCase):

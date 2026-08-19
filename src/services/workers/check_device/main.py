@@ -19,10 +19,10 @@ if root not in sys.path:
     sys.path.insert(0, root)
 
 
-from src.services.workers.check_device.check_dml import check as check_directml
+from src.services.workers.check_device.check_onnx_cpu import check as check_onnx_cpu
+from src.services.workers.check_device.check_onnx_cuda import check as check_onnx_cuda
+from src.services.workers.check_device.check_onnx_dml import check as check_onnx_dml
 from src.services.workers.check_device.check_ncnn import check as check_ncnn_vulkan
-from src.services.workers.check_device.check_pytorch_cpu import check as check_cpu
-from src.services.workers.check_device.check_pytorch_cuda import check as check_cuda
 from src.services.workers.check_device.check_trt import check as check_tensorrt
 
 
@@ -31,16 +31,16 @@ def main(runtime: str) -> bool:
     runtime_norm = str(runtime or "").strip().lower()
 
     devices = None
-    if runtime_norm in {"pytorch_cpu", "cpu"}:
-        devices = check_cpu()
-    elif runtime_norm in {"pytorch_cuda", "cuda"}:
-        devices = check_cuda()
+    if runtime_norm == "onnx_cpu":
+        devices = check_onnx_cpu()
+    elif runtime_norm == "onnx_cuda":
+        devices = check_onnx_cuda()
+    elif runtime_norm == "onnx_dml":
+        devices = check_onnx_dml()
     elif runtime_norm == "tensorrt":
         devices = check_tensorrt()
     elif runtime_norm == "ncnn":
         devices = check_ncnn_vulkan()
-    elif runtime_norm in {"directml", "dml", "onnx"}:
-        devices = check_directml()
     else:
         print(f"Unknown runtime: {runtime}")
         return False
