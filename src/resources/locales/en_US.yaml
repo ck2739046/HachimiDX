@@ -536,16 +536,26 @@ en_US:
 
       ui_model_divider: "Model Inference"
       ui_model_backend_label: "Model Backend: "
-      ui_inference_device_label: " Inference Device: "
+      ui_inference_device_label: "Inference Device: "
       warning_inference_device_not_found: "Failed to parse available devices from the check result. Please retry later or check your driver."
-      ui_model_backend_pytorch_cpu_tooltip: "Slowest, CPU only, best compatibility"
-      ui_model_backend_pytorch_cuda_tooltip: "Faster, NVIDIA GPU only"
+      ui_model_backend_onnx_cpu_tooltip: "Slowest, CPU only, best compatibility"
       ui_model_backend_ncnn_tooltip: "Slower, requires a Vulkan-compatible GPU"
-      ui_model_backend_directml_tooltip: "Medium, requires a DX12-compatible GPU"
+      ui_model_backend_onnx_dml_tooltip: "Medium, requires a DX12-compatible GPU"
+      ui_model_backend_onnx_cuda_tooltip: "Faster, NVIDIA GPU only"
       ui_model_backend_tensorrt_tooltip: "Fastest, NVIDIA GPU only"
       ui_check_model_button: "Check"
       ui_convert_model_button: "Convert Model"
+      ui_cancel_check_model_button: "Cancel"
       ui_cancel_convert_model_button: "Cancel"
+      warning_inference_settings_not_ready: "The selected inference backend or device has not been checked successfully, or the model is unavailable for the current device."
+      warning_model_half_save_failed: "The model was converted, but saving its precision record failed: %{error}"
+      model_status_not_converted: "🔴 Model not converted"
+      model_status_compatible: "🟢 Model ready"
+      model_status_upgrade_available: "🟡 Model works. Reconvert for faster speed."
+      model_status_incompatible: "🔴 Model is incompatible with the current device"
+      model_status_error: "🔴 Model status check failed"
+      environment_status_available: "🟢 Environment ready"
+      environment_status_unavailable: "🔴 Environment unavailable"
 
       ui_ffmpeg_divider: "FFmpeg Hardware Acceleration"
       ui_ffmpeg_encoder_label: "Video Encoder: "
@@ -593,7 +603,6 @@ en_US:
         
         Please refer to the "Installation_Guide.txt" for detailed instructions.
         -- (located in the project root directory, easy to find)
-      warning_pytorch_model_missing: "PyTorch model files are missing and cannot be converted.\n%{error}"
       warning_convert_failed: "Model conversion failed: %{backend}"
       warning_cuda_driver_outdated: |
         CUDA initialization failure detected (error code 35).
@@ -615,7 +624,6 @@ en_US:
       notice_convert_success: "Model conversion finished and passed validation: %{backend}"
       notice_convert_cancelled: "Model conversion cancelled: %{backend}"
       notice_cancel_requested: "Cancel requested. Waiting for process to stop..."
-      notice_pytorch_does_not_need_convert_model: "-\nNotice: The PyTorch backend does not need model conversion."
 
       notice_hw_detect_start: "Starting FFmpeg hardware acceleration detection..."
       notice_hw_detect_result: "Detection complete: encoder=%{encoder}, decoder=%{decoder}"

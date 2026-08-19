@@ -45,10 +45,10 @@ class SettingsConfig_Definitions:
             # 顺序按推理速度从慢到快
             "options": MODEL_BACKEND_OPTIONS,
             "options_tooltips": [
-                "ui_model_backend_pytorch_cpu_tooltip",
+                "ui_model_backend_onnx_cpu_tooltip",
                 "ui_model_backend_ncnn_tooltip",
-                "ui_model_backend_directml_tooltip",
-                "ui_model_backend_pytorch_cuda_tooltip",
+                "ui_model_backend_onnx_dml_tooltip",
+                "ui_model_backend_onnx_cuda_tooltip",
                 "ui_model_backend_tensorrt_tooltip",
             ],
         },

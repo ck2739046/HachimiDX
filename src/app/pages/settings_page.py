@@ -6,6 +6,12 @@ from PyQt6.QtCore import Qt
 import i18n
 
 from .base_output_page import BaseOutputPage
+from .settings_page_sub_model_infer import (
+    InferenceDeviceItem,
+    ModelInferenceView,
+    inspect_model,
+    parse_inference_device_results,
+)
 from ..widgets import *
 from ..ui_style import UI_Style
 from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
@@ -16,7 +22,6 @@ from src.core.build_worker_cmd import build_cmd_head_python_exe
 from src.services import PathManage, SettingsManage, process_manager_api, check_update
 
 I18N_Prefix = "app.settings_page"
-PYTORCH_BACKENDS = frozenset({"PyTorch CPU", "PyTorch CUDA"})
 
 
 @dataclass(slots=True)
@@ -34,8 +39,12 @@ class _SettingsTaskState:
         return self.task_type in {"check", "convert"}
 
     @property
-    def can_cancel(self) -> bool:
-        return self.is_busy and self.is_model_task
+    def can_cancel_check(self) -> bool:
+        return self.is_busy and self.task_type == "check"
+
+    @property
+    def can_cancel_convert(self) -> bool:
+        return self.is_busy and self.task_type == "convert"
  
 
 class SettingsPage(BaseOutputPage):
@@ -48,19 +57,26 @@ class SettingsPage(BaseOutputPage):
         self.model_backend_combo_box = None
         self.check_model_button = None
         self.convert_model_button = None
+        self.cancel_check_model_button = None
         self.cancel_convert_model_button = None
+        self.environment_status_label = None
+        self.model_status_label = None
         self.ffmpeg_hw_encoder_combo_box = None
         self.check_ffmpeg_hw_accel_button = None
 
         self._task_state = _SettingsTaskState()
-        self._show_convert_model_button = False
+        self._model_view: ModelInferenceView | None = None
 
         # 推理设备：缓存最近一次成功检查到的设备列表和当前已保存的设备 ID
         self.inference_device_label = None
         self.inference_device_combo_box = None
-        self._cached_device_items: list[tuple[str, str]] = []  # [(device_id, device_name)]
+        self._cached_device_items: list[InferenceDeviceItem] = []
         self._saved_inference_device: str | None = None
+        self._saved_inference_device_half = False
         self._last_checked_backend: str | None = None
+        self._loaded_model_backend: str | None = None
+        self._loaded_inference_device: str | None = None
+        self._loaded_inference_device_half = False
 
         self.check_update_checkbox = None
         self.check_update_now_button = None
@@ -82,6 +98,7 @@ class SettingsPage(BaseOutputPage):
         self._save_order_keys = [
             S_Defs.model_backend.key,
             S_Defs.inference_device.key,
+            S_Defs.inference_device_half.key,
             S_Defs.ffmpeg_hw_encoder.key,
             S_Defs.language.key,
             S_Defs.check_update.key,
@@ -112,32 +129,46 @@ class SettingsPage(BaseOutputPage):
         self.content_layout.addWidget(create_divider(i18n.t(f"{I18N_Prefix}.ui_model_divider")))
 
         backend_label = create_label(i18n.t(f"{I18N_Prefix}.ui_model_backend_label"))
-        self.model_backend_combo_box = self._create_combo_from_definition(S_Defs.model_backend, length=140)
+        self.model_backend_combo_box = self._create_combo_from_definition(S_Defs.model_backend, length=120)
         self.check_model_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_check_model_button"))
         self.convert_model_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_convert_model_button"))
+        self.cancel_check_model_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_cancel_check_model_button"))
         self.cancel_convert_model_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_cancel_convert_model_button"))
         self.inference_device_label = create_label(i18n.t(f"{I18N_Prefix}.ui_inference_device_label"))
         self.inference_device_combo_box = create_combo_box(length=400)
+        self.environment_status_label = create_label()
+        self.model_status_label = create_label()
         self.convert_model_button.setVisible(False)        # 默认隐藏
+        self.cancel_check_model_button.setVisible(False)   # 默认隐藏
         self.cancel_convert_model_button.setVisible(False) # 默认隐藏
         self.inference_device_label.setVisible(False)      # 默认隐藏
         self.inference_device_combo_box.setVisible(False)  # 默认隐藏
+        self.environment_status_label.setVisible(False)    # 默认隐藏
+        self.model_status_label.setVisible(False)          # 默认隐藏
 
         self.create_row(
             backend_label,
             self.model_backend_combo_box,
             self.check_model_button,
+            self.cancel_check_model_button,
+            self.environment_status_label,
+            self.model_status_label,
+            add_stretch = True,
+        )
+        self.create_row(
             self.inference_device_label,
             self.inference_device_combo_box,
             self.convert_model_button,
             self.cancel_convert_model_button,
-            add_stretch=True,
+            add_stretch = True,
         )
 
         self.check_model_button.clicked.connect(self.on_check_model_clicked)
         self.convert_model_button.clicked.connect(self.on_convert_model_clicked)
+        self.cancel_check_model_button.clicked.connect(self.on_cancel_check_model_button_clicked)
         self.cancel_convert_model_button.clicked.connect(self.on_cancel_convert_model_button_clicked)
         self.model_backend_combo_box.currentTextChanged.connect(self._on_backend_changed)
+        self.inference_device_combo_box.currentIndexChanged.connect(self._on_inference_device_changed)
 
 
 
@@ -326,31 +357,8 @@ class SettingsPage(BaseOutputPage):
 
 
     @staticmethod
-    def _parse_inference_device_results(recent_output: str, backend: str) -> list[tuple[str, str]]:
-        # 解析 worker 输出的 "INFERENCE_DEVICE_RESULT:<id>|<name>" 行，返回 [(device_id, name)]
-        prefix = "INFERENCE_DEVICE_RESULT:"
-        results: list[tuple[str, str]] = []
-        seen_device_ids: set[str] = set()
-        for raw_line in recent_output.splitlines():
-            line = raw_line.strip()
-            if not line.startswith(prefix):
-                continue
-            payload = line[len(prefix):].strip()
-            if "|" not in payload:
-                continue
-            device_id, name = payload.split("|", 1)
-            device_id = device_id.strip()
-            name = name.strip()
-            if not device_id or not name or device_id in seen_device_ids:
-                continue
-            if not ModelInferenceManage.is_inference_device_supported_by_backend(backend, device_id):
-                continue
-            device_id = ModelInferenceManage.normalize_inference_device_id(device_id)
-            if device_id in seen_device_ids:
-                continue
-            seen_device_ids.add(device_id)
-            results.append((device_id, name))
-        return results
+    def _parse_inference_device_results(recent_output: str, backend: str) -> list[InferenceDeviceItem]:
+        return parse_inference_device_results(recent_output, backend)
 
 
     def _reset_inference_device_combo(self) -> None:
@@ -364,15 +372,23 @@ class SettingsPage(BaseOutputPage):
         self.inference_device_combo_box.setVisible(False)
 
 
-    def _populate_inference_device_combo(self, items: list[tuple[str, str]]) -> None:
+    def _populate_inference_device_combo(self, items: list[InferenceDeviceItem]) -> None:
         self.inference_device_combo_box.blockSignals(True)
         self.inference_device_combo_box.clear()
-        for device_id, device_name in items:
-            self.inference_device_combo_box.addItem(f"[{device_id}] {device_name}", device_id)
+        for item in items:
+            half_text = "FP16" if item.half_supported else "FP32"
+            self.inference_device_combo_box.addItem(
+                f"[{item.device_id}] {item.name} ({half_text})",
+                item,
+            )
 
         target_index = -1
         if self._saved_inference_device:
-            target_index = self.inference_device_combo_box.findData(self._saved_inference_device)
+            for i in range(self.inference_device_combo_box.count()):
+                data = self.inference_device_combo_box.itemData(i)
+                if isinstance(data, InferenceDeviceItem) and data.device_id == self._saved_inference_device:
+                    target_index = i
+                    break
 
         if target_index < 0 and self.inference_device_combo_box.count() > 0:
             target_index = 0
@@ -392,9 +408,7 @@ class SettingsPage(BaseOutputPage):
         self._cached_device_items = items
         self._last_checked_backend = backend
 
-        # 只有模型产物也通过时才显示设备行，否则仅缓存
-        path_result = PathManage.resolve_model_paths(backend)
-        if path_result.is_ok and items:
+        if items:
             self._populate_inference_device_combo(items)
         else:
             self._reset_inference_device_combo()
@@ -417,6 +431,10 @@ class SettingsPage(BaseOutputPage):
 
         self._set_combo_value(self.model_backend_combo_box, settings[S_Defs.model_backend.key])
         self._saved_inference_device = str(settings.get(S_Defs.inference_device.key, "")).strip() or None
+        self._saved_inference_device_half = bool(settings.get(S_Defs.inference_device_half.key, False))
+        self._loaded_model_backend = str(settings[S_Defs.model_backend.key])
+        self._loaded_inference_device = self._saved_inference_device
+        self._loaded_inference_device_half = self._saved_inference_device_half
 
         if self._cached_device_items:
             self._populate_inference_device_combo(self._cached_device_items)
@@ -451,13 +469,13 @@ class SettingsPage(BaseOutputPage):
             S_Defs.main_app_remember_window_state.key: self.remember_window_state_checkbox.isChecked(),
         }
 
-        # 推理设备：可见时取 ComboBox itemData；否则使用已保存值，由 SettingsModel 按后端归一化
-        backend = data[S_Defs.model_backend.key]
-        if self.inference_device_combo_box.isVisible():
-            current_data = self.inference_device_combo_box.currentData()
-            data[S_Defs.inference_device.key] = str(current_data) if current_data else (self._saved_inference_device or "")
+        device_item = self.inference_device_combo_box.currentData() if self.inference_device_combo_box.isVisible() else None
+        if isinstance(device_item, InferenceDeviceItem):
+            data[S_Defs.inference_device.key] = device_item.device_id
+            data[S_Defs.inference_device_half.key] = device_item.half_supported
         else:
             data[S_Defs.inference_device.key] = self._saved_inference_device or ""
+            data[S_Defs.inference_device_half.key] = self._saved_inference_device_half
 
         return data
 
@@ -466,6 +484,13 @@ class SettingsPage(BaseOutputPage):
 
     def on_save_clicked(self) -> None:
         data = self._collect_form_data()
+
+        if not self._can_save_inference_settings(data):
+            show_notify_dialog(
+                i18n.t(f"{I18N_Prefix}.dialog_title"),
+                i18n.t(f"{I18N_Prefix}.warning_inference_settings_not_ready"),
+            )
+            return
 
         self.save_button.setEnabled(False)
         self.reset_button.setEnabled(False)
@@ -557,28 +582,43 @@ class SettingsPage(BaseOutputPage):
     def _sync_ui_state(self) -> None:
         is_busy = self._task_state.is_busy
 
-        self.model_backend_combo_box.setEnabled(not is_busy)
-        self.check_model_button.setEnabled(not is_busy)
-        self.convert_model_button.setEnabled(not is_busy)
-        self.ffmpeg_hw_encoder_combo_box.setEnabled(not is_busy)
-        self.check_ffmpeg_hw_accel_button.setEnabled(not is_busy)
-        self.save_button.setEnabled(not is_busy)
-        self.reset_button.setEnabled(not is_busy)
-        self.inference_device_combo_box.setEnabled(not is_busy)
-        self.reset_window_state_button.setEnabled(not is_busy)
+        widgets = (
+            self.model_backend_combo_box,
+            self.check_model_button,
+            self.inference_device_combo_box,
+            self.ffmpeg_hw_encoder_combo_box,
+            self.check_ffmpeg_hw_accel_button,
+            self.check_update_checkbox,
+            self.check_update_now_button,
+            self.language_combo_box,
+            self.default_width_line_edit,
+            self.default_height_line_edit,
+            self.ui_scale_slider,
+            self.remember_window_state_checkbox,
+            self.reset_window_state_button,
+            self.save_button,
+            self.reset_button,
+        )
+        for widget in widgets:
+            widget.setEnabled(not is_busy)
 
-        self.convert_model_button.setVisible(self._show_convert_model_button and not is_busy)
-        self.cancel_convert_model_button.setVisible(self._task_state.can_cancel)
-        self.cancel_convert_model_button.setEnabled(self._task_state.can_cancel)
+        self.convert_model_button.setEnabled(not is_busy)
+        self.convert_model_button.setVisible(bool(self._model_view and self._model_view.show_convert and not is_busy))
+        self.cancel_check_model_button.setVisible(self._task_state.can_cancel_check)
+        self.cancel_check_model_button.setEnabled(self._task_state.can_cancel_check)
+        self.cancel_convert_model_button.setVisible(self._task_state.can_cancel_convert)
+        self.cancel_convert_model_button.setEnabled(self._task_state.can_cancel_convert)
 
 
     def _on_backend_changed(self, _text: str) -> None:
         if not self._task_state.is_busy:
-            self._show_convert_model_button = False
+            self._model_view = None
         # 切换后端：清空缓存的设备列表并隐藏设备行
         self._last_checked_backend = None
         self._cached_device_items = []
         self._reset_inference_device_combo()
+        self._hide_environment_state()
+        self._hide_model_state()
         self._sync_ui_state()
 
 
@@ -586,12 +626,12 @@ class SettingsPage(BaseOutputPage):
         return self._task_state.is_busy
 
 
-    def _start_worker_cmd(self, cmd: list[str], worker_type: str, backend: str | None = None):
+    def _start_worker_cmd(self, cmd: list[str], worker_type: str, backend: str | None = None) -> bool:
 
         if self._has_active_runner():
-            return
+            return False
         if worker_type not in {"check", "convert", "ffmpeg_hw_accel_check"}:
-            return
+            return False
 
         result = process_manager_api.start(cmd)
         if not result.is_ok:
@@ -599,13 +639,89 @@ class SettingsPage(BaseOutputPage):
                 i18n.t(f"{I18N_Prefix}.dialog_title"),
                 i18n.t(f"{I18N_Prefix}.warning_worker_start_failed", error=result.error_msg),
             )
-            return None
+            return False
 
         runner_id = result.value
         self._task_state = _SettingsTaskState(task_type=worker_type, runner_id=runner_id, backend=backend)
         self.output_widget.bind_current_runner_id(runner_id)
         self._sync_ui_state()
-        return
+        return True
+
+    def _cancel_model_task(self, task_type: str) -> None:
+        if self._task_state.task_type != task_type:
+            return
+
+        runner_id = self._task_state.runner_id
+        if not runner_id:
+            return
+
+        result = process_manager_api.cancel(runner_id)
+        if not result.is_ok:
+            show_notify_dialog(
+                i18n.t(f"{I18N_Prefix}.dialog_title"),
+                i18n.t(f"{I18N_Prefix}.warning_cancel_failed", error=result.error_msg),
+            )
+            return
+
+        self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_cancel_requested"))
+
+    def on_cancel_check_model_button_clicked(self) -> None:
+        self._cancel_model_task("check")
+
+    def _current_device_item(self) -> InferenceDeviceItem | None:
+        data = self.inference_device_combo_box.currentData() if self.inference_device_combo_box.isVisible() else None
+        return data if isinstance(data, InferenceDeviceItem) else None
+
+    def _on_inference_device_changed(self, index: int) -> None:
+        self._refresh_model_state()
+        self._sync_ui_state()
+
+    def _hide_model_state(self) -> None:
+        if self.model_status_label is not None:
+            self.model_status_label.setVisible(False)
+
+    def _hide_environment_state(self) -> None:
+        if self.environment_status_label is not None:
+            self.environment_status_label.setVisible(False)
+
+    def _show_environment_state(self, status_text: str) -> None:
+        if self.environment_status_label is None:
+            return
+        self.environment_status_label.setText(
+            i18n.t(f"{I18N_Prefix}.environment_status_{status_text}")
+        )
+        self.environment_status_label.setVisible(True)
+
+    def _refresh_model_state(self) -> None:
+        backend = self.model_backend_combo_box.currentText().strip()
+        device_item = self._current_device_item()
+        view = inspect_model(backend, device_item.half_supported if device_item else None)
+        if view is None:
+            self._hide_model_state()
+            return
+        self._model_view = view
+        self.model_status_label.setText(
+            i18n.t(f"{I18N_Prefix}.model_status_{view.status_text}")
+        )
+        self.model_status_label.setVisible(True)
+
+    def _can_save_inference_settings(self, data: dict) -> bool:
+        backend = data.get(S_Defs.model_backend.key, "")
+        device = data.get(S_Defs.inference_device.key, "")
+        device_half = data.get(S_Defs.inference_device_half.key)
+        inference_changed = (
+            self._loaded_model_backend != backend
+            or self._loaded_inference_device != device
+            or self._loaded_inference_device_half != device_half
+        )
+        if not inference_changed:
+            return True
+        if self._last_checked_backend != backend or not isinstance(device_half, bool):
+            return False
+        if not any(item.device_id == device for item in self._cached_device_items):
+            return False
+        view = inspect_model(backend, device_half)
+        return view is not None and view.is_usable
 
 
 
@@ -613,18 +729,26 @@ class SettingsPage(BaseOutputPage):
     def on_check_model_clicked(self) -> None:
         if self._has_active_runner():
             return
-        self._show_convert_model_button = False
+        self._model_view = None
         # 开始新检查：清空缓存的设备列表并隐藏设备行
         self._last_checked_backend = None
         self._cached_device_items = []
         self._reset_inference_device_combo()
+        self._hide_environment_state()
+        self._hide_model_state()
         self._sync_ui_state()
         backend = self.model_backend_combo_box.currentText().strip()
         self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_check_start", backend=backend))
         cmd = build_cmd_head_python_exe(PathManage.CHECK_DEVICE_WORKER_PATH)
-        # "PyTorch CPU" -> "pytorch_cpu"
-        cmd.append(backend.lower().replace(" ", "_"))
-        self._start_worker_cmd(cmd, "check", backend)
+        backend_id = ModelInferenceManage.get_model_backend_id(backend)
+        if backend_id is None:
+            self._show_environment_state("unavailable")
+            self._sync_ui_state()
+            return
+        cmd.append(backend_id)
+        if not self._start_worker_cmd(cmd, "check", backend):
+            self._show_environment_state("unavailable")
+            self._sync_ui_state()
 
 
 
@@ -642,10 +766,9 @@ class SettingsPage(BaseOutputPage):
         if self._has_active_runner():
             return
         backend = self.model_backend_combo_box.currentText().strip()
-
-        # 特例：pytorch 后端不应该触发转换按钮
-        if backend in PYTORCH_BACKENDS:
-            self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_pytorch_does_not_need_convert_model"))
+        device_item = self._current_device_item()
+        backend_id = ModelInferenceManage.get_model_backend_id(backend)
+        if device_item is None or backend_id is None:
             return
 
         detect_batch_result = SettingsManage.get(S_Defs.predict_batch_size_detect_obb.key)
@@ -696,29 +819,20 @@ class SettingsPage(BaseOutputPage):
         )
 
         cmd = build_cmd_head_python_exe(PathManage.MODEL_CONVERT_WORKER_PATH)
-        cmd.extend([str(backend), str(detect_batch), str(cls_batch), str(touch_hold_batch)])
+        cmd.extend([
+            backend_id,
+            str(detect_batch),
+            str(cls_batch),
+            str(touch_hold_batch),
+            "true" if device_item.half_supported else "false",
+        ])
         self._start_worker_cmd(cmd, "convert", backend)
 
 
 
 
     def on_cancel_convert_model_button_clicked(self) -> None:
-        if not self._task_state.can_cancel:
-            return
-
-        runner_id = self._task_state.runner_id
-        if not runner_id:
-            return
-
-        result = process_manager_api.cancel(runner_id)
-        if not result.is_ok:
-            show_notify_dialog(
-                i18n.t(f"{I18N_Prefix}.dialog_title"),
-                i18n.t(f"{I18N_Prefix}.warning_cancel_failed", error=result.error_msg),
-            )
-            return
-
-        self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_cancel_requested"))
+        self._cancel_model_task("convert")
 
 
 
@@ -744,11 +858,11 @@ class SettingsPage(BaseOutputPage):
 
     def _handle_check_runner_ended(self, backend: str, ended) -> None:
 
-        self._show_convert_model_button = False
-
         # 用户主动取消
         if getattr(ended, "cancelled", False):
             self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_check_cancelled", backend=backend))
+            self._hide_environment_state()
+            self._hide_model_state()
             self._sync_ui_state()
             return
 
@@ -760,6 +874,8 @@ class SettingsPage(BaseOutputPage):
 
         if failed:
             self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.warning_check_failed", backend=backend))
+            self._show_environment_state("unavailable")
+            self._hide_model_state()
             self._sync_ui_state()
             return
 
@@ -771,52 +887,15 @@ class SettingsPage(BaseOutputPage):
 
         # 环境检查通过
         # 下一步，检查模型文件是否存在
+        self._show_environment_state("available")
 
-        # 模型检查通过
-        path_result = PathManage.resolve_model_paths(backend)
-        if path_result.is_ok:
-            self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_model_ready", backend=backend))
-            # 特例：pytorch 后端不需要转换模型
-            if backend in PYTORCH_BACKENDS:
-                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_pytorch_does_not_need_convert_model"))
-            self._sync_ui_state()
-            return
-
-        # 模型检查失败：隐藏设备控件（保留缓存以便转换后使用）
-        if self._cached_device_items:
-            self._reset_inference_device_combo()
-
-        model_error = (
-            f"{path_result.error_msg}\n\n"
-            f"{i18n.t(f'{I18N_Prefix}.warning_model_not_found_for_backend')}"
-        )
-        self.output_widget.append_text(
-            i18n.t(
-                f"{I18N_Prefix}.warning_model_missing",
-                backend=backend,
-                error=model_error,
-            )
-        )
-
-        # 特例：pytorch 后端不显示转换按钮，直接报错
-        if backend in PYTORCH_BACKENDS:
-            show_notify_dialog(
-                i18n.t(f"{I18N_Prefix}.dialog_title"),
-                i18n.t(f"{I18N_Prefix}.warning_pytorch_model_missing", error=model_error),
-            )
-            self._sync_ui_state()
-            return
-        
-        # 其他情况下，显示转换按钮，允许用户转换模型
-        self._show_convert_model_button = True
+        self._refresh_model_state()
         self._sync_ui_state()
 
         
 
 
     def _handle_convert_runner_ended(self, backend: str, ended) -> None:
-
-        self._show_convert_model_button = True
 
         # 用户主动取消
         if getattr(ended, "cancelled", False):
@@ -836,6 +915,7 @@ class SettingsPage(BaseOutputPage):
             driver_error = 'Error Code 6: API Usage Error (CUDA initialization failure with error: 35. Please check your CUDA installation'
             if driver_error in recent_output:
                 self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.warning_cuda_driver_outdated"))
+            self._refresh_model_state()
             self._sync_ui_state()
             return
 
@@ -853,15 +933,26 @@ class SettingsPage(BaseOutputPage):
                     error=model_error,
                 )
             )
+            self._refresh_model_state()
             self._sync_ui_state()
             return
 
         # 模型转换成功
-        self._show_convert_model_button = False
         self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_convert_success", backend=backend))
-        # 转换成功后，若已有缓存的设备列表则填充并显示设备行
-        if self._cached_device_items:
-            self._populate_inference_device_combo(self._cached_device_items)
+        device_item = self._current_device_item()
+        if device_item is not None:
+            result = ModelInferenceManage.set_model_half_for_backend(
+                backend,
+                device_item.half_supported,
+            )
+            if not result.is_ok:
+                self.output_widget.append_text(
+                    i18n.t(
+                        f"{I18N_Prefix}.warning_model_half_save_failed",
+                        error=result.error_msg,
+                    )
+                )
+        self._refresh_model_state()
         self._sync_ui_state()
 
 

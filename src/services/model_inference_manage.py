@@ -92,6 +92,27 @@ class ModelInferenceManage:
         return model_half is False and device_half is True
 
     @classmethod
+    def set_model_half_for_backend(cls, backend: str, value: bool | None) -> OpResult[None]:
+        model_group = get_model_group(backend)
+        if model_group is None:
+            return err(f"Unknown model backend: {backend}")
+        if value is not None and type(value) is not bool:
+            return err("model_half value must be null, true, or false")
+
+        from .settings_manage import SettingsManage
+
+        result = SettingsManage.get("model_half")
+        if not result.is_ok:
+            return err("Failed to get model_half from settings", inner=result)
+        current = result.value
+        if hasattr(current, "model_dump"):
+            current = current.model_dump(mode="python")
+        if not isinstance(current, dict) or set(current) != MODEL_HALF_KEYS:
+            return err("model_half must contain exactly onnx, ncnn, and trt")
+        current[model_group] = value
+        return SettingsManage.set("model_half", current)
+
+    @classmethod
     def parse_inference_device(cls, value) -> tuple[str, int | None] | None:
         return parse_inference_device(value)
 
@@ -160,6 +181,9 @@ class ModelInferenceManage:
         recorded_half = model_half[model_group]
         paths_result = PathManage.resolve_model_paths(backend)
         if not paths_result.is_ok:
+            clear_result = cls.set_model_half_for_backend(backend, None)
+            if not clear_result.is_ok:
+                return err("Failed to clear model_half after missing artifacts", inner=clear_result)
             return ok(ModelInferenceCheckResult(
                 paths=None,
                 model_group=model_group,
