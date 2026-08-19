@@ -52,11 +52,11 @@
 2. 在「模型推理」分区中，找到「模型后端」选项
 3. 选择合适的后端：
 
-   - PyTorch CPU:  最慢，仅使用 CPU，兼容性最高
-   - NCNN:         较慢，需要兼容 Vulkan 的 GPU
-   - DirectML:     中等，需要兼容 DX12 的 GPU
-   - PyTorch CUDA: 较快，NVIDIA GPU 专用
-   - TensorRT:     最快，NVIDIA GPU 专用
+   - ONNX CPU:  最慢，仅使用 CPU，兼容性最高
+   - NCNN:      较慢，需要兼容 Vulkan 的 GPU
+   - ONNX DML:  中等，需要兼容 DX12 的 GPU
+   - ONNX Cuda: 较快，NVIDIA GPU 专用
+   - TensorRT:  最快，NVIDIA GPU 专用
    
 4. 点击「检测」按钮检查环境
 5. 如果选择 NCNN 或 TensorRT，点击「转换模型」按钮

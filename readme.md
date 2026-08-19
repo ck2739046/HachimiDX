@@ -52,7 +52,7 @@ A tool for the rhythm game **maimai** that converts chart confirmation videos in
     - Integrates [`Bpm-Measurer`](https://github.com/ck2739046/Bpm-Measurer), a handy tool for measuring a song's BPM.
 
 - **Flexible inference backends**
-    - Supports PyTorch / NCNN Vulkan / ONNX-DirectML / NVIDIA TensorRT inference backends for compatibility with a range of hardware.
+    - Supports ONNX / NCNN Vulkan / NVIDIA TensorRT inference backends for compatibility with a range of hardware.
 
 - **Handy multimedia tools**
     - Trim videos, sync audio, convert formats, adjust arcade timing, etc.
