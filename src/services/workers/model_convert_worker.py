@@ -88,7 +88,7 @@ def _get_batch_size(model_name, detect_obb_batch, cls_batch, touch_hold_batch):
 
 
 
-def _convert_to_tensorrt(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
+def _convert_to_tensorrt(detect_obb_batch, cls_batch, touch_hold_batch, half: bool) -> bool:
     try:
         for m in models:
 
@@ -106,7 +106,7 @@ def _convert_to_tensorrt(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
                 model.export(
                     format="engine",
                     imgsz=imgsz,
-                    quantize=16,
+                    quantize=16 if half else 32,
                     dynamic=True,
                     simplify=True,
                     workspace=None,
@@ -122,7 +122,7 @@ def _convert_to_tensorrt(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
                 m.trt_onnx_path.unlink(missing_ok=True)
 
         return True
-    
+
     except Exception as e:
         print(f"TensorRT conversion failed: {e}")
         return False
@@ -131,7 +131,7 @@ def _convert_to_tensorrt(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
 
 
 
-def _convert_to_ncnn(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
+def _convert_to_ncnn(detect_obb_batch, cls_batch, touch_hold_batch, half: bool) -> bool:
     current_ncnn_path = None
     try:
         for m in models:
@@ -150,7 +150,7 @@ def _convert_to_ncnn(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
             exported_path = Path(model.export(
                 format="ncnn",
                 imgsz=imgsz,
-                quantize=16,
+                quantize=16 if half else 32,
                 batch=1,
                 device="cpu",
             )).resolve()
@@ -180,7 +180,7 @@ def _convert_to_ncnn(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
 
 
 
-def _convert_to_onnx(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
+def _convert_to_onnx(detect_obb_batch, cls_batch, touch_hold_batch, half: bool) -> bool:
     current_temp_path = None
     try:
         for m in models:
@@ -203,6 +203,7 @@ def _convert_to_onnx(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
                 simplify=True,
                 batch=batch,
                 device="cpu",
+                quantize=16 if half else 32,
             )).resolve()
 
             if exported_path != m.trt_onnx_path.resolve():
@@ -226,13 +227,17 @@ def _convert_to_onnx(detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
 
 
 
-def main(backend, detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
+def main(backend, detect_obb_batch, cls_batch, touch_hold_batch, half="false") -> bool:
 
     try:
         backend = str(backend or "").strip().lower()
         detect_obb_batch = int(detect_obb_batch)
         cls_batch = int(cls_batch)
         touch_hold_batch = int(touch_hold_batch)
+        half_text = str(half).strip().lower()
+        if half_text not in {"true", "false"}:
+            raise ValueError(f"Invalid half value: {half}")
+        half = half_text == "true"
     except Exception as e:
         print(f"Invalid arguments: {e}")
         return False
@@ -242,11 +247,11 @@ def main(backend, detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
         return False
 
     if backend == "tensorrt":
-        return _convert_to_tensorrt(detect_obb_batch, cls_batch, touch_hold_batch)
+        return _convert_to_tensorrt(detect_obb_batch, cls_batch, touch_hold_batch, half)
     if backend == "ncnn":
-        return _convert_to_ncnn(detect_obb_batch, cls_batch, touch_hold_batch)
-    if backend in {"onnx"}:
-        return _convert_to_onnx(detect_obb_batch, cls_batch, touch_hold_batch)
+        return _convert_to_ncnn(detect_obb_batch, cls_batch, touch_hold_batch, half)
+    if backend in {"onnx", "onnx_cpu", "onnx_cuda", "onnx_dml"}:
+        return _convert_to_onnx(detect_obb_batch, cls_batch, touch_hold_batch, half)
 
     print(f"Unsupported backend for conversion: {backend}")
     return False
@@ -257,9 +262,9 @@ def main(backend, detect_obb_batch, cls_batch, touch_hold_batch) -> bool:
 
 if __name__ == "__main__":
 
-    if len(sys.argv) <= 5:
-        print("plz provide root, backend, detect_obb_batch, cls_batch, touch_hold_batch in args")
+    if len(sys.argv) <= 6:
+        print("plz provide root, backend, detect_obb_batch, cls_batch, touch_hold_batch, half in args")
         sys.exit(1)
 
-    result = main(sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5])
+    result = main(sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6])
     sys.exit(0 if result else 1)
