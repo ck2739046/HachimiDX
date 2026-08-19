@@ -36,6 +36,7 @@ def main(std_video_path: Path,
          inference_device,
          batch_touch_hold: int,
          touch_hold_model_path: Path,
+         half: bool = False,
          batch_cls: int = 16,
          cls_break_model_path: Path = None,
          cls_ex_model_path: Path = None,
@@ -84,6 +85,7 @@ def main(std_video_path: Path,
             inference_device,
             batch_touch_hold,
             touch_hold_model_path,
+            half=half,
         )
         if not touch_hold_r.is_ok:
             return err("Touch-Hold preprocessing failed", inner=touch_hold_r)
@@ -115,7 +117,8 @@ def main(std_video_path: Path,
                 shared_context, slide_head_data, slide_tail_data,
                 timing_points,
                 cls_ex_model_path, cls_break_model_path,
-                inference_device, batch_cls
+                inference_device, batch_cls,
+                half=half,
             )
 
         # merge/sort/save preprocess info

@@ -39,6 +39,7 @@ class _InferencerDeps:
 
 def create_inferencer(detect_model_path, obb_model_path,
                       batch_size, inference_device, coord_scale,
+                      half=False,
                     ) -> OpResult:
     """构造 Inferencer (而不是直接调用 Inferencer.__init__)"""
 
@@ -61,7 +62,7 @@ def create_inferencer(detect_model_path, obb_model_path,
     process_detect = tmp.Process(
         target=inference_worker_main,
         args=(detect_model_path, 'detect', inference_device,
-              coord_scale,
+              coord_scale, half,
               input_queue_detect, output_queue, control_queue_detect,
               progress_ref_detect, stop_event),
         daemon=True,
@@ -69,7 +70,7 @@ def create_inferencer(detect_model_path, obb_model_path,
     process_obb = tmp.Process(
         target=inference_worker_main,
         args=(obb_model_path, 'obb', inference_device,
-              coord_scale,
+              coord_scale, half,
               input_queue_obb, output_queue, control_queue_obb,
               progress_ref_obb, stop_event),
         daemon=True,

@@ -17,7 +17,7 @@ from .analyze_slide_movement import analyze_slide_tail_movement_syntax, is_line_
 def analyze_slide_time(shared_context, slide_head_data, slide_tail_data,
                        timing_points,
                        cls_ex_model_path, cls_break_model_path,
-                       inference_device, batch_cls):
+                       inference_device, batch_cls, half=False):
 
     # 处理星星头的时间，视为 tap 处理
     slide_head_info = analyze_tap_time(shared_context, slide_head_data)
@@ -46,6 +46,7 @@ def analyze_slide_time(shared_context, slide_head_data, slide_tail_data,
                 bpm_segments,
                 cls_ex_model_path, cls_break_model_path,
                 inference_device, batch_cls,
+                half=half,
             )
         finally:
             release_ncnn_vulkan(inference_device)
@@ -220,7 +221,7 @@ def slide_head_tail_match_by_time(shared_context, slide_head_info, slide_tail_in
 def try_split_slide_tail(shared_context, matched_tails_by_head: dict, unmatched_heads: list,
                          bpm_segments: list[list],
                          cls_ex_model_path, cls_break_model_path,
-                         inference_device, batch_cls):
+                         inference_device, batch_cls, half=False):
     '''
     一笔画的多个星星尾可能会被视为一条，可能需要分割
 
@@ -359,7 +360,7 @@ def try_split_slide_tail(shared_context, matched_tails_by_head: dict, unmatched_
                 # 对新的 tail note paths 重新分裂
                 new_tail_note_variant_early = _classify_note_path(
                     shared_context, new_note_path_early, (tail_track_id, tail_note_type),
-                    cls_ex_model, cls_break_model, inference_device, batch_cls
+                    cls_ex_model, cls_break_model, inference_device, batch_cls, half
                 ) or tail_note_variant # fallback
                 # if new_tail_note_variant_early:
                 #     print(f"try_split_slide_tail: - re-classified early tail {new_tail_track_id_early} -> {new_tail_note_variant_early}")
@@ -368,7 +369,7 @@ def try_split_slide_tail(shared_context, matched_tails_by_head: dict, unmatched_
 
                 new_tail_note_variant_late = _classify_note_path(
                     shared_context, new_note_path_late, (tail_track_id, tail_note_type),
-                    cls_ex_model, cls_break_model, inference_device, batch_cls
+                    cls_ex_model, cls_break_model, inference_device, batch_cls, half
                 ) or tail_note_variant # fallback
                 # if new_tail_note_variant_late:
                 #     print(f"try_split_slide_tail: - re-classified late tail {new_tail_track_id_late} -> {new_tail_note_variant_late}")
@@ -410,7 +411,7 @@ def try_split_slide_tail(shared_context, matched_tails_by_head: dict, unmatched_
 
 def _classify_note_path(shared_context, note_path, tract_data_key,
                        cls_ex_model, cls_break_model,
-                       inference_device, batch_cls):
+                       inference_device, batch_cls, half=False):
 
     try:
         note_geometry_list = shared_context.track_data.get(tract_data_key, None)
@@ -424,6 +425,7 @@ def _classify_note_path(shared_context, note_path, tract_data_key,
                     shared_context.std_video_path,
                     cls_ex_model, cls_break_model,
                     inference_device, batch_cls,
+                    half=half,
                 )
                 if variant:
                     return variant

@@ -49,6 +49,7 @@ def run_touch_hold_inference(shared_context: SharedContext,
                              inference_device,
                              batch_touch_hold: int,
                              touch_hold_model_path: Path,
+                             half: bool = False,
                             ) -> OpResult[tuple[list[LightResult], dict]]:
     """
     主入口: Touch-Hold YOLO 推理
@@ -75,6 +76,7 @@ def run_touch_hold_inference(shared_context: SharedContext,
     # 消费者（YOLO 推理 + 轻量解析）
     consumer = TouchHoldConsumer(
         str(touch_hold_model_path), inference_device, total_samples,
+        half=half,
     )
     # queue_size=2
     pipeline_r = Pipeline(producer, consumer, queue_size=2).run()
@@ -172,9 +174,10 @@ class TouchHoldProducer(Producer):
 class TouchHoldConsumer(Consumer):
     """消费者: 取 batch 调 YOLO detect 推理 + 轻量解析, 收集到 self.light_results"""
 
-    def __init__(self, model_path, inference_device, total_samples):
+    def __init__(self, model_path, inference_device, total_samples, half=False):
         self.model_path = model_path
         self.inference_device = inference_device
+        self.half = half
         self.total_samples = total_samples
         self.light_results: list[LightResult] = []
         self._model = None
@@ -202,6 +205,7 @@ class TouchHoldConsumer(Consumer):
                 task="detect",
                 verbose=False,
                 device=self.inference_device,
+                half=self.half,
                 imgsz=get_imgsz("touch_hold"),
                 batch=len(images),
             )

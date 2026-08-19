@@ -10,7 +10,8 @@ from .preprocess_touch_hold_inference import run_touch_hold_inference, calc_touc
 def preprocess_touch_hold_data(shared_context: SharedContext,
                                inference_device,
                                batch_touch_hold: int,
-                               touch_hold_model_path: Path) -> OpResult[dict]:
+                               touch_hold_model_path: Path,
+                               half: bool = False) -> OpResult[dict]:
     '''
     返回格式:
     dict{
@@ -31,7 +32,8 @@ def preprocess_touch_hold_data(shared_context: SharedContext,
 
     # 1: YOLO 推理（生产者-消费者流水线，轻量解析）
     inference_r = run_touch_hold_inference(
-        shared_context, inference_device, batch_touch_hold, touch_hold_model_path
+        shared_context, inference_device, batch_touch_hold, touch_hold_model_path,
+        half=half,
     )
     if not inference_r.is_ok:
         return err("[preprocess_touch_hold] inference failed", inner=inference_r)

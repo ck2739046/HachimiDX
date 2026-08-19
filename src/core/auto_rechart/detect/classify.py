@@ -23,7 +23,8 @@ def main(std_video_path: Path,
          batch_cls: int,
          inference_device: str,
          cls_ex_model_path: str,
-         cls_break_model_path: str
+         cls_break_model_path: str,
+         half: bool = False,
         ) -> OpResult[None]:
     
     """
@@ -63,6 +64,7 @@ def main(std_video_path: Path,
         consumer = ClassifyConsumer(
             cls_ex_model_path, cls_break_model_path,
             inference_device, imgsz, total_cls_quantity,
+            half=half,
         )
         pipeline_r = Pipeline(producer, consumer, queue_size=2).run()
         if not pipeline_r.is_ok:
@@ -169,11 +171,12 @@ class ClassifyConsumer(Consumer):
     """消费者: 取 batch 调 yolo cls 推理, 结果收集到 self.results"""
 
     def __init__(self, cls_ex_model_path, cls_break_model_path,
-                 inference_device, imgsz, total_cls_quantity):
+                 inference_device, imgsz, total_cls_quantity, half=False):
         self.cls_ex_model_path = cls_ex_model_path
         self.cls_break_model_path = cls_break_model_path
         self.inference_device = inference_device
         self.imgsz = imgsz
+        self.half = half
         self.total_cls_quantity = total_cls_quantity
         self.cls_ex_model = None
         self.cls_break_model = None
@@ -192,7 +195,7 @@ class ClassifyConsumer(Consumer):
     def consume(self, batch, stop, ctx):
         cls_results = _classify_image_batch(
             batch, self.cls_ex_model, self.cls_break_model,
-            self.inference_device, self.imgsz,
+            self.inference_device, self.imgsz, self.half,
         )
         if cls_results:
             self.results.extend(cls_results)
@@ -415,7 +418,7 @@ def _extract_note_images_in_frame(imgsz, frame, this_frame_sample_plan, frame_nu
     
 
 
-def _classify_image_batch(consumed_batch, cls_ex_model, cls_break_model, inference_device, imgsz):
+def _classify_image_batch(consumed_batch, cls_ex_model, cls_break_model, inference_device, imgsz, half=False):
 
     """
     调用yolo分类模型，推理传入的音符图片
@@ -443,6 +446,7 @@ def _classify_image_batch(consumed_batch, cls_ex_model, cls_break_model, inferen
             conf=0.5,
             verbose=False,
             device=inference_device,
+            half=half,
             imgsz=imgsz,
             batch=batch_size,
         )
@@ -452,6 +456,7 @@ def _classify_image_batch(consumed_batch, cls_ex_model, cls_break_model, inferen
             conf=0.5,
             verbose=False,
             device=inference_device,
+            half=half,
             imgsz=imgsz,
             batch=batch_size,
         )
@@ -558,6 +563,7 @@ def classify_note_path(
     std_video_path: Path,
     cls_ex_model, cls_break_model,
     inference_device: str, batch_cls: int,
+    half: bool = False,
 ) -> NoteVariant | None:
     """
     对单个音符路径进行分类，返回路径的 NoteVariant。
@@ -645,7 +651,7 @@ def classify_note_path(
                 consumed = images_batch_buffer[:batch_cls]
                 images_batch_buffer = images_batch_buffer[batch_cls:]
                 batch_results = _classify_image_batch(
-                    consumed, cls_ex_model, cls_break_model, inference_device, imgsz
+                    consumed, cls_ex_model, cls_break_model, inference_device, imgsz, half
                 )
                 if batch_results:
                     cls_results_all.extend(batch_results)
@@ -653,7 +659,7 @@ def classify_note_path(
     # 处理剩余 buffer
     if images_batch_buffer:
         batch_results = _classify_image_batch(
-            images_batch_buffer, cls_ex_model, cls_break_model, inference_device, imgsz
+            images_batch_buffer, cls_ex_model, cls_break_model, inference_device, imgsz, half
         )
         if batch_results:
             cls_results_all.extend(batch_results)

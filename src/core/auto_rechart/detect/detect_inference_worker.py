@@ -15,7 +15,7 @@ _OUTPUT_QUEUE_STALL_TIMEOUT = 60.0
 
 
 def inference_worker_main(model_path, task_name, inference_device,
-                          coord_scale,
+                          coord_scale, half,
                           input_queue, output_queue, control_queue,
                           progress_ref, stop_event):
     """
@@ -53,6 +53,7 @@ def inference_worker_main(model_path, task_name, inference_device,
                 source=frames,
                 batch=len(frames),
                 device=inference_device,
+                half=half,
                 imgsz=imgsz_val,
                 max_det=50,
                 verbose=False,
