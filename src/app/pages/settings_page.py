@@ -705,6 +705,19 @@ class SettingsPage(BaseOutputPage):
         )
         self.model_status_label.setVisible(True)
 
+    def _append_model_check_result(self, backend: str) -> None:
+        result = PathManage.resolve_model_paths(backend)
+        if not result.is_ok:
+            # 模型文件存在可能会不兼容，为了避免复杂判断
+            # 仅在检查模型文件缺失时，才在输出框中显示警告信息
+            self.output_widget.append_text(
+                i18n.t(
+                    f"{I18N_Prefix}.warning_model_missing",
+                    backend=backend,
+                    error=print_op_result(result, only_parse_last=True),
+                )
+            )
+
     def _can_save_inference_settings(self, data: dict) -> bool:
         backend = data.get(S_Defs.model_backend.key, "")
         device = data.get(S_Defs.inference_device.key, "")
@@ -887,6 +900,7 @@ class SettingsPage(BaseOutputPage):
 
         # 环境检查通过
         # 下一步，检查模型文件是否存在
+        self._append_model_check_result(backend)
         self._show_environment_state("available")
 
         self._refresh_model_state()
