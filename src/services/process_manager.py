@@ -22,7 +22,7 @@ class RunnerEnded:
 
 
 class ProcessManagerSignals(QObject):
-    runner_output = pyqtSignal(str, object)  # (runner_id, bytes)
+    runner_output = pyqtSignal(str, str, object)  # (runner_id, stream, bytes)
     runner_ended = pyqtSignal(str, object)   # (runner_id, RunnerEnded)
 
 
@@ -32,7 +32,7 @@ class ProcessManager(QObject):
     Responsibilities (minimal):
     - Own all QProcess instances.
     - Assign/accept runner_id.
-    - Read merged output and forward via a single signal with runner_id.
+    - Forward raw stdout/stderr bytes with runner_id and stream.
     - Emit ended signal with runner_id.
 
     Singleton lifecycle:
@@ -57,8 +57,8 @@ class ProcessManager(QObject):
         # dict: runner_id -> QProcess
         self._procs: dict[str, QProcess] = {}
 
-        # dict: runner_id -> output buffer
-        self._buffers: dict[str, bytearray] = {}
+        # dict: runner_id -> stream -> output buffer
+        self._buffers: dict[str, dict[str, bytearray]] = {}
 
         # 记录有哪些 runner_id 请求取消了
         # 临时存着，等 process 真正结束后会删掉
@@ -98,7 +98,7 @@ class ProcessManager(QObject):
         rid = str(runner_id).strip()
             
         process = QProcess(self)
-        process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+        process.setProcessChannelMode(QProcess.ProcessChannelMode.SeparateChannels)
 
         program = cmd[0]
         args = cmd[1:]
@@ -107,15 +107,19 @@ class ProcessManager(QObject):
         process.setArguments(args)
 
         self._procs[rid] = process
-        self._buffers[rid] = bytearray()
+        self._buffers[rid] = {
+            "stdout": bytearray(),
+            "stderr": bytearray(),
+        }
 
-        process.readyReadStandardOutput.connect(lambda rid=rid: self._on_ready_read(rid))
+        process.readyReadStandardOutput.connect(lambda rid=rid: self._on_ready_read(rid, "stdout"))
+        process.readyReadStandardError.connect(lambda rid=rid: self._on_ready_read(rid, "stderr"))
         process.finished.connect(lambda code, status, rid=rid: self._on_finished(rid, int(code), status))
         process.errorOccurred.connect(lambda e, rid=rid: self._on_error(rid, e))
 
         # 延迟发送开始文本
         start_msg = f"\n-\n{'=' * 30}\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] Task_id '{rid}' start.\n-\n{', '.join(cmd)}\n-\n"
-        QTimer.singleShot(0, lambda rid=rid: self.signals.runner_output.emit(rid, bytes(start_msg, 'utf-8')))
+        QTimer.singleShot(0, lambda rid=rid: self.signals.runner_output.emit(rid, "stdout", bytes(start_msg, 'utf-8')))
         
         process.start()
 
@@ -161,48 +165,56 @@ class ProcessManager(QObject):
     # Internal helpers
     # -------------------  
 
-    def _on_ready_read(self, runner_id: str) -> None:
+    def _on_ready_read(self, runner_id: str, stream: str) -> None:
 
         proc = self._procs.get(runner_id)
         if proc is None:
             return
 
-        data = proc.readAllStandardOutput()
+        if stream == "stdout":
+            data = proc.readAllStandardOutput()
+        else:
+            data = proc.readAllStandardError()
         if not data:
             return
 
-        buf = self._buffers.get(runner_id)
-        if buf is None:
-            self._buffers[runner_id] = bytearray()
-            buf = self._buffers[runner_id]
+        runner_buffers = self._buffers.get(runner_id)
+        if runner_buffers is None:
+            runner_buffers = {
+                "stdout": bytearray(),
+                "stderr": bytearray(),
+            }
+            self._buffers[runner_id] = runner_buffers
 
-        buf.extend(bytes(data))
+        runner_buffers[stream].extend(bytes(data))
 
 
 
 
     def _flush_all_buffers(self) -> None:
         # Emit at most once per interval per runner.
-        for rid, buf in list(self._buffers.items()):
+        for rid in list(self._buffers):
+            self._flush_one_buffer(rid)
+
+    def _flush_one_buffer(self, runner_id: str) -> None:
+        runner_buffers = self._buffers.get(runner_id)
+        if runner_buffers is None:
+            return
+        for stream in ("stdout", "stderr"):
+            buf = runner_buffers[stream]
             if not buf:
                 continue
             payload = bytes(buf)
             buf.clear()
             try:
-                self.signals.runner_output.emit(rid, payload)
+                self.signals.runner_output.emit(runner_id, stream, payload)
             except Exception:
                 pass
 
-    def _flush_one_buffer(self, runner_id: str) -> None:
-        buf = self._buffers.get(runner_id)
-        if not buf:
-            return
-        payload = bytes(buf)
-        buf.clear()
-        try:
-            self.signals.runner_output.emit(runner_id, payload)
-        except Exception:
-            pass
+
+    def _read_remaining_output(self, runner_id: str) -> None:
+        self._on_ready_read(runner_id, "stdout")
+        self._on_ready_read(runner_id, "stderr")
 
 
 
@@ -212,6 +224,7 @@ class ProcessManager(QObject):
         if runner_id not in self._procs:
             return
 
+        self._read_remaining_output(runner_id)
         self._flush_one_buffer(runner_id)
 
         cancelled = runner_id in self._cancel_requested
@@ -250,6 +263,7 @@ class ProcessManager(QObject):
             # _on_finished 先于本槽执行，此时无需重复清理
             return
         if is_not_running:
+            self._read_remaining_output(runner_id)
             self._flush_one_buffer(runner_id)
             ended = RunnerEnded(
                 runner_id=runner_id,
@@ -290,7 +304,7 @@ class ProcessManager(QObject):
         try:
             # 先发送结束文本
             end_msg = f"\n-\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] Task_id '{runner_id}' ended.\n-\n"
-            self.signals.runner_output.emit(runner_id, bytes(end_msg, 'utf-8'))
+            self.signals.runner_output.emit(runner_id, "stdout", bytes(end_msg, 'utf-8'))
             # 然后发送 ended 信号
             self.signals.runner_ended.emit(runner_id, ended)
         except Exception:

@@ -1,9 +1,79 @@
 import re
 
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QTextCursor
 from PyQt6.QtWidgets import QTextEdit, QVBoxLayout, QWidget
 
 from ..ui_style import UI_Style
+
+
+class _OutputStreamDecoder:
+
+    def __init__(self) -> None:
+        self._buffer = bytearray()
+
+    @staticmethod
+    def _looks_like_utf16le(data: bytes) -> bool:
+        if data.startswith(b"\xff\xfe"):
+            return True
+        sample = data[:64]
+        pair_count = len(sample) // 2
+        if pair_count < 2:
+            return False
+        even = sample[0:pair_count * 2:2]
+        odd = sample[1:pair_count * 2:2]
+        odd_zero_ratio = odd.count(0) / pair_count
+        even_zero_ratio = even.count(0) / pair_count
+        return odd_zero_ratio >= 0.6 and even_zero_ratio <= 0.2
+
+    @staticmethod
+    def _decode_bytes(data: bytes, utf16le: bool = False) -> str:
+        if not data:
+            return ""
+        if utf16le:
+            encoding = "utf-16" if data.startswith(b"\xff\xfe") else "utf-16-le"
+            try:
+                return data.decode(encoding, errors="strict")
+            except UnicodeDecodeError:
+                pass
+        try:
+            return data.decode("utf-8", errors="strict")
+        except UnicodeDecodeError:
+            try:
+                return data.decode("gbk", errors="strict")
+            except UnicodeDecodeError:
+                return data.decode("utf-8", errors="replace")
+
+    @staticmethod
+    def _last_delimiter_end(data: bytes, utf16le: bool) -> int:
+        delimiters = (b"\n\x00", b"\r\x00") if utf16le else (b"\n", b"\r")
+        return max((data.rfind(delimiter) + len(delimiter) for delimiter in delimiters), default=0)
+
+    def feed(self, data: bytes | bytearray, final: bool = False) -> str:
+        self._buffer.extend(data)
+        decoded_parts: list[str] = []
+
+        while self._buffer:
+            raw = bytes(self._buffer)
+            utf16le = self._looks_like_utf16le(raw)
+            prefix_end = len(raw) if final else self._last_delimiter_end(raw, utf16le)
+            if prefix_end <= 0:
+                break
+            if utf16le and prefix_end % 2:
+                prefix_end -= 1
+            if prefix_end <= 0:
+                break
+
+            prefix = raw[:prefix_end]
+            del self._buffer[:prefix_end]
+            decoded_parts.append(self._decode_bytes(prefix, utf16le=utf16le))
+
+        if final and self._buffer:
+            raw = bytes(self._buffer)
+            self._buffer.clear()
+            decoded_parts.append(self._decode_bytes(raw, utf16le=self._looks_like_utf16le(raw)))
+
+        return "".join(decoded_parts)
 
 
 class OutputLogWidget(QWidget):
@@ -52,6 +122,9 @@ class OutputLogWidget(QWidget):
 
             # Librosa 加载音频 (detect click start)
             ["error: No comment text / valid description?"],
+
+            # onnxruntime-gpu 找不到 cuda ep 设备 (误报)
+            ["No registered plugin EP device found for 'CUDAExecutionProvider' with device_id="],
         ]
 
         # 保存的最大行数
@@ -60,8 +133,8 @@ class OutputLogWidget(QWidget):
         self._is_last_line_replaceable = False
         # ANSI 转义序列的正则表达式
         self._ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
-        # 文本缓冲区（用于处理 \r）
-        self._text_buffer = ""
+        self._stream_decoders: dict[tuple[str, str], _OutputStreamDecoder] = {}
+        self._text_buffers: dict[tuple[str, str], str] = {}
 
         self._setup_ui()
 
@@ -74,6 +147,10 @@ class OutputLogWidget(QWidget):
 
         self.text_edit = QTextEdit()
         self.text_edit.setReadOnly(True)  # 只读模式
+        self.text_edit.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+            | Qt.TextInteractionFlag.TextSelectableByKeyboard
+        )
         self.text_edit.setFixedHeight(UI_Style.output_log_widget_height)
         self.text_edit.setStyleSheet(
             f"""
@@ -194,7 +271,8 @@ class OutputLogWidget(QWidget):
     def clear(self) -> None:
         """清空输出区域."""
         self.text_edit.clear()
-        self._text_buffer = ""
+        self._stream_decoders.clear()
+        self._text_buffers.clear()
         self._is_last_line_replaceable = False
 
 
@@ -219,7 +297,8 @@ class OutputLogWidget(QWidget):
             
         if clear:
             self.text_edit.clear()
-            self._text_buffer = ""
+            self._stream_decoders.clear()
+            self._text_buffers.clear()
             self._is_last_line_replaceable = False
 
     
@@ -229,13 +308,14 @@ class OutputLogWidget(QWidget):
         Unbinds the given runner_id from this output widget.
         """
 
+        self._flush_runner(runner_id)
         self._current_runner_id.discard(runner_id)
 
 
 
-    def handle_process_output(self, runner_id: str, payload: object) -> None:
+    def handle_process_output(self, runner_id: str, stream: str, payload: object) -> None:
         """
-        Slot: consume ProcessManager.signals.runner_output(runner_id, bytes).
+        Slot: consume ProcessManager.signals.runner_output(runner_id, stream, bytes).
         Handles output only if runner_id matches the bound runner_id(s).
         """
 
@@ -244,19 +324,44 @@ class OutputLogWidget(QWidget):
 
         if not isinstance(payload, (bytes, bytearray)):
             return
+        if stream not in {"stdout", "stderr"}:
+            return
 
-        text = self._decode_output(payload)
-        self._process_text_buffer(text)
+        key = (runner_id, stream)
+        decoder = self._stream_decoders.setdefault(key, _OutputStreamDecoder())
+        text = decoder.feed(payload)
+        if text:
+            self._process_text_buffer(key, text)
 
 
 
 
     def flush_buffer(self) -> None:
         """刷新缓冲区，输出剩余内容"""
-        if self._text_buffer.strip():
-            clean_line = self._strip_ansi(self._text_buffer)
-            self._append_output(clean_line, replace_last=False)
-            self._text_buffer = ""
+        runner_ids = {runner_id for runner_id, _ in self._stream_decoders}
+        runner_ids.update(runner_id for runner_id, _ in self._text_buffers)
+        for runner_id in runner_ids:
+            self._flush_runner(runner_id)
+
+
+    def _flush_runner(self, runner_id: str) -> None:
+        keys = {
+            key for key in self._stream_decoders
+            if key[0] == runner_id
+        }
+        keys.update(
+            key for key in self._text_buffers
+            if key[0] == runner_id
+        )
+        for key in keys:
+            decoder = self._stream_decoders.pop(key, None)
+            if decoder is not None:
+                text = decoder.feed(b"", final=True)
+                if text:
+                    self._process_text_buffer(key, text)
+            buffered_text = self._text_buffers.pop(key, "")
+            if buffered_text.strip():
+                self._append_output(self._strip_ansi(buffered_text), replace_last=False)
 
 
 
@@ -279,30 +384,25 @@ class OutputLogWidget(QWidget):
 
     def _decode_output(self, byte_array) -> str:
         """解码字节流"""
-        # 先尝试 UTF-8 编码（Python 脚本默认输出）
-        try:
-            return bytes(byte_array).decode('utf-8', errors='strict')
-        except UnicodeDecodeError:
-            # 失败则尝试 GBK（Windows 控制台默认）
-            try:
-                return bytes(byte_array).decode('gbk', errors='strict')
-            except:
-                # 最后使用 UTF-8 with replace（兜底）
-                return bytes(byte_array).decode('utf-8', errors='replace')
+        data = bytes(byte_array)
+        return _OutputStreamDecoder._decode_bytes(
+            data,
+            utf16le=_OutputStreamDecoder._looks_like_utf16le(data),
+        )
 
 
 
-    def _process_text_buffer(self, text: str) -> None:
+    def _process_text_buffer(self, key: tuple[str, str], text: str) -> None:
         """处理文本缓冲区中的 \\r 和 \\n"""
         # 将新文本添加到缓冲区
-        self._text_buffer += text
+        text_buffer = self._text_buffers.get(key, "") + text
         
         # 处理缓冲区中的文本
         while True:
             # 检查是否有换行符
-            if '\n' in self._text_buffer:
+            if '\n' in text_buffer:
                 # 有换行符，处理到换行符为止的内容
-                line, self._text_buffer = self._text_buffer.split('\n', 1)
+                line, text_buffer = text_buffer.split('\n', 1)
                 
                 # 处理 \\r（回车符）
                 if '\r' in line:
@@ -335,9 +435,9 @@ class OutputLogWidget(QWidget):
                         clean_line = self._strip_ansi(line)
                         self._append_output(clean_line, replace_last=False)
                         
-            elif '\r' in self._text_buffer:
+            elif '\r' in text_buffer:
                 # 有回车符但没有换行符，说明是进度更新
-                parts = self._text_buffer.split('\r')
+                parts = text_buffer.split('\r')
                 # 只发送倒数第二个部分（如果有的话）
                 # 因为最后一个部分可能不完整，需要保留在缓冲区
                 if len(parts) >= 2:
@@ -347,11 +447,13 @@ class OutputLogWidget(QWidget):
                         clean_line = self._strip_ansi(progress_text)
                         self._append_output(clean_line, replace_last=True)
                 # 保留最后一部分在缓冲区
-                self._text_buffer = parts[-1]
+                text_buffer = parts[-1]
                 break
             else:
                 # 没有换行符也没有回车符，等待更多数据
                 break
+
+        self._text_buffers[key] = text_buffer
 
 
     def get_recent_lines(self, num_lines):
