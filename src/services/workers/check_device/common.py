@@ -15,8 +15,8 @@ def check_torch_installed() -> tuple[bool, object | None]:
         import torch
         print(f"PyTorch installed, version {torch.__version__}")
         return True, torch
-    except ImportError as e:
-        print(f"PyTorch is not installed: {e!r}")
+    except Exception as e:
+        print(f"Failed to load PyTorch: {e!r}")
         return False, None
 
 

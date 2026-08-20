@@ -37,7 +37,10 @@ def _com_method(pointer, index, restype, *argtypes):
 
 def _release_com(pointer) -> None:
     if pointer and pointer.value:
-        _com_method(pointer, 2, ctypes.c_ulong)(pointer)
+        try:
+            _com_method(pointer, 2, ctypes.c_ulong)(pointer)
+        except Exception:
+            pass
 
 
 def query_directml_fp16_support(adapter_index: int) -> bool:
@@ -128,7 +131,7 @@ def query_directml_fp16_support(adapter_index: int) -> bool:
             ctypes.byref(support),
         )
         return result >= 0 and bool(support.IsSupported)
-    except (AttributeError, OSError, ValueError):
+    except Exception:
         return False
     finally:
         _release_com(dml_device)
@@ -150,12 +153,16 @@ def check() -> list[DeviceResult] | None:
     try:
         import onnxruntime as ort
         print(f"ONNX Runtime installed, version {ort.__version__}")
-    except ImportError as e:
-        print(f"ONNX Runtime is not installed: {e!r}")
+    except Exception as e:
+        print(f"Failed to load ONNX Runtime: {e!r}")
         return None
 
-    providers = ort.get_available_providers()
-    print(f"Available providers: {providers}")
+    try:
+        providers = ort.get_available_providers()
+    except Exception as e:
+        print(f"Failed to read ONNX Runtime providers: {e}")
+        return None
+    # print(f"Available providers: {providers}")
     if "DmlExecutionProvider" not in providers:
         print("DirectML execution provider is unavailable")
         return None

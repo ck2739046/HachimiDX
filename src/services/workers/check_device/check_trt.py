@@ -25,14 +25,15 @@ def check() -> list[DeviceResult] | None:
     try:
         import tensorrt
         print(f"TensorRT installed, version {tensorrt.__version__}")
-    except ImportError as e:
-        print(f"TensorRT is not installed: {e!r}")
+    except Exception as e:
+        print(f"Failed to load TensorRT: {e!r}")
         return None
 
-    # check_cuda 已确认 torch 可导入,这里静默兜底
+    # check_cuda 已确认 torch 可导入，这里不应该触发
     try:
         import torch
-    except ImportError:
+    except Exception as e:
+        print(f"Failed to load PyTorch: {e!r}")
         return None
 
     results = []
@@ -46,4 +47,4 @@ def check() -> list[DeviceResult] | None:
     for device in results:
         print(f"  - {device.device_id}: {device.name}, half={device.half}")
 
-    return results
+    return devices

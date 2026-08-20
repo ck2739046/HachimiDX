@@ -7,15 +7,23 @@ def check(print_device: bool = True) -> list[DeviceResult] | None:
     if not ok:
         return None
 
-    cuda_support = torch.cuda.is_available()
-    cud_version = torch.version.cuda if hasattr(torch.version, "cuda") else "N/A"
+    try:
+        cuda_support = torch.cuda.is_available()
+        cud_version = torch.version.cuda if hasattr(torch.version, "cuda") else "N/A"
+    except Exception as e:
+        print(f"Failed to initialize PyTorch CUDA: {e}")
+        return None
     print(f"  - CUDA available: {cuda_support}")
     print(f"  - CUDA version: {cud_version}")
     if not cuda_support or not cud_version or cud_version == "N/A":
         print("CUDA support is not available in PyTorch")
         return None
 
-    device_count = torch.cuda.device_count()
+    try:
+        device_count = torch.cuda.device_count()
+    except Exception as e:
+        print(f"Failed to enumerate CUDA devices: {e}")
+        return None
     if device_count == 0:
         print("No available CUDA devices found")
         return None

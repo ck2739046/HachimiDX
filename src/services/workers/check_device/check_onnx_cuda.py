@@ -5,12 +5,16 @@ from .common import DeviceResult
 def check() -> list[DeviceResult] | None:
     try:
         import onnxruntime as ort
-    except ImportError as e:
-        print(f"ONNX Runtime is not installed: {e!r}")
+    except Exception as e:
+        print(f"Failed to load ONNX Runtime: {e!r}")
         return None
 
-    providers = ort.get_available_providers()
-    print(f"Available providers: {providers}")
+    try:
+        providers = ort.get_available_providers()
+    except Exception as e:
+        print(f"Failed to read ONNX Runtime providers: {e}")
+        return None
+    # print(f"Available providers: {providers}")
     if "CUDAExecutionProvider" not in providers:
         print("CUDA execution provider is unavailable")
         return None

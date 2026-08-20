@@ -51,7 +51,7 @@ def main(runtime: str) -> bool:
     # 检测成功时打印设备列表
     # INFERENCE_DEVICE_RESULT:<id>|<name>|half=true/false
     if not devices:
-        return
+        return False
     for device in devices:
         half = "true" if device.half else "false"
         print(f"INFERENCE_DEVICE_RESULT:{device.device_id}|{device.name}|half={half}")

@@ -23,8 +23,8 @@ def check() -> list[DeviceResult] | None:
     try:
         import ncnn
         print(f"NCNN installed, version {ncnn.__version__}")
-    except ImportError as e:
-        print(f"NCNN is not installed: {e!r}")
+    except Exception as e:
+        print(f"Failed to load NCNN: {e!r}")
         return None
 
     gpu_instance_created = False
@@ -43,9 +43,9 @@ def check() -> list[DeviceResult] | None:
         devices: list[DeviceResult] = []
         print("NCNN Vulkan devices:")
         for index in range(gpu_count):
-            gpu_info = ncnn.get_gpu_info(index)
-            device_name = gpu_info.device_name()
             try:
+                gpu_info = ncnn.get_gpu_info(index)
+                device_name = gpu_info.device_name()
                 net = ncnn.Net()
                 net.opt.use_vulkan_compute = True
                 net.set_vulkan_device(index)
@@ -67,4 +67,7 @@ def check() -> list[DeviceResult] | None:
         return None
     finally:
         if gpu_instance_created:
-            ncnn.destroy_gpu_instance()
+            try:
+                ncnn.destroy_gpu_instance()
+            except Exception as e:
+                print(f"Failed to destroy NCNN Vulkan instance: {e}")
