@@ -1,5 +1,8 @@
 2026.07.29: 当前版本 python 3.11.15
 
+https://archive.docs.nvidia.com/tensorrt/tensorrt-861/release-notes/index.html
+为了兼容 gtx1000 系显卡 tensorRT 8.6.1 最高仅支持到 py 3.11
+
 
 1. 下载 micromamba 本体，放到项目根目录
 

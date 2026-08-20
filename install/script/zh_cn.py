@@ -108,6 +108,7 @@ choose_backend = SN(
     backend_menu_title = "请选择要安装的推理后端：",
     backend_option = "{index}. {backend} [{status}]",
     backend_recommendation = "推荐安装 {backend}（此为默认选项）",
+    defaulting = "默认选择推荐后端。",
     backend_prompt = "请输入后端编号（1, 2, 3, ...）\n-> ",
     exit_option = "6. 退出",
     invalid_backend_choice = "输入无效，请重新输入。",

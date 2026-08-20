@@ -34,7 +34,7 @@ _LEGACY_TRT_PACKAGES = {
         package_version="8.5.3.1",
         archive_version="8.5.3.1",
         filename="TensorRT-8.5.3.1.Windows10.x86_64.cuda-11.8.cudnn8.6.zip",
-        wheel_filename="tensorrt-8.5.3.1-cp311-none-win_amd64.whl",
+        wheel_filename="tensorrt-8.5.3.1-cp310-none-win_amd64.whl",
         url=(
             "https://developer.nvidia.com/downloads/compute/machine-learning/"
             "tensorrt/secure/8.5.3/zip/"

@@ -291,6 +291,7 @@ def _ask_backend(
     while True:
         content = ask(T.choose_backend.backend_prompt)
         if content == "":
+            print(T.choose_backend.defaulting)
             return ok(default_backend)
         if content == "6":
             sys.exit(0)

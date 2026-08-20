@@ -30,21 +30,21 @@ class OnnxCudaGpuDetection:
 onnx_cuda_config_list = [
     onnx_cuda_config(
         compute_capability=(7, 5),
-        win_driver_ver=(572, 61),
-        torch_ver="2.10.0",
-        torch_cuda_ver="cu128",
-        torchvision_ver="0.25.0",
-        onnxruntime_gpu_ver="1.24.4",
-        numpy_ver="2.4.3",
+        win_driver_ver=(580, 65),
+        torch_ver="2.11.0",            # 首个正式支持 cu130 的版本
+        torch_cuda_ver="cu130",
+        torchvision_ver="0.26.0",
+        onnxruntime_gpu_ver="1.28.0",
+        numpy_ver="2.4.6",             # 最后支持 py 3.11 的版本
         opencv_ver="5.0.0.93",
     ),
     onnx_cuda_config(
         compute_capability=(5, 0),
-        win_driver_ver=(452, 39),
+        win_driver_ver=(520, 6),
         torch_ver="2.3.1",             # 最后 cudnn 8 的版本
         torch_cuda_ver="cu118",
         torchvision_ver="0.18.1",
-        onnxruntime_gpu_ver="1.18.1",  # 最后 cuda 11 的版本
+        onnxruntime_gpu_ver="1.18.1",  # 最后默认 cuda 11 的版本
         numpy_ver="1.26.4",            # 最后 1.x 版本，旧版 onnxruntime-gpu 需要
         opencv_ver="4.11.0.86",        # 最后符合 numpy < 2.0 的 opencv
     ),

@@ -108,6 +108,7 @@ choose_backend = SN(
     backend_menu_title = "Select the inference backend to install:",
     backend_option = "{index}. {backend} [{status}]",
     backend_recommendation = "{backend} is the recommended and default option.",
+    defaulting = "Defaulting to the recommended backend.",
     backend_prompt = "Please enter the backend number (1, 2, 3, ...)\n-> ",
     exit_option = "6. Exit",
     invalid_backend_choice = "Invalid input. Please try again.",

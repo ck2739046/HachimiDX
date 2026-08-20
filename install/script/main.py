@@ -107,11 +107,14 @@ def reinstall_backend() -> OpResult[None]:
 
     # 2. 删除相关库
     print(f"\n-----\n\n{T.reinstall_backend.start_uninstall}\n")
-    cmd = [sys.executable, "-m", "pip", "uninstall",
+    cmd = [sys.executable, "-m", "pip", "uninstall", "-y",
         "onnxruntime", "onnxruntime-gpu", "onnxruntime-directml",
         "torch", "torchvision",
         "tensorrt", "opencv-python",
-        "ncnn", "pnnx", "-y"]
+        "tensorrt_cu12", "tensorrt_cu12_bindings", "tensorrt_cu12_libs",
+        "tensorrt_cu13", "tensorrt_cu13_bindings", "tensorrt_cu13_libs",
+        "ncnn", "pnnx",
+        ]
     try:
         subprocess.run(cmd, check=True)
     except Exception as e:
@@ -192,9 +195,9 @@ def install() -> OpResult[None]:
     # install others
     dependencies = [
         "PyQt6==6.10.2",
-        "pywin32==311",
+        "pywin32==312",
         "librosa==0.11.0",
-        "pydantic==2.12.5",
+        "pydantic==2.13.4",
         "python-i18n==0.3.9",
         "nanoid==2.0.0",
         "filterpy==1.4.5",
@@ -245,8 +248,8 @@ def install_pytorch(tensorrt_gpu_config: tensorrt_config | None,
         target = onnx_cuda_gpu_config.torch_cuda_ver
     else:
         # 默认安装 cpu 版本
-        torch_ver = "2.10.0"
-        torchvision_ver = "0.25.0"
+        torch_ver = "2.11.0"
+        torchvision_ver = "0.26.0"
         target = "cpu"
 
     # 包含 PyTorch Cuda 本体的镜像列表
@@ -292,10 +295,15 @@ def install_ultralytics_onnx(backend: str,
         gpu_config = None
 
     # onnx/onnxslim 必装
-    libs = ["onnx==1.20.1", "onnxslim==0.1.90"]
+    libs = ["onnx==1.17.0", "onnxslim==0.1.95"]
 
     # onnxruntime 三选一
     if backend in ["trt", "onnx_cuda"]:
+        # onnxruntime-gpu 需要 cuda/cudnn 环境
+        # 前面已经安装了 pytorch cuda
+        # sitecustomize 会在运行时自动加载 pytorch 的 cuda 依赖
+        # onnx 可以借用这个依赖
+        # 所以这里不再通过 ort extra 显式安装 cuda 依赖
         libs += [f"onnxruntime-gpu=={gpu_config.onnxruntime_gpu_ver}"]
     elif backend == "onnx_dml":
         libs += ["onnxruntime-directml==1.24.4"]
@@ -309,7 +317,7 @@ def install_ultralytics_onnx(backend: str,
         return False
 
     # 安装 Ultralytics
-    numpy_ver = gpu_config.numpy_ver if gpu_config is not None else "2.4.3"
+    numpy_ver = gpu_config.numpy_ver if gpu_config is not None else "2.4.6"
     libs = ["ultralytics==8.4.115", "lap==0.5.13", f"numpy=={numpy_ver}"]
     # 可选显式指定 cv2 版本，否则 ultralytics 会自动安装
     if gpu_config is not None:
@@ -342,7 +350,7 @@ def install_tensorrt(config: tensorrt_config) -> bool:
 
     # 先安装 wheel-stub
     cmd = [sys.executable, "-m", "pip", "install",
-           "wheel-stub==0.4.2", "--no-warn-script-location"]
+           "wheel-stub==0.5.0", "--no-warn-script-location"]
     is_success = general_pip_install("wheel-stub", cmd)
     if not is_success:
         return False

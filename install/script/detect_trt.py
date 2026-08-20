@@ -39,43 +39,46 @@ class TensorRTGpuDetection:
 # 以 sm 从高到低排序
 tensorrt_config_list: list[tensorrt_config] = [
 
-    # sm7.5, Turing and later
+    # sm7.5 Turing and later
     tensorrt_config( 
         compute_capability= (7, 5),
-        win_driver_ver=     (572, 61),
-        torch_ver=          "2.10.0",
-        torch_cuda_ver=     "cu128",
-        torchvision_ver=    "0.25.0",
-        onnxruntime_gpu_ver="1.24.4",
-        tensorRT_ver=       "10.15.1.29",
+        win_driver_ver=     (580, 65),
+        torch_ver=          "2.11.0",     # 首个正式支持 cu130 的版本
+        torch_cuda_ver=     "cu130",
+        torchvision_ver=    "0.26.0",
+        onnxruntime_gpu_ver="1.28.0",
+        tensorRT_ver=       "10.16.1.11", # 最后 10.x 版本
         is_trt_legacy=      False,
-        numpy_ver=          "2.4.3",
+        numpy_ver=          "2.4.6",      # 最后支持 py 3.11 的版本
         opencv_ver=         "5.0.0.93",
     ),
 
-    # sm6.0 Pascal & sm7.0 Volta
+    # sm6.0 Pascal ~ sm7.0 Volta
     tensorrt_config( 
         compute_capability= (6, 0),
-        win_driver_ver=     (452, 39),
+        win_driver_ver=     (520, 6),
         torch_ver=          "2.3.1",      # 最后 cudnn 8 的版本
         torch_cuda_ver=     "cu118",
         torchvision_ver=    "0.18.1",
-        onnxruntime_gpu_ver="1.18.1",     # 最后 cuda 11 的版本
+        onnxruntime_gpu_ver="1.18.1",     # 最后默认 cuda 11 的版本
         tensorRT_ver=       "8.6.1",      # 最后支持 sm6.0 的版本
         is_trt_legacy=      True,
         numpy_ver=          "1.26.4",     # 最后 1.x 版本，旧版 onnxruntime-gpu 需要
         opencv_ver=         "4.11.0.86",  # 最后符合 numpy < 2.0 的 opencv
     ),
 
-    # 已禁用，因为 trt 8.5.3 zip 需要登录英伟达账户才能下载
+    # 已禁用 trt 8.5.3
+    # 1. zip 需要登录英伟达账户才能下载
+    # 2. 此版本不支持 python 3.11
+
     # # sm5.0 Maxwell
     # tensorrt_config( 
     #     compute_capability= (5, 0),
-    #     win_driver_ver=     (452, 39),
+    #     win_driver_ver=     (520, 6),
     #     torch_ver=          "2.3.1",      # 最后 cudnn 8 的版本
     #     torch_cuda_ver=     "cu118",
     #     torchvision_ver=    "0.18.1",
-    #     onnxruntime_gpu_ver="1.18.1",     # 最后 cuda 11 的版本
+    #     onnxruntime_gpu_ver="1.18.1",     # 最后默认 cuda 11 的版本
     #     tensorRT_ver=       "8.5.3.1",    # 最后支持 sm5.0 的版本
     #     is_trt_legacy=      True,
     #     numpy_ver=          "1.26.4",     # 最后 1.x 版本，旧版 onnxruntime-gpu 需要
@@ -121,6 +124,9 @@ def detect_trt_availability(
         )
 
     return ok(detections)
+
+
+
 def _check_gpu(
     T,
     compute_cap: tuple[int, int],
@@ -157,8 +163,8 @@ def _check_gpu(
     # 驱动版本不达标：不允许回退到其他区间，直接判为不可用
     if driver_ver < target_config.win_driver_ver:
         return None, T.detect_trt.invalid_driver_version.format(
-            driver_version=f"{driver_ver[0]}.{driver_ver[1]}",
-            min_driver_version=f"{target_config.win_driver_ver[0]}.{target_config.win_driver_ver[1]}",
+            driver_version=f"{driver_ver[0]}.{driver_ver[1]:02d}",
+            min_driver_version=f"{target_config.win_driver_ver[0]}.{target_config.win_driver_ver[1]:02d}",
         )
 
     return target_config, None
