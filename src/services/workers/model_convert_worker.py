@@ -197,7 +197,7 @@ def _convert_to_onnx(detect_obb_batch, cls_batch, touch_hold_batch, half: bool) 
             batch = _get_batch_size(m.name, detect_obb_batch, cls_batch, touch_hold_batch)
             exported_path = Path(model.export(
                 format="onnx",
-                opset=17,
+                opset=18,
                 imgsz=imgsz,
                 dynamic=True,
                 simplify=True,
