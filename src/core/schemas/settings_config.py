@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Literal
 
-from .model_inference_config import MODEL_BACKEND_OPTIONS, MODEL_HALF_KEYS, MODEL_HALF_DEFAULT
+from .model_inference_config import MODEL_BACKEND_OPTIONS
 
 
 # 窗口尺寸硬性边界常量（不写入 settings.json，不在设置页配置）
@@ -91,14 +91,6 @@ class SettingsConfig_Definitions:
         type="bool",
         group="model",
         default=False,
-    )
-
-    model_half = SettingsConfig_Definition(
-        key="model_half",
-        type="object",
-        group="model",
-        default=MODEL_HALF_DEFAULT,
-        constraints={"keys": MODEL_HALF_KEYS},
     )
 
     # ffmpeg

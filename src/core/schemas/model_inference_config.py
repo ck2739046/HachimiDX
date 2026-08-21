@@ -8,13 +8,6 @@ MODEL_BACKEND_OPTIONS: Final[tuple[str, ...]] = (
     "ONNX Cuda",
     "TensorRT",
 )
-MODEL_HALF_KEYS: Final[frozenset[str]] = frozenset({"onnx", "ncnn", "trt"})
-MODEL_HALF_DEFAULT: Final[dict[str, bool | None]] = {
-    "onnx": None,
-    "ncnn": None,
-    "trt": None,
-}
-
 _INFERENCE_DEVICE_SCHEMES = {
     "cpu": False,
     "cuda": True,
@@ -70,15 +63,6 @@ def get_model_backend_id(backend) -> str | None:
 def get_model_group(backend) -> str | None:
     rule = get_model_backend_rule(backend)
     return rule["model_group"] if rule is not None else None
-
-
-
-def get_model_half_for_backend(model_half, backend) -> bool | None:
-    group = get_model_group(backend)
-    if group is None or not isinstance(model_half, dict):
-        return None
-    value = model_half.get(group)
-    return value if value is None or type(value) is bool else None
 
 
 

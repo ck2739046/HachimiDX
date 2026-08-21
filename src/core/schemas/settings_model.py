@@ -10,7 +10,6 @@ from .settings_config import (
     SettingsConfig_Definitions as S_Defs,
 )
 from .model_inference_config import (
-    MODEL_HALF_DEFAULT,
     normalize_inference_device_for_backend,
     normalize_inference_device_id,
 )
@@ -30,15 +29,6 @@ class MainAppWindowState(BaseModel):
     )]
 
 
-class ModelHalfSettings(BaseModel):
-
-    model_config = ConfigDict(extra="forbid")
-
-    onnx: StrictBool | None
-    ncnn: StrictBool | None
-    trt: StrictBool | None
-
-
 class SettingsModel(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
@@ -47,9 +37,6 @@ class SettingsModel(BaseModel):
     model_backend: str = Field(default=S_Defs.model_backend.default)
     inference_device: str = Field(default=S_Defs.inference_device.default)
     inference_device_half: StrictBool = Field(default=S_Defs.inference_device_half.default)
-    model_half: ModelHalfSettings = Field(
-        default_factory=lambda: ModelHalfSettings(**MODEL_HALF_DEFAULT)
-    )
     predict_batch_size_detect_obb: Annotated[int, Field(gt=S_Defs.predict_batch_size_detect_obb.constraints["gt"])] = S_Defs.predict_batch_size_detect_obb.default
     predict_batch_size_classify: Annotated[int, Field(gt=S_Defs.predict_batch_size_classify.constraints["gt"])] = S_Defs.predict_batch_size_classify.default
     predict_batch_size_touch_hold: Annotated[int, Field(gt=S_Defs.predict_batch_size_touch_hold.constraints["gt"])] = S_Defs.predict_batch_size_touch_hold.default
