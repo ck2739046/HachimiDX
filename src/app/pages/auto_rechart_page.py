@@ -757,7 +757,7 @@ class AutoRechartPage(BaseOutputPage):
                         reason = root_result.error_raw
                 except Exception:
                     pass
-                # 如果是模型 artifact 错误，直接显示 artifact 错误信息
+                # 如果模型缺失，直接显示 error_msg
                 model_artifact_error = _find_model_artifact_error(result)
                 if model_artifact_error:
                     reason = model_artifact_error
@@ -862,10 +862,8 @@ def _find_model_artifact_error(result) -> str | None:
     while current is not None:
         source = str(getattr(current, "source", "")).lower()
         error_msg = str(getattr(current, "error_msg", ""))
-        if (
-            "resolve_model_paths()" in source
-            or "validate_model_paths()" in source
-        ) and "model artifact" in error_msg.lower():
+        if "_build_inference_args" in source and \
+           "models are not usable for backend" in error_msg.lower():
             artifact_error = error_msg
         current = getattr(current, "inner", None)
     return artifact_error

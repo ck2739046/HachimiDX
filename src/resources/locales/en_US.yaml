@@ -597,8 +597,8 @@ en_US:
         This error may occur because the backend selected during installation differs from the currently selected one.
         To switch backends, please refer to "Installation_Guide.txt".
         -- (located in the project root directory, easy to find)
-      warning_model_missing: "2. Models check failed: %{backend}\n%{error}"
-      warning_model_not_found_for_backend: |
+      warning_model_missing: "Models check failed: %{backend}"
+      notice_model_missing_instruction: |
         If you haven't completed the "Convert Models" step, this error may occur.
         
         Please refer to the "Installation_Guide.txt" for detailed instructions.

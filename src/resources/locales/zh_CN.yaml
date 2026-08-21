@@ -592,8 +592,8 @@ zh_CN:
         这可能是因为安装时所选的后端与当前所选的后端不一致。
         如需切换后端，请参阅「安装指南.txt」。
         -- (位于项目根目录，很容易找到)
-      warning_model_missing: "2. 模型检查未通过: %{backend}\n%{error}"
-      warning_model_not_found_for_backend: |
+      warning_model_missing: "模型检查未通过: %{backend}"
+      notice_model_missing_instruction: |
         如果尚未执行「转换模型」步骤，可能会触发此错误。
 
         具体操作方法请参阅「安装指南.txt」。

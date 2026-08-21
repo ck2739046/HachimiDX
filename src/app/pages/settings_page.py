@@ -711,11 +711,11 @@ class SettingsPage(BaseOutputPage):
             # 模型文件存在可能会不兼容，为了避免复杂判断
             # 仅在检查模型文件缺失时，才在输出框中显示警告信息
             self.output_widget.append_text(
-                i18n.t(
-                    f"{I18N_Prefix}.warning_model_missing",
-                    backend=backend,
-                    error=print_op_result(result, only_parse_last=True),
-                )
+                i18n.t(f"{I18N_Prefix}.warning_model_missing", backend=backend)
+            )
+            self.output_widget.append_text("")
+            self.output_widget.append_text(
+                i18n.t(f"{I18N_Prefix}.notice_model_missing_instruction")
             )
 
     def _can_save_inference_settings(self, data: dict) -> bool:
@@ -938,7 +938,7 @@ class SettingsPage(BaseOutputPage):
         if not path_result.is_ok:
             model_error = (
                 f"{path_result.error_msg}\n\n"
-                f"{i18n.t(f'{I18N_Prefix}.warning_model_not_found_for_backend')}"
+                f"{i18n.t(f'{I18N_Prefix}.notice_model_missing_instruction')}"
             )
             self.output_widget.append_text(
                 i18n.t(
