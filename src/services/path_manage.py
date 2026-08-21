@@ -1,5 +1,6 @@
 from pathlib import Path
 from dataclasses import dataclass
+import re
 from src.core.schemas.op_result import OpResult, ok, err
 
 
@@ -10,6 +11,12 @@ class ModelPaths:
     cls_break: Path
     cls_ex: Path
     touch_hold: Path
+
+
+@dataclass(frozen=True, slots=True)
+class ResolvedModels:
+    paths: ModelPaths
+    half: bool
 
 
 class PathManage:
@@ -66,24 +73,6 @@ class PathManage:
     MajdataEdit_CONTROL_TXT_PATH: Path = RESOURCES_DIR / "majdata" / "HachimiDX_MajdataEdit_Control.txt"
     TEMP_WAV_IMAGE_PATH: Path = TEMP_DIR / "wav_image.png"
 
-    DETECT_ENGINE_PATH: Path = MODELS_DIR / "detect_TensorRT.engine"
-    OBB_ENGINE_PATH: Path = MODELS_DIR / "obb_TensorRT.engine"
-    CLS_BREAK_ENGINE_PATH: Path = MODELS_DIR / "cls-break_TensorRT.engine"
-    CLS_EX_ENGINE_PATH: Path = MODELS_DIR / "cls-ex_TensorRT.engine"
-    TOUCH_HOLD_ENGINE_PATH: Path = MODELS_DIR / "detect-touch-hold_TensorRT.engine"
-
-    DETECT_ONNX_PATH: Path = MODELS_DIR / "detect_ONNX.onnx"
-    OBB_ONNX_PATH: Path = MODELS_DIR / "obb_ONNX.onnx"
-    CLS_BREAK_ONNX_PATH: Path = MODELS_DIR / "cls-break_ONNX.onnx"
-    CLS_EX_ONNX_PATH: Path = MODELS_DIR / "cls-ex_ONNX.onnx"
-    TOUCH_HOLD_ONNX_PATH: Path = MODELS_DIR / "detect-touch-hold_ONNX.onnx"
-
-    DETECT_NCNN_PATH: Path = MODELS_DIR / "detect_ncnn_model"
-    OBB_NCNN_PATH: Path = MODELS_DIR / "obb_ncnn_model"
-    CLS_BREAK_NCNN_PATH: Path = MODELS_DIR / "cls-break_ncnn_model"
-    CLS_EX_NCNN_PATH: Path = MODELS_DIR / "cls-ex_ncnn_model"
-    TOUCH_HOLD_NCNN_PATH: Path = MODELS_DIR / "detect-touch-hold_ncnn_model"
-
     NCNN_PARAM_FILE_NAME = "model.ncnn.param"
     NCNN_BIN_FILE_NAME = "model.ncnn.bin"
     NCNN_METADATA_FILE_NAME = "metadata.yaml"
@@ -99,6 +88,16 @@ class PathManage:
     TEMP_TRT_CLS_EX_ONNX_PATH: Path = MODELS_DIR / "cls-ex.onnx"
     TEMP_TRT_TOUCH_HOLD_ONNX_PATH: Path = MODELS_DIR / "detect-touch-hold.onnx"
 
+    _MODEL_STEMS = {
+        "detect": "detect",
+        "obb": "obb",
+        "cls_break": "cls-break",
+        "cls_ex": "cls-ex",
+        "touch_hold": "detect-touch-hold",
+    }
+    _MODEL_PRECISION_PATTERN = re.compile(r"^.+\.(fp16|fp32)\.[^.]+$")
+    _NCNN_PRECISION_PATTERN = re.compile(r"^.+\.(fp16|fp32)\.ncnn_model$")
+
 
     @classmethod
     def get_source_model_paths(cls) -> ModelPaths:
@@ -112,68 +111,120 @@ class PathManage:
 
 
     @classmethod
-    def get_model_paths(cls, backend: str) -> OpResult[ModelPaths]:
+    def _get_precision_text(cls, half: bool) -> str:
+        return "fp16" if half else "fp32"
+
+
+    @classmethod
+    def _get_artifact_paths(cls, half: bool) -> dict[str, Path]:
+        precision = cls._get_precision_text(half)
+        return {
+            "onnx": {
+                name: cls.MODELS_DIR / f"{stem}.{precision}.onnx"
+                for name, stem in cls._MODEL_STEMS.items()
+            },
+            "trt": {
+                name: cls.MODELS_DIR / f"{stem}.{precision}.engine"
+                for name, stem in cls._MODEL_STEMS.items()
+            },
+            "ncnn": {
+                name: cls.MODELS_DIR / f"{stem}.{precision}.ncnn_model"
+                for name, stem in cls._MODEL_STEMS.items()
+            },
+        }
+
+
+    @classmethod
+    def get_model_paths(cls, backend: str, half: bool) -> OpResult[ModelPaths]:
+        if type(half) is not bool:
+            return err(f"Model precision must be a bool, got: {half!r}")
         backend = str(backend).strip()
+        artifact_paths = cls._get_artifact_paths(half)
         if backend in {"ONNX CPU", "ONNX DML", "ONNX Cuda"}:
             return ok(ModelPaths(
-                detect=cls.DETECT_ONNX_PATH,
-                obb=cls.OBB_ONNX_PATH,
-                cls_break=cls.CLS_BREAK_ONNX_PATH,
-                cls_ex=cls.CLS_EX_ONNX_PATH,
-                touch_hold=cls.TOUCH_HOLD_ONNX_PATH,
+                detect=artifact_paths["onnx"]["detect"],
+                obb=artifact_paths["onnx"]["obb"],
+                cls_break=artifact_paths["onnx"]["cls_break"],
+                cls_ex=artifact_paths["onnx"]["cls_ex"],
+                touch_hold=artifact_paths["onnx"]["touch_hold"],
             ))
         if backend == "TensorRT":
             return ok(ModelPaths(
-                detect=cls.DETECT_ENGINE_PATH,
-                obb=cls.OBB_ENGINE_PATH,
-                cls_break=cls.CLS_BREAK_ENGINE_PATH,
-                cls_ex=cls.CLS_EX_ENGINE_PATH,
-                touch_hold=cls.TOUCH_HOLD_ENGINE_PATH,
+                detect=artifact_paths["trt"]["detect"],
+                obb=artifact_paths["trt"]["obb"],
+                cls_break=artifact_paths["trt"]["cls_break"],
+                cls_ex=artifact_paths["trt"]["cls_ex"],
+                touch_hold=artifact_paths["trt"]["touch_hold"],
             ))
         if backend == "NCNN":
             return ok(ModelPaths(
-                detect=cls.DETECT_NCNN_PATH,
-                obb=cls.OBB_NCNN_PATH,
-                cls_break=cls.CLS_BREAK_NCNN_PATH,
-                cls_ex=cls.CLS_EX_NCNN_PATH,
-                touch_hold=cls.TOUCH_HOLD_NCNN_PATH,
+                detect=artifact_paths["ncnn"]["detect"],
+                obb=artifact_paths["ncnn"]["obb"],
+                cls_break=artifact_paths["ncnn"]["cls_break"],
+                cls_ex=artifact_paths["ncnn"]["cls_ex"],
+                touch_hold=artifact_paths["ncnn"]["touch_hold"],
             ))
         return err(f"Unknown model backend: {backend}")
 
 
     @classmethod
-    def validate_model_paths(cls, paths: ModelPaths) -> OpResult[None]:
-        for path in (
-            paths.detect,
-            paths.obb,
-            paths.cls_break,
-            paths.cls_ex,
-            paths.touch_hold,
-        ):
-            if path.suffix:
-                if not path.is_file():
-                    return err(f"Model artifact not found: {path}")
-                continue
-
-            if not path.is_dir():
-                return err(f"Model artifact not found: {path}")
-            for file_name in cls.NCNN_REQUIRED_FILE_NAMES:
-                required_path = path / file_name
-                if not required_path.is_file():
-                    return err(f"Model artifact incomplete: {required_path}")
-        return ok()
+    def parse_model_precision(cls, path: Path, ncnn: bool = False) -> OpResult[bool]:
+        pattern = cls._NCNN_PRECISION_PATTERN if ncnn else cls._MODEL_PRECISION_PATTERN
+        match = pattern.fullmatch(path.name)
+        if match is None:
+            return err(f"Model artifact name must contain .fp16. or .fp32.: {path}")
+        return ok(match.group(1) == "fp16")
 
 
     @classmethod
-    def resolve_model_paths(cls, backend: str) -> OpResult[ModelPaths]:
-        paths_result = cls.get_model_paths(backend)
+    def read_model_precision(cls, paths: ModelPaths, backend: str) -> OpResult[bool]:
+        is_ncnn = str(backend).strip() == "NCNN"
+        actual_precisions: set[bool] = set()
+        for path in (paths.detect, paths.obb, paths.cls_break, paths.cls_ex, paths.touch_hold):
+            precision_result = cls.parse_model_precision(path, ncnn=is_ncnn)
+            if not precision_result.is_ok:
+                return err("Model artifact precision validation failed", inner=precision_result)
+            actual_precisions.add(precision_result.value)
+
+        if len(actual_precisions) != 1:
+            return err("Model artifacts must all use the same precision")
+        return ok(actual_precisions.pop())
+
+
+    @classmethod
+    def validate_model_paths(cls, paths: ModelPaths, backend: str, half: bool) -> OpResult[bool]:
+        is_ncnn = str(backend).strip() == "NCNN"
+        for path in (paths.detect, paths.obb, paths.cls_break, paths.cls_ex, paths.touch_hold):
+            if is_ncnn:
+                if not path.is_dir():
+                    return err(f"Model artifact not found: {path}")
+                for file_name in cls.NCNN_REQUIRED_FILE_NAMES:
+                    required_path = path / file_name
+                    if not required_path.is_file():
+                        return err(f"Model artifact incomplete: {required_path}")
+            elif not path.is_file():
+                return err(f"Model artifact not found: {path}")
+
+        precision_result = cls.read_model_precision(paths, backend)
+        if not precision_result.is_ok:
+            return err("Failed to read model artifact precision", inner=precision_result)
+        if precision_result.value != half:
+            return err(
+                f"Model artifact precision mismatch: expected {'fp16' if half else 'fp32'}"
+            )
+        return ok(precision_result.value)
+
+
+    @classmethod
+    def resolve_model_paths(cls, backend: str, half: bool) -> OpResult[ResolvedModels]:
+        paths_result = cls.get_model_paths(backend, half)
         if not paths_result.is_ok:
             return err(f"Failed to get model paths for backend: {backend}", inner=paths_result)
 
-        validation_result = cls.validate_model_paths(paths_result.value)
+        validation_result = cls.validate_model_paths(paths_result.value, backend, half)
         if not validation_result.is_ok:
             return err(f"Model artifact validation failed for backend: {backend}", inner=validation_result)
-        return ok(paths_result.value)
+        return ok(ResolvedModels(paths=paths_result.value, half=validation_result.value))
 
 
 
@@ -204,7 +255,7 @@ class PathManage:
                 error_msg = f"Critical Error: Required file not found: {file_path}"
                 return err(error_msg)
 
-        model_result = cls.validate_model_paths(cls.get_source_model_paths())
+        model_result = cls.validate_source_model_paths(cls.get_source_model_paths())
         if not model_result.is_ok:
             return err("Critical Error: Required source model artifact not found", inner=model_result)
             
@@ -217,6 +268,13 @@ class PathManage:
                 error_msg = f"Critical Error: Required worker script not found: {file_path}"
                 return err(error_msg)
 
+        return ok()
+
+    @classmethod
+    def validate_source_model_paths(cls, paths: ModelPaths) -> OpResult[None]:
+        for path in (paths.detect, paths.obb, paths.cls_break, paths.cls_ex, paths.touch_hold):
+            if not path.is_file():
+                return err(f"Source model artifact not found: {path}")
         return ok()
 
     @classmethod
