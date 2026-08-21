@@ -85,7 +85,11 @@ def main(args: list[str]) -> bool:
                 print(f"ONNX DML inference device: dml:{directml_device_index}")
             else:
                 os.environ.pop("HACHIMIDX_DML_DEVICE_ID", None)
-            model_paths = PathManage.get_model_paths(model_backend).value
+            model_paths_result = PathManage.resolve_model_paths(model_backend, _half)
+            if not model_paths_result.is_ok:
+                return _fail(print_op_result(model_paths_result))
+            model_paths = model_paths_result.value.paths
+            _half = model_paths_result.value.half
 
 
 

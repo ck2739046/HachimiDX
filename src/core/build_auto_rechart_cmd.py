@@ -286,7 +286,6 @@ def _build_inference_args() -> OpResult[list[str]]:
         SC_Defs.model_backend.key,
         SC_Defs.inference_device.key,
         SC_Defs.inference_device_half.key,
-        SC_Defs.model_half.key,
         SC_Defs.predict_batch_size_detect_obb.key,
         SC_Defs.predict_batch_size_classify.key,
         SC_Defs.predict_batch_size_touch_hold.key,
@@ -299,9 +298,6 @@ def _build_inference_args() -> OpResult[list[str]]:
     model_backend = str(settings[SC_Defs.model_backend.key]).strip()
     inference_device = settings[SC_Defs.inference_device.key]
     inference_device_half = settings[SC_Defs.inference_device_half.key]
-    model_half = settings[SC_Defs.model_half.key]
-    if hasattr(model_half, "model_dump"):
-        model_half = model_half.model_dump(mode="python")
 
     if not ModelInferenceManage.is_inference_device_supported_by_backend(
         model_backend,
@@ -321,7 +317,6 @@ def _build_inference_args() -> OpResult[list[str]]:
 
     model_result = ModelInferenceManage.inspect(
         model_backend,
-        model_half=model_half,
         device_half=inference_device_half,
     )
     if not model_result.is_ok:
@@ -329,8 +324,10 @@ def _build_inference_args() -> OpResult[list[str]]:
     if not model_result.value.is_usable:
         return err(
             f"Models are not usable for backend '{model_backend}': "
-            f"{model_result.value.half_evaluation.status}"
+            f"{model_result.value.status}"
         )
+    if type(model_result.value.half) is not bool:
+        return err(f"Failed to read model precision for backend '{model_backend}'")
 
     batch_keys = (
         SC_Defs.predict_batch_size_detect_obb.key,
@@ -348,7 +345,7 @@ def _build_inference_args() -> OpResult[list[str]]:
         f"--{SC_Defs.inference_device.key}",
         runtime_device,
         "--half",
-        "true" if model_result.value.model_half else "false",
+        "true" if model_result.value.half else "false",
     ]
     if model_backend == "ONNX DML":
         directml_device_index = ModelInferenceManage.get_directml_device_index(

@@ -16,7 +16,7 @@ class ModelInferenceView:
     status_text: str
     is_usable: bool
     show_convert: bool
-    model_half: bool | None
+    half: bool | None
     device_half: bool
     model_group: str | None
     detail: str | None = None
@@ -78,25 +78,18 @@ def inspect_model(backend: str, device_half: bool | None) -> ModelInferenceView 
             status_text="error",
             is_usable=False,
             show_convert=True,
-            model_half=None,
+            half=None,
             device_half=device_half,
             model_group=get_model_group(backend),
             detail=result.error_msg,
         )
 
     value = result.value
-    status = value.half_evaluation.status
-    status_texts = {
-        "not_converted": "not_converted",
-        "compatible": "compatible",
-        "upgrade_available": "upgrade_available",
-        "incompatible": "incompatible",
-    }
     return ModelInferenceView(
-        status_text=status_texts[status],
+        status_text=value.status,
         is_usable=value.is_usable,
-        show_convert=not (value.artifacts_available and status == "compatible"),
-        model_half=value.model_half,
+        show_convert=not value.is_usable,
+        half=value.half,
         device_half=device_half,
         model_group=value.model_group,
     )

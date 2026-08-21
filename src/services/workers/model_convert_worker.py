@@ -29,50 +29,33 @@ from src.core.auto_rechart.detect.note_definition import get_imgsz
 
 class ModelEntry(NamedTuple):
     name: str
+    path_field: str
     task: str
     pt_path: Path
-    ncnn_path: Path
-    onnx_path: Path
     trt_onnx_path: Path
-    engine_path: Path
 
 
 models: list[ModelEntry] = [
     ModelEntry(
-        "detect", "detect",
+        "detect", "detect", "detect",
         PathManage.DETECT_PT_PATH,
-        PathManage.DETECT_NCNN_PATH,
-        PathManage.DETECT_ONNX_PATH,
-        PathManage.TEMP_TRT_DETECT_ONNX_PATH,
-        PathManage.DETECT_ENGINE_PATH),
+        PathManage.TEMP_TRT_DETECT_ONNX_PATH),
 
-    ModelEntry("obb", "obb",
+    ModelEntry("obb", "obb", "obb",
                PathManage.OBB_PT_PATH,
-               PathManage.OBB_NCNN_PATH,
-               PathManage.OBB_ONNX_PATH,
-               PathManage.TEMP_TRT_OBB_ONNX_PATH,
-               PathManage.OBB_ENGINE_PATH),
+               PathManage.TEMP_TRT_OBB_ONNX_PATH),
 
-    ModelEntry("cls_break", "classify",
+    ModelEntry("cls_break", "cls_break", "classify",
                PathManage.CLS_BREAK_PT_PATH,
-               PathManage.CLS_BREAK_NCNN_PATH,
-               PathManage.CLS_BREAK_ONNX_PATH,
-               PathManage.TEMP_TRT_CLS_BREAK_ONNX_PATH,
-               PathManage.CLS_BREAK_ENGINE_PATH),
+               PathManage.TEMP_TRT_CLS_BREAK_ONNX_PATH),
 
-    ModelEntry("cls_ex", "classify",
+    ModelEntry("cls_ex", "cls_ex", "classify",
                PathManage.CLS_EX_PT_PATH,
-               PathManage.CLS_EX_NCNN_PATH,
-               PathManage.CLS_EX_ONNX_PATH,
-               PathManage.TEMP_TRT_CLS_EX_ONNX_PATH,
-               PathManage.CLS_EX_ENGINE_PATH),
+               PathManage.TEMP_TRT_CLS_EX_ONNX_PATH),
 
-    ModelEntry("touch_hold", "detect",
+    ModelEntry("touch_hold", "touch_hold", "detect",
                PathManage.TOUCH_HOLD_PT_PATH,
-               PathManage.TOUCH_HOLD_NCNN_PATH,
-               PathManage.TOUCH_HOLD_ONNX_PATH,
-               PathManage.TEMP_TRT_TOUCH_HOLD_ONNX_PATH,
-               PathManage.TOUCH_HOLD_ENGINE_PATH),
+               PathManage.TEMP_TRT_TOUCH_HOLD_ONNX_PATH),
 ]
 
 
@@ -84,16 +67,34 @@ def _get_batch_size(model_name, detect_obb_batch, cls_batch, touch_hold_batch):
     return cls_batch
 
 
+def _get_target_paths(backend: str, half: bool):
+    result = PathManage.get_model_paths(backend, half)
+    if not result.is_ok:
+        raise RuntimeError(result.error_msg)
+    return result.value
+
+
+def _get_target_path(paths, model: ModelEntry) -> Path:
+    return getattr(paths, model.path_field)
+
+
 
 
 
 
 def _convert_to_tensorrt(detect_obb_batch, cls_batch, touch_hold_batch, half: bool) -> bool:
+    current_engine_path = None
+    current_exported_path = None
     try:
+        target_paths = _get_target_paths("TensorRT", half)
         for m in models:
+            current_engine_path = _get_target_path(target_paths, m)
+            current_exported_path = m.pt_path.with_suffix(".engine")
 
             m.trt_onnx_path.unlink(missing_ok=True)
-            m.engine_path.unlink(missing_ok=True)
+            current_engine_path.unlink(missing_ok=True)
+            if current_exported_path.resolve() != current_engine_path.resolve():
+                current_exported_path.unlink(missing_ok=True)
 
             print(f"- Export engine from: {m.pt_path.name}")
 
@@ -112,18 +113,21 @@ def _convert_to_tensorrt(detect_obb_batch, cls_batch, touch_hold_batch, half: bo
                     workspace=None,
                     batch=batch
                 )
-                exported_path = m.pt_path.with_suffix(".engine")
+                exported_path = current_exported_path
                 if not exported_path.is_file():
                     raise RuntimeError(f"TensorRT engine export is incomplete, missing: {exported_path}")
-                if exported_path.resolve() != m.engine_path.resolve():
-                    m.engine_path.unlink(missing_ok=True)
-                    exported_path.replace(m.engine_path)
+                if exported_path.resolve() != current_engine_path.resolve():
+                    exported_path.replace(current_engine_path)
             finally:
                 m.trt_onnx_path.unlink(missing_ok=True)
 
         return True
 
     except Exception as e:
+        if current_engine_path is not None:
+            current_engine_path.unlink(missing_ok=True)
+        if current_exported_path is not None:
+            current_exported_path.unlink(missing_ok=True)
         print(f"TensorRT conversion failed: {e}")
         return False
 
@@ -133,14 +137,18 @@ def _convert_to_tensorrt(detect_obb_batch, cls_batch, touch_hold_batch, half: bo
 
 def _convert_to_ncnn(detect_obb_batch, cls_batch, touch_hold_batch, half: bool) -> bool:
     current_ncnn_path = None
+    current_exported_path = None
     try:
+        target_paths = _get_target_paths("NCNN", half)
         for m in models:
-            current_ncnn_path = m.ncnn_path
+            current_ncnn_path = _get_target_path(target_paths, m)
+            current_exported_path = m.pt_path.with_name(f"{m.pt_path.stem}_ncnn_model")
 
-            if m.ncnn_path.exists():
-                if not m.ncnn_path.is_dir():
-                    raise RuntimeError(f"NCNN output path is not a directory: {m.ncnn_path}")
-                shutil.rmtree(m.ncnn_path)
+            for path in (current_ncnn_path, current_exported_path):
+                if path.exists():
+                    if not path.is_dir():
+                        raise RuntimeError(f"NCNN output path is not a directory: {path}")
+                    shutil.rmtree(path)
 
             print(f"- Export NCNN from: {m.pt_path.name}")
 
@@ -155,24 +163,27 @@ def _convert_to_ncnn(detect_obb_batch, cls_batch, touch_hold_batch, half: bool) 
                 device="cpu",
             )).resolve()
 
-            if exported_path != m.ncnn_path.resolve():
+            if exported_path != current_exported_path.resolve():
                 raise RuntimeError(
-                    f"Unexpected NCNN export path: expected {m.ncnn_path}, got {exported_path}"
+                    f"Unexpected NCNN export path: expected {current_exported_path}, got {exported_path}"
                 )
 
             missing_files = [
-                m.ncnn_path / file_name
+                exported_path / file_name
                 for file_name in PathManage.NCNN_REQUIRED_FILE_NAMES
-                if not (m.ncnn_path / file_name).is_file()
+                if not (exported_path / file_name).is_file()
             ]
             if missing_files:
                 raise RuntimeError(f"NCNN export is incomplete, missing: {missing_files[0]}")
+            shutil.move(str(exported_path), str(current_ncnn_path))
 
         return True
 
     except Exception as e:
         if current_ncnn_path is not None and current_ncnn_path.is_dir():
             shutil.rmtree(current_ncnn_path)
+        if current_exported_path is not None and current_exported_path.is_dir():
+            shutil.rmtree(current_exported_path)
         print(f"NCNN conversion failed: {e}")
         return False
 
@@ -182,13 +193,17 @@ def _convert_to_ncnn(detect_obb_batch, cls_batch, touch_hold_batch, half: bool) 
 
 def _convert_to_onnx(detect_obb_batch, cls_batch, touch_hold_batch, half: bool) -> bool:
     current_temp_path = None
+    current_onnx_path = None
     try:
+        target_paths = _get_target_paths("ONNX CPU", half)
         for m in models:
             current_temp_path = m.trt_onnx_path
+            current_onnx_path = _get_target_path(target_paths, m)
             m.trt_onnx_path.unlink(missing_ok=True)
 
-            if m.onnx_path.exists() and not m.onnx_path.is_file():
-                raise RuntimeError(f"ONNX output path is not a file: {m.onnx_path}")
+            if current_onnx_path.exists() and not current_onnx_path.is_file():
+                raise RuntimeError(f"ONNX output path is not a file: {current_onnx_path}")
+            current_onnx_path.unlink(missing_ok=True)
 
             print(f"- Export ONNX from: {m.pt_path.name}")
 
@@ -213,13 +228,15 @@ def _convert_to_onnx(detect_obb_batch, cls_batch, touch_hold_batch, half: bool) 
             if not exported_path.is_file():
                 raise RuntimeError(f"ONNX export is incomplete: {exported_path}")
 
-            exported_path.replace(m.onnx_path)
+            exported_path.replace(current_onnx_path)
 
         return True
 
     except Exception as e:
         if current_temp_path is not None:
             current_temp_path.unlink(missing_ok=True)
+        if current_onnx_path is not None:
+            current_onnx_path.unlink(missing_ok=True)
         print(f"ONNX conversion failed: {e}")
         return False
 

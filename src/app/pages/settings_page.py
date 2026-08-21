@@ -706,7 +706,10 @@ class SettingsPage(BaseOutputPage):
         self.model_status_label.setVisible(True)
 
     def _append_model_check_result(self, backend: str) -> None:
-        result = PathManage.resolve_model_paths(backend)
+        device_item = self._current_device_item()
+        if device_item is None:
+            return
+        result = PathManage.resolve_model_paths(backend, device_item.half_supported)
         if not result.is_ok:
             # 模型文件存在可能会不兼容，为了避免复杂判断
             # 仅在检查模型文件缺失时，才在输出框中显示警告信息
@@ -934,7 +937,12 @@ class SettingsPage(BaseOutputPage):
             return
 
         # 进程正常结束，二次复查模型文件是否存在
-        path_result = PathManage.resolve_model_paths(backend)
+        device_item = self._current_device_item()
+        if device_item is None:
+            self._refresh_model_state()
+            self._sync_ui_state()
+            return
+        path_result = PathManage.resolve_model_paths(backend, device_item.half_supported)
         if not path_result.is_ok:
             model_error = (
                 f"{path_result.error_msg}\n\n"
@@ -953,19 +961,6 @@ class SettingsPage(BaseOutputPage):
 
         # 模型转换成功
         self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_convert_success", backend=backend))
-        device_item = self._current_device_item()
-        if device_item is not None:
-            result = ModelInferenceManage.set_model_half_for_backend(
-                backend,
-                device_item.half_supported,
-            )
-            if not result.is_ok:
-                self.output_widget.append_text(
-                    i18n.t(
-                        f"{I18N_Prefix}.warning_model_half_save_failed",
-                        error=result.error_msg,
-                    )
-                )
         self._refresh_model_state()
         self._sync_ui_state()
 
