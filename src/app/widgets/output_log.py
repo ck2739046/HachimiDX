@@ -147,10 +147,6 @@ class OutputLogWidget(QWidget):
 
         self.text_edit = QTextEdit()
         self.text_edit.setReadOnly(True)  # 只读模式
-        self.text_edit.setTextInteractionFlags(
-            Qt.TextInteractionFlag.TextSelectableByMouse
-            | Qt.TextInteractionFlag.TextSelectableByKeyboard
-        )
         self.text_edit.setFixedHeight(UI_Style.output_log_widget_height)
         self.text_edit.setStyleSheet(
             f"""
