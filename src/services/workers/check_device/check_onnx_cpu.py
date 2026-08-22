@@ -18,5 +18,8 @@ def check() -> list[DeviceResult] | None:
     if "CPUExecutionProvider" not in providers:
         print("CPU execution provider is unavailable")
         return None
+    if "CUDAExecutionProvider" in providers or "DmlExecutionProvider" in providers:
+        print("ONNX CPU is unavailable because CUDA or DirectML execution provider is available, and it's conflicting with the CPU execution provider.")
+        return None
 
     return [DeviceResult("cpu", get_windows_cpu_name() or "CPU", False)]
