@@ -30,6 +30,39 @@ def release_ncnn_vulkan(inference_device) -> None:
         print(f"Failed to release NCNN Vulkan instance: {e}")
 
 
+
+
+# 默认线程空转(spinning)会互相抢满核 CPU
+# 要在首个 InferenceSession 创建前注入
+# 因为 spinning 线程池是进程级单例，事后替换无效
+_IS_ORT_CPU_THREAD_TUNED = False
+
+def install_ort_cpu_thread_tuning() -> None:
+    """仅 ONNX 后端调用：关线程空转。"""
+    global _IS_ORT_CPU_THREAD_TUNED
+    if _IS_ORT_CPU_THREAD_TUNED: return
+    import onnxruntime as ort
+    _original_session = ort.InferenceSession
+
+    def _tuned_session(path_or_bytes, sess_options=None, providers=None, provider_options=None, **kwargs):
+        # 在调用方 options 上追加
+        # 兼容 DML 修改版传入的 enable_mem_pattern/sequential
+        if sess_options is None:
+            sess_options = ort.SessionOptions()
+        sess_options.add_session_config_entry("session.intra_op.allow_spinning", "0")
+        sess_options.add_session_config_entry("session.inter_op.allow_spinning", "0")
+        return _original_session(
+            path_or_bytes, sess_options=sess_options,
+            providers=providers, provider_options=provider_options,
+            **kwargs
+        )
+
+    ort.InferenceSession = _tuned_session
+    _IS_ORT_CPU_THREAD_TUNED = True
+
+
+
+
 def calculate_oct_position(circle_center_x, circle_center_y, note_x, note_y):
     x_diff = note_x - circle_center_x
     y_diff = note_y - circle_center_y

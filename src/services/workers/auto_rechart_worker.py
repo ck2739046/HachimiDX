@@ -32,6 +32,7 @@ import torch
 from src.core.auto_rechart.standardize.main import main as standardize_main
 from src.core.auto_rechart.detect.main import main as detect_main
 from src.core.auto_rechart.analyze.main import main as analyze_main
+from src.core.auto_rechart.tool import install_ort_cpu_thread_tuning
 from src.core.schemas.media_config import MediaType
 from src.core.schemas.op_result import print_op_result
 from src.services import PathManage
@@ -79,6 +80,9 @@ def main(args: list[str]) -> bool:
             model_backend = cfg["model_backend"]
             inference_device = cfg["inference_device"]
             _half = _as_bool(cfg["half"])
+            if model_backend == "ONNX CPU":
+                # 关闭线程空转，避免推理进程抢 cpu 核（仅 ONNX CPU）
+                install_ort_cpu_thread_tuning()
             if model_backend == "ONNX DML":
                 directml_device_index = int(cfg["directml_device_index"])
                 os.environ["HACHIMIDX_DML_DEVICE_ID"] = str(directml_device_index)
@@ -119,11 +123,12 @@ def main(args: list[str]) -> bool:
                 batch_detect=_get_cfg(cfg, "predict_batch_size_detect_obb", int),
                 batch_cls=_get_cfg(cfg, "predict_batch_size_classify", int),
                 inference_device=inference_device,
-                half=_half,
                 detect_model_path=model_paths.detect,
                 obb_model_path=model_paths.obb,
                 cls_ex_model_path=model_paths.cls_ex,
                 cls_break_model_path=model_paths.cls_break,
+                model_backend=model_backend,
+                half=_half,
                 skip_detect=_get_cfg(cfg, "skip_detect", _as_bool),
                 skip_cls=_get_cfg(cfg, "skip_cls", _as_bool),
                 skip_export_tracked_video=_get_cfg(cfg, "skip_export_tracked_video", _as_bool),

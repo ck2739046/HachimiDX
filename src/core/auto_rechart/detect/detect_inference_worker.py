@@ -4,7 +4,7 @@ from queue import Full
 
 from ...schemas.op_result import OpResult, ok, err
 from .note_definition import *
-from ..tool import release_ncnn_vulkan
+from ..tool import release_ncnn_vulkan, install_ort_cpu_thread_tuning
 
 
 
@@ -15,7 +15,8 @@ _OUTPUT_QUEUE_STALL_TIMEOUT = 60.0
 
 
 def inference_worker_main(model_path, task_name, inference_device,
-                          coord_scale, half,
+                          coord_scale,
+                          half, model_backend,
                           input_queue, output_queue, control_queue,
                           progress_ref, stop_event):
     """
@@ -33,6 +34,10 @@ def inference_worker_main(model_path, task_name, inference_device,
     model = None
     results = None
     try:
+        # 仅 ONNX CPU 后端关闭线程空转
+        if model_backend == "ONNX CPU":
+            install_ort_cpu_thread_tuning()
+
         last_frame_idx = 0  # 仅用于报错提示
         model = YOLO(model_path, task=task_name)
         imgsz_val = get_imgsz(task_name)

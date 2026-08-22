@@ -32,7 +32,7 @@ def _get_total_frames_by_ffprobe(std_video_path: Path) -> OpResult[int]:
 def main(std_video_path,
          batch_detect, batch_cls, inference_device,
          detect_model_path, obb_model_path, cls_ex_model_path, cls_break_model_path,
-         half=False,
+         model_backend, half=False,
          skip_detect=False, skip_cls=False, skip_export_tracked_video=False,
          # enable_reid=True
         ) -> OpResult[None]:
@@ -65,7 +65,7 @@ def main(std_video_path,
                                    total_frames,
                                    batch_detect, inference_device,
                                    detect_model_path, obb_model_path,
-                                   half=half)
+                                   model_backend, half)
             if not result.is_ok:
                 return err("检测模块失败", inner=result)
         else:

@@ -22,7 +22,7 @@ def main(std_video_path,
          total_frames,
          batch_detect, inference_device,
          detect_model_path, obb_model_path,
-         half=False,
+         model_backend, half,
         ) -> OpResult:
     """
     检测模块主入口
@@ -54,7 +54,7 @@ def main(std_video_path,
         # 3. 构造 Inferencer
         create_r = create_inferencer(detect_model_path, obb_model_path,
                                      batch_detect, inference_device, coord_scale,
-                                     half=half)
+                                     model_backend, half)
         if not create_r.is_ok:
             return err("[detect] create_inferencer 失败", inner=create_r)
         inferencer = create_r.value
