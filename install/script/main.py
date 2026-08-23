@@ -318,7 +318,7 @@ def install_ultralytics_onnx(backend: str,
 
     # 安装 Ultralytics
     numpy_ver = gpu_config.numpy_ver if gpu_config is not None else "2.4.6"
-    libs = ["ultralytics==8.4.115", "lap==0.5.13", f"numpy=={numpy_ver}"]
+    libs = ["ultralytics==8.4.125", "lap==0.5.13", f"numpy=={numpy_ver}"]
     # 可选显式指定 cv2 版本，否则 ultralytics 会自动安装
     if gpu_config is not None:
         libs += [f"opencv-python=={gpu_config.opencv_ver}"]
