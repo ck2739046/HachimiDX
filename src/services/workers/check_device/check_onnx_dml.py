@@ -2,7 +2,7 @@ import ctypes
 import sys
 import uuid
 
-from .common import DeviceResult, check_torch_installed
+from .common import DeviceResult, check_torch_installed, print_device_results, test_onnx_models
 
 
 class _GUID(ctypes.Structure):
@@ -43,11 +43,11 @@ def _release_com(pointer) -> None:
             pass
 
 
-def query_directml_fp16_support(adapter_index: int) -> bool:
+def query_directml_precision_support(adapter_index: int) -> tuple[bool, bool]:
     # 创建 DXGI/D3D12/DirectML 设备并查询 FLOAT16 数据类型能力
     # 不创建推理会话
     if sys.platform != "win32":
-        return False
+        raise RuntimeError("DirectML is only supported on Windows")
 
     factory = ctypes.c_void_p()
     adapter = ctypes.c_void_p()
@@ -66,7 +66,7 @@ def query_directml_fp16_support(adapter_index: int) -> bool:
         create_factory.argtypes = [ctypes.POINTER(_GUID), ctypes.POINTER(ctypes.c_void_p)]
         create_factory.restype = ctypes.c_long
         if create_factory(ctypes.byref(iid_factory), ctypes.byref(factory)) < 0:
-            return False
+            raise RuntimeError("failed to create DXGI factory")
 
         enum_adapters = _com_method(
             factory,
@@ -76,7 +76,7 @@ def query_directml_fp16_support(adapter_index: int) -> bool:
             ctypes.POINTER(ctypes.c_void_p),
         )
         if enum_adapters(factory, adapter_index, ctypes.byref(adapter)) < 0:
-            return False
+            raise RuntimeError("failed to get DXGI adapter")
 
         create_d3d_device = d3d12.D3D12CreateDevice
         create_d3d_device.argtypes = [
@@ -92,7 +92,7 @@ def query_directml_fp16_support(adapter_index: int) -> bool:
             ctypes.byref(iid_d3d_device),
             ctypes.byref(d3d_device),
         ) < 0:
-            return False
+            raise RuntimeError("failed to create D3D12 device")
 
         create_dml_device = directml.DMLCreateDevice
         create_dml_device.argtypes = [
@@ -108,10 +108,8 @@ def query_directml_fp16_support(adapter_index: int) -> bool:
             ctypes.byref(iid_dml_device),
             ctypes.byref(dml_device),
         ) < 0:
-            return False
+            raise RuntimeError("failed to create DirectML device")
 
-        query = _DmlTensorDataTypeQuery(DataType=2)
-        support = _DmlTensorDataTypeSupport()
         check_feature_support = _com_method(
             dml_device,
             7,
@@ -122,17 +120,24 @@ def query_directml_fp16_support(adapter_index: int) -> bool:
             ctypes.c_uint,
             ctypes.c_void_p,
         )
-        result = check_feature_support(
-            dml_device,
-            0,
-            ctypes.sizeof(query),
-            ctypes.byref(query),
-            ctypes.sizeof(support),
-            ctypes.byref(support),
-        )
-        return result >= 0 and bool(support.IsSupported)
-    except Exception:
-        return False
+        precision_support: list[bool] = []
+        for data_type, precision in ((2, "FLOAT16"), (1, "FLOAT32")):
+            query = _DmlTensorDataTypeQuery(DataType=data_type)
+            support = _DmlTensorDataTypeSupport()
+            result = check_feature_support(
+                dml_device,
+                0,
+                ctypes.sizeof(query),
+                ctypes.byref(query),
+                ctypes.sizeof(support),
+                ctypes.byref(support),
+            )
+            if result < 0:
+                raise RuntimeError(
+                    f"DirectML {precision} query failed: HRESULT 0x{result & 0xFFFFFFFF:08X}"
+                )
+            precision_support.append(bool(support.IsSupported))
+        return precision_support[0], precision_support[1]
     finally:
         _release_com(dml_device)
         _release_com(d3d_device)
@@ -192,10 +197,26 @@ def check() -> list[DeviceResult] | None:
                 continue
             seen_indexes.add(index)
             name = str(metadata.get("Description", "")).strip() or f"DirectML device {index}"
+            try:
+                fp16_supported, fp32_supported = query_directml_precision_support(index)
+            except Exception as e:
+                devices.append(DeviceResult(
+                    f"dml:{index}", name, False,
+                    f"failed to detect FP16/FP32 support: {e!r}",
+                ))
+                continue
+            half, error = test_onnx_models(
+                ort,
+                [("DmlExecutionProvider", {"device_id": index}), "CPUExecutionProvider"],
+                "DmlExecutionProvider",
+                fp16_supported=fp16_supported,
+                fp32_supported=fp32_supported,
+            )
             devices.append(DeviceResult(
                 f"dml:{index}",
                 name,
-                query_directml_fp16_support(index),
+                bool(half),
+                error,
             ))
 
         if not devices:
@@ -203,9 +224,7 @@ def check() -> list[DeviceResult] | None:
             return None
 
         devices.sort(key=lambda item: int(item.device_id.partition(":")[2]))
-        print("DirectML devices:")
-        for device in devices:
-            print(f"  - {device.device_id}: {device.name}, half={device.half}")
+        print_device_results("DirectML devices:", devices)
         return devices
 
     except Exception as e:

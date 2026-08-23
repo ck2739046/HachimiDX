@@ -1,5 +1,5 @@
 from .check_pytorch_cuda import check as check_cuda
-from .common import DeviceResult
+from .common import DeviceResult, print_device_results
 
 
 def _get_half_support(tensorrt, torch, index: int) -> bool:
@@ -38,13 +38,13 @@ def check() -> list[DeviceResult] | None:
 
     results = []
     for device in devices:
+        if device.error is not None:
+            results.append(device)
+            continue
         index = int(device.device_id.partition(":")[2])
-        trt_half = _get_half_support(tensorrt, torch, index)
-        half = device.half and trt_half
+        half = device.half and _get_half_support(tensorrt, torch, index)
         results.append(DeviceResult(device.device_id, device.name, half))
 
-    print("CUDA devices:")
-    for device in results:
-        print(f"  - {device.device_id}: {device.name}, half={device.half}")
+    print_device_results("CUDA devices:", results)
 
     return results

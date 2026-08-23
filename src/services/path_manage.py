@@ -56,6 +56,9 @@ class PathManage:
     CLS_BREAK_PT_PATH: Path = MODELS_DIR / "cls-break.pt"
     CLS_EX_PT_PATH: Path = MODELS_DIR / "cls-ex.pt"
     TOUCH_HOLD_PT_PATH: Path = MODELS_DIR / "detect-touch-hold.pt"
+    
+    CHECK_DEVICE_TEST_FP16_ONNX_PATH: Path = MODELS_DIR / "check_device_test.fp16.onnx"
+    CHECK_DEVICE_TEST_FP32_ONNX_PATH: Path = MODELS_DIR / "check_device_test.fp32.onnx"
     # REID_PT_PATH: Path = MODELS_DIR / "re_id.pt"
 
     # worker 脚本

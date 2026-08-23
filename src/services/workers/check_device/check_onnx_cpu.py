@@ -1,4 +1,9 @@
-from src.services.workers.check_device.common import DeviceResult, get_windows_cpu_name
+from src.services.workers.check_device.common import (
+    DeviceResult,
+    get_windows_cpu_name,
+    print_device_results,
+    test_onnx_models,
+)
 
 
 def check() -> list[DeviceResult] | None:
@@ -22,4 +27,15 @@ def check() -> list[DeviceResult] | None:
         print("ONNX CPU is unavailable because CUDA or DirectML execution provider is available, and it's conflicting with the CPU execution provider.")
         return None
 
-    return [DeviceResult("cpu", get_windows_cpu_name() or "CPU", False)]
+    name = get_windows_cpu_name() or "CPU"
+    half, error = test_onnx_models(
+        ort,
+        ["CPUExecutionProvider"],
+        "CPUExecutionProvider",
+        fp16_supported=False,
+        fp32_supported=True,
+    )
+    device = DeviceResult("cpu", name, bool(half), error)
+    devices = [device]
+    print_device_results("CPU device:", devices)
+    return devices

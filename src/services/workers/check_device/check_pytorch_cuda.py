@@ -36,8 +36,11 @@ def check(print_device: bool = True) -> list[DeviceResult] | None:
                 capability = tuple(torch.cuda.get_device_capability(i))
                 half = capability >= (7, 0)
             except Exception as e:
-                half = False
-                print(f"  - {i}: FP16 capability unavailable ({e})")
+                devices.append(DeviceResult(
+                    f"cuda:{i}", device_name, False,
+                    f"failed to detect FP16/FP32 support: {e!r}",
+                ))
+                continue
             devices.append(DeviceResult(f"cuda:{i}", device_name, half))
         except Exception as e:
             print(f"  - {i}: unavailable ({e})")
@@ -45,6 +48,9 @@ def check(print_device: bool = True) -> list[DeviceResult] | None:
     if devices and print_device:
         print("CUDA devices:")
         for device in devices:
-            print(f"  - {device.device_id}: {device.name}, half={device.half}")
+            if device.error is not None:
+                print(f"  - {device.device_id}: {device.name}, failed: {device.error}")
+            else:
+                print(f"  - {device.device_id}: {device.name}, half={device.half}")
             
     return devices or None
