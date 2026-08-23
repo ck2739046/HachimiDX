@@ -1,15 +1,12 @@
 from .common import DeviceResult, check_torch_installed
 
 
-def _read_half_support(gpu_info) -> bool:
-    # 通过 GpuInfo API 查询
-    # 绑定未暴露或查询失败时保守返回 False
-    storage = getattr(gpu_info, "support_fp16_storage", None)
-    arithmetic = getattr(gpu_info, "support_fp16_arithmetic", None)
-    if not (callable(storage) and callable(arithmetic)):
-        return False
+def _read_half_support(net) -> bool:
     try:
-        return bool(storage() and arithmetic())
+        result = net.load_param_mem("7767517\n1 1\nInput input 0 1 input\n")
+        if result != 0:
+            return False
+        return bool(net.opt.use_fp16_storage and net.opt.use_fp16_arithmetic)
     except Exception:
         return False
 
@@ -49,8 +46,8 @@ def check() -> list[DeviceResult] | None:
                 net = ncnn.Net()
                 net.opt.use_vulkan_compute = True
                 net.set_vulkan_device(index)
+                half = _read_half_support(net)
                 del net
-                half = _read_half_support(gpu_info)
                 print(f"  - {index}: {device_name}, half={half}")
                 devices.append(DeviceResult(f"vulkan:{index}", device_name, half))
             except Exception as e:

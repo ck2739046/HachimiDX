@@ -47,4 +47,4 @@ def check() -> list[DeviceResult] | None:
     for device in results:
         print(f"  - {device.device_id}: {device.name}, half={device.half}")
 
-    return devices
+    return results
