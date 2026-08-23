@@ -64,7 +64,6 @@ A tool for the rhythm game **maimai** that converts chart confirmation videos in
 ## 💻 System Requirements
 
 - **OS**: Windows 10 / 11 (x64) only
-- **GPU VRAM**: at least 3 GB (no VRAM requirement if using CPU-only inference)
 - **RAM**: at least 4 GB available
 - **Disk**: at least 7 GB free
 
