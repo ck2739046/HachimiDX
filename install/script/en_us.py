@@ -100,7 +100,7 @@ choose_backend = SN(
     trt_backend = "TensorRT",
     onnx_cuda_backend = "ONNX CUDA",
     onnx_dml_backend = "ONNX DML",
-    ncnn_backend = "NCNN Vulkan",
+    ncnn_backend = "NCNN",
     no_available_gpu = "No usable GPU was detected.",
     no_gpu_detected = "No target GPU was detected.",
     unknown_detection_error = "Detection failed.",
@@ -186,13 +186,13 @@ detect_onnx_cuda = SN(
 
 
 detect_ncnn = SN(
-    start = "Checking whether an NCNN Vulkan GPU is available...",
+    start = "Checking whether NCNN is available...",
     loader_unavailable = "The system Vulkan Loader was not found. Install or update the GPU driver.",
     api_unavailable = "The system Vulkan Loader does not provide the required Vulkan 1.0 API.",
     no_compute_gpu = "No integrated or discrete GPU with a Vulkan compute queue was detected.",
     no_compute_queue = "The GPU has no Vulkan compute queue.",
     check_failed = "An error occurred while checking Vulkan GPUs.",
-    gpu_detected_title = "Detected GPU available for NCNN Vulkan:",
+    gpu_detected_title = "Detected GPU available for NCNN:",
     gpu_info = "{index}. {gpu_name}",
 )
 

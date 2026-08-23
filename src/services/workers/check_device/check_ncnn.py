@@ -28,17 +28,17 @@ def check() -> list[DeviceResult] | None:
     try:
         create_result = ncnn.create_gpu_instance()
         if create_result != 0:
-            print(f"Failed to initialize NCNN Vulkan, error code: {create_result}")
+            print(f"Failed to initialize NCNN, error code: {create_result}")
             return None
         gpu_instance_created = True
 
         gpu_count = ncnn.get_gpu_count()
         if gpu_count <= 0:
-            print("No available NCNN Vulkan devices found")
+            print("No available NCNN devices found")
             return None
 
         devices: list[DeviceResult] = []
-        print("NCNN Vulkan devices:")
+        print("NCNN devices:")
         for index in range(gpu_count):
             try:
                 gpu_info = ncnn.get_gpu_info(index)
@@ -54,17 +54,17 @@ def check() -> list[DeviceResult] | None:
                 print(f"  - {index}: unavailable ({e})")
 
         if not devices:
-            print("No NCNN Vulkan device passed the binding check")
+            print("No NCNN device passed the binding check")
             return None
 
         return devices
 
     except Exception as e:
-        print(f"Failed to initialize NCNN Vulkan: {e}")
+        print(f"Failed to initialize NCNN: {e}")
         return None
     finally:
         if gpu_instance_created:
             try:
                 ncnn.destroy_gpu_instance()
             except Exception as e:
-                print(f"Failed to destroy NCNN Vulkan instance: {e}")
+                print(f"Failed to destroy NCNN instance: {e}")

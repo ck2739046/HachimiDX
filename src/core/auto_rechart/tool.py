@@ -27,7 +27,7 @@ def release_ncnn_vulkan(inference_device) -> None:
         import ncnn
         ncnn.destroy_gpu_instance()
     except Exception as e:
-        print(f"Failed to release NCNN Vulkan instance: {e}")
+        print(f"Failed to release NCNN instance: {e}")
 
 
 

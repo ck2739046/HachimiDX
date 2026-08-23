@@ -100,7 +100,7 @@ choose_backend = SN(
     trt_backend = "TensorRT",
     onnx_cuda_backend = "ONNX CUDA",
     onnx_dml_backend = "ONNX DML",
-    ncnn_backend = "NCNN Vulkan",
+    ncnn_backend = "NCNN",
     no_available_gpu = "没有可用的 GPU。",
     no_gpu_detected = "没有检测到目标 GPU。",
     unknown_detection_error = "检测失败。",
@@ -186,13 +186,13 @@ detect_onnx_cuda = SN(
 
 
 detect_ncnn = SN(
-    start = "正在检测 NCNN Vulkan GPU 是否可用...",
+    start = "正在检测 NCNN 是否可用...",
     loader_unavailable = "未找到系统 Vulkan Loader，请安装或升级显卡驱动。",
     api_unavailable = "系统 Vulkan Loader 缺少必要的 Vulkan 1.0 API。",
     no_compute_gpu = "未检测到具有 Vulkan 计算队列的独立或集成 GPU。",
     no_compute_queue = "没有 Vulkan 计算队列。",
     check_failed = "检测 Vulkan GPU 时发生错误。",
-    gpu_detected_title = "检测到可用于 NCNN Vulkan 的 GPU:",
+    gpu_detected_title = "检测到可用于 NCNN 的 GPU:",
     gpu_info = "{index}. {gpu_name}",
 )
 
