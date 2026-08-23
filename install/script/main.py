@@ -147,20 +147,21 @@ def install() -> OpResult[None]:
     print("\n-----\n")
     print(T.install.start)
 
-    ask_use_pypi_mirror()
-
+    # 检测并选择后端
     result = choose_backend(T)
     if not result.is_ok:
         return err("Failed to choose inference backend.", inner=result)
     if result.value is None:
         return err("Backend choice did not contain a value.", inner=result)
-
     backend_choice = result.value
     backend = backend_choice.backend
     tensorrt_gpu_config = backend_choice.tensorrt_config
     onnx_cuda_gpu_config = backend_choice.onnx_cuda_config
     install_dml = backend == "onnx_dml"
     install_ncnn_ = backend == "ncnn"
+
+    # ask whether to use PyPI mirror
+    ask_use_pypi_mirror()
 
     # install pytorch
     success = install_pytorch(tensorrt_gpu_config, onnx_cuda_gpu_config)
