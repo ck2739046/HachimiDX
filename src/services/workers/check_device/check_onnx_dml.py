@@ -5,6 +5,9 @@ import uuid
 from .common import DeviceResult, check_torch_installed, print_device_results, test_onnx_models
 
 
+D3D_FEATURE_LEVEL_12_0 = 0xC000
+
+
 class _GUID(ctypes.Structure):
     _fields_ = [
         ("Data1", ctypes.c_uint32),
@@ -88,7 +91,7 @@ def query_directml_precision_support(adapter_index: int) -> tuple[bool, bool]:
         create_d3d_device.restype = ctypes.c_long
         if create_d3d_device(
             adapter,
-            0xB000,
+            D3D_FEATURE_LEVEL_12_0,
             ctypes.byref(iid_d3d_device),
             ctypes.byref(d3d_device),
         ) < 0:
