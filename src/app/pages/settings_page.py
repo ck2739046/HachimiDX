@@ -403,7 +403,7 @@ class SettingsPage(BaseOutputPage):
 
     def _refresh_inference_device_ui_after_check(self, backend: str) -> None:
         # 在环境检查成功后调用：解析设备结果并决定是否显示设备控件
-        recent_output = self.output_widget.get_recent_lines(10)
+        recent_output = self.output_widget.get_recent_lines(8)
         items = self._parse_inference_device_results(recent_output, backend)
         self._cached_device_items = items
         self._last_checked_backend = backend

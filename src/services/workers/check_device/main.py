@@ -1,4 +1,5 @@
 import sys
+import json
 from pathlib import Path
 import io
 
@@ -48,16 +49,21 @@ def main(runtime: str) -> bool:
     if devices is None:
         return False
 
-    # 检测成功时打印设备列表
-    # INFERENCE_DEVICE_RESULT:<id>|<name>|half=true/false
     if not devices:
         return False
     successful_devices = [device for device in devices if device.error is None]
     if not successful_devices:
         return False
-    for device in successful_devices:
-        half = "true" if device.half else "false"
-        print(f"INFERENCE_DEVICE_RESULT:{device.device_id}|{device.name}|half={half}")
+    print("INFERENCE_DEVICE_RESULT:" + json.dumps({
+        "devices": [
+            {
+                "device_id": device.device_id,
+                "name": device.name,
+                "half": device.half,
+            }
+            for device in successful_devices
+        ],
+    }, ensure_ascii=False, separators=(",", ":")))
 
     return True
 
