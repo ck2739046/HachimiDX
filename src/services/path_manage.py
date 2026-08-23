@@ -96,7 +96,7 @@ class PathManage:
         "touch_hold": "detect-touch-hold",
     }
     _MODEL_PRECISION_PATTERN = re.compile(r"^.+\.(fp16|fp32)\.[^.]+$")
-    _NCNN_PRECISION_PATTERN = re.compile(r"^.+\.(fp16|fp32)\.ncnn_model$")
+    _NCNN_PRECISION_PATTERN = re.compile(r"^.+\.(fp16|fp32)_ncnn_model$")
 
 
     @classmethod
@@ -128,7 +128,7 @@ class PathManage:
                 for name, stem in cls._MODEL_STEMS.items()
             },
             "ncnn": {
-                name: cls.MODELS_DIR / f"{stem}.{precision}.ncnn_model"
+                name: cls.MODELS_DIR / f"{stem}.{precision}_ncnn_model"
                 for name, stem in cls._MODEL_STEMS.items()
             },
         }
@@ -172,7 +172,7 @@ class PathManage:
         pattern = cls._NCNN_PRECISION_PATTERN if ncnn else cls._MODEL_PRECISION_PATTERN
         match = pattern.fullmatch(path.name)
         if match is None:
-            return err(f"Model artifact name must contain .fp16. or .fp32.: {path}")
+            return err(f"Model artifact name has no valid fp16 or fp32 precision marker: {path}")
         return ok(match.group(1) == "fp16")
 
 
