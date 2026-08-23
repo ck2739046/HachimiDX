@@ -6,7 +6,7 @@ from ctypes import wintypes
 from .op_result import OpResult, err, ok
 
 
-D3D_FEATURE_LEVEL_11_0 = 0xB000
+D3D_FEATURE_LEVEL_12_0 = 0xC000
 DXGI_ADAPTER_FLAG_SOFTWARE = 0x00000002
 DXGI_ERROR_NOT_FOUND = 0x887A0002
 LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
@@ -124,7 +124,7 @@ def _get_adapter_desc(adapter: ctypes.c_void_p) -> _DXGI_ADAPTER_DESC1:
 def _supports_d3d12(d3d12, adapter: ctypes.c_void_p) -> bool:
     result = d3d12.D3D12CreateDevice(
         adapter,
-        D3D_FEATURE_LEVEL_11_0,
+        D3D_FEATURE_LEVEL_12_0,
         ctypes.byref(IID_ID3D12Device),
         None,
     )
