@@ -1,5 +1,4 @@
 from ultralytics import YOLO
-from ultralytics.data.augment import classify_transforms
 import cv2
 import time
 import math
@@ -429,14 +428,6 @@ def _classify_image_batch(consumed_batch, cls_ex_model, cls_break_model, inferen
         # extract images and info
         images = [item['cropped_image'] for item in consumed_batch]
         images_info = [(item['frame'], item['track_id'], item['sample_position'], item['note_type']) for item in consumed_batch]
-
-        for model in (cls_ex_model, cls_break_model):
-            if (
-                hasattr(model, 'model')
-                and hasattr(model.model, 'transforms')
-                and model.model.transforms is None
-            ):
-                model.model.transforms = classify_transforms(imgsz)
 
         # 模型推理
         batch_size = len(images)
