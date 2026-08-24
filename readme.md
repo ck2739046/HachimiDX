@@ -150,7 +150,7 @@ Code lives in `src/`, organized in three layers. The middle layer drives the cor
 - Extract [`ffmpeg`](src/resources/for_release_only/ffmpeg-8.0.1-essentials_build.7z) into `src/resources/ffmpeg/`.
 - (Optional) Compile the [`launcher`](src/resources/for_release_only/launcher) and place it in the project root.
 
-### 3. Obtain Majdata Editor & Viewer
+### 3. Obtain Majdata
 
 Compile [MajdataEdit](https://github.com/ck2739046/MajdataEdit/tree/v4.3.1) & [MajdataView](https://github.com/ck2739046/MajdataView/tree/431-NC-TH) and place the outputs into `src/resources/majdata`.
 
@@ -162,7 +162,7 @@ Compile [Bpm-Measurer](https://github.com/ck2739046/Bpm-Measurer) and place the 
 
 ### 5. Install & launch
 
-Run `install/script/install.py` to install dependencies.<br>
+Run `install/script/main.py` to install dependencies.<br>
 Run `src/main.py` to launch the application.
 
 

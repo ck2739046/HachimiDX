@@ -152,7 +152,7 @@
 - 将 [`ffmpeg`](src/resources/for_release_only/ffmpeg-8.0.1-essentials_build.7z) 解压到 `src/resources/ffmpeg/`。
 - （可选）自行编译 [`启动器`](src/resources/for_release_only/launcher) 并放到项目根目录。
 
-### 3. 获取 Majdata 编辑器与查看器
+### 3. 获取 Majdata
 
 编译 [MajdataEdit](https://github.com/ck2739046/MajdataEdit/tree/v4.3.1) & [MajdataView](https://github.com/ck2739046/MajdataView/tree/431-NC-TH)，将编译输出放入 `src/resources/majdata`：
 
@@ -164,7 +164,7 @@
 
 ### 5. 安装并启动
 
-运行 `install/script/install.py` 安装依赖。<br>
+运行 `install/script/main.py` 安装依赖。<br>
 运行 `src/main.py` 启动程序。
 
 
