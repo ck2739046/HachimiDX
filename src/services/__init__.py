@@ -15,6 +15,7 @@ _LAZY_MAP: dict[str, str] = {
     "MajdataSession":   ".majdata_session",
     "stop_majdata":     ".majdata_session",
     "VideoSyncServer":  ".majdata_sync_server",
+    "MajdataCommandClient": ".majdata_command_client",
 
     # 聚合入口
     "AllServices":      ".all_services",
@@ -53,6 +54,7 @@ __all__ = [
     "I18nManage",
     "MajdataSession", "stop_majdata",
     "VideoSyncServer",
+    "MajdataCommandClient",
     "AutoRechartPipeline",
     "MediaPipeline",
     "TaskInfo", "TaskStatus",

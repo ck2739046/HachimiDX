@@ -13,7 +13,7 @@ from PyQt6.QtCore import QUrl, pyqtSlot
 from PyQt6.QtGui import QWindow
 from PyQt6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 
-from src.services import PathManage, stop_majdata
+from src.services import stop_majdata, MajdataCommandClient
 from ..ui_style import UI_Style
 from ..widgets import *
 import i18n
@@ -34,8 +34,6 @@ class MajdataPage(QWidget):
 
         self._media_player = media_player # QMediaPlayer 实例，用于控制视频播放
         self._majdataedit_placeholder: Optional[QWidget] = None
-
-        self._control_txt: Path = None
 
         self._select_song_button = None
         self._selected_song_path: Optional[Path] = None
@@ -90,8 +88,6 @@ class MajdataPage(QWidget):
 
 
     def _setup_control_bar(self) -> QWidget:
-
-        self._control_txt = PathManage.MajdataEdit_CONTROL_TXT_PATH
 
         bar = QWidget()
         bar.setFixedHeight(50)
@@ -236,18 +232,16 @@ class MajdataPage(QWidget):
         # Reset video player
         self.unload_video()
 
-        # Create a control txt for MajdataEdit
-        control_text = f"folder: {self._selected_song_path}\nmaidata: {selected_maidata}\ntrack: {selected_track}"
-        if majdataview_has_video:
-            control_text += f"\nmovie: {selected_video}"
-
-        try:
-            self._control_txt.write_text(control_text, encoding="utf-8")
-        except Exception as e:
-            print(f"Error writing to MajdataEdit control file: {e}")
+        # Send load command to MajdataEdit
+        MajdataCommandClient.get_instance().send_load(
+            str(self._selected_song_path),
+            selected_maidata,
+            selected_track,
+            selected_video if majdataview_has_video else None,
+        )
         
         # Load video to media player (if applicable)
-        # 在 control_file 创建完成后才检查 video 是否存在
+        # 发送 load 指令后再加载视频到本地播放器
         if not selected_video:
             return
 

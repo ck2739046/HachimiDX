@@ -73,7 +73,6 @@ class PathManage:
 
     SETTINGS_PATH: Path = DATA_DIR / "settings.json"
 
-    MajdataEdit_CONTROL_TXT_PATH: Path = RESOURCES_DIR / "majdatax" / "HachimiDX_MajdataEdit_Control.txt"
     TEMP_WAV_IMAGE_PATH: Path = TEMP_DIR / "wav_image.png"
 
     NCNN_PARAM_FILE_NAME = "model.ncnn.param"

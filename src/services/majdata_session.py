@@ -13,6 +13,7 @@ from PyQt6.QtCore import QObject, QProcess, QTimer, pyqtSignal
 from src.core.schemas.op_result import OpResult, ok, err
 from .path_manage import PathManage
 from .watchdog import shutdown_majdata
+from .majdata_command_client import MajdataCommandClient
 
 
 class MajdataSession(QObject):
@@ -76,14 +77,6 @@ class MajdataSession(QObject):
 
         majdataview_exe = PathManage.MajdataView_EXE_PATH
         majdataedit_exe = PathManage.MajdataEdit_EXE_PATH
-        control_txt = PathManage.MajdataEdit_CONTROL_TXT_PATH
-
-        # Ensure control file is clean before starting.
-        try:
-            if control_txt.exists():
-                control_txt.unlink()
-        except Exception:
-            pass
 
         working_dir = str(majdataedit_exe.parent)
 
@@ -96,8 +89,6 @@ class MajdataSession(QObject):
         self._majdataedit_proc.setWorkingDirectory(working_dir)
         self._majdataedit_proc.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
         self._majdataedit_proc.setProgram(str(majdataedit_exe))
-
-        self._majdataedit_proc.setArguments(["--embed_mode", str(control_txt)])
 
         self._majdataview_proc.readyReadStandardOutput.connect(self._on_majdataview_stdout_ready)
         self._majdataedit_proc.readyReadStandardOutput.connect(self._on_majdataedit_stdout_ready)
@@ -288,10 +279,9 @@ class MajdataSession(QObject):
 
 # static method
 def stop_majdata(exit=False) -> None:
-    try:
-        text = "folder: ---\nmaidata: ---\ntrack: ---"
-        if exit: text += "\nexit" # Request MajdataEdit exit via control file
-        control_txt = PathManage.MajdataEdit_CONTROL_TXT_PATH
-        control_txt.write_text(text, encoding="utf-8")
-    except Exception as e:
-        print(f"Error writing to MajdataEdit control file: {e}")
+    """请求 Edit-Neo 复位或退出"""
+    client = MajdataCommandClient.get_instance()
+    if exit:
+        client.send_exit()
+    else:
+        client.send_reset()
