@@ -191,13 +191,21 @@ class MajdataSession(QObject):
             return
         
         def _find_hwnd(keyword: str) -> Optional[int]:
-            hwnd = win32gui.FindWindow(None, keyword)
-            return int(hwnd) if hwnd else None
+            # 窗口句柄 startswith 匹配
+            found = []
+            def _enum_cb(hwnd, _):
+                if win32gui.IsWindowVisible(hwnd):
+                    title = win32gui.GetWindowText(hwnd)
+                    if title.startswith(keyword):
+                        found.append(int(hwnd))
+                return True
+            win32gui.EnumWindows(_enum_cb, None)
+            return found[0] if found else None
 
         if self._majdataview_hwnd is None:
-            self._majdataview_hwnd = _find_hwnd("MajdataView")
+            self._majdataview_hwnd = _find_hwnd("MajdataViewX")
         if self._majdataedit_hwnd is None:
-            self._majdataedit_hwnd = _find_hwnd("MajdataEdit (v4.3.1)")
+            self._majdataedit_hwnd = _find_hwnd("MajdataEdit Neo")
 
         if self._majdataview_hwnd is not None and self._majdataedit_hwnd is not None:
             self._poll_timer.stop()

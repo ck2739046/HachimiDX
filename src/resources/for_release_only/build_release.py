@@ -84,8 +84,8 @@ def copy_app_resources():
     extract_with_bandizip(ffmpeg_path, ffmpeg_target_path, mode='dir')
 
     # 复制 majdata
-    majdata_dir = FOR_RELEASE_ONLY_DIR / "majdata"
-    majdata_target_path = RELEASE_DIR / "src" / "resources" / "majdata"
+    majdata_dir = FOR_RELEASE_ONLY_DIR / "majdatax"
+    majdata_target_path = RELEASE_DIR / "src" / "resources" / "majdatax"
     copy_to_release(majdata_dir, majdata_target_path)
 
     # 复制 bpm measurer

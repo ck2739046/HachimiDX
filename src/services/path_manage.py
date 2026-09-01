@@ -45,8 +45,8 @@ class PathManage:
     FFMPEG_EXE_PATH: Path = RESOURCES_DIR / "ffmpeg" / "bin" / "ffmpeg.exe"
     FFPROBE_EXE_PATH: Path = RESOURCES_DIR / "ffmpeg" / "bin" / "ffprobe.exe"
 
-    MajdataView_EXE_PATH: Path = RESOURCES_DIR / "majdata" / "MajdataView.exe"
-    MajdataEdit_EXE_PATH: Path = RESOURCES_DIR / "majdata" / "MajdataEdit.exe"
+    MajdataView_EXE_PATH: Path = RESOURCES_DIR / "majdatax" / "MajdataViewX.exe"
+    MajdataEdit_EXE_PATH: Path = RESOURCES_DIR / "majdatax" / "MajdataEdit-Neo.exe"
 
     BPM_MEASURER_EXE_PATH: Path = RESOURCES_DIR / "Bpm Measurer" / "Bpm Measurer.exe"
 
@@ -73,7 +73,7 @@ class PathManage:
 
     SETTINGS_PATH: Path = DATA_DIR / "settings.json"
 
-    MajdataEdit_CONTROL_TXT_PATH: Path = RESOURCES_DIR / "majdata" / "HachimiDX_MajdataEdit_Control.txt"
+    MajdataEdit_CONTROL_TXT_PATH: Path = RESOURCES_DIR / "majdatax" / "HachimiDX_MajdataEdit_Control.txt"
     TEMP_WAV_IMAGE_PATH: Path = TEMP_DIR / "wav_image.png"
 
     NCNN_PARAM_FILE_NAME = "model.ncnn.param"

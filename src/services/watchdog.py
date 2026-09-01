@@ -66,10 +66,10 @@ def shutdown_majdata() -> None:
     """
 
     # 1) Kill MajdataView first (force)
-    _force_kill_process_by_name("MajdataView.exe")
+    _force_kill_process_by_name("MajdataViewX.exe")
 
     # 2) Then kill MajdataEdit (force)
-    _force_kill_process_by_name("MajdataEdit.exe")
+    _force_kill_process_by_name("MajdataEdit-Neo.exe")
 
 
 
