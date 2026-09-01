@@ -46,7 +46,7 @@ A tool for the rhythm game **maimai** that converts chart confirmation videos in
     - Everything is done through a visual interface — no CLI commands required.
 
 - **Built-in editors**
-    - Integrates [`MajdataEdit`](https://github.com/LingFeng-bbben/MajdataView) and [`MajdataView`](https://github.com/TeamMajdata/MajdataView/tree/431-NC-TH) so rechart results can be previewed and modified in one place.
+    - Integrates [`MajdataEdit-Neo`](https://github.com/re-poem/MajdataEdit-Neo) and [`MajdataViewX`](https://github.com/re-poem/MajdataViewX) so rechart results can be previewed and modified in one place.
 
 - **Built-in BPM measurement tool**
     - Integrates [`Bpm-Measurer`](https://github.com/ck2739046/Bpm-Measurer), a handy tool for measuring a song's BPM.
@@ -150,9 +150,9 @@ Code lives in `src/`, organized in three layers. The middle layer drives the cor
 - Extract [`ffmpeg`](src/resources/for_release_only/ffmpeg-8.0.1-essentials_build.7z) into `src/resources/ffmpeg/`.
 - (Optional) Compile the [`launcher`](src/resources/for_release_only/launcher) and place it in the project root.
 
-### 3. Obtain Majdata
+### 3. Obtain MajdataX
 
-Compile [MajdataEdit](https://github.com/ck2739046/MajdataEdit/tree/v4.3.1) & [MajdataView](https://github.com/ck2739046/MajdataView/tree/431-NC-TH) and place the outputs into `src/resources/majdata`.
+Compile [MajdataEdit-Neo](https://github.com/ck2739046/MajdataEdit-Neo/tree/HachimiDX) & [MajdataViewX](https://github.com/ck2739046/MajdataViewX/tree/HachimiDX) and place the outputs into `src/resources/majdatax`.
 
 > *Obtain `SFX` and `Skin` from other sources and put them in the folder.*
 

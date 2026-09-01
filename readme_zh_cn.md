@@ -48,7 +48,7 @@
     - 全程通过可视化界面操作，无需输入命令行。
 
 - **内置谱面编辑器**
-    - 内嵌 [`MajdataEdit`](https://github.com/LingFeng-bbben/MajdataView) 和 [`MajdataView`](https://github.com/TeamMajdata/MajdataView/tree/431-NC-TH)，抄谱结果一站式预览与修改。
+    - 内嵌 [`MajdataEdit-Neo`](https://github.com/re-poem/MajdataEdit-Neo) 和 [`MajdataViewX`](https://github.com/re-poem/MajdataViewX)，抄谱结果一站式预览与修改。
 
 - **内置 BPM 测速工具**
     - 集成 [`Bpm-Measurer`](https://github.com/ck2739046/Bpm-Measurer)，一款实用的歌曲 BPM 测量工具。
@@ -152,9 +152,9 @@
 - 将 [`ffmpeg`](src/resources/for_release_only/ffmpeg-8.0.1-essentials_build.7z) 解压到 `src/resources/ffmpeg/`。
 - （可选）自行编译 [`启动器`](src/resources/for_release_only/launcher) 并放到项目根目录。
 
-### 3. 获取 Majdata
+### 3. 获取 MajdataX
 
-编译 [MajdataEdit](https://github.com/ck2739046/MajdataEdit/tree/v4.3.1) & [MajdataView](https://github.com/ck2739046/MajdataView/tree/431-NC-TH)，将编译输出放入 `src/resources/majdata`：
+编译 [MajdataEdit-Neo](https://github.com/ck2739046/MajdataEdit-Neo/tree/HachimiDX) & [MajdataViewX](https://github.com/ck2739046/MajdataViewX/tree/HachimiDX)，将编译输出放入 `src/resources/majdatax`：
 
 > *请自行从其他渠道获取 `SFX` 和 `Skin`，放入文件夹中。*
 
