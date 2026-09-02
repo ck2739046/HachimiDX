@@ -181,22 +181,25 @@ class MajdataSession(QObject):
             self.error.emit("MajdataSession: timed out waiting for MajdataView/MajdataEdit windows.")
             return
         
-        def _find_hwnd(keyword: str) -> Optional[int]:
-            # 窗口句柄 startswith 匹配
+        def _find_hwnd(keyword: str, mode: str) -> Optional[int]:
             found = []
             def _enum_cb(hwnd, _):
                 if win32gui.IsWindowVisible(hwnd):
                     title = win32gui.GetWindowText(hwnd)
-                    if title.startswith(keyword):
-                        found.append(int(hwnd))
+                    if mode == "exact":
+                        if title == keyword:
+                            found.append(int(hwnd))
+                    elif mode == "startswith":
+                        if title.startswith(keyword):
+                            found.append(int(hwnd))
                 return True
             win32gui.EnumWindows(_enum_cb, None)
             return found[0] if found else None
 
         if self._majdataview_hwnd is None:
-            self._majdataview_hwnd = _find_hwnd("MajdataViewX")
+            self._majdataview_hwnd = _find_hwnd("MajdataViewX", mode="exact")
         if self._majdataedit_hwnd is None:
-            self._majdataedit_hwnd = _find_hwnd("MajdataEdit Neo")
+            self._majdataedit_hwnd = _find_hwnd("MajdataEdit Neo v", mode="startswith")
 
         if self._majdataview_hwnd is not None and self._majdataedit_hwnd is not None:
             self._poll_timer.stop()
