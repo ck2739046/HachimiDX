@@ -389,7 +389,7 @@ en_US:
         2. Audio files (*.mp3, *.ogg)
         3. Video files (*.mp4)
 
-        To clear the bottom-left video player,
+        To unload the current chart,
         select the "---" option in the first dropdown menu on the right,
         then click the "Load" button.
       ui_play_video_help: |
