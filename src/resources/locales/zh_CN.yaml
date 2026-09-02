@@ -381,6 +381,7 @@ zh_CN:
 
     majdata_page:
       ui_select_song_button: "选择歌曲"
+      ui_load_button: "加载"
       ui_song_help: |
         程序会查找三类文件:
 
@@ -390,7 +391,7 @@ zh_CN:
 
         如果想清空左下角的视频播放器，
         在右边第一个下拉菜单中选择 "---" 选项，
-        然后点击 "Load" 按钮即可。
+        然后点击 "加载" 按钮即可。
       ui_play_video_help: |
         勾选：视频会在左上 MajdataView 和左下视频播放器中都播放。
         不勾选：视频只在左下视频播放器中播放。

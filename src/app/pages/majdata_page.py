@@ -120,7 +120,7 @@ class MajdataPage(QWidget):
         play_video_help = create_help_icon(i18n.t("app.majdata_page.ui_play_video_help"))
         layout.addWidget(play_video_help)
         # Load button
-        load_btn = create_button("Load", 60)
+        load_btn = create_button(i18n.t("app.majdata_page.ui_load_button"), 60)
         layout.addWidget(load_btn)
 
         # connect

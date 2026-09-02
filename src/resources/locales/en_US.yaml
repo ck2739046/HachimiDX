@@ -381,6 +381,7 @@ en_US:
 
     majdata_page:
       ui_select_song_button: "Select Song"
+      ui_load_button: "Load"
       ui_song_help: |
         Program will look for three types of files:
 
