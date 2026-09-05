@@ -60,6 +60,7 @@ class MajdataSession(QObject):
         self._poll_timeout_s: float = 5.0
 
         self._shutdown_in_progress: bool = False
+        self._restart_pending: bool = False
         
         self._shutdown_timer = QTimer(self)
         self._shutdown_timer.setInterval(20)
@@ -71,7 +72,22 @@ class MajdataSession(QObject):
 
     
 
+    def _ensure_timers(self) -> None:
+        """start() 可能被 shutdown 后重新调用（reopen），此时 timers 已置 None，需重建"""
+        if self._poll_timer is None:
+            self._poll_timer = QTimer(self)
+            self._poll_timer.setInterval(20)
+            self._poll_timer.timeout.connect(self._poll_hwnds)
+        if self._shutdown_timer is None:
+            self._shutdown_timer = QTimer(self)
+            self._shutdown_timer.setInterval(20)
+            self._shutdown_timer.timeout.connect(self._poll_majdataedit_exit)
+
+
     def start(self) -> OpResult[None]:
+
+        self._ensure_timers()
+        self._shutdown_in_progress = False
 
         shutdown_majdata()
 
@@ -214,6 +230,11 @@ class MajdataSession(QObject):
 
 
 
+    def reopen(self) -> None:
+        self._restart_pending = True
+        self.shutdown()
+
+
     def shutdown(self) -> None:
 
         if self._shutdown_in_progress:
@@ -274,6 +295,11 @@ class MajdataSession(QObject):
             self.shutdown_finished.emit()
         except Exception:
             pass
+
+        # 若因 reopen 请求关闭，则重新启动
+        if self._restart_pending:
+            self._restart_pending = False
+            QTimer.singleShot(0, self.start)
 
 
 
