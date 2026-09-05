@@ -102,13 +102,13 @@ class LeftPanel(QWidget):
     def set_majdata_view_hwnd(self, hwnd: int) -> None:
 
         layout = self.majdataview_placeholder.layout()
-        # 删除旧组件防止重复嵌入
-        # while layout.count():
-        #     item = layout.takeAt(0)
-        #     w = item.widget()
-        #     if w is not None:
-        #         w.setParent(None)
-        #         w.deleteLater()
+        # 清理旧容器，避免 reopen 后重复嵌入
+        while layout.count():
+            item = layout.takeAt(0)
+            w = item.widget()
+            if w is not None:
+                w.setParent(None)
+                w.deleteLater()
         win = QWindow.fromWinId(int(hwnd))
         container = QWidget.createWindowContainer(win, self) # parent = self
         layout.addWidget(container)
@@ -291,6 +291,9 @@ class MainWindow(QMainWindow):
         result = self._majdata_session.start()
         # if not result.is_ok:
         #     print(f"--Warning: MajdataSession.start failed: {result.error_msg}")
+
+        # Majdata 页面的 reopen maj 请求
+        self.right_panel.majdata_page.reopen_requested.connect(self._majdata_session.reopen)
 
         # 检查更新 (延迟1s)
         QTimer.singleShot(1000, check_update)

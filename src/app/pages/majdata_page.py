@@ -9,7 +9,7 @@ try:
 except ImportError:
     from win32 import win32gui
 
-from PyQt6.QtCore import QUrl, pyqtSlot
+from PyQt6.QtCore import QUrl, pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QWindow
 from PyQt6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 
@@ -25,6 +25,9 @@ _MAJDATA_PAGE_INSTANCE: Optional["MajdataPage"] = None
 
 
 class MajdataPage(QWidget):
+
+    # 请求重启 Maj（关闭后重新启动），由 MainWindow 连接到 MajdataSession.reopen
+    reopen_requested = pyqtSignal()
 
     def __init__(self, media_player=None, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
@@ -73,12 +76,14 @@ class MajdataPage(QWidget):
     def set_edit_hwnd(self, hwnd: int) -> None:
         """Embed MajdataEdit by hwnd."""
 
-        # while self._embed_layout.count():
-        #     item = self._embed_layout.takeAt(0)
-        #     w = item.widget()
-        #     if w is not None:
-        #         w.setParent(None)
-        #         w.deleteLater()
+        # 清理旧的嵌入容器，避免 reopen 后重复叠加
+        embed_layout = self._majdataedit_placeholder.layout()
+        while embed_layout.count():
+            item = embed_layout.takeAt(0)
+            w = item.widget()
+            if w is not None:
+                w.setParent(None)
+                w.deleteLater()
 
         self._edit_hwnd = hwnd
         win = QWindow.fromWinId(hwnd)
@@ -120,11 +125,16 @@ class MajdataPage(QWidget):
         play_video_help = create_help_icon(i18n.t("app.majdata_page.ui_play_video_help"))
         layout.addWidget(play_video_help)
         # Load button
-        load_btn = create_button(i18n.t("app.majdata_page.ui_load_button"), 60)
+        load_btn = create_split_drop_button(
+            i18n.t("app.majdata_page.ui_load_button"),
+            [i18n.t("app.majdata_page.ui_reset_maj"), i18n.t("app.majdata_page.ui_reopen_maj")],
+            width=70,
+        )
         layout.addWidget(load_btn)
 
         # connect
         load_btn.clicked.connect(self.on_load_clicked)
+        load_btn.item_triggered.connect(self._on_load_menu_triggered)
 
         return bar
 
@@ -246,6 +256,14 @@ class MajdataPage(QWidget):
         if self._media_player is not None:
             self._media_player.setSource(QUrl.fromLocalFile(str(video_path)))
             self._media_player.pause()
+
+
+    @pyqtSlot(int, str)
+    def _on_load_menu_triggered(self, row: int, text: str) -> None:
+        if row == 0:
+            self.reset_majdataview()
+        elif row == 1:
+            self.reopen_requested.emit()
 
 
 
