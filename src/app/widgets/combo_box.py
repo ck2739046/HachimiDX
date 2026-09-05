@@ -28,7 +28,7 @@ class ComboItemDelegate(QStyledItemDelegate):
         绘制选项文字
     """
 
-    def __init__(self, parent, combo: QComboBox):
+    def __init__(self, parent, combo: QComboBox | None = None):
         super().__init__(parent)
         self._combo = combo
 
@@ -52,7 +52,7 @@ class ComboItemDelegate(QStyledItemDelegate):
         text = index.data(Qt.ItemDataRole.DisplayRole)
         if text is not None:
             painter.setPen(QColor(c['text_primary']))
-            is_selected = index.row() == self._combo.currentIndex()
+            is_selected = self._combo is not None and index.row() == self._combo.currentIndex()
             if is_selected:
                 font = painter.font()
                 font.setBold(True)
@@ -90,9 +90,9 @@ class ComboItemDelegate(QStyledItemDelegate):
 class ComboListView(QListView):
     """下拉列表视图：共享 QComboBox 的 model"""
 
-    def __init__(self, combo: QComboBox):
+    def __init__(self, combo: QComboBox | None = None, model=None):
         super().__init__()
-        self.setModel(combo.model())
+        self.setModel(model if model is not None else combo.model())
         self.setItemDelegate(ComboItemDelegate(self, combo))
         self.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
         self.setMouseTracking(True)
@@ -121,7 +121,7 @@ class _ComboPopup(QFrame):
 
     aboutToHide = pyqtSignal()
 
-    def __init__(self, combo: QComboBox):
+    def __init__(self, combo: QComboBox | None = None, model=None, anchor=None):
         super().__init__(None)
         self.setWindowFlags(
             Qt.WindowType.Popup  # 点击其他地方自动关闭
@@ -131,6 +131,7 @@ class _ComboPopup(QFrame):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)  # 透明背景
 
         self._combo = combo
+        self._anchor = anchor or combo
         self._ani: QPropertyAnimation | None = None
         self._end_y: int = 0
 
@@ -138,7 +139,7 @@ class _ComboPopup(QFrame):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        self.view = ComboListView(combo)
+        self.view = ComboListView(combo, model)
         layout.addWidget(self.view)
 
 
@@ -222,10 +223,38 @@ class _ComboPopup(QFrame):
         # 清除遮罩
         self.setMask(QRegion())
         # cleanup
-        if self._combo and self._combo._popup is self:
-            self._combo._popup = None
+        anchor = self._anchor
+        if anchor is not None and getattr(anchor, '_popup', None) is self:
+            anchor._popup = None
 
         super().hideEvent(event)
+
+
+
+def open_combo_popup(anchor, combo=None, model=None, width=None, on_item_clicked=None) -> bool:
+    """
+    共享的下拉菜单弹出逻辑，供 StyledComboBox 与 SplitDropButton 复用。
+
+    - anchor: 弹窗锚点，需提供 mapToGlobal / height / width，并用 `_popup` 引用当前弹窗
+    - combo: 需要选中态箭头时的关联 combo（可为 None）
+    - model: 列表模型；None 时回退 combo.model()
+    - width: 弹窗宽度；None 时使用 anchor.width()
+
+    成功打开返回 True；无需打开（已打开或无选项）返回 False。
+    """
+    if getattr(anchor, '_popup', None) is not None:
+        anchor.hidePopup()
+        return False
+    popup = _ComboPopup(combo=combo, model=model, anchor=anchor)
+    if popup.view.model().rowCount() == 0:
+        popup.close()
+        return False
+    anchor._popup = popup
+    if on_item_clicked is not None:
+        popup.view.clicked.connect(on_item_clicked)
+    pos = anchor.mapToGlobal(QPoint(0, anchor.height() + 4))
+    popup.show_animated(pos, width if width is not None else anchor.width())
+    return True
 
 
 
@@ -270,15 +299,7 @@ class StyledComboBox(QComboBox):
     # ---- popup 生命周期管理 ----
 
     def showPopup(self):
-        if self._popup is not None:
-            self.hidePopup()
-            return
-        if self.count() == 0:
-            return
-        self._popup = _ComboPopup(self)
-        self._popup.view.clicked.connect(self._on_popup_item_clicked)
-        pos = self.mapToGlobal(QPoint(0, self.height() + 4))
-        self._popup.show_animated(pos, self.width())
+        open_combo_popup(self, combo=self, on_item_clicked=self._on_popup_item_clicked)
 
     def hidePopup(self):
         if self._popup:

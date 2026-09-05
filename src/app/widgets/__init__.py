@@ -17,6 +17,7 @@ from .media_input_probe_widget import MediaInputProbeWidget
 from .path_display import create_path_display
 from .button import create_stated_button, create_button
 from .floating_notification import create_floating_notification
+from .split_drop_button import SplitDropButton, create_split_drop_button
 from .overlay_widget import OverlayWidget
 from .range_visualizer import RangeVisualizer
 from .slider import create_slider
@@ -37,6 +38,7 @@ __all__ = [
     'MediaInputProbeWidget',
     'create_path_display',
     'create_button', 'create_stated_button',
+    'SplitDropButton', 'create_split_drop_button',
     'create_floating_notification',
     'OverlayWidget',
     'RangeVisualizer',
