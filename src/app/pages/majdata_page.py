@@ -26,8 +26,8 @@ _MAJDATA_PAGE_INSTANCE: Optional["MajdataPage"] = None
 
 class MajdataPage(QWidget):
 
-    # 请求重启 Maj（关闭后重新启动），由 MainWindow 连接到 MajdataSession.reopen
-    reopen_requested = pyqtSignal()
+    # 请求重启 Maj（关闭后重新启动），由 MainWindow 连接到 MajdataSession.restart
+    restart_requested = pyqtSignal()
 
     def __init__(self, media_player=None, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
@@ -76,7 +76,7 @@ class MajdataPage(QWidget):
     def set_edit_hwnd(self, hwnd: int) -> None:
         """Embed MajdataEdit by hwnd."""
 
-        # 清理旧的嵌入容器，避免 reopen 后重复叠加
+        # 清理旧的嵌入容器，避免 restart 后重复叠加
         embed_layout = self._majdataedit_placeholder.layout()
         while embed_layout.count():
             item = embed_layout.takeAt(0)
@@ -127,7 +127,7 @@ class MajdataPage(QWidget):
         # Load button
         load_btn = create_split_drop_button(
             i18n.t("app.majdata_page.ui_load_button"),
-            [i18n.t("app.majdata_page.ui_reset_maj"), i18n.t("app.majdata_page.ui_reopen_maj")],
+            [i18n.t("app.majdata_page.ui_reset_maj"), i18n.t("app.majdata_page.ui_restart_maj")],
             width=70,
         )
         layout.addWidget(load_btn)
@@ -263,7 +263,7 @@ class MajdataPage(QWidget):
         if row == 0:
             self.reset_majdataview()
         elif row == 1:
-            self.reopen_requested.emit()
+            self.restart_requested.emit()
 
 
 

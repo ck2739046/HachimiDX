@@ -73,7 +73,7 @@ class MajdataSession(QObject):
     
 
     def _ensure_timers(self) -> None:
-        """start() 可能被 shutdown 后重新调用（reopen），此时 timers 已置 None，需重建"""
+        """start() 可能被 shutdown 后重新调用（restart），此时 timers 已置 None，需重建"""
         if self._poll_timer is None:
             self._poll_timer = QTimer(self)
             self._poll_timer.setInterval(20)
@@ -230,7 +230,7 @@ class MajdataSession(QObject):
 
 
 
-    def reopen(self) -> None:
+    def restart(self) -> None:
         self._restart_pending = True
         self.shutdown()
 
@@ -296,7 +296,7 @@ class MajdataSession(QObject):
         except Exception:
             pass
 
-        # 若因 reopen 请求关闭，则重新启动
+        # 若因 restart 请求关闭，则重新启动
         if self._restart_pending:
             self._restart_pending = False
             QTimer.singleShot(0, self.start)
