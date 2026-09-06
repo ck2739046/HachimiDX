@@ -141,7 +141,9 @@ def main() -> int:
     window = MainWindow()
     window.show()
 
-    return app.exec()
+    exit_code = app.exec()
+    print(f"[main] app.exec() returned exit code = {exit_code}")
+    return exit_code
 
 
 if __name__ == "__main__":
