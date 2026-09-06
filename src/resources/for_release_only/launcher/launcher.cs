@@ -55,7 +55,13 @@ class Program
         if (proc?.ExitCode != 0)
         {
             SetConsoleState(SW_RESTORE);
-            Console.WriteLine("\n按任意键继续...\nPress any key to continue...");
+            Console.WriteLine("");
+            Console.WriteLine($"程序已结束，返回码: {proc?.ExitCode}");
+            Console.WriteLine($"Program ended, exit code: {proc?.ExitCode}");
+            Console.WriteLine("");
+            Console.WriteLine("按任意键继续...");
+            Console.WriteLine("Press any key to continue...");
+            Console.WriteLine("");
             Console.ReadKey(true);
         }
 
