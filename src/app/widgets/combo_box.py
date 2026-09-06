@@ -476,15 +476,31 @@ class ToolTipComboBox(StyledComboBox):
             return
         text = str(text)
 
-        # 计算 tooltip 显示位置（选项右侧）
-        viewport_right = viewport.mapToGlobal(QPoint(viewport.width(), 0))
+        # 计算 tooltip 显示位置
+        viewport_right_x = viewport.mapToGlobal(QPoint(viewport.width(), 0)).x()
+        viewport_left_x = viewport.mapToGlobal(QPoint(0, 0)).x()
         item_rect = view.visualRect(index)
         item_center_y = item_rect.center().y()
         item_center_global = viewport.mapToGlobal(QPoint(0, item_center_y))
 
-        # 显示 tooltip
-        tooltip_pos = QPoint(viewport_right.x() - 5, item_center_global.y() - 29)
-                                            # 此处是向左 5px，向上 29px
+        # tooltip 默认显示在右侧
+        x_offset = -5   # 向左 5px
+        y_offset = -29  # 向上 29px
+        tip_w = self._tooltip.measure(text).width()
+        x_right = viewport_right_x + x_offset
+        x_left = viewport_left_x - x_offset - tip_w
+        y = item_center_global.y() + y_offset
+        tooltip_pos = QPoint(x_right, y)
+        # 检查 tooltip 是否超出屏幕
+        screen = QApplication.screenAt(item_center_global)
+        if screen is not None:
+            avail = screen.availableGeometry()
+            if x_right + tip_w > avail.right():
+                # tooltip 超出屏幕右侧，尝试左侧显示
+                if x_left >= avail.left():
+                    tooltip_pos = QPoint(x_left, y)
+                # 如果左边也超出屏幕，仍然显示在右侧
+
         self._tooltip.show_text(text, tooltip_pos)
 
 

@@ -1,6 +1,6 @@
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import QPoint, QRect, QSize, Qt, QTimer
 from PyQt6.QtGui import QColor, QCursor, QFont
-from PyQt6.QtWidgets import QFrame, QGraphicsDropShadowEffect, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QApplication, QFrame, QGraphicsDropShadowEffect, QLabel, QVBoxLayout, QWidget
 
 from ..ui_style import UI_Style
 
@@ -60,17 +60,72 @@ class PopupToolTip(QWidget):
 
 
 
+    def _prepare(self, text: str) -> QSize:
+        """设置文本并重算尺寸，返回 tooltip 总尺寸（不显示）"""
+        self._label.setText(text)
+        self._label.adjustSize()          # 从里到外调整尺寸
+        self._bubble.adjustSize()
+        self.adjustSize()
+        return self.size()
+
+    def measure(self, text: str) -> QSize:
+        """计算给定文本的 tooltip 尺寸（不显示，供调用方定位用）"""
+        text_to_show = text.rstrip()
+        if not text_to_show:
+            return QSize()
+        return self._prepare(text_to_show)
+
+    @staticmethod
+    def _screen_avail(point) -> QRect:
+        """点所在屏幕的可用区域，取不到时回退主屏"""
+        screen = QApplication.screenAt(point)
+        if screen is None:
+            screen = QApplication.primaryScreen()
+        return screen.availableGeometry() if screen is not None else QRect()
+
     def show_text(self, text: str, global_pos):
         text_to_show = text.rstrip()
         if not text_to_show: return
 
-        self._label.setText(text_to_show) # 设置文本
-        self._label.adjustSize()          # 从里到外调整尺寸
-        self._bubble.adjustSize()
-        self.adjustSize()
+        self._prepare(text_to_show)
         self.move(global_pos)             # 移动位置
         self.show()
         self.raise_()                     # 提升到顶层，防止被其他窗口遮挡
+
+
+
+    def show_near_cursor(self, text: str, cursor_pos):
+        """在光标旁显示，自动选择不越出所在屏幕的一侧（右下→左下→右上→左上）"""
+        text_to_show = text.rstrip()
+        if not text_to_show: return
+
+        size = self._prepare(text_to_show)
+        avail = self._screen_avail(cursor_pos)
+
+        w, h = size.width(), size.height()
+        cx, cy = cursor_pos.x(), cursor_pos.y()
+        candidates = [QPoint(cx, cy),           # 右下
+                      QPoint(cx - w, cy),       # 左下
+                      QPoint(cx, cy - h),       # 右上
+                      QPoint(cx - w, cy - h)]   # 左上
+
+        target = None
+        for pos in candidates:
+            if (pos.x() >= avail.left() and pos.x() + w <= avail.right()
+                    and pos.y() >= avail.top() and pos.y() + h <= avail.bottom()):
+                target = pos
+                break
+
+        if target is None:
+            # 均放不下，默认回到右下
+            target = candidates[0]
+
+        self.move(target)
+        self.show()
+        self.raise_()
+
+
+
 
 
 
@@ -112,7 +167,7 @@ def install_tooltip(widget, text: str, delay_ms: int = DEFAULT_TOOLTIP_DELAY_MS)
             timer.stop()
         timer = QTimer(widget)
         timer.setSingleShot(True)
-        timer.timeout.connect(lambda: tooltip.show_text(text, QCursor.pos()))
+        timer.timeout.connect(lambda: tooltip.show_near_cursor(text, QCursor.pos()))
         timer.start(delay_ms)
 
     def _leave_event(_event):
