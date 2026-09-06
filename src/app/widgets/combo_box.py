@@ -1,12 +1,15 @@
+import ctypes
+import sys
+
 from PyQt6.QtWidgets import (
     QComboBox, QStyledItemDelegate, QListView, QFrame, QVBoxLayout,
     QStyle, QAbstractItemView, QApplication, QSizePolicy,
 )
 from PyQt6.QtCore import (
-    QPoint, QEvent, Qt, QPropertyAnimation, QRect, QRectF,
+    QPoint, QEvent, Qt, QPropertyAnimation, QRect, QRectF, QTimer,
     QEasingCurve, QSize, pyqtSignal,
 )
-from PyQt6.QtGui import QPainter, QPen, QColor, QRegion, QPainterPath
+from PyQt6.QtGui import QCursor, QPainter, QPen, QColor, QRegion, QPainterPath
 
 from ..ui_style import UI_Style
 from .popup_tooltip import get_shared_tooltip
@@ -124,9 +127,10 @@ class _ComboPopup(QFrame):
     def __init__(self, combo: QComboBox | None = None, model=None, anchor=None):
         super().__init__(None)
         self.setWindowFlags(
-            Qt.WindowType.Popup  # 点击其他地方自动关闭
+            Qt.WindowType.Tool
             | Qt.WindowType.FramelessWindowHint  # 无边框
             | Qt.WindowType.NoDropShadowWindowHint  # 无阴影
+            | Qt.WindowType.WindowDoesNotAcceptFocus
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)  # 透明背景
 
@@ -134,6 +138,10 @@ class _ComboPopup(QFrame):
         self._anchor = anchor or combo
         self._ani: QPropertyAnimation | None = None
         self._end_y: int = 0
+        self._wait_for_left_button_release = False
+        self._outside_click_timer = QTimer(self)
+        self._outside_click_timer.setInterval(16)
+        self._outside_click_timer.timeout.connect(self._check_outside_click)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -201,6 +209,8 @@ class _ComboPopup(QFrame):
 
         # 最后再显示下拉菜单，避免闪烁
         self.show()
+        self._wait_for_left_button_release = self._is_left_button_down()
+        self._outside_click_timer.start()
 
 
 
@@ -227,7 +237,23 @@ class _ComboPopup(QFrame):
         if anchor is not None and getattr(anchor, '_popup', None) is self:
             anchor._popup = None
 
+        self._outside_click_timer.stop()
         super().hideEvent(event)
+
+    @staticmethod
+    def _is_left_button_down() -> bool:
+        if sys.platform == 'win32':
+            return bool(ctypes.windll.user32.GetAsyncKeyState(0x01) & 0x8000)
+        return bool(QApplication.mouseButtons() & Qt.MouseButton.LeftButton)
+
+    def _check_outside_click(self):
+        left_button_down = self._is_left_button_down()
+        if self._wait_for_left_button_release:
+            if not left_button_down:
+                self._wait_for_left_button_release = False
+            return
+        if left_button_down and not self.frameGeometry().contains(QCursor.pos()):
+            self.close()
 
 
 
