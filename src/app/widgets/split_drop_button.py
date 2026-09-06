@@ -5,7 +5,7 @@ from PyQt6.QtGui import QPainter, QPen, QPainterPath, QColor
 from PyQt6.QtWidgets import QWidget
 
 from ..ui_style import UI_Style
-from .combo_box import open_combo_popup
+from .dropdown_widget import open_combo_popup
 
 
 c = UI_Style.COLORS
@@ -113,13 +113,21 @@ class SplitDropButton(QWidget):
 
     def mousePressEvent(self, event) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
-            if event.position().x() >= self.width() - DROPDOWN_W:
+            if self._popup is not None:
+                self.hidePopup()
+            elif event.position().x() >= self.width() - DROPDOWN_W:
                 self.showPopup()
+            event.accept()
+            return
+        super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
             if event.position().x() < self.width() - DROPDOWN_W:
                 self.clicked.emit()
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
 
     # ---- 下拉弹窗 ----
 
