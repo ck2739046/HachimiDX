@@ -77,13 +77,7 @@ class MajdataPage(QWidget):
         """Embed MajdataEdit by hwnd."""
 
         # 清理旧的嵌入容器，避免 restart 后重复叠加
-        embed_layout = self._majdataedit_placeholder.layout()
-        while embed_layout.count():
-            item = embed_layout.takeAt(0)
-            w = item.widget()
-            if w is not None:
-                w.setParent(None)
-                w.deleteLater()
+        widget_utils.clear_layout(self._majdataedit_placeholder.layout())
 
         self._edit_hwnd = hwnd
         win = QWindow.fromWinId(hwnd)

@@ -22,6 +22,7 @@ from .overlay_widget import OverlayWidget
 from .range_visualizer import RangeVisualizer
 from .slider import create_slider
 from .scrollable_image_label import ScrollableImageLabel
+from . import widget_utils
 
 __all__ = [
     'SquareWidget',
@@ -44,4 +45,5 @@ __all__ = [
     'RangeVisualizer',
     'create_slider',
     'ScrollableImageLabel',
+    'widget_utils',
 ]

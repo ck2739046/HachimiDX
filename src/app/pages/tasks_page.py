@@ -256,11 +256,7 @@ class TasksPage(BaseOutputPage):
 
 
     def _rebuild_list(self, layout: QVBoxLayout, tasks: list[TaskInfo]) -> None:
-        while layout.count():
-            item = layout.takeAt(0)
-            w = item.widget()
-            if w is not None:
-                w.deleteLater()
+        widget_utils.clear_layout(layout)
 
         for task in self._sort_tasks_for_display(tasks):
             if task.status == TaskStatus.CANCELLED:

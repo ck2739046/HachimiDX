@@ -10,8 +10,7 @@ from PyQt6.QtGui import QIcon, QWindow
 from PyQt6.QtMultimedia import QMediaPlayer
 from PyQt6.QtMultimediaWidgets import QVideoWidget
 
-from .widgets import SquareWidget
-from .widgets import SegmentedNavBar
+from .widgets import SquareWidget, SegmentedNavBar, widget_utils
 from .ui_style import UI_Style
 
 from .pages.majdata_page import MajdataPage
@@ -103,12 +102,7 @@ class LeftPanel(QWidget):
 
         layout = self.majdataview_placeholder.layout()
         # 清理旧容器，避免 restart 后重复嵌入
-        while layout.count():
-            item = layout.takeAt(0)
-            w = item.widget()
-            if w is not None:
-                w.setParent(None)
-                w.deleteLater()
+        widget_utils.clear_layout(layout)
         win = QWindow.fromWinId(int(hwnd))
         container = QWidget.createWindowContainer(win, self) # parent = self
         layout.addWidget(container)
