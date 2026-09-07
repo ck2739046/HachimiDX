@@ -113,11 +113,16 @@ class MajdataPage(QWidget):
         # Video choose (stretch 20)
         self._video_combo = create_combo_box(show_tooltip = True)
         layout.addWidget(self._video_combo, 20)
-        # CheckBox: play video in MajdataView
+        # Label + CheckBox: play video in MajdataView
+        view_group = QWidget()
+        view_group_layout = QHBoxLayout(view_group)
+        view_group_layout.setContentsMargins(0, 0, 0, 0)
+        view_group_layout.setSpacing(4)
+        play_video_label = create_label(i18n.t("app.majdata_page.ui_view_label"))
+        view_group_layout.addWidget(play_video_label)
         self._play_video_checkbox = create_check_box(True)
-        layout.addWidget(self._play_video_checkbox)
-        play_video_help = create_help_icon(i18n.t("app.majdata_page.ui_play_video_help"))
-        layout.addWidget(play_video_help)
+        view_group_layout.addWidget(self._play_video_checkbox)
+        layout.addWidget(view_group)
         # Load button
         load_btn = create_split_drop_button(
             i18n.t("app.majdata_page.ui_load_button"),

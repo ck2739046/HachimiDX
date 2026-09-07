@@ -390,9 +390,7 @@ zh_CN:
         1. 谱面文件 (*.txt)
         2. 音频文件 (*.mp3, *.ogg)
         3. 视频文件 (*.mp4)
-      ui_play_video_help: |
-        勾选：视频会在左上 MajdataView 和左下视频播放器中都播放。
-        不勾选：视频只在左下视频播放器中播放。
+      ui_view_label: "View:"
 
 
 

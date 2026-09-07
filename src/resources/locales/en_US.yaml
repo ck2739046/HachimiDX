@@ -390,10 +390,7 @@ en_US:
         1. Chart files (*.txt)
         2. Audio files (*.mp3, *.ogg)
         3. Video files (*.mp4)
-      ui_play_video_help: |
-        checked: The video will play in both the top-left MajdataView
-                 and the bottom-left video player.
-        unchecked: The video will only play in the bottom-left video player.
+      ui_view_label: "View:"
 
 
 
