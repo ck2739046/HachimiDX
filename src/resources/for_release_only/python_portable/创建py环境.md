@@ -1,4 +1,4 @@
-2026.07.29: 当前版本 python 3.11.15
+环境创建于 2026.07.29, 使用 python 3.11.15
 
 https://archive.docs.nvidia.com/tensorrt/tensorrt-861/release-notes/index.html
 为了兼容 gtx1000 系显卡 tensorRT 8.6.1 最高仅支持到 py 3.11
@@ -30,6 +30,6 @@ python=3.11: 安装 python 3.11 本体
 删除 .mamba/ 和 micromamba-win-64.exe 本体
 删除 python/conda-meta/ 这个文件夹
 
-将本文档同位置的 sitecustomize.py 放入 python/ 内
+将本文档同位置的 sitecustomize.py 和 pip.ini 放入 python/ 内
 
 可选：将整个 python 文件夹打包成 zip 放到 for_release_only 内
