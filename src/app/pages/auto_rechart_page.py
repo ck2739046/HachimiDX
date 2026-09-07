@@ -662,6 +662,16 @@ class AutoRechartPage(BaseOutputPage):
 
 
 
+    def _get_auto_rechart_log_path(self, raw_data: dict) -> Path:
+        if raw_data[AC_Defs.is_standardize_enabled.key]:
+            input_path = Path(raw_data[AC_Defs.standardize_input_video_path.key])
+            song_name = raw_data[AC_Defs.song_name.key] or input_path.stem
+            output_dir = input_path.parent / song_name
+        else:
+            output_dir = Path(raw_data[AC_Defs.selected_folder.key])
+        return output_dir / "HachimiDX_log.txt"
+
+
     def on_submit_clicked(self) -> None:
 
         def try_int(value) -> int | None:
@@ -766,7 +776,11 @@ class AutoRechartPage(BaseOutputPage):
                 return
 
             runner_id, cmd_list = result.value
-            self.output_widget.bind_current_runner_id(runner_id)
+            self.output_widget.bind_current_runner_id(
+                runner_id,
+                log_enabled=True,
+                logtxt_path=self._get_auto_rechart_log_path(raw_data),
+            )
             
             # 显示悬浮通知
             message = i18n.t("app.media_subpages.run_ffmpeg.notice_task_submit_success", task_id=runner_id)
