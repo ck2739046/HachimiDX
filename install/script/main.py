@@ -55,6 +55,14 @@ def main():
             print(zh_cn.ask_language.defaulting)
             T = zh_cn
 
+        # ask whether to use PyPI mirror
+        ask_use_pypi_mirror()
+
+        # 预先更新 pip 与 wheel 确保安装流程稳定
+        general_pip_install("pip & wheel", [sys.executable, "-m", "pip", "install",
+                                            "--upgrade", "pip", "wheel",
+                                            "--no-warn-script-location"])
+
         # main menu
         print("\n-----")
         choice = ask(T.main_menu.prompt)
@@ -159,9 +167,6 @@ def install() -> OpResult[None]:
     onnx_cuda_gpu_config = backend_choice.onnx_cuda_config
     install_dml = backend == "onnx_dml"
     install_ncnn_ = backend == "ncnn"
-
-    # ask whether to use PyPI mirror
-    ask_use_pypi_mirror()
 
     # install pytorch
     success = install_pytorch(tensorrt_gpu_config, onnx_cuda_gpu_config)

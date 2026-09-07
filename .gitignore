@@ -16,9 +16,10 @@ src/resources/for_release_only/python_portable/*.exe
 src/resources/for_release_only/python_portable/*.zip
 
 data/models/
-data/temp
+data/temp/
 data/settings.json
 data/settings.json.bak
+data/logs/
 
 python/
 HachimiDX/
