@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (
-    QComboBox, QApplication, QSizePolicy,
+    QComboBox, QSizePolicy,
 )
 from PyQt6.QtCore import (
     QPoint, QEvent, Qt,
@@ -251,15 +251,16 @@ class ToolTipComboBox(StyledComboBox):
         x_left = viewport_left_x - x_offset - tip_w
         y = item_center_global.y() + y_offset
         tooltip_pos = QPoint(x_right, y)
-        # 检查 tooltip 是否超出屏幕
-        screen = QApplication.screenAt(item_center_global)
-        if screen is not None:
-            avail = screen.availableGeometry()
-            if x_right + tip_w > avail.right():
-                # tooltip 超出屏幕右侧，尝试左侧显示
-                if x_left >= avail.left():
-                    tooltip_pos = QPoint(x_left, y)
-                # 如果左边也超出屏幕，仍然显示在右侧
+        # 检查 tooltip 是否超出主窗口右缘
+        win = self.window()
+        if win is not None:
+            rect = win.frameGeometry()
+            if rect.isValid() and not rect.isEmpty():
+                if x_right + tip_w > rect.right():
+                    # 右侧越界，尝试显示在左侧
+                    if x_left >= rect.left():
+                        tooltip_pos = QPoint(x_left, y)
+                    # 左边也越界则仍显示在右侧
 
         self._tooltip.show_text(text, tooltip_pos)
 

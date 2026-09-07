@@ -76,9 +76,16 @@ class PopupToolTip(QWidget):
         return self._prepare(text_to_show)
 
     @staticmethod
-    def _screen_avail(point) -> QRect:
-        """点所在屏幕的可用区域，取不到时回退主屏"""
-        screen = QApplication.screenAt(point)
+    def _container_rect(widget, fallback_point) -> QRect:
+        """悬停控件所属顶层窗口的全局矩形，取不到时回退所在屏幕可用区"""
+        if widget is not None:
+            try:
+                rect = widget.window().frameGeometry()
+                if rect.isValid() and not rect.isEmpty():
+                    return rect
+            except RuntimeError:
+                pass
+        screen = QApplication.screenAt(fallback_point)
         if screen is None:
             screen = QApplication.primaryScreen()
         return screen.availableGeometry() if screen is not None else QRect()
@@ -94,13 +101,13 @@ class PopupToolTip(QWidget):
 
 
 
-    def show_near_cursor(self, text: str, cursor_pos):
-        """在光标旁显示，自动选择不越出所在屏幕的一侧（右下→左下→右上→左上）"""
+    def show_near_cursor(self, text: str, cursor_pos, container_widget=None):
+        """在光标旁显示，自动选择不越出主窗口的一侧（右下→左下→右上→左上）"""
         text_to_show = text.rstrip()
         if not text_to_show: return
 
         size = self._prepare(text_to_show)
-        avail = self._screen_avail(cursor_pos)
+        avail = self._container_rect(container_widget, cursor_pos)
 
         w, h = size.width(), size.height()
         cx, cy = cursor_pos.x(), cursor_pos.y()
@@ -167,7 +174,7 @@ def install_tooltip(widget, text: str, delay_ms: int = DEFAULT_TOOLTIP_DELAY_MS)
             timer.stop()
         timer = QTimer(widget)
         timer.setSingleShot(True)
-        timer.timeout.connect(lambda: tooltip.show_near_cursor(text, QCursor.pos()))
+        timer.timeout.connect(lambda: tooltip.show_near_cursor(text, QCursor.pos(), widget))
         timer.start(delay_ms)
 
     def _leave_event(_event):
