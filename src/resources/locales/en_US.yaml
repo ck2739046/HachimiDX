@@ -114,12 +114,12 @@ en_US:
   app:
 
     nav_bar:
-      majdata_label: "MajdataEdit"
+      majdata_label: "MajdataX"
       auto_rechart_label: "Auto Rechart"
       media_tools_label: "Multimedia Tools"
       tasks_label: "Tasks"
       settings_label: "Settings"
-      # majdata_desc: "Embed MajdataEdit"
+      # majdata_desc: "Embed MajdataX"
       # auto_rechart_desc: "Auto recharting tool"
       # media_tools_desc: "Multimedia processing toolkit"
       # tasks_desc: "View and manage task queue"
