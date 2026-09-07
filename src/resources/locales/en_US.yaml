@@ -252,29 +252,34 @@ en_US:
         ui_video_quality_help: |
           Control the output video quality
 
-          Lower values = higher quality, larger files.
+          Lower value = higher quality and larger file size.
         ui_video_resolution_label: "Resolution: "
         ui_video_resolution_help: |
           Sets output resolution
 
           original: keep original resolution.
-          others: scale to fit while preserving aspect ratio, pad remaining space with black pixels.
+          others:   scale to the target resolution,
+                    while preserving aspect ratio.
         ui_video_fps_label: "FPS: "
         ui_video_fps_help: |
           Sets output frame rate
 
           original: keep original FPS.
+          others:   resample to the target FPS.
         ui_video_gop_optimize_label: "Optimize GOP: "
         ui_video_gop_optimize_help: |
           Toggle GOP optimization
 
-          When enabled, video playback in MajdataView will be significantly smoother.
-          However, it will increase the output file size.
-          Recommended only for videos that need to be played in MajdataView.
+          When enabled, video playback in MajdataView
+          will be significantly smoother. However, it
+          will increase the output file size.
+          
+          Recommended only for videos that need to be
+          played in MajdataView.
         ui_delete_audio_label: "Delete Audio: "
-        ui_delete_audio_help: "If enabled, the output video will not contain an audio track."
+        ui_delete_audio_help: "If enabled, the output will not contain audio."
         ui_delete_video_label: "Delete Video: "
-        ui_delete_video_help: "If enabled, extracts the audio from the video and outputs an audio file (.ogg/.mp3)."
+        ui_delete_video_help: "If enabled, the output will not contain video."
         
         # ---- Audio Settings ----
         ui_audio_format_label: "Codec: "
@@ -283,7 +288,7 @@ en_US:
         ui_audio_bitrate_help: |
           Controls the output audio quality
 
-          Higher bitrate = higher quality, larger files.
+          Higher value = higher quality and larger file size.
 
           Note: These values use CBR (Constant Bitrate) encoding.
         ui_audio_sample_rate_label: "Sample Rate: "
@@ -292,7 +297,7 @@ en_US:
         ui_audio_volume_help: |
           Adjusts output audio volume
 
-          Adjust as percentage, range 0-200%,
+          Adjust as percentage (0-200%).
           100% = original volume.
 
         # ---- Common Settings ----
@@ -300,7 +305,8 @@ en_US:
         ui_adjust_start_help: |
           Controls the starting position of the output file.
 
-          Unit:     Seconds (up to 3 decimal places, e.g. 1.5)
+          Unit:     Seconds (up to 3 decimal places)
+
           Empty(0): No adjustment.
           Positive: Trim away the given duration from the beginning.
           Negative: Prepend a silent/black segment, shifting the content later.
@@ -311,7 +317,8 @@ en_US:
         ui_trim_end_help: |
           Controls the ending position of the output file.
 
-          Unit:     Seconds (up to 3 decimal places, e.g. 50.5)
+          Unit:     Seconds (up to 3 decimal places)
+
           Empty(0): Keep everything to the end.
           Positive: Discard content beyond this time (measured from the start).
           Negative: Discard content beyond this time (measured from the end).
@@ -321,7 +328,9 @@ en_US:
                   -10 → Keeps everything except the last 10 seconds (first 50 seconds).
 
         ui_clear_metadata_label: "Clear Metadata: "
-        ui_clear_metadata_help: Whether to clear all metadata (e.g., title, author) in the output file
+        ui_clear_metadata_help: |
+          Whether to clear all metadata in the output file.
+          (e.g., title, author)
         ui_output_filename_label: "Output Filename: "
         ui_output_filename_help: |
           Sets the output file name.
@@ -353,9 +362,12 @@ en_US:
             tap/hold/slide: just reaches the judgement line
             touch/touch-hold: just converges at the center
 
-          If you don't know the exact time, run Auto Rechart;
-          the output at the bottom of the page will contain "first note appear at <xxx> ms".
-          Copy that time and paste it here.
+          If you don't know the exact time, run Auto Rechart,
+          the output at the bottom of the page will contain:
+
+            "first note appear at <xxx> ms"
+
+          Fill in that time here.
         ui_beat_index_label: "Beat index: "
         ui_beat_index_help: The beat_index value of the note in the bpm config.
 
@@ -422,7 +434,7 @@ en_US:
       ui_need_screen_rectification_label: " Screen Rectification: "
       ui_need_screen_rectification_help: |
         Expected input: camera facing the screen directly, with content centered 
-        and filling the entire frame.
+                        and filling the entire frame.
 
         If your input video does not meet these criteria, enable this option to 
         access manual screen rectification controls.
@@ -433,14 +445,17 @@ en_US:
       ui_start_sec_help: |
         Controls the starting position of the output file.
 
-        Unit:     Seconds (up to 3 decimal places, e.g. 2.5)
+        Unit:     Seconds (up to 3 decimal places)
+
         Empty(0): Start from the beginning.
         Positive: Trim away the given duration from the beginning.
 
         Example: 2.5 → Cuts off the first 2.5 seconds.
 
       ui_skip_detect_label: "Skip Detect: "
-      ui_skip_detect_help: "Skip frame-by-frame note detection and directly read the existing detection result (detect_result.txt)."
+      ui_skip_detect_help: |
+        Skip frame-by-frame note detection and directly read
+        the existing detection result (detect_result.txt).
       ui_skip_cls_label: "Skip Classify: "
       ui_skip_cls_help: "Skip note classification: ex, break, ex-break."
       ui_skip_export_tracked_label: "Skip Export Tracked Video: "
@@ -456,7 +471,9 @@ en_US:
       ui_bpm_type_static: "Static"
       ui_bpm_type_dynamic: "Dynamic"
       ui_input_static_bpm_label: " Input Static BPM: "
-      ui_static_bpm_help: "Only static BPM is supported (no tempo changes).\nSupports integers or up to 3 decimal places"
+      ui_static_bpm_help: |
+        Only static BPM is supported (no tempo changes).
+        Supports integers or up to 3 decimal places.
       ui_is_big_touch_label: " Larger Touch: "
       ui_is_big_touch_help: |
         In Basic/Advanced level,
@@ -478,7 +495,8 @@ en_US:
         The program aligns note intervals to this time unit.
 
         Unit time calculation: 240000 / bpm / denominator (ms)
-        Recommended unit time is >=30ms. If BPM is high, lower the denominator for better accuracy.
+        Recommended unit time is >=30ms.
+        If BPM is high, lower the denominator for better accuracy.
       ui_duration_denominator_label: "Duration Denominator: "
       ui_duration_denominator_help: |
         Time resolution used to parse note durations.
@@ -486,7 +504,8 @@ en_US:
         The program aligns note durations to this time unit.
 
         Unit time calculation: 240000 / bpm / denominator (ms)
-        Recommended unit time is >=30ms. If BPM is high, lower the denominator for better accuracy.
+        Recommended unit time is >=30ms.
+        If BPM is high, lower the denominator for better accuracy.
 
         Note: This option only applies to slide and touch-hold durations.
               Hold duration uses the same denominator as "Base Denominator".
@@ -494,18 +513,22 @@ en_US:
       ui_enable_standardize_label: "Enable Video Standardization: "
       ui_enable_standardize_help: |
         Whether to enable the video standardization module.
-        Enabled: standardize the selected chart confirmation video (stretch/crop/scale/trim)
-        Disabled: skip this step and use the existing standardized video directly
+
+        Enabled: standardize the selected chart confirmation video.
+                 (stretch/crop/scale/trim)
+        Disabled: skip this step and use the existing video directly.
       ui_enable_detect_label: "Enable Note Detection: "
       ui_enable_detect_help: |
         Whether to enable the note detection module.
-        Enabled: run note detection on the standardized video
-        Disabled: skip this step and use existing note detection results directly
+
+        Enabled: run note detection on the standardized video.
+        Disabled: skip this step and use existing note detection results directly.
       ui_enable_analyze_label: "Enable Note Analysis: "
       ui_enable_analyze_help: |
         Whether to enable the note analysis module.
-        Enabled: analyze note detection results and generate the final chart
-        Disabled: skip this step
+
+        Enabled: analyze note detection results and generate the final chart.
+        Disabled: skip this step.
 
       ui_clear_output_button: "Clear Output"
       ui_advanced_mode_label: "Advanced Mode: "
@@ -552,7 +575,7 @@ en_US:
       environment_status_available: "🟢 Environment ready"
       environment_status_unavailable: "🔴 Environment unavailable"
 
-      ui_ffmpeg_divider: "FFmpeg Hardware Acceleration"
+      ui_ffmpeg_divider: "FFmpeg"
       ui_ffmpeg_encoder_label: "Video Encoder: "
       ui_ffmpeg_encoder_cpu_tooltip: "slowest, CPU software encoding (libx264)"
       ui_ffmpeg_encoder_intel_tooltip: "medium, Intel GPU hardware encoding (h264_qsv)"

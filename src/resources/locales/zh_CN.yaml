@@ -258,24 +258,26 @@ zh_CN:
         ui_video_resolution_help: |
           设置输出视频的分辨率
 
-          original：保持原始分辨率。
-          其他选项：按比例缩放至目标尺寸，剩余空间用黑色像素填充。
+          original：保持原始分辨率
+          其他选项：保持原始比例, 缩放至目标尺寸
         ui_video_fps_label: "帧率: "
         ui_video_fps_help: |
           设置输出视频的帧率
 
-          original：保持原始帧率。
+          original：保持原始帧率
+          其他选项：重采样至目标帧率
         ui_video_gop_optimize_label: "优化GOP: "
         ui_video_gop_optimize_help: |
           是否启用 GOP 优化
 
-          启用后，视频在 MajdataView 中播放会显著更流畅。
-          代价是会增加输出文件大小。
+          启用后，视频在 MajdataView 中播放会
+          显著更流畅，但是输出的文件会变大。
+
           建议仅用于 MajdataView 播放的视频。
         ui_delete_audio_label: "删除音频: "
-        ui_delete_audio_help: "如果启用，输出视频将不包含音频轨道。"
+        ui_delete_audio_help: "如果启用，输出视频将不包含音频"
         ui_delete_video_label: "删除视频: "
-        ui_delete_video_help: "如果启用，将从视频中提取音频，输出为音频文件（.ogg/.mp3）。"
+        ui_delete_video_help: "如果启用，输出视频将不包含视频"
 
         # ---- 音频设置 ----
         ui_audio_format_label: "编码: "
@@ -286,7 +288,7 @@ zh_CN:
 
           码率越高，质量越高，文件越大
 
-          注意: 此选项使用 CBR（恒定码率）编码。
+          注意: 此选项使用 CBR（恒定码率）编码
         ui_audio_sample_rate_label: "采样率: "
         ui_audio_sample_rate_help: 设置输出音频的采样率
         ui_audio_volume_label: "音量(%): "
@@ -301,7 +303,8 @@ zh_CN:
         ui_adjust_start_help: |
           控制输出文件的起始位置
 
-          单位：   秒（可保留三位小数，如 1.5）
+          单位：   秒（最多三位小数）
+
           留空(0)：不作任何调整。
           正数：   从开头裁掉对应时长。
           负数：   在开头前添加一段静音/黑屏，使内容向后推迟。
@@ -312,7 +315,8 @@ zh_CN:
         ui_trim_end_help: |
           控制输出文件的结束位置
 
-          单位：   秒（可保留三位小数，如 50.5）
+          单位：   秒（最多三位小数）
+
           留空(0)：保留到文件末尾
           正数：   从开头算起，此时间点之后的内容丢弃
           负数：   从末尾倒数，此时间点之后的内容丢弃
@@ -322,7 +326,9 @@ zh_CN:
              -10 → 只保留倒数 10 秒之前的内容（即前 50 秒）。
 
         ui_clear_metadata_label: "清除元数据: "
-        ui_clear_metadata_help: 是否清除输出文件的附加信息 (例如标题、作者等)
+        ui_clear_metadata_help: |
+          是否清除输出文件的附加信息
+          (例如标题、作者等)
         ui_output_filename_label: "输出文件名: "
         ui_output_filename_help: |
           设置输出文件的文件名
@@ -355,8 +361,11 @@ zh_CN:
             touch/touch-hold: 刚在中心聚拢
 
           如果你不清楚具体时间，运行自动抄谱，
-          页面底部的输出中会包含「first note appear at <xxx> ms」信息。
-          复制该时间填入此处。
+          页面底部的输出中会包含：
+
+          「first note appear at <xxx> ms」
+
+          将该时间填入此处。
         ui_beat_index_label: "Beat index: "
         ui_beat_index_help: 音符在 bpm 配置中对应的 beat_index 数值。
         ui_update_timing_config_button: "计算并导出"
@@ -422,6 +431,7 @@ zh_CN:
       ui_need_screen_rectification_label: " 画面矫正: "
       ui_need_screen_rectification_help: |
         标准输入画面应满足：镜头正对屏幕、内容居中且铺满全屏。
+
         如果输入视频不满足要求，勾选此项可进行手动画面矫正。
         如果输入视频已满足要求，无需勾选。
 
@@ -429,14 +439,18 @@ zh_CN:
       ui_start_sec_help: |
         控制输出文件的起始位置
 
-        单位：   秒（可保留三位小数，如 2.5）
+        单位：   秒（最多三位小数）
+
         留空(0)：从文件开头开始。
         正数：   从开头裁掉对应时长。
 
         例: 2.5 → 丢弃原文件前 2.5 秒
 
       ui_skip_detect_label: "跳过检测: "
-      ui_skip_detect_help: "跳过逐帧检测视频中的音符，直接读取已经存在的检测结果 (detect_result.txt)。"
+      ui_skip_detect_help: |
+        跳过逐帧检测视频中的音符，
+        直接读取已经存在的检测结果。
+         (detect_result.txt)
       ui_skip_cls_label: "跳过分类: "
       ui_skip_cls_help: "跳过音符分类: ex, break, ex-break。"
       ui_skip_export_tracked_label: "跳过导出追踪视频: "
@@ -452,7 +466,9 @@ zh_CN:
       ui_bpm_type_static: "静态 BPM"
       ui_bpm_type_dynamic: "动态 BPM"
       ui_input_static_bpm_label: " 请输入静态 BPM: "
-      ui_static_bpm_help: "仅支持静态 BPM (全程不变速)\n支持整数或最多三位小数"
+      ui_static_bpm_help: |
+        仅支持静态 BPM (全程不变速)
+        支持整数或最多三位小数
       ui_is_big_touch_label: " 大尺寸 touch: "
       ui_is_big_touch_help: |
         在 Basic/Advanced 难度中，
@@ -474,7 +490,8 @@ zh_CN:
         程序会将音符间隔对齐到单位时间。
 
         单位时间计算: 240000 / bpm / 分辨率 (ms)
-        建议单位时间 ≥30ms，如果 BPM 较高，需要适当降低分辨率以保证准确性。
+        建议单位时间 ≥30ms。
+        如果 BPM 较高，需要适当降低分辨率以保证准确性。
       ui_duration_denominator_label: "音符时值分辨率: "
       ui_duration_denominator_help: |
         程序解析音符时值的时间分辨率
@@ -482,7 +499,8 @@ zh_CN:
         程序会将音符时值对齐到单位时间。
 
         单位时间计算: 240000 / bpm / 分辨率 (ms)
-        建议单位时间 ≥30ms，如果 BPM 较高，需要适当降低分辨率以保证准确性。
+        建议单位时间 ≥30ms。
+        如果 BPM 较高，需要适当降低分辨率以保证准确性。
         
         注: 此选项仅适用于 slide 和 touch-hold 音符的时值，
             hold 音符的时值的分辨率与“音符间隔分辨率”相同。
@@ -490,18 +508,22 @@ zh_CN:
       ui_enable_standardize_label: "启用视频标准化模块: "
       ui_enable_standardize_help: |
         是否启用视频标准化模块。
-        启用: 对选择的谱面确认视频进行标准化处理 (拉伸/裁剪/缩放/截取)
-        禁用: 跳过此步骤，后续操作直接使用已有的标准化视频
+
+        启用: 对选择的谱面确认视频进行标准化处理。
+              （拉伸/裁剪/缩放/截取）
+        禁用: 跳过此步骤，后续操作直接使用已有的标准化视频。
       ui_enable_detect_label: "启用音符识别模块: "
       ui_enable_detect_help: |
         是否启用音符识别模块。
-        启用: 对标准化后的视频进行音符识别
-        禁用: 跳过此步骤，后续操作直接使用已有的音符识别结果
+
+        启用: 对标准化后的视频进行音符识别。
+        禁用: 跳过此步骤，后续操作直接使用已有的音符识别结果。
       ui_enable_analyze_label: "启用音符分析模块: "
       ui_enable_analyze_help: |
         是否启用音符分析模块。
-        启用: 对音符识别结果进行分析，生成最终谱面
-        禁用: 跳过此步骤
+
+        启用: 对音符识别结果进行分析，生成最终谱面。
+        禁用: 跳过此步骤。
 
       ui_clear_output_button: "清空输出"
       ui_advanced_mode_label: "高级模式: "
@@ -548,7 +570,7 @@ zh_CN:
       environment_status_available: "🟢 环境可用"
       environment_status_unavailable: "🔴 环境不可用"
 
-      ui_ffmpeg_divider: "FFmpeg 硬件加速"
+      ui_ffmpeg_divider: "FFmpeg"
       ui_ffmpeg_encoder_label: "视频编码器: "
       ui_ffmpeg_encoder_cpu_tooltip: "最慢，CPU 软件编码 (libx264)"
       ui_ffmpeg_encoder_intel_tooltip: "中等，Intel GPU 硬件编码 (h264_qsv)"
