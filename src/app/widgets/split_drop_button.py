@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PyQt6.QtCore import QPoint, Qt, QRect, QRectF, QStringListModel, pyqtSignal
+from PyQt6.QtCore import Qt, QRect, QRectF, QStringListModel, pyqtSignal
 from PyQt6.QtGui import QPainter, QPen, QPainterPath, QColor
 from PyQt6.QtWidgets import QWidget
 
@@ -26,11 +26,15 @@ class SplitDropButton(QWidget):
     item_triggered = pyqtSignal(int, str)  # 点击右区菜单项 (row, text)
 
     def __init__(self, text: str, items: list[str], width: int | None = None,
-                 color: str = 'accent', parent: QWidget | None = None) -> None:
+                 color: str = 'accent', parent: QWidget | None = None,
+                 show_tooltip: bool = False,
+                 item_tooltips: list[str | None] | None = None) -> None:
         super().__init__(parent)
         self._text = text
         self._items = list(items)
         self._color = color
+        self._show_tooltip = show_tooltip
+        self._item_tooltips = item_tooltips
 
         self._hover_left = False
         self._hover_right = False
@@ -134,6 +138,8 @@ class SplitDropButton(QWidget):
     def showPopup(self) -> None:
         model = QStringListModel(self._items, self)
         open_combo_popup(self, model=model, width=self.width(),
+                         show_tooltip=self._show_tooltip,
+                         item_tooltips=self._item_tooltips,
                          on_item_clicked=self._on_item_clicked)
 
     def hidePopup(self) -> None:
@@ -149,7 +155,19 @@ class SplitDropButton(QWidget):
             self.item_triggered.emit(row, self._items[row])
 
 
+
+
+
+
 def create_split_drop_button(text: str, items: list[str], width: int | None = None,
-                             color: str = 'accent') -> SplitDropButton:
+                             color: str = 'accent', show_tooltip: bool = False,
+                             item_tooltips: list[str | None] | None = None) -> SplitDropButton:
     """创建 split 下拉按钮（左按钮 + 右三角）"""
-    return SplitDropButton(text, items, width=width, color=color)
+    return SplitDropButton(
+        text,
+        items,
+        width=width,
+        color=color,
+        show_tooltip=show_tooltip,
+        item_tooltips=item_tooltips,
+    )

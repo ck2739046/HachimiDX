@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
     QStyle, QAbstractItemView, QApplication,
 )
 from PyQt6.QtCore import (
-    QPoint, Qt, QPropertyAnimation, QRect, QRectF, QTimer,
+    QPoint, QEvent, Qt, QPropertyAnimation, QRect, QRectF, QTimer,
     QEasingCurve, QSize, pyqtSignal,
 )
 from PyQt6.QtGui import (
@@ -15,6 +15,7 @@ from PyQt6.QtGui import (
 )
 
 from ..ui_style import UI_Style
+from .popup_tooltip import get_shared_tooltip
 
 c = UI_Style.COLORS
 BORDER_R = 5
@@ -106,7 +107,8 @@ class _ComboPopup(QFrame):
 
     aboutToHide = pyqtSignal()
 
-    def __init__(self, combo: QComboBox | None = None, model=None, anchor=None):
+    def __init__(self, combo: QComboBox | None = None, model=None, anchor=None,
+                 show_tooltip: bool = False, item_tooltips: list[str | None] | None = None):
         super().__init__(None)
         self.setWindowFlags(
             Qt.WindowType.Tool
@@ -118,6 +120,9 @@ class _ComboPopup(QFrame):
 
         self._combo = combo
         self._anchor = anchor if anchor is not None else combo
+        self._show_tooltip = show_tooltip
+        self._item_tooltips = item_tooltips
+        self._tooltip = get_shared_tooltip() if show_tooltip else None
         self._ani: QPropertyAnimation | None = None
         self._end_y: int = 0
         self._wait_for_mouse_button_release = False
@@ -134,6 +139,69 @@ class _ComboPopup(QFrame):
 
         self.view = ComboListView(combo, model)
         layout.addWidget(self.view)
+        if self._show_tooltip:
+            self.view.entered.connect(self._on_view_entered)
+            self.view.viewport().installEventFilter(self)
+
+    def _on_view_entered(self, index):
+        # 检查弹窗状态和索引有效性
+        if not self._show_tooltip or not index.isValid() or self._tooltip is None:
+            self._hide_tooltip()
+            return
+
+        row = index.row()
+        # 若该选项 tooltip 被显式设为 None，不显示任何 tooltip
+        if self._item_tooltips is not None and row < len(self._item_tooltips):
+            text = self._item_tooltips[row]
+        else:
+            # 未提供自定义 tooltip，回退到选项显示文本
+            text = index.data(Qt.ItemDataRole.DisplayRole)
+        if not text:  # 忽略空文本
+            self._hide_tooltip()
+            return
+        text = str(text)
+
+        # 计算 tooltip 显示位置
+        viewport = self.view.viewport()
+        viewport_right_x = viewport.mapToGlobal(QPoint(viewport.width(), 0)).x()
+        viewport_left_x = viewport.mapToGlobal(QPoint(0, 0)).x()
+        item_rect = self.view.visualRect(index)
+        item_center_y = item_rect.center().y()
+        item_center_global = viewport.mapToGlobal(QPoint(0, item_center_y))
+
+        # tooltip 默认显示在右侧
+        x_offset = -5   # 向左 5px
+        y_offset = -29  # 向上 29px
+        tip_w = self._tooltip.measure(text).width()
+        x_right = viewport_right_x + x_offset
+        x_left = viewport_left_x - x_offset - tip_w
+        y = item_center_global.y() + y_offset
+        tooltip_pos = QPoint(x_right, y)
+        # 检查 tooltip 是否超出主窗口右缘
+        anchor_window = self._anchor.window() if self._anchor is not None else None
+        if anchor_window is not None:
+            rect = anchor_window.frameGeometry()
+            if rect.isValid() and not rect.isEmpty():
+                if x_right + tip_w > rect.right():
+                    # 右侧越界，尝试显示在左侧
+                    if x_left >= rect.left():
+                        tooltip_pos = QPoint(x_left, y)
+                    # 左边也越界则仍显示在右侧
+
+        self._tooltip.show_text(text, tooltip_pos)
+
+    def _hide_tooltip(self):
+        if self._tooltip is not None:
+            self._tooltip.hide()
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Type.Leave and obj == self.view.viewport():
+            self._hide_tooltip()
+        return super().eventFilter(obj, event)
+
+    def leaveEvent(self, event):
+        self._hide_tooltip()
+        super().leaveEvent(event)
 
     def show_animated(self, pos: QPoint, width: int):
         """
@@ -199,6 +267,7 @@ class _ComboPopup(QFrame):
         self.setMask(QRegion())
 
     def hideEvent(self, event):
+        self._hide_tooltip()
         # 发送停止信号
         self.aboutToHide.emit()
         # 停止动画
@@ -242,7 +311,9 @@ class _ComboPopup(QFrame):
             self.close()
 
 
-def open_combo_popup(anchor, combo=None, model=None, width=None, on_item_clicked=None) -> bool:
+def open_combo_popup(anchor, combo=None, model=None, width=None, on_item_clicked=None,
+                     show_tooltip: bool = False,
+                     item_tooltips: list[str | None] | None = None) -> bool:
     """
     共享的下拉菜单弹出逻辑，供 StyledComboBox 与 SplitDropButton 复用。
 
@@ -257,7 +328,13 @@ def open_combo_popup(anchor, combo=None, model=None, width=None, on_item_clicked
         anchor.hidePopup()
         return False
 
-    popup = _ComboPopup(combo=combo, model=model, anchor=anchor)
+    popup = _ComboPopup(
+        combo=combo,
+        model=model,
+        anchor=anchor,
+        show_tooltip=show_tooltip,
+        item_tooltips=item_tooltips,
+    )
     if popup.view.model().rowCount() == 0:
         popup.close()
         return False
