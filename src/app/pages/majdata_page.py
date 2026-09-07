@@ -128,6 +128,11 @@ class MajdataPage(QWidget):
             i18n.t("app.majdata_page.ui_load_button"),
             [i18n.t("app.majdata_page.ui_reset_maj"), i18n.t("app.majdata_page.ui_restart_maj")],
             width=70,
+            show_tooltip=True,
+            item_tooltips=[
+                i18n.t("app.majdata_page.ui_reset_maj_tooltip"),
+                i18n.t("app.majdata_page.ui_restart_maj_tooltip"),
+            ],
         )
         layout.addWidget(load_btn)
 

@@ -384,6 +384,8 @@ zh_CN:
       ui_load_button: "加载"
       ui_reset_maj: "重置"
       ui_restart_maj: "重启"
+      ui_reset_maj_tooltip: "回到未加载任何内容的初始状态"
+      ui_restart_maj_tooltip: "关闭 Majdata 后重新打开"
       ui_song_help: |
         程序会查找三类文件:
 
