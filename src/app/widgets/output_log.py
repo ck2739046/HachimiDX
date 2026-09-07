@@ -11,6 +11,7 @@ class _OutputStreamDecoder:
 
     def __init__(self) -> None:
         self._buffer = bytearray()
+        self._utf16le = False
 
     @staticmethod
     def _looks_like_utf16le(data: bytes) -> bool:
@@ -31,9 +32,10 @@ class _OutputStreamDecoder:
         if not data:
             return ""
         if utf16le:
-            encoding = "utf-16" if data.startswith(b"\xff\xfe") else "utf-16-le"
             try:
-                return data.decode(encoding, errors="strict")
+                if data.startswith(b"\xff\xfe"):
+                    data = data[2:]  # remove BOM
+                return data.decode("utf-16-le", errors="strict")
             except UnicodeDecodeError:
                 pass
         try:
@@ -55,7 +57,8 @@ class _OutputStreamDecoder:
 
         while self._buffer:
             raw = bytes(self._buffer)
-            utf16le = self._looks_like_utf16le(raw)
+            self._utf16le = self._utf16le or self._looks_like_utf16le(raw)
+            utf16le = self._utf16le
             prefix_end = len(raw) if final else self._last_delimiter_end(raw, utf16le)
             if prefix_end <= 0:
                 break
@@ -71,7 +74,7 @@ class _OutputStreamDecoder:
         if final and self._buffer:
             raw = bytes(self._buffer)
             self._buffer.clear()
-            decoded_parts.append(self._decode_bytes(raw, utf16le=self._looks_like_utf16le(raw)))
+            decoded_parts.append(self._decode_bytes(raw, utf16le=self._utf16le))
 
         return "".join(decoded_parts)
 
