@@ -15,7 +15,7 @@ from PyQt6.QtGui import (
 )
 
 from ..ui_style import UI_Style
-from .popup_tooltip import get_shared_tooltip
+from .popup_tooltip import get_shared_tooltip, OVERFLOW_RATIO
 
 c = UI_Style.COLORS
 BORDER_R = 5
@@ -182,11 +182,13 @@ class _ComboPopup(QFrame):
         if anchor_window is not None:
             rect = anchor_window.frameGeometry()
             if rect.isValid() and not rect.isEmpty():
-                if x_right + tip_w > rect.right():
-                    # 右侧越界，尝试显示在左侧
-                    if x_left >= rect.left():
+                # 允许 tooltip 部分超出窗口
+                over_w = tip_w * OVERFLOW_RATIO
+                if (x_right + tip_w) - rect.right() > over_w:
+                    # 右侧超出过多，尝试显示在左侧
+                    if x_left >= rect.left() - over_w:
                         tooltip_pos = QPoint(x_left, y)
-                    # 左边也越界则仍显示在右侧
+                    # 左边也超出过多则仍显示在右侧
 
         self._tooltip.show_text(text, tooltip_pos)
 

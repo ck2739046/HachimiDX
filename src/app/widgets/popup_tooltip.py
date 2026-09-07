@@ -4,6 +4,9 @@ from PyQt6.QtWidgets import QApplication, QFrame, QGraphicsDropShadowEffect, QLa
 
 from ..ui_style import UI_Style
 
+# 每侧允许超出窗口的比例（相对 tooltip 自身长/宽）
+OVERFLOW_RATIO = 0.25
+
 
 class PopupToolTip(QWidget):
 
@@ -90,6 +93,15 @@ class PopupToolTip(QWidget):
             screen = QApplication.primaryScreen()
         return screen.availableGeometry() if screen is not None else QRect()
 
+    @staticmethod
+    def _fits(pos: QPoint, size: QSize, rect: QRect) -> bool:
+        """tooltip 是否可接受：每侧最多超出窗口 tooltip 自身长/宽的 OVERFLOW_RATIO"""
+        w, h = size.width(), size.height()
+        over_w = w * OVERFLOW_RATIO
+        over_h = h * OVERFLOW_RATIO
+        return (pos.x() >= rect.left() - over_w and pos.x() + w <= rect.right() + over_w
+                and pos.y() >= rect.top() - over_h and pos.y() + h <= rect.bottom() + over_h)
+
     def show_text(self, text: str, global_pos):
         text_to_show = text.rstrip()
         if not text_to_show: return
@@ -118,8 +130,7 @@ class PopupToolTip(QWidget):
 
         target = None
         for pos in candidates:
-            if (pos.x() >= avail.left() and pos.x() + w <= avail.right()
-                    and pos.y() >= avail.top() and pos.y() + h <= avail.bottom()):
+            if self._fits(pos, size, avail):
                 target = pos
                 break
 
