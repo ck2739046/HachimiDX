@@ -8,9 +8,40 @@ project_root = Path(__file__).parent.parent.resolve()
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from PyQt6.QtCore import QSharedMemory
-from PyQt6.QtWidgets import QApplication, QStyleFactory
-from PyQt6.QtGui import QFont
+
+
+
+def prompt_missing_dependencies() -> None:
+    """依赖库缺失时弹窗，引导用户先跑安装脚本"""
+    import subprocess
+    from tkinter import messagebox
+    install_bat = project_root / "install" / "install.bat"
+    # 选 No 直接退出
+    if not messagebox.askyesno(
+        "HachimiDX",
+        "尚未安装依赖库，是否现在安装？\n" +
+        "Dependencies are not installed, install now?",
+    ):
+        return
+    # 选 Yes 启动安装脚本
+    subprocess.Popen(
+        ["cmd", "/c", str(install_bat)],
+        creationflags=subprocess.CREATE_NEW_CONSOLE,
+    )
+
+
+
+
+
+try:
+    from PyQt6.QtCore import QSharedMemory
+    from PyQt6.QtWidgets import QApplication, QStyleFactory
+    from PyQt6.QtGui import QFont
+except ModuleNotFoundError:
+    prompt_missing_dependencies()
+    sys.exit(0)
+
+
 from src.core.schemas.op_result import print_op_result
 from src.app import MainWindow
 from src.services import AllServices
