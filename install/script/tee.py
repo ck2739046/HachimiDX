@@ -1,10 +1,13 @@
 import codecs
+import ctypes
 import datetime
 import os
 import subprocess
 import sys
 import threading
 from pathlib import Path
+
+from .color import strip_ansi
 
 ROOT = Path(__file__).resolve().parents[2]
 LOG_FILE = ROOT / "data" / "logs" / "install_log.txt"
@@ -22,6 +25,22 @@ try:
 except (AttributeError, ValueError):
     pass
 
+# 终端是否支持 ANSI 彩色（仅在真实控制台启用 VT）
+_CONSOLE_COLOR = False
+if sys.stdout.isatty():
+    if os.name == "nt":
+        try:
+            handle = ctypes.windll.kernel32.GetStdHandle(-11)  # STD_OUTPUT_HANDLE
+            mode = ctypes.c_uint32()
+            if ctypes.windll.kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+                mode.value |= 0x0004  # ENABLE_VIRTUAL_TERMINAL_PROCESSING
+                ctypes.windll.kernel32.SetConsoleMode(handle, mode)
+                _CONSOLE_COLOR = True
+        except Exception:
+            _CONSOLE_COLOR = False
+    else:
+        _CONSOLE_COLOR = True
+
 _log = open(LOG_FILE, "w", encoding="utf-8")
 _write_lock = threading.Lock()
 
@@ -29,12 +48,12 @@ _write_lock = threading.Lock()
 
 
 def _emit(text: str, to_stderr: bool) -> None:
-    """把文本同时写入日志文件和控制台。"""
+    """把文本同时写入日志文件和控制台（日志剥离 ANSI，终端按支持与否透传或剥离）。"""
     with _write_lock:
-        _log.write(text)
+        _log.write(strip_ansi(text))
         _log.flush()
         stream = sys.stderr if to_stderr else sys.stdout
-        stream.write(text)
+        stream.write(text if _CONSOLE_COLOR else strip_ansi(text))
         stream.flush()
 
 

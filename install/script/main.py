@@ -6,6 +6,7 @@ import shutil
 from . import en_us, zh_cn
 from .op_result import OpResult, ok, err, print_op_result
 from .console_input import ask
+from .color import green, red, yellow, cyan
 
 from .choose_backend import choose_backend
 from .detect_onnx_cuda import onnx_cuda_config
@@ -42,7 +43,7 @@ def main():
 
     """
 
-    print(title)
+    print(cyan(title))
 
     try:
         # ask language
@@ -72,12 +73,12 @@ def main():
         if choice == "1":
             result = install()
             if not result.is_ok:
-                print(print_op_result(result))
+                print(red(print_op_result(result)))
 
         elif choice == "2":
             result = reinstall_backend()
             if not result.is_ok:
-                print(print_op_result(result))
+                print(red(print_op_result(result)))
 
         elif choice == "3":
             sys.exit(0)
@@ -86,14 +87,14 @@ def main():
             print(T.main_menu.defaulting)
             result = install()
             if not result.is_ok:
-                print(print_op_result(result))
+                print(red(print_op_result(result)))
 
     except KeyboardInterrupt:
         print("\nKeyboardInterrupt detected, exiting...")
         sys.exit(1)
     except Exception as e:
         result = err("Unexpected error in main()", error_raw=e)
-        print(f"\n-----\n\n{print_op_result(result)}\n")
+        print(f"\n-----\n\n{red(print_op_result(result))}\n")
         sys.exit(1)
 
 
@@ -117,7 +118,7 @@ def reinstall_backend() -> OpResult[None]:
         return err(msg, inner=result)
 
     # 2. 删除相关库
-    print(f"\n-----\n\n{T.reinstall_backend.start_uninstall}\n")
+    print(f"\n-----\n\n{cyan(T.reinstall_backend.start_uninstall)}\n")
     cmd = [sys.executable, "-m", "pip", "uninstall", "-y",
         "onnxruntime", "onnxruntime-gpu", "onnxruntime-directml",
         "torch", "torchvision",
@@ -136,7 +137,7 @@ def reinstall_backend() -> OpResult[None]:
         return err("failed to remove legacy TensorRT runtime.", inner=result)
     
     print("\n-----\n")
-    print(T.reinstall_backend.uninstall_done)
+    print(green(T.reinstall_backend.uninstall_done))
 
     # 3. 进入安装流程
     result = install()
@@ -156,7 +157,7 @@ def reinstall_backend() -> OpResult[None]:
 def install() -> OpResult[None]:
 
     print("\n-----\n")
-    print(T.install.start)
+    print(cyan(T.install.start))
 
     # 检测并选择后端
     result = choose_backend(T)
@@ -218,7 +219,7 @@ def install() -> OpResult[None]:
         
     # 结束
     print("\n-----\n")
-    print(T.install.done)
+    print(green(T.install.done))
 
     # 询问是否立即打开 HachimiDX
     ask_open_hachimidx()
@@ -297,12 +298,12 @@ def install_ultralytics_onnx(backend: str,
     # 检查 gpu_config 是否为 None
     if backend == "trt":
         if tensorrt_gpu_config is None:
-            print("Error: tensorrt_gpu_config is None while backend is 'trt'.")
+            print(red("Error: tensorrt_gpu_config is None while backend is 'trt'."))
             return False
         gpu_config = tensorrt_gpu_config
     elif backend == "onnx_cuda":
         if onnx_cuda_gpu_config is None:
-            print("Error: onnx_cuda_gpu_config is None while backend is 'onnx_cuda'.")
+            print(red("Error: onnx_cuda_gpu_config is None while backend is 'onnx_cuda'."))
             return False
         gpu_config = onnx_cuda_gpu_config
     else:
@@ -356,7 +357,7 @@ def install_tensorrt(config: tensorrt_config) -> bool:
         result = install_legacy_tensorrt(T, ROOT, sys.executable,
                                          config.tensorRT_ver)
         if not result.is_ok:
-            print(print_op_result(result))
+            print(red(print_op_result(result)))
             return False
         return True
 
@@ -384,7 +385,7 @@ def install_tensorrt(config: tensorrt_config) -> bool:
         try:
             shutil.rmtree(tmp_dir)
         except Exception as e:
-            print(f"Error deleting TensorRT temporary directory {tmp_dir}\n{e}")
+            print(red(f"Error deleting TensorRT temporary directory {tmp_dir}\n{e}"))
 
     return True
 
@@ -456,9 +457,9 @@ def ask_open_hachimidx() -> None:
     print("\n-----\n")
     exe = ROOT / "HachimiDX.exe"
     if not exe.exists():
-        print(T.open_hachimidx.not_found)
+        print(red(T.open_hachimidx.not_found))
         return
-    print(T.open_hachimidx.launching)
+    print(green(T.open_hachimidx.launching))
     subprocess.Popen([str(exe)], cwd=str(ROOT))
     sys.exit(EXIT_LAUNCH_HACHIMIDX)
 
@@ -502,7 +503,7 @@ def general_pip_install(package_name, cmd: list[str],
     for idx, (mirror_key, full_cmd) in enumerate(attempts):
         # 打印即将执行的指令
         print("\n-----\n")
-        print(T.pip_install.start.format(package_name=package_name))
+        print(cyan(T.pip_install.start.format(package_name=package_name)))
         print()
         print(subprocess.list2cmdline(full_cmd))
 
@@ -512,23 +513,23 @@ def general_pip_install(package_name, cmd: list[str],
             subprocess.run(full_cmd, check=True)
             # 安装成功
             print("\n-----\n")
-            print(T.pip_install.success.format(package_name=package_name))
+            print(green(T.pip_install.success.format(package_name=package_name)))
             return ok()
         except Exception as e:
             # 安装失败
             print("\n-----\n")
-            print(T.pip_install.error.format(package_name=package_name, e=e))
+            print(red(T.pip_install.error.format(package_name=package_name, e=e)))
             # 如果启用镜像, 尝试切换到下一个镜像
             if use_mirror and idx < len(attempts) - 1:
                 # 显示名按 key 从当前 locale 的 mirror_names 查表
                 current_name = T.pip_install.mirror_names.get(mirror_key, mirror_key) 
                 next_key = attempts[idx + 1][0]
                 next_name = T.pip_install.mirror_names.get(next_key, next_key)
-                print('\n' + T.pip_install.mirror_switching.format(old=current_name, new=next_name))
+                print('\n' + yellow(T.pip_install.mirror_switching.format(old=current_name, new=next_name)))
 
     # 全部失败
     if use_mirror:
-        print(T.pip_install.mirror_exhausted.format(package_name=package_name))
+        print(red(T.pip_install.mirror_exhausted.format(package_name=package_name)))
     return False
 
 

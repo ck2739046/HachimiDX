@@ -7,6 +7,7 @@ import urllib.request
 import zipfile
 
 from .op_result import OpResult, err, ok
+from .color import green, cyan
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,7 +75,7 @@ def install_legacy_tensorrt(
             return result
         wheel_path, staged_runtime_dir = result.value
 
-        print(T.legacy_trt.install_wheel.format(filename=wheel_path.name))
+        print(cyan(T.legacy_trt.install_wheel.format(filename=wheel_path.name)))
         subprocess.run(
             [
                 python_executable,
@@ -97,7 +98,7 @@ def install_legacy_tensorrt(
             _uninstall_tensorrt_wheel(python_executable)
             return result
 
-        print(T.legacy_trt.success.format(version=package.archive_version))
+        print(green(T.legacy_trt.success.format(version=package.archive_version)))
         return ok()
 
     except Exception as e:
@@ -123,7 +124,7 @@ def _download_archive(
     archive_path: Path,
     T,
 ) -> OpResult[None]:
-    print(T.legacy_trt.download_start.format(filename=package.filename))
+    print(cyan(T.legacy_trt.download_start.format(filename=package.filename)))
     try:
         request = urllib.request.Request(
             package.url,
@@ -257,7 +258,7 @@ def _verify_installation(
             env=env,
         )
         actual_version = result.stdout.strip().splitlines()[-1]
-        print(T.legacy_trt.verify_success.format(version=actual_version))
+        print(green(T.legacy_trt.verify_success.format(version=actual_version)))
         return ok()
     except subprocess.CalledProcessError as e:
         detail = (e.stderr or e.stdout or str(e)).strip()

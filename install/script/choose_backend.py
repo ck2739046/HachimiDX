@@ -17,6 +17,7 @@ from .detect_trt import (
 )
 from .op_result import OpResult, err, ok
 from .console_input import ask
+from .color import red, cyan
 
 
 @dataclass(slots=True, frozen=True)
@@ -28,7 +29,7 @@ class BackendChoice:
 
 def choose_backend(T) -> OpResult[BackendChoice]:
     print("\n-----\n")
-    print(T.choose_backend.detect_start)
+    print(cyan(T.choose_backend.detect_start))
 
     nvidia_result = get_nvidia_gpu_info()
     if nvidia_result.is_ok and nvidia_result.value is not None:
@@ -298,15 +299,15 @@ def _ask_backend(
         try:
             selected_index = int(content)
         except ValueError:
-            print(T.choose_backend.invalid_backend_choice)
+            print(red(T.choose_backend.invalid_backend_choice))
             continue
         if selected_index < 1 or selected_index > len(backend_order):
-            print(T.choose_backend.invalid_backend_choice)
+            print(red(T.choose_backend.invalid_backend_choice))
             continue
 
         selected_backend = backend_order[selected_index - 1]
         if not availability[selected_backend]:
-            print(T.choose_backend.backend_not_available)
+            print(red(T.choose_backend.backend_not_available))
             continue
         return ok(selected_backend)
 
@@ -356,10 +357,10 @@ def _choose_tensorrt_config(
         try:
             selected_index = int(content)
         except ValueError:
-            print(T.choose_backend.invalid_gpu_choice)
+            print(red(T.choose_backend.invalid_gpu_choice))
             continue
         if selected_index < 0 or selected_index >= len(candidates):
-            print(T.choose_backend.invalid_gpu_choice)
+            print(red(T.choose_backend.invalid_gpu_choice))
             continue
         return ok(candidates[selected_index].config)
 
@@ -412,9 +413,9 @@ def _choose_onnx_cuda_config(
         try:
             selected_index = int(content)
         except ValueError:
-            print(T.choose_backend.invalid_gpu_choice)
+            print(red(T.choose_backend.invalid_gpu_choice))
             continue
         if selected_index < 0 or selected_index >= len(candidates):
-            print(T.choose_backend.invalid_gpu_choice)
+            print(red(T.choose_backend.invalid_gpu_choice))
             continue
         return ok(candidates[selected_index].config)
