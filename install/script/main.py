@@ -21,6 +21,9 @@ T = en_us
 # 在 install.ask_pypi_mirror() 中赋值
 USE_PyPI_Mirror = False
 
+# 特殊返回码：告知 install.bat 安装成功且用户选择立即启动软件，跳过 pause
+EXIT_LAUNCH_HACHIMIDX = 273
+
 
 
 
@@ -216,7 +219,9 @@ def install() -> OpResult[None]:
     # 结束
     print("\n-----\n")
     print(T.install.done)
-    print("\n-----\n")
+
+    # 询问是否立即打开 HachimiDX
+    ask_open_hachimidx()
 
     return ok()
 
@@ -237,6 +242,9 @@ def ask_use_pypi_mirror():
     else:
         print(T.ask_use_pypi_mirror.defaulting)
         USE_PyPI_Mirror = True
+
+
+
 
 def install_pytorch(tensorrt_gpu_config: tensorrt_config | None,
                     onnx_cuda_gpu_config: onnx_cuda_config | None,
@@ -428,6 +436,32 @@ def modify_ultralytics_for_dml(recover: bool = False) -> OpResult[None]:
         return err(msg, error_raw=e)
 
     return ok()
+
+
+
+
+
+def ask_open_hachimidx() -> None:
+    print("\n-----")
+    is_launch = ask(T.open_hachimidx.prompt)
+    if is_launch == "1":
+        pass
+    elif is_launch == "2":
+        return
+    elif is_launch == "3":
+        sys.exit(0)
+    else:
+        print(T.open_hachimidx.defaulting)
+    # 启动 HachimiDX
+    print("\n-----\n")
+    exe = ROOT / "HachimiDX.exe"
+    if not exe.exists():
+        print(T.open_hachimidx.not_found)
+        return
+    print(T.open_hachimidx.launching)
+    subprocess.Popen([str(exe)], cwd=str(ROOT))
+    sys.exit(EXIT_LAUNCH_HACHIMIDX)
+
 
 
 

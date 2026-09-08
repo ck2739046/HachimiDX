@@ -65,6 +65,22 @@ install = SN(
 )
 
 
+open_hachimidx = SN(
+    prompt = """
+是否立即启动 HachimiDX?
+
+1. 是 (默认)
+2. 否
+3. 退出
+
+-> """,
+
+    defaulting = "默认选择「是」。",
+    launching = "正在启动 HachimiDX...",
+    not_found = "未找到 HachimiDX.exe，启动失败。",
+)
+
+
 
 ask_use_pypi_mirror = SN(
     prompt = """
