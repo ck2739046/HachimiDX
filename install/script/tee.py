@@ -72,7 +72,17 @@ def _run(step_cmd: list[str]) -> int:
     ]
     for t in threads:
         t.start()
-    code = proc.wait()
+
+    while True:
+        try:
+            code = proc.wait()
+            break
+        # 用户按下 Ctrl+C, 信号传播路径是
+        # install.bat → tee.py → main.py
+        # 这里需要忽略 KeyboardInterrupt, 让子进程处理
+        except KeyboardInterrupt:
+            continue
+
     for t in threads:
         t.join()
     return code
