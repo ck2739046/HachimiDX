@@ -1,6 +1,9 @@
 from types import SimpleNamespace as SN
 
 
+# 输入提示行前缀
+input_hint = "请选择 -> "
+
 
 ask_language = SN(
     prompt = """
@@ -13,8 +16,8 @@ Please select your language:
 1. 简体中文 (默认)
 2. 英语
 3. 退出
-
--> """,
+""",
+    input_hint = "Please select / 请选择 -> ",
 
     defaulting = "默认选择简体中文。",
 )
@@ -30,8 +33,7 @@ main_menu = SN(
 3. 退出
 
 如果你不清楚选项 2 是什么，请不要选择此选项。
-
--> """,
+""",
 
     defaulting = "默认选择安装 HachimiDX。",
 )
@@ -45,8 +47,7 @@ reinstall_backend = SN(
 
 1. 否 (默认)
 2. 是
-
--> """,
+""",
 
     abort = "已取消，未做任何更改。",
 
@@ -72,8 +73,7 @@ open_hachimidx = SN(
 1. 是 (默认)
 2. 否
 3. 退出
-
--> """,
+""",
 
     defaulting = "默认选择「是」。",
     launching = "正在启动 HachimiDX...",
@@ -93,8 +93,7 @@ PyPI 镜像可以显著加速国内的下载和安装。
 1. 是 (默认)
 2. 否
 3. 退出
-
--> """,
+""",
 
     defaulting = "默认选择「是」。",
 )
@@ -125,7 +124,6 @@ choose_backend = SN(
     backend_option = "{index}. {backend} [{status}]",
     backend_recommendation = "推荐安装 {backend}（此为默认选项）",
     defaulting = "默认选择推荐后端。",
-    backend_prompt = "请输入后端编号（1, 2, 3, ...）\n-> ",
     exit_option = "6. 退出",
     invalid_backend_choice = "输入无效，请重新输入。",
     backend_not_available = "该后端不可用，请选择可用后端。",
@@ -134,12 +132,10 @@ choose_backend = SN(
     trt_selection_failed = "TensorRT 显卡配置选择失败。",
     trt_gpu_menu_title = "检测到多张配置不同的可用 NVIDIA 显卡，请选择显卡：",
     trt_gpu_option = "{index}. {gpu_name}，显存 {vram} GB，SM {compute_cap}，驱动 {driver}",
-    trt_gpu_prompt = "请输入显卡编号（0, 1, 2, ...）\n-> ",
     onnx_cuda_not_available = "没有可用于 ONNX CUDA 的 NVIDIA 显卡。",
     onnx_cuda_selection_failed = "ONNX CUDA 显卡配置选择失败。",
     onnx_cuda_gpu_menu_title = "检测到多张配置不同的可用 NVIDIA 显卡，请选择 ONNX CUDA 使用的安装配置：",
     onnx_cuda_gpu_option = "{index}. {gpu_name}，显存 {vram} GB，SM {compute_cap}，驱动 {driver}",
-    onnx_cuda_gpu_prompt = "请输入显卡编号（0, 1, 2, ...）\n-> ",
     invalid_gpu_choice = "输入无效，请重新输入。",
 )
 

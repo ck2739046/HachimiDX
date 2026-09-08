@@ -17,7 +17,7 @@ from .detect_trt import (
 )
 from .op_result import OpResult, err, ok
 from .console_input import ask
-from .color import red, cyan
+from .color import red, cyan, yellow, hint, note_on_hint
 
 
 @dataclass(slots=True, frozen=True)
@@ -287,12 +287,11 @@ def _ask_backend(
     print(T.choose_backend.exit_option)
     print()
     print(T.choose_backend.backend_recommendation.format(backend=labels[default_backend]))
-    print()
 
     while True:
-        content = ask(T.choose_backend.backend_prompt)
+        content = ask(hint(T.input_hint))
         if content == "":
-            print(T.choose_backend.defaulting)
+            print(note_on_hint(yellow(T.input_hint), T.choose_backend.defaulting))
             return ok(default_backend)
         if content == "6":
             sys.exit(0)
@@ -348,10 +347,9 @@ def _choose_tensorrt_config(
             )
         )
     print(T.choose_backend.exit_option)
-    print()
 
     while True:
-        content = ask(T.choose_backend.trt_gpu_prompt)
+        content = ask(hint(T.input_hint))
         if content == "6":
             sys.exit(0)
         try:
@@ -404,10 +402,9 @@ def _choose_onnx_cuda_config(
             )
         )
     print(T.choose_backend.exit_option)
-    print()
 
     while True:
-        content = ask(T.choose_backend.onnx_cuda_gpu_prompt)
+        content = ask(hint(T.input_hint))
         if content == "6":
             sys.exit(0)
         try:

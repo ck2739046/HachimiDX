@@ -1,6 +1,9 @@
 from types import SimpleNamespace as SN
 
 
+# 输入提示行前缀
+input_hint = "Please select -> "
+
 
 ask_language = SN(
     prompt = """
@@ -13,8 +16,8 @@ Please select your language:
 1. 简体中文 (默认)
 2. 英语
 3. 退出
-
--> """,
+""",
+    input_hint = "Please select / 请选择 -> ",
 
     defaulting = "Defaulting to Simplified Chinese.",
 )
@@ -30,8 +33,7 @@ Please select:
 3. Exit
 
 If you are not sure what option 2 does, do not select it.
-
--> """,
+""",
 
     defaulting = "Defaulting to HachimiDX installation.",
 )
@@ -45,8 +47,7 @@ Are you sure you want to continue?
 
 1. No (Default)
 2. Yes
-
--> """,
+""",
 
     abort = "Canceled. No changes were made.",
 
@@ -72,8 +73,7 @@ Launch HachimiDX now?
 1. Yes (default)
 2. No
 3. Exit
-
--> """,
+""",
 
     defaulting = "Defaulting to Yes.",
     launching = "Launching HachimiDX...",
@@ -93,8 +93,7 @@ If you are in other regions, please choose \"No\".
 1. Yes (Default)
 2. No
 3. Exit
-
--> """,
+""",
 
     defaulting = "Defaulting to Yes.",
 )
@@ -125,7 +124,6 @@ choose_backend = SN(
     backend_option = "{index}. {backend} [{status}]",
     backend_recommendation = "{backend} is the recommended and default option.",
     defaulting = "Defaulting to the recommended backend.",
-    backend_prompt = "Please enter the backend number (1, 2, 3, ...)\n-> ",
     exit_option = "6. Exit",
     invalid_backend_choice = "Invalid input. Please try again.",
     backend_not_available = "That backend is unavailable. Please select an available backend.",
@@ -134,12 +132,10 @@ choose_backend = SN(
     trt_selection_failed = "TensorRT GPU configuration selection failed.",
     trt_gpu_menu_title = "Multiple usable NVIDIA GPUs have different configurations. Select a GPU:",
     trt_gpu_option = "{index}. {gpu_name}, VRAM {vram} GB, SM {compute_cap}, driver {driver}",
-    trt_gpu_prompt = "Please enter the GPU number (0, 1, 2, ...)\n-> ",
     onnx_cuda_not_available = "No NVIDIA GPU is available for ONNX CUDA.",
     onnx_cuda_selection_failed = "ONNX CUDA GPU configuration selection failed.",
     onnx_cuda_gpu_menu_title = "Multiple usable NVIDIA GPUs have different configurations. Select the ONNX CUDA installation configuration:",
     onnx_cuda_gpu_option = "{index}. {gpu_name}, VRAM {vram} GB, SM {compute_cap}, driver {driver}",
-    onnx_cuda_gpu_prompt = "Please enter the GPU number (0, 1, 2, ...)\n-> ",
     invalid_gpu_choice = "Invalid input. Please try again.",
 )
 

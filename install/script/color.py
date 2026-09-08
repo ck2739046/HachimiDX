@@ -12,7 +12,7 @@ YELLOW = "\x1b[33m"
 CYAN = "\x1b[96m"
 BOLD = "\x1b[1m"
 
-_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+_ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]|\r")
 
 
 def green(s: str) -> str:
@@ -40,6 +40,16 @@ def bold(s: str) -> str:
     return f"{BOLD}{s}{RESET}"
 
 
+def hint(s: str) -> str:
+    """提示：表示需要用户输入，前面补一个空行与正文分隔"""
+    return "\n" + yellow(s)
+
+
+def note_on_hint(hint_colored: str, note: str) -> str:
+    """把默认提示追加到提示行末尾（上一行），避免默认提示另起一行"""
+    return f"\x1b[1A\r{hint_colored}{note}\x1b[K"
+
+
 def strip_ansi(s: str) -> str:
-    """剥离 ANSI 转义序列，供写入日志文件时使用。"""
+    """剥离 ANSI 转义序列，供写入日志文件时使用"""
     return _ANSI_RE.sub("", s)
