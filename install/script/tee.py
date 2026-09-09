@@ -4,6 +4,7 @@ import codecs
 import ctypes
 import datetime
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -77,6 +78,22 @@ def _partial_prefix_length(text: str) -> int:
     return 0
 
 
+_ANSI_TAIL_RE = re.compile(r"\x1b(?:\[[0-9;?]*)?$")
+
+
+def _split_ansi_tail(buf: str) -> tuple[str, str]:
+    """返回 (可安全输出的文本, 待定的不完整 ANSI 尾部)。
+
+    管道输出按块到达，ANSI 转义序列可能被截断在块边界。此处把结尾处
+    可能仍是未结束转义序列的部分扣下，待下一块补齐后再处理，避免残缺
+    ANSI 序列漏进日志文件。
+    """
+    m = _ANSI_TAIL_RE.search(buf)
+    if m:
+        return buf[:m.start()], m.group()
+    return buf, ""
+
+
 def _process_stdout(text: str, pending: str) -> str:
     data = pending + text
     while data:
@@ -113,6 +130,7 @@ def _pump(pipe, to_stderr: bool) -> None:
     """把子进程管道输出实时（逐块）转发到控制台和日志。"""
     decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
     pending = ""
+    ansi_tail = ""
     try:
         while True:
             chunk = pipe.read1(4096)
@@ -120,17 +138,22 @@ def _pump(pipe, to_stderr: bool) -> None:
                 break
             text = decoder.decode(chunk)
             if text:
-                if to_stderr:
-                    _emit(text, True)
-                else:
-                    pending = _process_stdout(text, pending)
+                buf, ansi_tail = _split_ansi_tail(ansi_tail + text)
+                if buf:
+                    if to_stderr:
+                        _emit(buf, True)
+                    else:
+                        pending = _process_stdout(buf, pending)
     finally:
         text = decoder.decode(b"", final=True)
         if text:
-            if to_stderr:
-                _emit(text, True)
-            else:
-                pending = _process_stdout(text, pending)
+            buf, ansi_tail = _split_ansi_tail(ansi_tail + text)
+            if buf:
+                if to_stderr:
+                    _emit(buf, True)
+                else:
+                    pending = _process_stdout(buf, pending)
+        # 流结束时仍未闭合的 ANSI 尾部视为残缺，丢弃
         if pending:
             _emit(pending, False)
         pipe.close()
