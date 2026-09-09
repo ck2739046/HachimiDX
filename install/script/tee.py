@@ -1,3 +1,5 @@
+import base64
+import binascii
 import codecs
 import ctypes
 import datetime
@@ -8,6 +10,7 @@ import threading
 from pathlib import Path
 
 from .color import strip_ansi
+from .console_input import INPUT_EVENT_PREFIX, INPUT_EVENT_SUFFIX
 
 ROOT = Path(__file__).resolve().parents[2]
 LOG_FILE = ROOT / "data" / "logs" / "install_log.txt"
@@ -17,6 +20,7 @@ LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 # 强制子进程 stdout/stderr 使用 utf-8，避免中文 gbk 报错
 ENV = os.environ.copy()
 ENV["PYTHONIOENCODING"] = "utf-8"
+ENV["HACHIMIDX_TEE"] = "1"
 
 # 控制台写入永不因编码失败而抛错，避免 pump 线程崩溃导致管道未排空、安装挂死
 try:
@@ -57,9 +61,58 @@ def _emit(text: str, to_stderr: bool) -> None:
         stream.flush()
 
 
+def _record_input(value: str) -> None:
+    with _write_lock:
+        clean_value = strip_ansi(value)
+        clean_value = "".join(char for char in clean_value if char.isprintable() or char == "\t")
+        _log.write(clean_value)
+        _log.write("\n")
+        _log.flush()
+
+
+def _partial_prefix_length(text: str) -> int:
+    for length in range(min(len(text), len(INPUT_EVENT_PREFIX) - 1), 0, -1):
+        if text.endswith(INPUT_EVENT_PREFIX[:length]):
+            return length
+    return 0
+
+
+def _process_stdout(text: str, pending: str) -> str:
+    data = pending + text
+    while data:
+        start = data.find(INPUT_EVENT_PREFIX)
+        if start < 0:
+            keep = _partial_prefix_length(data)
+            if keep:
+                visible = data[:-keep]
+                if visible:
+                    _emit(visible, False)
+                return data[-keep:]
+            _emit(data, False)
+            return ""
+
+        if start:
+            _emit(data[:start], False)
+
+        end = data.find(INPUT_EVENT_SUFFIX, start + len(INPUT_EVENT_PREFIX))
+        if end < 0:
+            return data[start:]
+
+        payload = data[start + len(INPUT_EVENT_PREFIX):end]
+        try:
+            value = base64.b64decode(payload, validate=True).decode("utf-8")
+        except (binascii.Error, UnicodeDecodeError):
+            _emit(data[start:end + len(INPUT_EVENT_SUFFIX)], False)
+        else:
+            _record_input(value)
+        data = data[end + len(INPUT_EVENT_SUFFIX):]
+    return ""
+
+
 def _pump(pipe, to_stderr: bool) -> None:
     """把子进程管道输出实时（逐块）转发到控制台和日志。"""
     decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
+    pending = ""
     try:
         while True:
             chunk = pipe.read1(4096)
@@ -67,11 +120,19 @@ def _pump(pipe, to_stderr: bool) -> None:
                 break
             text = decoder.decode(chunk)
             if text:
-                _emit(text, to_stderr)
+                if to_stderr:
+                    _emit(text, True)
+                else:
+                    pending = _process_stdout(text, pending)
     finally:
         text = decoder.decode(b"", final=True)
         if text:
-            _emit(text, to_stderr)
+            if to_stderr:
+                _emit(text, True)
+            else:
+                pending = _process_stdout(text, pending)
+        if pending:
+            _emit(pending, False)
         pipe.close()
 
 
