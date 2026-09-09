@@ -90,7 +90,7 @@ def main():
                 print(red(print_op_result(result)))
 
     except KeyboardInterrupt:
-        print("\nKeyboardInterrupt detected, exiting...")
+        print("\n" + yellow("KeyboardInterrupt detected, exiting..."))
         sys.exit(1)
     except Exception as e:
         result = err("Unexpected error in main()", error_raw=e)
@@ -195,7 +195,7 @@ def install() -> OpResult[None]:
         # modify ultralytics for DirectML
         result = modify_ultralytics_for_dml()
         if not result.is_ok:
-            print(print_op_result(result))
+            print(red(print_op_result(result)))
             sys.exit(1)
     elif install_ncnn_:
         # install NCNN
