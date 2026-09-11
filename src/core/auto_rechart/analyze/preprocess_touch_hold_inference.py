@@ -28,6 +28,10 @@ TOUCH_HOLD_CLASS_TOUCH = 0
 TOUCH_HOLD_CLASS_PROGRESS = 1
 
 
+class TouchHoldInferenceError(RuntimeError):
+    pass
+
+
 @dataclass(slots=True)
 class LightResult:
     """YOLO 推理后的轻量化结果，供后续 dist/percent 解析使用"""
@@ -210,10 +214,10 @@ class TouchHoldConsumer(Consumer):
                 batch=len(images),
             )
         except Exception as e:
-            print(f"touch-hold yolo inference failed: {e}")
-            # 跳过这批, 但还是要计入进度
-            self._processed_samples += len(batch)
-            return
+            # 抛出以终止推理
+            raise TouchHoldInferenceError(
+                f"touch-hold yolo inference failed with model {self.model_path}"
+            ) from e
 
         # 解析轻量结果
         for i, sample in enumerate(batch):
