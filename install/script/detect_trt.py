@@ -57,7 +57,7 @@ tensorrt_config_list: list[tensorrt_config] = [
     tensorrt_config( 
         compute_capability= (6, 0),
         win_driver_ver=     (520, 6),
-        torch_ver=          "2.3.1",      # 最后 cudnn 8 的版本
+        torch_ver=          "2.3.1",      # 最后 cudnn 8 的版本，旧版 onnxruntime-gpu 不支持 cudnn 9
         torch_cuda_ver=     "cu118",
         torchvision_ver=    "0.18.1",
         onnxruntime_gpu_ver="1.18.1",     # 最后默认 cuda 11 的版本
@@ -75,7 +75,7 @@ tensorrt_config_list: list[tensorrt_config] = [
     # tensorrt_config( 
     #     compute_capability= (5, 0),
     #     win_driver_ver=     (520, 6),
-    #     torch_ver=          "2.3.1",      # 最后 cudnn 8 的版本
+    #     torch_ver=          "2.3.1",      # 最后 cudnn 8 的版本，旧版 onnxruntime-gpu 不支持 cudnn 9
     #     torch_cuda_ver=     "cu118",
     #     torchvision_ver=    "0.18.1",
     #     onnxruntime_gpu_ver="1.18.1",     # 最后默认 cuda 11 的版本

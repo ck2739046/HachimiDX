@@ -194,6 +194,16 @@ def _convert_to_ncnn(detect_obb_batch, cls_batch, touch_hold_batch, half: bool) 
 def _convert_to_onnx(detect_obb_batch, cls_batch, touch_hold_batch, half: bool) -> bool:
     current_temp_path = None
     current_onnx_path = None
+
+    # 智能选择 opset 版本
+    default_opset = 17
+    try:
+        from torch.onnx import _constants
+        max_opset = int(getattr(_constants, "ONNX_TORCHSCRIPT_EXPORTER_MAX_OPSET", default_opset))
+        opset = 18 if max_opset >= 18 else default_opset
+    except Exception:
+        opset = default_opset
+
     try:
         target_paths = _get_target_paths("ONNX CPU", half)
         for m in models:
@@ -212,7 +222,7 @@ def _convert_to_onnx(detect_obb_batch, cls_batch, touch_hold_batch, half: bool) 
             batch = _get_batch_size(m.name, detect_obb_batch, cls_batch, touch_hold_batch)
             exported_path = Path(model.export(
                 format="onnx",
-                opset=18,
+                opset=opset,
                 imgsz=imgsz,
                 dynamic=True,
                 simplify=True,

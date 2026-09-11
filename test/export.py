@@ -40,9 +40,18 @@ def convert_to_onnx(model_path, task, batch):
         
         print(f"Converting to ONNX with batch size {batch}...")
 
+        # 智能选择 opset 版本
+        default_opset = 17
+        try:
+            from torch.onnx import _constants
+            max_opset = int(getattr(_constants, "ONNX_TORCHSCRIPT_EXPORTER_MAX_OPSET", default_opset))
+            opset = 18 if max_opset >= 18 else default_opset
+        except Exception:
+            opset = default_opset
+
         model = YOLO(model_path, task=task)
         model.export(format="onnx",
-                    opset=18,
+                    opset=opset,
                     half=True,
                     dynamic=True,
                     simplify=True,
