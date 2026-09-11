@@ -13,6 +13,7 @@ _STD_INPUT_HANDLE = -10
 
 _ENABLE_PROCESSED_OUTPUT = 0x0001
 _ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004
+_ENABLE_MOUSE_INPUT = 0x0010
 _ENABLE_QUICK_EDIT_MODE = 0x0040
 _ENABLE_EXTENDED_FLAGS = 0x0080
 
@@ -127,13 +128,15 @@ class ConsoleJournal:
                            | _ENABLE_PROCESSED_OUTPUT
                            | _ENABLE_VIRTUAL_TERMINAL_PROCESSING)
 
-        # 快速编辑会让"用户选中文本"暂停所有控制台写入，装依赖时 pip 会因此卡死
+        # 快速编辑会让"用户选中文本"暂停所有控制台写入，装依赖时 pip 会因此卡死；
+        # 鼠标输入会让终端把滚轮/触摸板事件转发给应用，应用不读就导致滚轮彻底失效，所以也要关
         stdin_handle = k32.GetStdHandle(_STD_INPUT_HANDLE)
         stdin_mode = ctypes.c_uint32()
         if k32.GetConsoleMode(stdin_handle, ctypes.byref(stdin_mode)):
             k32.SetConsoleMode(stdin_handle,
                                (stdin_mode.value | _ENABLE_EXTENDED_FLAGS)
-                               & ~_ENABLE_QUICK_EDIT_MODE)
+                               & ~_ENABLE_QUICK_EDIT_MODE
+                               & ~_ENABLE_MOUSE_INPUT)
 
         # 标准输出句柄同时带读写权限，读回与调整缓冲区都靠它；
         # 只读打开的 CONOUT$ 会让 SetConsoleScreenBufferSize 报 ACCESS_DENIED
