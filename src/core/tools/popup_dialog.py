@@ -3,11 +3,17 @@ from __future__ import annotations
 import ctypes
 import os
 import threading
+import unicodedata
 
 import i18n
 from PyQt6.QtCore import QEventLoop, QTimer, Qt
 from PyQt6.QtGui import QCloseEvent, QFont, QGuiApplication, QTextOption
 from PyQt6.QtWidgets import QApplication, QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QSizePolicy
+
+
+def _display_width(text: str) -> int:
+    """中文按 2 格、其他按 1 格计算显示宽度"""
+    return sum(2 if unicodedata.east_asian_width(c) in "WF" else 1 for c in text)
 
 
 class _PopupConfirmDialog(QDialog):
@@ -43,8 +49,8 @@ class _PopupConfirmDialog(QDialog):
         W_LARGE = 700
         
         lines = self._prompt_text.splitlines()
-        max_line_len = max(len(line) for line in lines) if lines else 0
-            
+        max_line_len = max((_display_width(line) for line in lines), default=0)
+
         if max_line_len <= 50:
             target_width = W_SMALL
         elif max_line_len <= 100:
