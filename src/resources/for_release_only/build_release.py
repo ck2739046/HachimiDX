@@ -97,12 +97,6 @@ def copy_app_resources():
     bpm_measurer_target_path = RELEASE_DIR / "src" / "resources" / "Bpm Measurer"
     copy_to_release(bpm_measurer_dir, bpm_measurer_target_path)
 
-    # 复制安装指南
-    install_guide_cn = FOR_RELEASE_ONLY_DIR / "1_安装指南.txt"
-    copy_to_release(install_guide_cn, RELEASE_DIR / "1_安装指南.txt")
-    install_guide_us = FOR_RELEASE_ONLY_DIR / "1_Installation Guide.txt"
-    copy_to_release(install_guide_us, RELEASE_DIR / "1_Installation Guide.txt")
-
     # 复制 launcher
     launcher = FOR_RELEASE_ONLY_DIR / "Launcher" / "HachimiDX.exe"
     copy_to_release(launcher, RELEASE_DIR / "HachimiDX.exe")
