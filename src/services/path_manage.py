@@ -71,6 +71,8 @@ class PathManage:
 
     # 初始化时可以不存在的路径
 
+    INSTALL_BAT_PATH: Path = ROOT_DIR / "install" / "install.bat"
+
     SETTINGS_PATH: Path = DATA_DIR / "settings.json"
 
     TEMP_WAV_IMAGE_PATH: Path = TEMP_DIR / "wav_image.png"

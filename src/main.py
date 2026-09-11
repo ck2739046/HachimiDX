@@ -15,7 +15,17 @@ def prompt_missing_dependencies() -> None:
     """依赖库缺失时弹窗，引导用户先跑安装脚本"""
     import subprocess
     from tkinter import messagebox
-    install_bat = project_root / "install" / "install.bat"
+    from src.services import PathManage
+    install_bat = PathManage.INSTALL_BAT_PATH
+
+    # 先检查安装脚本是否存在
+    if not install_bat.is_file():
+        messagebox.showerror(
+            "HachimiDX",
+            "尚未安装依赖库，且安装脚本不存在，请检查安装包完整性。\n" +
+            "Dependencies are not installed, and the installation script is missing. Please check the integrity of the installation package.",
+        )
+        return 1
     # 选 No 直接退出
     if not messagebox.askyesno(
         "HachimiDX",

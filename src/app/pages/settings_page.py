@@ -872,7 +872,7 @@ class SettingsPage(BaseOutputPage):
         if self._task_state.is_busy:
             return
 
-        install_bat = PathManage.ROOT_DIR / "install" / "install.bat"
+        install_bat = PathManage.INSTALL_BAT_PATH
         if not install_bat.is_file():
             show_notify_dialog(
                 i18n.t(f"{I18N_Prefix}.dialog_title"),
