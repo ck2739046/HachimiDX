@@ -1,9 +1,10 @@
+import datetime
 import sys
 import subprocess
 from pathlib import Path
 import shutil
 
-from . import en_us, zh_cn
+from . import console_journal, en_us, zh_cn
 from .op_result import OpResult, ok, err, print_op_result
 from .console_input import ask
 from .color import green, red, yellow, cyan, hint, note_on_hint
@@ -29,6 +30,10 @@ EXIT_LAUNCH_HACHIMIDX = 273
 
 
 def main():
+
+    # 必须在任何输出之前接手控制台，日志靠跟随屏幕缓冲区产生
+    console_journal.start()
+    print(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S") + "\n")
 
     # generate by https://patorjk.com/software/taag using font "Terrace"
     title = """
@@ -96,6 +101,8 @@ def main():
         result = err("Unexpected error in main()", error_raw=e)
         print(f"\n-----\n\n{red(print_op_result(result))}\n")
         sys.exit(1)
+    finally:
+        console_journal.finish()
 
 
 
