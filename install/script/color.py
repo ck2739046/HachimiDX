@@ -1,14 +1,20 @@
-"""ANSI 彩色文本辅助。
+"""
+ANSI 彩色文本辅助。
 
 颜色属于展示层，只在打印点包装，不写入 i18n 字符串。
 """
 
+import unicodedata
+
+
 RESET = "\x1b[0m"
-GREEN = "\x1b[32m"
-RED = "\x1b[31m"
-YELLOW = "\x1b[33m"
+REVERSE = "\x1b[7m"
+
+GREEN = "\x1b[92m"
+RED = "\x1b[91m"
+YELLOW = "\x1b[93m"
 CYAN = "\x1b[96m"
-BOLD = "\x1b[1m"
+
 
 
 def green(s: str) -> str:
@@ -31,9 +37,9 @@ def cyan(s: str) -> str:
     return f"{CYAN}{s}{RESET}"
 
 
-def bold(s: str) -> str:
-    """加粗：作为强调修饰"""
-    return f"{BOLD}{s}{RESET}"
+def reverse(s: str) -> str:
+    """反显：背景是颜色，文字镂空"""
+    return f"{REVERSE}{s}{RESET}"
 
 
 def hint(s: str) -> str:
@@ -44,3 +50,14 @@ def hint(s: str) -> str:
 def note_on_hint(hint_colored: str, note: str) -> str:
     """把默认提示追加到提示行末尾（上一行），避免默认提示另起一行"""
     return f"\x1b[1A\r{hint_colored}{note}\x1b[K"
+
+
+def get_separator(text: str) -> str:
+    """获取分隔线：与文本等宽的一行 === """
+    width = 0
+    for c in text:
+        if unicodedata.east_asian_width(c) in "WF":
+            width += 2  # 中文占2格
+        else:
+            width += 1  # 其他占1格
+    return "=" * width

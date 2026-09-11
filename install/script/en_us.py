@@ -66,6 +66,22 @@ install = SN(
 )
 
 
+model_backend_reminder = SN(
+    title = "IMPORTANT: the model backend still needs to be set up in the application!",
+
+    step1 = "1. After HachimiDX opens, go to the \"Settings\" page.",
+    step2 = "2. In \"Model Inference\", set \"Model Backend\" to \"{backend}\".",
+    step2_again = "2. In \"Model Inference\", set \"Model Backend\" to \"{backend}\" AGAIN.",
+    step3 = "3. Click the \"Check\" button.",
+    step4 = "4. Click \"Convert Model\" if it appears, then wait for it to finish.",
+    step4_again = "4. Click \"Convert Model\" AGAIN, then wait for it to finish.",
+    step5 = "5. Click the \"Save\" button at the very bottom of the page.",
+
+    footnote = "Model inference will not work until the steps above are done!",
+)
+
+
+
 open_hachimidx = SN(
     prompt = """
 Launch HachimiDX now?

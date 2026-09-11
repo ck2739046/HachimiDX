@@ -7,7 +7,7 @@ import shutil
 from . import console_journal, en_us, zh_cn
 from .op_result import OpResult, ok, err, print_op_result
 from .console_input import ask
-from .color import green, red, yellow, cyan, hint, note_on_hint
+from .color import *
 
 from .choose_backend import choose_backend
 from .detect_onnx_cuda import onnx_cuda_config
@@ -147,7 +147,7 @@ def reinstall_backend() -> OpResult[None]:
     print(green(T.reinstall_backend.uninstall_done))
 
     # 3. 进入安装流程
-    result = install()
+    result = install(is_reinstall=True)
     if not result.is_ok:
         msg = f"Failed to reinstall."
         return err(msg, inner=result)
@@ -161,7 +161,7 @@ def reinstall_backend() -> OpResult[None]:
 
 
 
-def install() -> OpResult[None]:
+def install(is_reinstall: bool = False) -> OpResult[None]:
 
     print("\n-----\n")
     print(cyan(T.install.start))
@@ -227,6 +227,9 @@ def install() -> OpResult[None]:
     # 结束
     print("\n-----\n")
     print(green(T.install.done))
+
+    # 提示用户去应用内完成模型后端配置
+    print_model_backend_reminder(backend, is_reinstall)
 
     # 询问是否立即打开 HachimiDX
     ask_open_hachimidx()
@@ -445,6 +448,49 @@ def modify_ultralytics_for_dml(recover: bool = False) -> OpResult[None]:
 
     return ok()
 
+
+
+
+
+def print_model_backend_reminder(backend: str, is_reinstall: bool) -> None:
+
+    # 后端 key -> 与 GUI 设置页「模型后端」下拉框一致
+    MODEL_BACKEND_DISPLAY_NAMES = {
+        "trt": "TensorRT",
+        "onnx_cuda": "ONNX Cuda",
+        "onnx_dml": "ONNX DML",
+        "ncnn": "NCNN",
+        "onnx_cpu": "ONNX CPU",
+    }
+
+    reminder = T.model_backend_reminder
+    backend_name = MODEL_BACKEND_DISPLAY_NAMES.get(backend, backend)
+
+    steps = [
+        reminder.step1,
+        reminder.step2_again if is_reinstall else reminder.step2,
+        reminder.step3,
+        reminder.step4_again if is_reinstall else reminder.step4,
+        reminder.step5,
+    ]
+
+    print("\n-----\n")
+    print(red(get_separator(reminder.title)))
+    print(red(reminder.title))
+    print(red(reminder.title))
+    print(red(reminder.title))
+    print(red(get_separator(reminder.title)))
+    print()
+
+    for step in steps:
+        print(yellow(step.format(backend=backend_name)))
+
+    print()
+    print(red(get_separator(reminder.footnote)))
+    print(red(reminder.footnote))
+    print(red(reminder.footnote))
+    print(red(reminder.footnote))
+    print(red(get_separator(reminder.footnote)))
 
 
 

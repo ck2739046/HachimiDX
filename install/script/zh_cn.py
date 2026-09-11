@@ -66,6 +66,22 @@ install = SN(
 )
 
 
+model_backend_reminder = SN(
+    title = "重要：还需要在应用内设置模型后端！",
+
+    step1 = "1. 打开 HachimiDX 后，进入「应用设置」页面。",
+    step2 = "2. 在「模型推理」分区中，把「模型后端」选择为「{backend}」。",
+    step2_again = "2. 在「模型推理」分区中，「重新」把「模型后端」选择为「{backend}」。",
+    step3 = "3. 点击「检测」按钮。",
+    step4 = "4. 如果出现「转换模型」按钮，点击它并等待转换完成。",
+    step4_again = "4. 如果出现「转换模型」按钮，「重新」点击它并重新等待转换完成。",
+    step5 = "5. 点击页面最底部的「保存」按钮。",
+
+    footnote = "未完成以上步骤前，模型推理功能无法正常使用！",
+)
+
+
+
 open_hachimidx = SN(
     prompt = """
 是否立即启动 HachimiDX?
