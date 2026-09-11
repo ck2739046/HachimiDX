@@ -7,8 +7,10 @@ import unicodedata
 
 import i18n
 from PyQt6.QtCore import QEventLoop, QTimer, Qt
-from PyQt6.QtGui import QCloseEvent, QFont, QGuiApplication, QTextOption
+from PyQt6.QtGui import QCloseEvent, QFont, QGuiApplication, QIcon, QTextOption
 from PyQt6.QtWidgets import QApplication, QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QSizePolicy
+
+from src.services import PathManage
 
 
 def _display_width(text: str) -> int:
@@ -42,7 +44,14 @@ class _PopupConfirmDialog(QDialog):
         self.setModal(False)
         self.setWindowFlag(Qt.WindowType.Window, True)
         self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
-        
+
+        # 左上角标题栏显示 HachimiDX logo
+        try:
+            if PathManage.APP_ICON_PATH.exists():
+                self.setWindowIcon(QIcon(str(PathManage.APP_ICON_PATH)))
+        except Exception:
+            pass
+
         # --- Size Logic (User Req 3 & 4) ---
         W_SMALL = 330
         W_MEDIUM = 500
