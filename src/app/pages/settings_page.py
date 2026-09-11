@@ -1,3 +1,4 @@
+import subprocess
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -17,7 +18,7 @@ from ..ui_style import UI_Style
 from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
 from src.services.model_inference_manage import ModelInferenceManage
 from src.core.schemas.op_result import print_op_result, ok, err
-from src.core.tools import show_notify_dialog
+from src.core.tools import show_confirm_dialog, show_notify_dialog
 from src.core.build_worker_cmd import build_cmd_head_python_exe
 from src.services import PathManage, SettingsManage, process_manager_api, check_update
 
@@ -61,6 +62,7 @@ class SettingsPage(BaseOutputPage):
         self.cancel_convert_model_button = None
         self.environment_status_label = None
         self.model_status_label = None
+        self.open_install_script_button = None
         self.ffmpeg_hw_encoder_combo_box = None
         self.check_ffmpeg_hw_accel_button = None
 
@@ -138,6 +140,7 @@ class SettingsPage(BaseOutputPage):
         self.inference_device_combo_box = create_combo_box(length=400)
         self.environment_status_label = create_label()
         self.model_status_label = create_label()
+        self.open_install_script_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_open_install_script_button"))
         self.convert_model_button.setVisible(False)        # 默认隐藏
         self.cancel_check_model_button.setVisible(False)   # 默认隐藏
         self.cancel_convert_model_button.setVisible(False) # 默认隐藏
@@ -145,6 +148,7 @@ class SettingsPage(BaseOutputPage):
         self.inference_device_combo_box.setVisible(False)  # 默认隐藏
         self.environment_status_label.setVisible(False)    # 默认隐藏
         self.model_status_label.setVisible(False)          # 默认隐藏
+        self.open_install_script_button.setVisible(False)  # 默认隐藏
 
         self.create_row(
             backend_label,
@@ -152,6 +156,7 @@ class SettingsPage(BaseOutputPage):
             self.check_model_button,
             self.cancel_check_model_button,
             self.environment_status_label,
+            self.open_install_script_button,
             self.model_status_label,
             add_stretch = True,
         )
@@ -167,6 +172,7 @@ class SettingsPage(BaseOutputPage):
         self.convert_model_button.clicked.connect(self.on_convert_model_clicked)
         self.cancel_check_model_button.clicked.connect(self.on_cancel_check_model_button_clicked)
         self.cancel_convert_model_button.clicked.connect(self.on_cancel_convert_model_button_clicked)
+        self.open_install_script_button.clicked.connect(self._on_open_install_script_clicked)
         self.model_backend_combo_box.currentTextChanged.connect(self._on_backend_changed)
         self.inference_device_combo_box.currentIndexChanged.connect(self._on_inference_device_changed)
 
@@ -585,6 +591,7 @@ class SettingsPage(BaseOutputPage):
         widgets = (
             self.model_backend_combo_box,
             self.check_model_button,
+            self.open_install_script_button,
             self.inference_device_combo_box,
             self.ffmpeg_hw_encoder_combo_box,
             self.check_ffmpeg_hw_accel_button,
@@ -683,6 +690,8 @@ class SettingsPage(BaseOutputPage):
     def _hide_environment_state(self) -> None:
         if self.environment_status_label is not None:
             self.environment_status_label.setVisible(False)
+        if self.open_install_script_button is not None:
+            self.open_install_script_button.setVisible(False)
 
     def _show_environment_state(self, status_text: str) -> None:
         if self.environment_status_label is None:
@@ -691,6 +700,12 @@ class SettingsPage(BaseOutputPage):
             i18n.t(f"{I18N_Prefix}.environment_status_{status_text}")
         )
         self.environment_status_label.setVisible(True)
+        if self.open_install_script_button is not None:
+            # 环境不可用时才提供「切换后端」入口
+            if status_text == "unavailable":
+                self.open_install_script_button.setVisible(True)
+            else:
+                self.open_install_script_button.setVisible(False)
 
     def _refresh_model_state(self) -> None:
         backend = self.model_backend_combo_box.currentText().strip()
@@ -849,6 +864,41 @@ class SettingsPage(BaseOutputPage):
 
     def on_cancel_convert_model_button_clicked(self) -> None:
         self._cancel_model_task("convert")
+
+
+
+
+    def _on_open_install_script_clicked(self) -> None:
+        if self._task_state.is_busy:
+            return
+
+        install_bat = PathManage.ROOT_DIR / "install" / "install.bat"
+        if not install_bat.is_file():
+            show_notify_dialog(
+                i18n.t(f"{I18N_Prefix}.dialog_title"),
+                i18n.t(f"{I18N_Prefix}.warning_install_script_missing", path=str(install_bat)),
+            )
+            return
+
+        try:
+            # 弹窗期间禁用按钮，避免重复点击
+            self.open_install_script_button.setEnabled(False)
+            confirmed = show_confirm_dialog(
+                i18n.t(f"{I18N_Prefix}.ui_open_install_script_confirm_title"),
+                i18n.t(f"{I18N_Prefix}.ui_open_install_script_confirm_text"),
+            )
+        finally:
+            self.open_install_script_button.setEnabled(True)
+
+        if not confirmed:
+            return
+
+        subprocess.Popen(
+            ["cmd", "/c", str(install_bat)],
+            creationflags=subprocess.CREATE_NEW_CONSOLE,
+        )
+        
+        self.window().close()  # 走 closeEvent 正常退出
 
 
 

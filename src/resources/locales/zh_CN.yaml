@@ -569,6 +569,15 @@ zh_CN:
       model_status_error: "🔴 模型状态检查失败"
       environment_status_available: "🟢 环境可用"
       environment_status_unavailable: "🔴 环境不可用"
+      ui_open_install_script_button: "打开安装脚本"
+      ui_open_install_script_confirm_title: "切换后端"
+      ui_open_install_script_confirm_text: |
+        即将关闭 HachimiDX，并打开安装脚本。
+
+        请在安装脚本主菜单中选择「2. 重新安装模型推理后端」。
+
+        是否继续？
+      warning_install_script_missing: "未找到安装脚本: %{path}"
 
       ui_ffmpeg_divider: "FFmpeg"
       ui_ffmpeg_encoder_label: "视频编码器: "
@@ -608,14 +617,11 @@ zh_CN:
         运行环境检测失败: %{backend}
 
         这可能是因为安装时所选的后端与当前所选的后端不一致。
-        如需切换后端，请参阅「安装指南.txt」。
-        -- (位于项目根目录，很容易找到)
+        如需切换后端，请点击「打开安装脚本」按钮重新运行安装脚本。
       warning_model_missing: "模型检查未通过: %{backend}"
       notice_model_missing_instruction: |
         如果尚未执行「转换模型」步骤，可能会触发此错误。
-
-        具体操作方法请参阅「安装指南.txt」。
-        -- (位于项目根目录，很容易找到)
+        请点击「转换模型」按钮完成模型转换。
       warning_convert_failed: "模型转换失败: %{backend}"
       warning_cuda_driver_outdated: |
         检测到 CUDA 初始化失败（错误码 35）

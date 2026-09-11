@@ -574,6 +574,15 @@ en_US:
       model_status_error: "🔴 Model status check failed"
       environment_status_available: "🟢 Environment ready"
       environment_status_unavailable: "🔴 Environment unavailable"
+      ui_open_install_script_button: "Open Install Script"
+      ui_open_install_script_confirm_title: "Switch Backend"
+      ui_open_install_script_confirm_text: |
+        HachimiDX will be closed first, then the install script will be opened.
+
+        In the install script's main menu, please select "2. Reinstall model inference backend".
+
+        Continue?
+      warning_install_script_missing: "Install script not found: %{path}"
 
       ui_ffmpeg_divider: "FFmpeg"
       ui_ffmpeg_encoder_label: "Video Encoder: "
@@ -613,14 +622,11 @@ en_US:
         Runtime check failed: %{backend}
 
         This error may occur because the backend selected during installation differs from the currently selected one.
-        To switch backends, please refer to "Installation_Guide.txt".
-        -- (located in the project root directory, easy to find)
+        To switch backends, click the "Open Install Script" button and re-run the install script.
       warning_model_missing: "Models check failed: %{backend}"
       notice_model_missing_instruction: |
-        If you haven't completed the "Convert Models" step, this error may occur.
-        
-        Please refer to the "Installation_Guide.txt" for detailed instructions.
-        -- (located in the project root directory, easy to find)
+        If you haven't completed the "Convert Model" step, this error may occur.
+        Please click the "Convert Model" button to convert the models.
       warning_convert_failed: "Model conversion failed: %{backend}"
       warning_cuda_driver_outdated: |
         CUDA initialization failure detected (error code 35).
