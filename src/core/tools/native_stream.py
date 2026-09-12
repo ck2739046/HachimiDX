@@ -290,11 +290,16 @@ class NativeStderrRedirect:
 
     @staticmethod
     def _emit(text: str, prefix: str) -> None:
-        for line in text.splitlines():
-            # 先剥颜色码, 免得只剩颜色码的行变成一个空的前缀行
-            line = strip_ansi(line).strip()
-            if line:
-                print(f"{prefix}{line}", file=sys.stdout, flush=True)
+        # 先剥颜色码, 免得只剩颜色码的行变成一个空的前缀行
+        new_lines = []
+        for raw_line in text.splitlines():
+            new_line = strip_ansi(raw_line).strip()
+            if new_line:
+                new_lines.append(f"{prefix}{new_line}")
+        if not new_lines:
+            return
+        # 整批一次写出, 避免中途被其它线程/进程的 stderr 写入造成行交错
+        print("\n".join(new_lines), file=sys.stdout, flush=True)
 
     @staticmethod
     def _pump(read_fd: int, tag: str) -> None:
