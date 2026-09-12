@@ -1,11 +1,12 @@
 from ultralytics import YOLO
+import sys
 import time
 from queue import Full
 
 from ...schemas.op_result import OpResult, ok, err
 from .note_definition import *
 from ..tool import release_ncnn_vulkan, install_ort_cpu_thread_tuning
-from src.core.tools import describe_exception, redirect_native_stderr
+from src.core.tools import describe_exception, find_native_message, redirect_native_stderr
 
 
 
@@ -109,10 +110,17 @@ def inference_worker_main(model_path, task_name, inference_device,
     except BaseException as e:  # 使用 base exception 捕获所有异常
         try:
             error_msg = f"{task_name} model inferencer failed to process frame {last_frame_idx}"
-            control_queue.put(err(error_msg, error_raw=describe_exception(e)))
+            # 原生日志的本地化消息只取结论一行; 非原生异常仍带栈
+            control_queue.put(
+                err(error_msg,
+                    error_raw=find_native_message(e) or describe_exception(e))
+            )
         except Exception:
             pass
-        raise  # 再次 raise 保持向上传播
+        # 失败已经上报给 control_queue 了, 不要再 raise:
+        # 那会让 multiprocessing._bootstrap 把同一份栈再打到 stderr 一次,
+        # 且那份不经过错误还原, 末行只剩没有信息量的 UnicodeDecodeError
+        sys.exit(1)
     finally:
         results = None
         model = None

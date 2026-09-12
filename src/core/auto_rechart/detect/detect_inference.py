@@ -17,6 +17,11 @@ _RESULTS_QUEUE_CAP = 1000     # 输出: 推理结果 queue 上限
 _PUT_TO_INPUT_QUEUE_TIMEOUT = 0.1
 _WORKER_EXIT_TIMEOUT = 10.0
 
+# 在 except 块里构造 err() 必须显式传 error_raw:
+# 传 None 时 _normalize_error_raw 会隐式抓取当前正在处理的异常,
+# 而这里正在处理的是队列满 —— 那是正常的反压控制流, 不是故障原因
+_NO_RAW_ERROR = ""
+
 
 
 
@@ -269,11 +274,13 @@ class Inferencer:
                     # 队列满了, 检查健康状态再重试
                     if not self._check_workers_health():
                         inner_err = _build_chain_OpResult(self._failures)
-                        return err("[inferencer] put_batch: health check failed.", inner=inner_err)
+                        return err("[inferencer] put_batch: health check failed.",
+                                   inner=inner_err, error_raw=_NO_RAW_ERROR)
                     if time.monotonic() > deadline:
                         # 超时
                         inner_err = _build_chain_OpResult(self._failures)
-                        return err("[inferencer] put_batch: timeout putting batch", inner=inner_err)
+                        return err("[inferencer] put_batch: timeout putting batch",
+                                   inner=inner_err, error_raw=_NO_RAW_ERROR)
                     continue
                 except Exception as e:
                     # 其他异常
@@ -334,10 +341,12 @@ class Inferencer:
                     self._collect_ready_results()
                     if not self._check_workers_health():
                         inner_err = _build_chain_OpResult(self._failures)
-                        return err("[inferencer] send_eof: health check failed.", inner=inner_err)
+                        return err("[inferencer] send_eof: health check failed.",
+                                   inner=inner_err, error_raw=_NO_RAW_ERROR)
                     if time.monotonic() > deadline:
                         # 超时
-                        return err("[inferencer] send_eof: timeout putting EOF")
+                        return err("[inferencer] send_eof: timeout putting EOF",
+                                   error_raw=_NO_RAW_ERROR)
                 except Exception as e:
                     # 其他异常
                     return err(f"[inferencer] send_eof: error putting EOF: {e}", error_raw=e)
