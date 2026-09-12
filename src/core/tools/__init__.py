@@ -1,25 +1,42 @@
 from importlib import import_module
 
-from .validate_pydantic import validate_pydantic
-from .validate_windows_filename import validate_windows_filename
-from .generate_uid import generate_uid
+
+# lazy export: 
+# 调用方统一 from src.core.tools import <名字>, 不写具体模块名
+# 必须惰性, 只在调用时才导入子模块, 避免循环导入
+
+# 因为 validate_* / media_ffprobe_inspect 会导入 schemas.op_result,
+# 而 op_result 反过来要用 native_stream, 在 __init__ 里立即导入会形成循环
+
+# 模块名与导出名刻意不同, 导入子模块不会遮蔽包属性
+
+_LAZY_EXPORTS: dict[str, str] = {
+    # uid_generation.py
+    "generate_uid": ".uid_generation",
+    # pydantic_validation.py
+    "validate_pydantic": ".pydantic_validation",
+    # validate_windows_filename.py
+    "validate_windows_filename": ".windows_filename_validation",
+    # media_ffprobe_inspect.py
+    "FFprobeInspect": ".media_ffprobe_inspect",
+    "FFprobeInspectResult": ".media_ffprobe_inspect",
+    # popup_dialog.py
+    "show_confirm_dialog": ".popup_dialog",
+    "show_notify_dialog": ".popup_dialog",
+    # native_stream.py
+    "OutputStreamDecoder": ".native_stream",
+    "redirect_native_stderr": ".native_stream",
+    "describe_exception": ".native_stream",
+    "find_native_message": ".native_stream",
+    "rewrite_native_error_line": ".native_stream",
+}
 
 
-# lazy loading，避免循环依赖
 def __getattr__(name: str):
-    if name in {"FFprobeInspect", "FFprobeInspectResult"}:
-        module = import_module(".media_ffprobe_inspect", __name__)
-        return getattr(module, name)
-    if name in {"show_confirm_dialog", "show_notify_dialog"}:
-        module = import_module(".popup_dialog", __name__)
-        return getattr(module, name)
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_name = _LAZY_EXPORTS.get(name)
+    if module_name is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    return getattr(import_module(module_name, __name__), name)
 
 
-__all__ = [
-    "validate_pydantic",
-    "validate_windows_filename",
-    "generate_uid",
-    "FFprobeInspect", "FFprobeInspectResult",
-    "show_confirm_dialog", "show_notify_dialog",
-]
+__all__ = list(_LAZY_EXPORTS)

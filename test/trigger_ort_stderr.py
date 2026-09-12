@@ -123,9 +123,9 @@ def _describe(out: list[str], label: str, data: bytes) -> None:
         f"  直接 utf-8 解码: NUL={naive.count(chr(0))} 替换符={naive.count(chr(0xFFFD))} 行数={len(naive.splitlines())}"
     )
 
-    from src.app.widgets.output_log import _OutputStreamDecoder
+    from src.core.tools import OutputStreamDecoder
 
-    text = _feed_chunked(_OutputStreamDecoder(), data)
+    text = _feed_chunked(OutputStreamDecoder(), data)
     lines = text.splitlines()
     out.append(
         f"  解码器分片喂入: NUL={text.count(chr(0))} 替换符={text.count(chr(0xFFFD))} 行数={len(lines)}"

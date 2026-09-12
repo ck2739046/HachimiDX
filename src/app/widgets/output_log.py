@@ -7,143 +7,9 @@ from typing import TextIO
 from PyQt6.QtGui import QTextCursor
 from PyQt6.QtWidgets import QTextEdit, QVBoxLayout, QWidget
 
+from src.core.tools import OutputStreamDecoder
+
 from ..ui_style import UI_Style
-
-
-
-class _OutputStreamDecoder:
-    """
-    把一条输出流的裸字节增量解码成文本.
-
-    同一条流上可能混排两种编码: 
-      - python 侧按 utf-8 写,
-      - 部分库按 gbk 写,
-      - onnxruntime 这类原生库绕过 sys.stderr 直接写 fd, 在 Windows 上是 utf-16-le.
-    
-    管道又会按任意字节边界切分, 所以这里按「段」处理: 
-      utf-8/GBK 文本里不可能出现 0x00 字节, 
-      于是 0x00 就是 utf-16-le 段的线索.
-      每次只消费到完整换行符, 段起点便始终落在字符边界上,
-      不会出现整段奇偶错位.
-    """
-
-    # 判定 utf-16-le 段时一次向前看的字节数
-    _UTF16_PROBE_BYTES = 64
-
-    def __init__(self) -> None:
-        self._buffer = bytearray()
-
-    @classmethod
-    def _utf16le_span(cls, data: bytes, offset: int = 0) -> int:
-        """从 offset 起判定连续的 utf-16-le 段长度(偶数); 不像 utf-16-le 则返回 0."""
-        if data[offset:offset + 2] == b"\xff\xfe":
-            cursor = offset + 2
-        elif data[offset + 1:offset + 2] == b"\x00":
-            # utf-16-le 的 ASCII 文本是 `字符 0x00`
-            # 第二个字节非 0 说明 offset 不在字符边界上
-            # 只看窗口占比不够: 短的 utf-8 前缀后面接长原生日志时会误判
-            cursor = offset
-        else:
-            return 0
-
-        # 段内会出现高字节非 0 的字符 (带本地化错误文本的原生日志里有中日韩)
-        # 所以不能要求 NUL 占比.
-        # utf-8/GBK 永远不含 0x00, 于是只推进到窗口内最后一个 NUL 之后,
-        # 正好停在 utf-16 与 utf-8 的交界, 不会越界把 utf-8 字节当 utf-16 解.
-        while cursor + 2 <= len(data):
-            window = data[cursor:cursor + cls._UTF16_PROBE_BYTES]
-            window = window[:len(window) - len(window) % 2]
-            last_nul = window.rfind(b"\x00")
-            if last_nul < 0:
-                break
-            step = last_nul + 1
-            cursor += step + step % 2
-        return cursor - offset
-
-    @staticmethod
-    def _last_utf8_delimiter_end(data: bytes, limit: int) -> int:
-        """[0, limit) 内最后一个换行的下一个位置; 换行是 ASCII, 不会被多字节字符误判."""
-        return max(data.rfind(b"\n", 0, limit), data.rfind(b"\r", 0, limit)) + 1
-
-    @staticmethod
-    def _last_utf16le_delimiter_end(data: bytes, span: int) -> int:
-        """utf-16-le 段 [0, span) 内最后一个换行的下一个位置; 换行须 2 字节对齐."""
-        end = 0
-        for delimiter in (b"\n\x00", b"\r\x00"):
-            index = data.rfind(delimiter, 0, span)
-            while index > 0 and index % 2:
-                index = data.rfind(delimiter, 0, index)
-            if index >= 0:
-                end = max(end, index + 2)
-        return end
-
-    @classmethod
-    def _next_utf16le_start(cls, data: bytes) -> int:
-        """返回 utf-8 段之后 utf-16-le 段的起点; 没有则返回 len(data)."""
-        search_from = 0
-        while True:
-            index = data.find(b"\x00", search_from)
-            if index < 0:
-                return len(data)
-            # utf-16-le 的 ASCII 文本形如 `字符 0x00`, 所以 NUL 前一字节是段起点
-            start = index - 1
-            if start >= 1 and cls._utf16le_span(data, start):
-                return start
-            search_from = index + 1
-
-    @staticmethod
-    def _decode_bytes(data: bytes, utf16le: bool = False) -> str:
-        if not data:
-            return ""
-        if utf16le:
-            try:
-                if data.startswith(b"\xff\xfe"):
-                    data = data[2:]  # remove BOM
-                return data.decode("utf-16-le", errors="strict")
-            except UnicodeDecodeError:
-                pass
-        try:
-            return data.decode("utf-8", errors="strict")
-        except UnicodeDecodeError:
-            try:
-                return data.decode("gbk", errors="strict")
-            except UnicodeDecodeError:
-                return data.decode("utf-8", errors="replace")
-
-    def feed(self, data: bytes | bytearray, final: bool = False) -> str:
-        if data:
-            self._buffer.extend(data)
-        decoded_parts: list[str] = []
-
-        while self._buffer:
-            raw = bytes(self._buffer)
-            span = self._utf16le_span(raw)
-            if span:
-                # utf-16-le 段: 只在段内按 2 字节对齐找换行, 段外字节留给下一轮
-                utf16le = True
-                prefix_end = span - span % 2 if final else self._last_utf16le_delimiter_end(raw, span)
-            else:
-                # utf-8 段: 只到下一个 utf-16-le 段起点为止
-                utf16le = False
-                limit = self._next_utf16le_start(raw)
-                prefix_end = limit if final else self._last_utf8_delimiter_end(raw, limit)
-            if prefix_end <= 0:
-                break
-
-            prefix = raw[:prefix_end]
-            del self._buffer[:prefix_end]
-            decoded_parts.append(self._decode_bytes(prefix, utf16le=utf16le))
-
-        # 收尾: 剩下认不出编码的零头按 utf-8 尽力解出, 不丢字节
-        if final and self._buffer:
-            raw = bytes(self._buffer)
-            self._buffer.clear()
-            decoded_parts.append(self._decode_bytes(raw))
-
-        return "".join(decoded_parts)
-
-
-
 
 
 
@@ -225,7 +91,7 @@ class OutputLogWidget(QWidget):
         self._is_last_line_replaceable = False
         # ANSI 转义序列的正则表达式
         self._ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
-        self._stream_decoders: dict[tuple[str, str], _OutputStreamDecoder] = {}
+        self._stream_decoders: dict[tuple[str, str], OutputStreamDecoder] = {}
         self._text_buffers: dict[tuple[str, str], str] = {}
         # runner_id -> _RunnerFileLog：当前带文件日志的 runner 及其文件句柄
         self._runner_file_logs: dict[str, _RunnerFileLog] = {}
@@ -584,7 +450,7 @@ class OutputLogWidget(QWidget):
             return
 
         key = (runner_id, stream)
-        decoder = self._stream_decoders.setdefault(key, _OutputStreamDecoder())
+        decoder = self._stream_decoders.setdefault(key, OutputStreamDecoder())
         text = decoder.feed(payload)
         if text:
             self._process_text_buffer(key, text)
