@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import os
@@ -108,11 +109,29 @@ def copy_root():
     
     # /install
     copy_to_release(PathManage.ROOT_DIR / "install")
-    # readme
-    copy_to_release(PathManage.ROOT_DIR / "README.md")
-    copy_to_release(PathManage.ROOT_DIR / "README_zh_cn.md")
     # license
     copy_to_release(PathManage.ROOT_DIR / "LICENSE")
+    # readme
+    copy_readme()
+
+
+
+
+# readme 在 release 里位于 src/resources/doc/
+# 链接里的 `src/resources/` 前缀要改成相对 doc 的 `../`
+README_LINK_PATTERNS = (
+    (r"(?<=\]\()src/resources/", "../"),
+    (r'(?<=src=")src/resources/', "../"),
+)
+
+def copy_readme():
+    doc_dir = RELEASE_DIR / "src" / "resources" / "doc"
+    doc_dir.mkdir(parents=True, exist_ok=True)
+    for file_name in ("README.md", "README_zh_cn.md"):
+        text = (PathManage.ROOT_DIR / file_name).read_text(encoding="utf-8")
+        for pattern, replacement in README_LINK_PATTERNS:
+            text = re.sub(pattern, replacement, text)
+        (doc_dir / file_name).write_text(text, encoding="utf-8", newline="")
 
 
 
