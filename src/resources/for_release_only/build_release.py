@@ -66,13 +66,13 @@ def copy_app_resources():
     # 复制 pip.ini 到 python 目录
     pip_ini_path = FOR_RELEASE_ONLY_DIR / "python_portable" / "pip.ini"
     copy_to_release(pip_ini_path, python_target_path / "pip.ini")
-    # 更新 pip
+    # 更新 pip & wheel
     python_exe = python_target_path / "python.exe"
     result = subprocess.run([str(python_exe), "-m", "pip", "install",
-                             "--upgrade", "pip", "--no-warn-script-location",
+                             "--upgrade", "pip", "wheel", "--no-warn-script-location",
                              "-i", "https://pypi.tuna.tsinghua.edu.cn/simple"])
     if result.returncode != 0:
-        raise RuntimeError(f"更新 pip 失败: {result.stderr}")
+        raise RuntimeError(f"更新 pip & wheel 失败: {result.stderr}")
     # 删除 pip 缓存
     pip_cache_dir = python_target_path / "pip-cache"
     if pip_cache_dir.is_dir():
