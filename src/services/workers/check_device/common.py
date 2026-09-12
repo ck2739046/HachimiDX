@@ -5,6 +5,7 @@ import sys
 
 import numpy as np
 
+from src.core.tools import find_native_message
 from src.services import PathManage
 
 
@@ -59,8 +60,8 @@ def test_onnx_models(
                 raise FileNotFoundError(TEST_FP16_ONNX_PATH)
             _run_onnx_model(ort, TEST_FP16_ONNX_PATH, providers, require_provider)
             return True, None
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"FP16 model test failed: {find_native_message(e) or repr(e)}")
 
     if not fp32_supported:
         return None, "FP32 is not supported"
@@ -71,7 +72,7 @@ def test_onnx_models(
         _run_onnx_model(ort, TEST_FP32_ONNX_PATH, providers, require_provider)
         return False, None
     except Exception as e:
-        return None, f"FP32 model test failed: {e!r}"
+        return None, f"FP32 model test failed: {find_native_message(e) or repr(e)}"
 
 
 def print_device_results(title: str, devices: list[DeviceResult]) -> None:

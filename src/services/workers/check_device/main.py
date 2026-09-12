@@ -20,6 +20,8 @@ if root not in sys.path:
     sys.path.insert(0, root)
 
 
+from src.core.tools import redirect_native_stderr
+
 from src.services.workers.check_device.check_onnx_cpu import check as check_onnx_cpu
 from src.services.workers.check_device.check_onnx_cuda import check as check_onnx_cuda
 from src.services.workers.check_device.check_onnx_dml import check as check_onnx_dml
@@ -70,9 +72,16 @@ def main(runtime: str) -> bool:
 
 if __name__ == "__main__":
 
-    if len(sys.argv) <= 2:
-        print("No runtime argument provided. Exiting.")
-        sys.exit(1)
+    # 探测 ONNX 设备时会真实创建 session, ORT 原生日志走 stderr。
+    # 转发到 stdout 并加前缀, 免得原生日志的 \r\n 行尾被日志组件当成进度行。
+    native_stderr = redirect_native_stderr("check_device")
 
-    result = main(sys.argv[2])
-    sys.exit(0 if result else 1)
+    try:
+        if len(sys.argv) <= 2:
+            print("No runtime argument provided. Exiting.")
+            sys.exit(1)
+
+        result = main(sys.argv[2])
+        sys.exit(0 if result else 1)
+    finally:
+        native_stderr.close()
