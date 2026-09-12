@@ -25,6 +25,7 @@ _LAZY_EXPORTS: dict[str, str] = {
     "show_notify_dialog": ".popup_dialog",
     # native_stream.py
     "OutputStreamDecoder": ".native_stream",
+    "strip_ansi": ".native_stream",
     "redirect_native_stderr": ".native_stream",
     "describe_exception": ".native_stream",
     "find_native_message": ".native_stream",

@@ -26,6 +26,11 @@ _READ_CHUNK_BYTES = 65536
 _ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
 
+def strip_ansi(text: str) -> str:
+    """剥离 ANSI 转义序列, 全项目唯一一份实现"""
+    return _ANSI_ESCAPE.sub("", text)
+
+
 
 
 class OutputStreamDecoder:
@@ -286,7 +291,8 @@ class NativeStderrRedirect:
     @staticmethod
     def _emit(text: str, prefix: str) -> None:
         for line in text.splitlines():
-            line = _ANSI_ESCAPE.sub("", line).strip()
+            # 先剥颜色码, 免得只剩颜色码的行变成一个空的前缀行
+            line = strip_ansi(line).strip()
             if line:
                 print(f"{prefix}{line}", file=sys.stdout, flush=True)
 

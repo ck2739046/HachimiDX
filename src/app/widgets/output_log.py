@@ -1,5 +1,4 @@
 import os
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TextIO
@@ -7,7 +6,7 @@ from typing import TextIO
 from PyQt6.QtGui import QTextCursor
 from PyQt6.QtWidgets import QTextEdit, QVBoxLayout, QWidget
 
-from src.core.tools import OutputStreamDecoder
+from src.core.tools import OutputStreamDecoder, strip_ansi
 
 from ..ui_style import UI_Style
 
@@ -89,8 +88,6 @@ class OutputLogWidget(QWidget):
         self.max_output_lines = 4000
         # 标记最后一行是否可被替换 (用于处理 \r)
         self._is_last_line_replaceable = False
-        # ANSI 转义序列的正则表达式
-        self._ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
         self._stream_decoders: dict[tuple[str, str], OutputStreamDecoder] = {}
         self._text_buffers: dict[tuple[str, str], str] = {}
         # runner_id -> _RunnerFileLog：当前带文件日志的 runner 及其文件句柄
@@ -484,16 +481,10 @@ class OutputLogWidget(QWidget):
             buffered_text = self._text_buffers.pop(key, "")
             if buffered_text.strip():
                 self._append_output(
-                    self._strip_ansi(buffered_text),
+                    strip_ansi(buffered_text),
                     replace_last=False,
                     runner_id=runner_id,
                 )
-
-
-
-    def _strip_ansi(self, text: str) -> str:
-        """移除 ANSI 转义序列"""
-        return self._ansi_escape.sub('', text)
 
 
 
@@ -530,7 +521,7 @@ class OutputLogWidget(QWidget):
                     if len(parts) > 1:
                         # 先用倒数第二个部分更新进度行（如果存在）
                         if len(parts) >= 2 and parts[-2].strip():
-                            clean_line = self._strip_ansi(parts[-2])
+                            clean_line = strip_ansi(parts[-2])
                             self._append_output(
                                 clean_line,
                                 replace_last=True,
@@ -539,7 +530,7 @@ class OutputLogWidget(QWidget):
                     
                     # 然后追加最终文本作为新行（如果非空）
                     if final_text.strip():
-                        clean_line = self._strip_ansi(final_text)
+                        clean_line = strip_ansi(final_text)
                         self._append_output(
                             clean_line,
                             replace_last=False,
@@ -548,7 +539,7 @@ class OutputLogWidget(QWidget):
                     else:
                         # 只有当进度内容未被过滤时，才发送空行以固定进度行
                         if len(parts) >= 2:
-                            progress_clean = self._strip_ansi(parts[-2])
+                            progress_clean = strip_ansi(parts[-2])
                             if not self._should_ignore_line(progress_clean):
                                 self._append_output(
                                     "",
@@ -564,7 +555,7 @@ class OutputLogWidget(QWidget):
                 else:
                     # 没有 \\r，直接追加
                     if line.strip():
-                        clean_line = self._strip_ansi(line)
+                        clean_line = strip_ansi(line)
                         self._append_output(
                             clean_line,
                             replace_last=False,
@@ -580,7 +571,7 @@ class OutputLogWidget(QWidget):
                     # 取倒数第二个部分（这是最新的完整进度）
                     progress_text = parts[-2]
                     if progress_text.strip():
-                        clean_line = self._strip_ansi(progress_text)
+                        clean_line = strip_ansi(progress_text)
                         self._append_output(
                             clean_line,
                             replace_last=True,
