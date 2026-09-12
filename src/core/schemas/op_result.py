@@ -5,6 +5,8 @@ from pathlib import Path
 from dataclasses import dataclass
 from typing import Any, Optional, TypeVar, Generic
 
+from src.core.tools import rewrite_native_error_line
+
 T = TypeVar('T') # 带泛型是为了让 data 有类型提示
 
 
@@ -50,25 +52,32 @@ def _get_caller_context() -> str:
 
 
 
+def _format_traceback(exc_type, exc_value, exc_tb) -> str:
+    """
+    格式化 traceback
+
+    onnxruntime 的本地化错误会被 pybind11 按 utf-8 强解失败, 只剩一个不含原因的解码
+    错误; 真实字节在异常对象里, 交给 rewrite_native_error_line 还原并替换那一行。
+    """
+    text = "".join(
+        traceback.format_exception(exc_type, exc_value, exc_tb)
+    ).rstrip()
+    return rewrite_native_error_line(text, exc_value)
+
+
 def _normalize_error_raw(error_raw: Any) -> Any:
     """
     将 exception traceback 转为字符串
     """
     if isinstance(error_raw, BaseException):
-        return "".join(
-            traceback.format_exception(
-                type(error_raw),
-                error_raw,
-                error_raw.__traceback__,
-            )
-        ).rstrip()
+        return _format_traceback(
+            type(error_raw), error_raw, error_raw.__traceback__
+        )
 
     if error_raw is None:
         exc_type, exc_value, exc_tb = sys.exc_info()
         if exc_value is not None:
-            return "".join(
-                traceback.format_exception(exc_type, exc_value, exc_tb)
-            ).rstrip()
+            return _format_traceback(exc_type, exc_value, exc_tb)
 
     return error_raw
 
