@@ -9,8 +9,7 @@ from .schemas.auto_rechart_config import AutoRechartConfig_Definitions as AC_Def
 from .schemas.auto_rechart_config import AutoRechartConfig_Definition
 from .schemas.op_result import OpResult, ok, err
 from .schemas.settings_config import SettingsConfig_Definitions as SC_Defs
-from .tools.media_ffprobe_inspect import FFprobeInspect
-from .tools.popup_dialog import show_confirm_dialog
+from .tools import FFprobeInspect, show_confirm_dialog
 from .build_worker_cmd import build_cmd_head_python_exe
 
 

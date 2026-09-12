@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import json
 
 from src.core.schemas.model_inference_config import get_model_backend_id, get_model_group
-from src.services.model_inference_manage import ModelInferenceManage
+from src.services import ModelInferenceManage
 
 
 @dataclass(frozen=True, slots=True)

@@ -4,7 +4,7 @@ import cv2
 from typing import List, Tuple, Dict, Any
 
 from ..detect.track import _load_track_results
-from ...tools.media_ffprobe_inspect import FFprobeInspect
+from ...tools import FFprobeInspect
 from ...schemas.op_result import print_op_result
 
 

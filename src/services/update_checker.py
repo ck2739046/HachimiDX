@@ -14,7 +14,7 @@ from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkReques
 from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
 from src.core.schemas.op_result import OpResult, ok, err
 from .settings_manage import SettingsManage
-from src.core.tools.popup_dialog import show_confirm_dialog, show_notify_dialog
+from src.core.tools import show_confirm_dialog, show_notify_dialog
 
 # Transfer timeout: abort if no data for 10 seconds.
 REQUEST_TIMEOUT_MS = 10_000

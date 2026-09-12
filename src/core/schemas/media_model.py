@@ -3,7 +3,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field, FilePath, field_validator, model_validator
 from .media_config import MediaType
 from .media_config import MediaConfig_Definitions as M_Defs
-from ..tools.popup_dialog import show_confirm_dialog
+from ..tools import show_confirm_dialog
 from src.services import SettingsManage
 from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
 

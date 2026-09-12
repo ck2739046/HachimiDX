@@ -16,7 +16,7 @@ from .settings_page_sub_model_infer import (
 from ..widgets import *
 from ..ui_style import UI_Style
 from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
-from src.services.model_inference_manage import ModelInferenceManage
+from src.services import ModelInferenceManage
 from src.core.schemas.op_result import print_op_result, ok, err
 from src.core.tools import show_confirm_dialog, show_notify_dialog
 from src.core.build_worker_cmd import build_cmd_head_python_exe

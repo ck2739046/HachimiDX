@@ -3,7 +3,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Literal
 from .op_result import OpResult, ok, err
-from ..tools.validate_windows_filename import validate_windows_filename
+from ..tools import validate_windows_filename
 
 
 class MediaType(str, Enum):

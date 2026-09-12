@@ -5,7 +5,7 @@ import sys
 
 import numpy as np
 
-from src.services.path_manage import PathManage
+from src.services import PathManage
 
 
 TEST_FP16_ONNX_PATH = PathManage.CHECK_DEVICE_TEST_FP16_ONNX_PATH

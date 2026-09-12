@@ -1,7 +1,7 @@
 import numpy as np
 import gc
 
-from src.services.model_inference_manage import ModelInferenceManage
+from src.services import ModelInferenceManage
 
 
 SEEK_THRESHOLD = 200
