@@ -5,6 +5,7 @@ from queue import Full
 from ...schemas.op_result import OpResult, ok, err
 from .note_definition import *
 from ..tool import release_ncnn_vulkan, install_ort_cpu_thread_tuning
+from src.core.tools import describe_exception, redirect_native_stderr
 
 
 
@@ -33,7 +34,13 @@ def inference_worker_main(model_path, task_name, inference_device,
 
     model = None
     results = None
+    native_stderr = None
     try:
+        # detect/obb 是两个兄弟进程, 必须各持一条私有管道:
+        # 若共用父进程转发用的那条管道, 两边并发的 write 会互相插入, 字节序当场被破坏
+        # (父进程即使已重定向, 也不会替子进程拆分)
+        native_stderr = redirect_native_stderr(task_name)
+
         # 仅 ONNX CPU 后端关闭线程空转
         if model_backend == "ONNX CPU":
             install_ort_cpu_thread_tuning()
@@ -102,13 +109,16 @@ def inference_worker_main(model_path, task_name, inference_device,
     except BaseException as e:  # 使用 base exception 捕获所有异常
         try:
             error_msg = f"{task_name} model inferencer failed to process frame {last_frame_idx}"
-            control_queue.put(err(error_msg, error_raw=e))
+            control_queue.put(err(error_msg, error_raw=describe_exception(e)))
         except Exception:
             pass
         raise  # 再次 raise 保持向上传播
     finally:
         results = None
         model = None
+        # 子进程可能在正常结束或 terminate 前走到这里, 都要恢复 fd 2 并收尾转发
+        if native_stderr is not None:
+            native_stderr.close()
         release_ncnn_vulkan(inference_device)
 
 

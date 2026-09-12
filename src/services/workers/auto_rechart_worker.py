@@ -37,6 +37,7 @@ from src.core.schemas.media_config import MediaType
 from src.core.schemas.op_result import print_op_result
 from src.services import PathManage
 from src.main import VERSION
+from src.core.tools import redirect_native_stderr
 
 
 
@@ -168,6 +169,14 @@ def main(args: list[str]) -> bool:
 
 
 if __name__ == "__main__":
+    
+    # 各个模型推理都在本进程内执行, 原生日志走同一条 stderr。
+    # 分成私有管道转发, 否则原生日志的 \r\n 行尾会被日志组件当成进度行, 覆盖掉进度显示。
+    native_stderr = redirect_native_stderr("auto_rechart")
+
     # 跳过第一个参数（脚本路径）和第二个参数（root路径）
     result = main(sys.argv[2:])
+
+    # 关掉写端让读线程收到 EOF, 把管道里剩余的原生日志吐完
+    native_stderr.close()
     sys.exit(0 if result else 1)
