@@ -31,8 +31,14 @@ EXIT_LAUNCH_HACHIMIDX = 273
 
 def main():
 
+    # 日志位置由 install.bat 以参数传入
+    if len(sys.argv) < 2:
+        raise RuntimeError(
+            "Lack of installation log path parameter.\n缺少安装日志路径参数。"
+        )
+
     # 必须在任何输出之前接手控制台，日志靠跟随屏幕缓冲区产生
-    console_journal.start()
+    console_journal.start(Path(sys.argv[1]))
     print(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S") + "\n")
 
     # generate by https://patorjk.com/software/taag using font "Terrace"

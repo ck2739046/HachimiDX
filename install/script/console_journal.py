@@ -5,9 +5,6 @@ import os
 import threading
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
-LOG_FILE = ROOT / "data" / "logs" / "install_log.txt"
-
 _STD_OUTPUT_HANDLE = -11
 _STD_INPUT_HANDLE = -10
 
@@ -48,7 +45,7 @@ class _SCREEN_BUFFER_INFO(ctypes.Structure):
 class ConsoleJournal:
     """按行跟随真实控制台的屏幕缓冲区写日志。"""
 
-    def __init__(self, log_path: Path = LOG_FILE) -> None:
+    def __init__(self, log_path: Path) -> None:
         self._log_path = log_path
         self._k32 = None
         self._handle = None
@@ -212,11 +209,13 @@ class ConsoleJournal:
                 return
 
 
-_journal = ConsoleJournal()
+_journal = None
 
 
-def start() -> None:
+def start(log_path: Path) -> None:
     """开始记录安装日志。"""
+    global _journal
+    _journal = ConsoleJournal(log_path)
     _journal.start()
 
 
