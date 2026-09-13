@@ -292,15 +292,22 @@ class NativeStderrRedirect:
         return self
 
     @staticmethod
-    def _emit(text: str, prefix: str, mid_line: bool = False) -> bool:
+    def _emit(text: str, prefix: str, pending_cr: bool = False) -> bool:
         """
         转发一批原生输出, 保留 \\r 的原地刷新语义
 
         日志组件按 \\r 做「替换最后一行」, 所以落单的 \\r 必须原样传下去:
         一旦在这里被当成换行, ffmpeg -stats 这类进度行就退化成堆积的重复行。
         \\r\\n 仍按普通换行处理, 否则正常的原生日志行会互相覆盖。
-        返回写完后光标是否停在行中间(最后写出的是落单的 \\r)。
+
+        结尾的落单 \\r 先不写出, 留到下一批再定夺: 原生库一次日志分多次 write,
+        \\r 与 \\n 可能分属两批, 立刻写出会让那条普通行被下游当成进度更新, 顶掉上一行。
+        返回是否留着这样一个待定夺的 \\r。
         """
+        if pending_cr and not text.startswith("\n"):
+            # 上一批的 \\r 后面不是 \\n, 说明它确实是原地刷新, 补回去
+            text = "\r" + text
+
         pieces: list[str] = []
         segments = _LINE_BREAK.split(text)
         terminators = _LINE_BREAK.findall(text)
@@ -308,22 +315,26 @@ class NativeStderrRedirect:
         for segment, terminator in zip(segments, terminators + [""]):
             # 先剥颜色码, 免得只剩颜色码的行变成一个空的前缀行
             new_line = strip_ansi(segment).strip()
-            if not new_line:
-                continue
-            pieces.append(f"{prefix}{new_line}")
-            pieces.append("\r" if terminator == "\r" else "\n")
-        if not pieces:
-            return mid_line
-        # 整批一次写出, 避免中途被其它线程/进程的 stderr 写入造成行交错
-        sys.stdout.write("".join(pieces))
-        sys.stdout.flush()
-        return pieces[-1] == "\r"
+            if new_line:
+                pieces.append(f"{prefix}{new_line}")
+            # 终止符不能跟着空内容一起丢: 被切开的 \\r\\n 全靠它才能合回普通换行
+            if terminator:
+                pieces.append("\r" if terminator == "\r" else "\n")
+
+        pending_cr = pieces[-1] == "\r" if pieces else pending_cr
+        if pending_cr:
+            pieces.pop()
+        if pieces:
+            # 整批一次写出, 避免中途被其它线程/进程的写入造成行交错
+            sys.stdout.write("".join(pieces))
+            sys.stdout.flush()
+        return pending_cr
 
     @staticmethod
     def _pump(read_fd: int, tag: str) -> None:
         decoder = OutputStreamDecoder()
         prefix = f"[{tag}] "
-        mid_line = False
+        pending_cr = False
         try:
             while True:
                 # 读线程绝不能死: 一旦退出, 管道写满会让原生库永久阻塞在 write 上
@@ -337,10 +348,12 @@ class NativeStderrRedirect:
                     text = decoder.feed(chunk)
                 except BaseException:
                     continue
-                mid_line = NativeStderrRedirect._emit(text, prefix, mid_line)
-            mid_line = NativeStderrRedirect._emit(decoder.feed(b"", final=True), prefix, mid_line)
-            if mid_line:
-                # 流停在刷新中途(进程被杀), 补个换行, 免得那行被后续日志盖掉
+                pending_cr = NativeStderrRedirect._emit(text, prefix, pending_cr)
+            pending_cr = NativeStderrRedirect._emit(
+                decoder.feed(b"", final=True), prefix, pending_cr
+            )
+            if pending_cr:
+                # 流停在刷新中途(进程被杀), 补个换行把那一行定下来
                 sys.stdout.write("\n")
                 sys.stdout.flush()
         except BaseException:

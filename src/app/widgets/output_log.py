@@ -500,9 +500,13 @@ class OutputLogWidget(QWidget):
 
 
     def _process_text_buffer(self, key: tuple[str, str], text: str) -> None:
-        """处理文本缓冲区中的 \\r 和 \\n"""
-        # 将新文本添加到缓冲区
-        text_buffer = self._text_buffers.get(key, "") + text
+        """处理文本缓冲区中的 \\r 和 \\n
+
+        '\\r\\n' 按普通换行处理(子进程 stdio 默认的行尾就是它, 不能当进度标记);
+        只有落单的 '\\r' 才是原地刷新同一行的进度更新.
+        """
+        # 先累积再归一, 被分片投递撕裂的 '\r\n' 也能在这里合回普通换行
+        text_buffer = (self._text_buffers.get(key, "") + text).replace("\r\n", "\n")
         
         # 处理缓冲区中的文本
         while True:
@@ -513,45 +517,16 @@ class OutputLogWidget(QWidget):
                 
                 # 处理 \\r（回车符）
                 if '\r' in line:
-                    # 有多个 \\r 分隔的部分，只保留最后一段
-                    parts = line.split('\r')
-                    final_text = parts[-1]
-                    
-                    # 如果有多个部分，说明之前有进度更新
-                    if len(parts) > 1:
-                        # 先用倒数第二个部分更新进度行（如果存在）
-                        if len(parts) >= 2 and parts[-2].strip():
-                            clean_line = strip_ansi(parts[-2])
-                            self._append_output(
-                                clean_line,
-                                replace_last=True,
-                                runner_id=key[0],
-                            )
-                    
-                    # 然后追加最终文本作为新行（如果非空）
-                    if final_text.strip():
-                        clean_line = strip_ansi(final_text)
+                    # 一段 \\r 只把光标拉回行首, 屏幕上始终是同一行: 只有最后一段是该行的
+                    # 最终内容, 前面那些段是被反复覆盖掉的中间态, 不该各自成行
+                    segments = line.split('\r')
+                    content = segments[-1] if segments[-1].strip() else segments[-2]
+                    if content.strip():
                         self._append_output(
-                            clean_line,
-                            replace_last=False,
+                            strip_ansi(content),
+                            replace_last=True,
                             runner_id=key[0],
                         )
-                    else:
-                        # 只有当进度内容未被过滤时，才发送空行以固定进度行
-                        if len(parts) >= 2:
-                            progress_clean = strip_ansi(parts[-2])
-                            if not self._should_ignore_line(progress_clean):
-                                self._append_output(
-                                    "",
-                                    replace_last=False,
-                                    runner_id=key[0],
-                                )
-                        else:
-                            self._append_output(
-                                "",
-                                replace_last=False,
-                                runner_id=key[0],
-                            )
                 else:
                     # 没有 \\r，直接追加
                     if line.strip():
