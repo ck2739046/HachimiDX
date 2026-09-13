@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TextIO
 
-from PyQt6.QtGui import QTextCursor
+from PyQt6.QtGui import QTextBlockFormat, QTextCursor
 from PyQt6.QtWidgets import QTextEdit, QVBoxLayout, QWidget
 
 from src.core.tools import OutputStreamDecoder, strip_ansi
@@ -45,6 +45,8 @@ class OutputLogWidget(QWidget):
     - Handles carriage-return (\r) progress updates by replacing the last line.
       A trailing '\r' of a line (i.e. CRLF) is a plain newline instead; the two
       are told apart by `_is_line_redrawn` since they look identical byte-wise.
+    - Paragraph spacing between log lines is `_output_line_spacing`; lines that a
+      single long line wraps into keep the font's default spacing.
     - Strips ANSI escape sequences.
     """
 
@@ -146,6 +148,32 @@ class OutputLogWidget(QWidget):
 
         layout.addWidget(self.text_edit)
 
+        # 段落间距 = 字体高度的 0.7 倍
+        self._output_line_spacing = round(self.text_edit.fontMetrics().height() * 0.7)
+
+
+
+    def _append_paragraph(self, text: str) -> None:
+        """追加一条逻辑行, 并给行与行之间留出间距.
+
+        间距只加在逻辑行之间: 一条长行自动折行出来的视觉行仍用字体默认行距,
+        所以用 QTextBlockFormat 的 topMargin, 而不是 line-height(那会把折行也拉开).
+
+        用 insertText 而不是 append(): append 走 Qt::AutoText 的富文本启发式,
+        '<b>tag</b>' 这类内容会被当 HTML 解析, 标签连同其中的内容一起消失.
+        """
+        document = self.text_edit.document()
+        cursor = QTextCursor(document)
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        # 空文档只有一个空块, 直接写进去; 否则另起一块
+        if document.blockCount() > 1 or not document.isEmpty():
+            cursor.insertBlock()
+        cursor.insertText(text)
+
+        block_format = QTextBlockFormat()
+        block_format.setTopMargin(self._output_line_spacing)
+        QTextCursor(document.lastBlock()).setBlockFormat(block_format)
+
 
 
     def _limit_output_lines(self) -> None:
@@ -203,12 +231,12 @@ class OutputLogWidget(QWidget):
                 # 不要设置光标，避免触发自动滚动
             else:
                 # 如果上一行不是进度行，则追加新行
-                self.text_edit.append(text)
+                self._append_paragraph(text)
             # 标记这一行是进度行
             self._is_last_line_replaceable = True
         else:
             # 追加新行
-            self.text_edit.append(text)
+            self._append_paragraph(text)
             # 标记这一行不是进度行
             self._is_last_line_replaceable = False
 
