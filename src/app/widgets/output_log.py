@@ -43,6 +43,8 @@ class OutputLogWidget(QWidget):
 
     Notes:
     - Handles carriage-return (\r) progress updates by replacing the last line.
+      A trailing '\r' of a line (i.e. CRLF) is a plain newline instead; the two
+      are told apart by `_is_line_redrawn` since they look identical byte-wise.
     - Strips ANSI escape sequences.
     """
 
@@ -88,6 +90,8 @@ class OutputLogWidget(QWidget):
         self.max_output_lines = 4000
         # 标记最后一行是否可被替换 (用于处理 \r)
         self._is_last_line_replaceable = False
+        # 当前这条逻辑行已经被 '\r' 重绘过: 它的收尾渲染与普通行同形, 靠它区分追加/替换
+        self._is_line_redrawn = False
         self._stream_decoders: dict[tuple[str, str], OutputStreamDecoder] = {}
         self._text_buffers: dict[tuple[str, str], str] = {}
         # runner_id -> _RunnerFileLog：当前带文件日志的 runner 及其文件句柄
@@ -369,6 +373,7 @@ class OutputLogWidget(QWidget):
         self._stream_decoders.clear()
         self._text_buffers.clear()
         self._is_last_line_replaceable = False
+        self._is_line_redrawn = False
 
 
     def clear(self) -> None:
@@ -485,6 +490,8 @@ class OutputLogWidget(QWidget):
                     replace_last=False,
                     runner_id=runner_id,
                 )
+            # 半条记录到此为止, 新的一行从零开始
+            self._end_current_line(runner_id)
 
 
 
@@ -499,22 +506,36 @@ class OutputLogWidget(QWidget):
 
 
 
+    def _end_current_line(self, runner_id: str | None) -> None:
+        """一条逻辑行已被换行收尾: 光标落到新行, 它不能再被后续 '\\r' 替换"""
+        self._is_last_line_replaceable = False
+        self._is_line_redrawn = False
+        state = self._get_runner_file_log(self._resolve_append_runner_id(runner_id))
+        if state is not None:
+            state.is_last_line_replaceable = False
+
+
     def _process_text_buffer(self, key: tuple[str, str], text: str) -> None:
         """处理文本缓冲区中的 \\r 和 \\n
 
-        '\\r\\n' 按普通换行处理(子进程 stdio 默认的行尾就是它, 不能当进度标记);
-        只有落单的 '\\r' 才是原地刷新同一行的进度更新.
+        行尾那一个 '\\r' 是子进程 stdio 把 '\\n' 翻成的 CRLF, 按普通换行处理
+        (子进程默认的行尾就是它, 不能当进度标记); 行内其余的 '\\r' 才是原地刷新同一行的进度更新.
+
+        进度行的收尾渲染在字节上与普通行完全同形(都是 `内容\\r\\n`), 只能靠 `_is_line_redrawn`
+        区分: 已重绘过的行收尾时要替换, 否则本次输出会与上一次渲染堆成两行.
         """
-        # 先累积再归一, 被分片投递撕裂的 '\r\n' 也能在这里合回普通换行
-        text_buffer = (self._text_buffers.get(key, "") + text).replace("\r\n", "\n")
-        
+        text_buffer = self._text_buffers.get(key, "") + text
+
         # 处理缓冲区中的文本
         while True:
             # 检查是否有换行符
             if '\n' in text_buffer:
                 # 有换行符，处理到换行符为止的内容
                 line, text_buffer = text_buffer.split('\n', 1)
-                
+                if line.endswith('\r'):
+                    # 只剥 CRLF 自带的那个 '\r'
+                    line = line[:-1]
+
                 # 处理 \\r（回车符）
                 if '\r' in line:
                     # 一段 \\r 只把光标拉回行首, 屏幕上始终是同一行: 只有最后一段是该行的
@@ -527,16 +548,20 @@ class OutputLogWidget(QWidget):
                             replace_last=True,
                             runner_id=key[0],
                         )
+                    self._end_current_line(key[0])
+                elif line.strip():
+                    # 没有 \\r: 重绘标记为真说明这是上一条进度行的收尾渲染
+                    self._append_output(
+                        strip_ansi(line),
+                        replace_last=self._is_line_redrawn,
+                        runner_id=key[0],
+                    )
+                    self._end_current_line(key[0])
                 else:
-                    # 没有 \\r，直接追加
-                    if line.strip():
-                        clean_line = strip_ansi(line)
-                        self._append_output(
-                            clean_line,
-                            replace_last=False,
-                            runner_id=key[0],
-                        )
-                        
+                    # 空行: 标记为真说明上一批那个悬空的 '\\r' 只是被撕裂 CRLF 的前半,
+                    # 那一行已经显示好了, 这里不能再输出空行
+                    self._end_current_line(key[0])
+
             elif '\r' in text_buffer:
                 # 有回车符但没有换行符，说明是进度更新
                 parts = text_buffer.split('\r')
@@ -552,6 +577,8 @@ class OutputLogWidget(QWidget):
                             replace_last=True,
                             runner_id=key[0],
                         )
+                # 无论是否有内容可显示, 这一行都已经进入重绘状态
+                self._is_line_redrawn = True
                 # 保留最后一部分在缓冲区
                 text_buffer = parts[-1]
                 break
