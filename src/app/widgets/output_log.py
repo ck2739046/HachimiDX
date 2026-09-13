@@ -90,10 +90,12 @@ class OutputLogWidget(QWidget):
 
         # 保存的最大行数
         self.max_output_lines = 4000
-        # 标记最后一行是否可被替换 (用于处理 \r)
+        # 标记最后一行是否可被替换 (用于处理 \r); 屏幕状态, 清空时要复位
         self._is_last_line_replaceable = False
         # 当前这条逻辑行已经被 '\r' 重绘过: 它的收尾渲染与普通行同形, 靠它区分追加/替换
+        # 流状态 (只由字节流决定), 清空输出不得复位, 否则会把 log 里的同一行写成两行
         self._is_line_redrawn = False
+        # 流状态: 未终结的原始字节 / 最后一个 '\r' 之后尚未成行的文本, 清空输出同样不得动
         self._stream_decoders: dict[tuple[str, str], OutputStreamDecoder] = {}
         self._text_buffers: dict[tuple[str, str], str] = {}
         # runner_id -> _RunnerFileLog：当前带文件日志的 runner 及其文件句柄
@@ -396,12 +398,15 @@ class OutputLogWidget(QWidget):
 
 
     def _clear_output_state(self) -> None:
-        """只清空 GUI 显示与解码/文本缓冲，不改动已落盘的文件日志."""
+        """只清空屏幕显示.
+
+        解码缓冲 / 行缓冲 / 重绘标记是「已到达但还没渲染」的输入, 不是屏幕历史:
+        清掉它们会改到落盘日志 (进度行的原地覆盖退化成两行 / 尚未成行的文本丢失 /
+        多字节字符被从中间截断), 所以这里一个都不复位.
+        """
         self.text_edit.clear()
-        self._stream_decoders.clear()
-        self._text_buffers.clear()
+        # 屏幕已空, 下一条进度行不能去找一条并不存在的上一行来覆盖
         self._is_last_line_replaceable = False
-        self._is_line_redrawn = False
 
 
     def clear(self) -> None:
