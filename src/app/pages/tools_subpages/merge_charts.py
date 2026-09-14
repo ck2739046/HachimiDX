@@ -177,7 +177,7 @@ class MergeChartsPage(BaseOutputPage):
             self._parsed_files.append(parsed)
             self._selected_paths.append(path)
 
-        for path in collection.files:
+        for path in self._selected_paths:
             self._selected_files_list.addItem(str(path))
         for path, reason in ignored:
             if reason in {"unresolved", "not_txt", "maidata_missing", "invalid_path"}:

@@ -20,6 +20,7 @@ class SplitDropLineEdit(QWidget):
     def __init__(self, items: list[str] | None = None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._items = list(items or [])
+        self._model = QStringListModel(self._items, self)
         self._popup = None
         self._hover_left = False
         self._hover_right = False
@@ -56,6 +57,7 @@ class SplitDropLineEdit(QWidget):
 
     def set_items(self, items: list[str]) -> None:
         self._items = list(items)
+        self._model.setStringList(self._items)
         self.hidePopup()
 
     def items(self) -> list[str]:
@@ -137,10 +139,9 @@ class SplitDropLineEdit(QWidget):
         painter.drawLine(int(center_x + 4), int(center_y - 2), int(center_x), int(center_y + 2))
 
     def showPopup(self) -> None:
-        model = QStringListModel(self._items, self)
         open_combo_popup(
             self,
-            model=model,
+            model=self._model,
             width=self.width(),
             on_item_clicked=self._on_item_clicked,
         )

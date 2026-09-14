@@ -50,6 +50,7 @@ def parse_chart_file(path: str | Path) -> ParsedChartFile:
     lines = _read_utf8(source_path).splitlines(keepends=True)
     parameters: dict[str, list[str]] = {}
     chart_ranges: list[tuple[int, str, int, int]] = []
+    seen_levels: set[int] = set()
 
     current_level: int | None = None
     current_inote: str | None = None
@@ -57,8 +58,13 @@ def parse_chart_file(path: str | Path) -> ParsedChartFile:
 
     def finish_chart(end: int) -> None:
         nonlocal current_level, current_inote, current_start
-        if current_level is not None and current_inote is not None:
+        if (
+            current_level is not None
+            and current_inote is not None
+            and current_level not in seen_levels
+        ):
             chart_ranges.append((current_level, current_inote, current_start, end))
+            seen_levels.add(current_level)
         current_level = None
         current_inote = None
 
@@ -72,9 +78,10 @@ def parse_chart_file(path: str | Path) -> ParsedChartFile:
             current_start = index + 1
             continue
 
+        if stripped.startswith("&"):
+            finish_chart(index)
         parameter = _split_parameter(stripped)
         if parameter is not None:
-            finish_chart(index)
             key, value = parameter
             parameters.setdefault(key, []).append(value)
 
