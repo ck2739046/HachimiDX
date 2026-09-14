@@ -184,14 +184,18 @@ class SettingsPage(BaseOutputPage):
         encoder_label = create_label(i18n.t(f"{I18N_Prefix}.ui_ffmpeg_encoder_label"))
         self.ffmpeg_hw_encoder_combo_box = self._create_combo_from_definition(S_Defs.ffmpeg_hw_encoder, length=80)
 
+        auto_detect_label = create_label(i18n.t(f"{I18N_Prefix}.ui_auto_detect_hw_label"))
         self.check_ffmpeg_hw_accel_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_auto_detect_hw_button"))
         self.check_ffmpeg_hw_accel_button.clicked.connect(self.on_check_ffmpeg_hw_accel_clicked)
+        auto_detect_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_auto_detect_hw_help"))
 
         self.create_row(
             encoder_label,
             self.ffmpeg_hw_encoder_combo_box,
 
+            auto_detect_label,
             self.check_ffmpeg_hw_accel_button,
+            auto_detect_help,
             add_stretch=True,
         )
 
