@@ -14,7 +14,7 @@ from .widgets import SquareWidget, SegmentedNavBar, widget_utils
 from .ui_style import UI_Style
 
 from .pages.majdata_page import MajdataPage
-from .pages.media_tools_page import MediaToolsPage
+from .pages.tools_page import ToolsPage
 from .pages.tasks_page import TasksPage
 from .pages.auto_rechart_page import AutoRechartPage
 from .pages.settings_page import SettingsPage
@@ -137,14 +137,14 @@ class RightPanel(QWidget):
         nav_items = [
             i18n.t("app.nav_bar.majdata_label"),
             i18n.t("app.nav_bar.auto_rechart_label"),
-            i18n.t("app.nav_bar.media_tools_label"),
+            i18n.t("app.nav_bar.tools_label"),
             i18n.t("app.nav_bar.tasks_label"),
             i18n.t("app.nav_bar.settings_label"),
         ]
         # nav_tooltips = [
         #     i18n.t("app.nav_bar.majdata_desc"),
         #     i18n.t("app.nav_bar.auto_rechart_desc"),
-        #     i18n.t("app.nav_bar.media_tools_desc"),
+        #     i18n.t("app.nav_bar.tools_desc"),
         #     i18n.t("app.nav_bar.tasks_desc"),
         #     i18n.t("app.nav_bar.settings_desc"),
         # ]
@@ -164,16 +164,16 @@ class RightPanel(QWidget):
         # 1: Auto Rechart
         self.auto_rechart_page = AutoRechartPage()
         self.stack.addWidget(self.auto_rechart_page)
-        # 2: Media Tools
-        self.media_tools_page = MediaToolsPage()
-        self.stack.addWidget(self.media_tools_page)
+        # 2: Tools
+        self.tools_page = ToolsPage()
+        self.stack.addWidget(self.tools_page)
         # 3: Tasks
         self.stack.addWidget(TasksPage())
         # 4: Settings
         self.stack.addWidget(SettingsPage())
 
         # 连接信号：Measure Bpm → Auto Rechart 一键填入
-        self.media_tools_page.request_send_to_auto_rechart.connect(self._on_send_to_auto_rechart)
+        self.tools_page.request_send_to_auto_rechart.connect(self._on_send_to_auto_rechart)
 
         # 连接信号
         self.nav_bar.currentChanged.connect(self.stack.setCurrentIndex)

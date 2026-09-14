@@ -5,14 +5,14 @@ import i18n
 
 from ..ui_style import UI_Style
 from ..widgets import SegmentedNavBar
-from .media_subpages.arcade_timing import ArcadeTimingPage
-from .media_subpages.simply_align import SimplyAlignPage
-from .media_subpages.run_ffmpeg import RunFFmpegPage
-from .media_subpages.measure_bpm import MeasureBpmPage
+from .tools_subpages.arcade_timing import ArcadeTimingPage
+from .tools_subpages.simply_align import SimplyAlignPage
+from .tools_subpages.run_ffmpeg import RunFFmpegPage
+from .tools_subpages.measure_bpm import MeasureBpmPage
 
-class MediaToolsPage(QWidget):
+class ToolsPage(QWidget):
     """
-    Media Tools 主页面
+    Tools 主页面
     包含内部导航栏和子页面 Stack
     """
 

@@ -107,7 +107,7 @@ Code lives in `src/`, organized in three layers. The middle layer drives the cor
 
 - **UI layer (`src/app`)** — GUI built with **PyQt6**
     - `QSharedMemory` single-instance
-    - Feature pages: Majdata editor, auto rechart, task queue, media tools, app settings
+    - Feature pages: Majdata editor, auto rechart, tools, task queue, app settings
     - A shared widget library (`src/app/widgets`) keeps the visual style consistent across pages.
     - Embedded video player that syncs with the chart editor for preview.
     - UI scaling and multi-language (`i18n`, EN/ZH).

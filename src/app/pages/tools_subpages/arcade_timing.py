@@ -18,7 +18,7 @@ from src.services import MediaPipeline, PathManage, process_manager_api
 import i18n
 
 
-I18N_Prefix = "app.media_subpages.arcade_timing"
+I18N_Prefix = "app.tools_subpages.arcade_timing"
 
 
 class ArcadeTimingPage(BaseOutputPage):
@@ -156,7 +156,7 @@ class ArcadeTimingPage(BaseOutputPage):
         self.offset_label = create_label(bold=True)
         self.offset_label.hide()
 
-        self.offset_help_icon = create_help_icon(i18n.t("app.media_subpages.simply_align.ui_offset_help"))
+        self.offset_help_icon = create_help_icon(i18n.t("app.tools_subpages.simply_align.ui_offset_help"))
         self.offset_help_icon.hide()
 
         self.edit_target_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_edit_target_button"))
@@ -422,7 +422,7 @@ class ArcadeTimingPage(BaseOutputPage):
             self._active_media_runner_id = runner_id
             self.output_widget.bind_current_runner_id(runner_id)
 
-            message = i18n.t("app.media_subpages.run_ffmpeg.notice_task_submit_success", task_id=runner_id)
+            message = i18n.t("app.tools_subpages.run_ffmpeg.notice_task_submit_success", task_id=runner_id)
             create_floating_notification(message, self.window())
 
         finally:

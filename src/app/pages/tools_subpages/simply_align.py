@@ -16,8 +16,8 @@ import i18n
 from src.core.schemas.media_config import MediaType
 from src.core.schemas.media_config import MediaConfig_Definitions as M_Defs
 
-I18N_Prefix = "app.media_subpages.arcade_timing"
-I18N_Simply_Align_Prefix = "app.media_subpages.simply_align"
+I18N_Prefix = "app.tools_subpages.arcade_timing"
+I18N_Simply_Align_Prefix = "app.tools_subpages.simply_align"
 
 
 # audio_align_worker 的 stdout 文本契约：
@@ -570,7 +570,7 @@ class SimplyAlignPage(BaseOutputPage):
             self._active_media_runner_id = runner_id
             self.output_widget.bind_current_runner_id(runner_id)
 
-            message = i18n.t("app.media_subpages.run_ffmpeg.notice_task_submit_success", task_id=runner_id)
+            message = i18n.t("app.tools_subpages.run_ffmpeg.notice_task_submit_success", task_id=runner_id)
             create_floating_notification(message, self.window())
 
         finally:

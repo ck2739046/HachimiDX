@@ -56,7 +56,7 @@ class RunFFmpegPage(BaseOutputPage):
 
 
         # 第一/第二行: 输入文件选择与信息显示
-        file_select_divider = create_divider(i18n.t("app.media_subpages.run_ffmpeg.ui_select_file_divider"))
+        file_select_divider = create_divider(i18n.t("app.tools_subpages.run_ffmpeg.ui_select_file_divider"))
         self.content_layout.addWidget(file_select_divider)
         
         self.media_input = MediaInputProbeWidget()
@@ -72,20 +72,20 @@ class RunFFmpegPage(BaseOutputPage):
 
 
         # 第三行: video 参数
-        video_divider = create_divider(i18n.t("app.media_subpages.run_ffmpeg.ui_video_divider"))
+        video_divider = create_divider(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_divider"))
         self.content_layout.addWidget(video_divider)
         # labels
-        video_quality_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_video_quality_label"))
-        video_resolution_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_video_resolution_label"))
-        video_fps_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_video_fps_label"))
-        video_gop_optimize_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_video_gop_optimize_label"))
-        delete_audio_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_delete_audio_label"))
+        video_quality_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_quality_label"))
+        video_resolution_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_resolution_label"))
+        video_fps_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_fps_label"))
+        video_gop_optimize_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_gop_optimize_label"))
+        delete_audio_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_delete_audio_label"))
         # help icons
-        video_quality_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_video_quality_help"))
-        video_resolution_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_video_resolution_help"))
-        video_fps_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_video_fps_help"))
-        video_gop_optimize_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_video_gop_optimize_help"))
-        delete_audio_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_delete_audio_help"))
+        video_quality_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_quality_help"))
+        video_resolution_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_resolution_help"))
+        video_fps_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_fps_help"))
+        video_gop_optimize_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_gop_optimize_help"))
+        delete_audio_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_delete_audio_help"))
         # create video panel + row
         video_panel = QWidget()
         video_layout = QVBoxLayout(video_panel)
@@ -102,20 +102,20 @@ class RunFFmpegPage(BaseOutputPage):
         self.video_overlay.show()
         
         # 第四行: audio 参数
-        audio_divider = create_divider(i18n.t("app.media_subpages.run_ffmpeg.ui_audio_divider"))
+        audio_divider = create_divider(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_divider"))
         self.content_layout.addWidget(audio_divider)
         # labels
-        audio_format_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_audio_format_label"))
-        audio_bitrate_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_audio_bitrate_label"))
-        audio_sample_rate_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_audio_sample_rate_label"))
-        audio_volume_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_audio_volume_label"))
-        delete_video_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_delete_video_label"))
+        audio_format_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_format_label"))
+        audio_bitrate_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_bitrate_label"))
+        audio_sample_rate_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_sample_rate_label"))
+        audio_volume_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_volume_label"))
+        delete_video_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_delete_video_label"))
         # help icons
-        audio_format_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_audio_format_help"))
-        audio_bitrate_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_audio_bitrate_help"))
-        audio_sample_rate_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_audio_sample_rate_help"))
-        audio_volume_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_audio_volume_help"))
-        delete_video_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_delete_video_help"))
+        audio_format_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_format_help"))
+        audio_bitrate_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_bitrate_help"))
+        audio_sample_rate_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_sample_rate_help"))
+        audio_volume_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_volume_help"))
+        delete_video_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_delete_video_help"))
         # create audio panel + row
         audio_panel = QWidget()
         audio_layout = QVBoxLayout(audio_panel)
@@ -132,16 +132,16 @@ class RunFFmpegPage(BaseOutputPage):
         self.audio_overlay.show()
         
         # 第五行: common 参数
-        common_divider = create_divider(i18n.t("app.media_subpages.run_ffmpeg.ui_common_divider"))
+        common_divider = create_divider(i18n.t("app.tools_subpages.run_ffmpeg.ui_common_divider"))
         self.content_layout.addWidget(common_divider)
         # labels
-        adjust_start_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_adjust_start_label"))
-        trim_end_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_trim_end_label"))
-        clear_metadata_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_clear_metadata_label"))
+        adjust_start_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_adjust_start_label"))
+        trim_end_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_trim_end_label"))
+        clear_metadata_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_clear_metadata_label"))
         # help icons
-        adjust_start_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_adjust_start_help"))
-        trim_end_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_trim_end_help"))
-        clear_metadata_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_clear_metadata_help"))
+        adjust_start_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_adjust_start_help"))
+        trim_end_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_trim_end_help"))
+        clear_metadata_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_clear_metadata_help"))
         # create rows
         self.create_row(adjust_start_label, self.common_adjust_start_line_edit, adjust_start_help,
                         trim_end_label, self.common_end_line_edit, trim_end_help,
@@ -152,9 +152,9 @@ class RunFFmpegPage(BaseOutputPage):
 
 
         # 第六行: 输出文件名+完整输出路径显示
-        output_filename_label = create_label(i18n.t("app.media_subpages.run_ffmpeg.ui_output_filename_label"))
+        output_filename_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_output_filename_label"))
         self.output_filename_line_edit = create_line_edit(length=280)
-        output_filename_help = create_help_icon(i18n.t("app.media_subpages.run_ffmpeg.ui_output_filename_help"))
+        output_filename_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_output_filename_help"))
         self.output_full_path_display = create_path_display()
         self.create_row(output_filename_label,
                         self.output_filename_line_edit,
@@ -166,8 +166,8 @@ class RunFFmpegPage(BaseOutputPage):
 
         # 第七行：submit按钮 + taskname输入框
         self.taskname_line_edit = create_line_edit(
-            length=200, placeholder=i18n.t("app.media_subpages.run_ffmpeg.ui_taskname_placeholder"))
-        self.submit_button = create_stated_button(i18n.t("app.media_subpages.run_ffmpeg.ui_submit_button"), isbig=True)
+            length=200, placeholder=i18n.t("app.tools_subpages.run_ffmpeg.ui_taskname_placeholder"))
+        self.submit_button = create_stated_button(i18n.t("app.tools_subpages.run_ffmpeg.ui_submit_button"), isbig=True)
         self.content_layout.addSpacing(UI_Style.widget_spacing)
         self.create_row(self.submit_button, self.taskname_line_edit, add_stretch=True)
 
@@ -204,7 +204,7 @@ class RunFFmpegPage(BaseOutputPage):
         """
 
         if len(err_msg) > 0:
-            show_notify_dialog("app.media_subpages.run_ffmpeg", err_msg)
+            show_notify_dialog("app.tools_subpages.run_ffmpeg", err_msg)
 
         # reset first
         self.delete_audio_check_box.blockSignals(True)
@@ -385,7 +385,7 @@ class RunFFmpegPage(BaseOutputPage):
 
         result = M_Defs.get_audio_format_by_media_type(effective_type)
         if not result.is_ok:
-            show_notify_dialog("app.media_subpages.run_ffmpeg", result.error_msg)
+            show_notify_dialog("app.tools_subpages.run_ffmpeg", result.error_msg)
             self.audio_format_combo_box.blockSignals(False)
             return
         
@@ -416,7 +416,7 @@ class RunFFmpegPage(BaseOutputPage):
             audio_format = self.audio_format_combo_box.currentText()
         )
         if not result.is_ok:
-            show_notify_dialog("app.media_subpages.run_ffmpeg", result.error_msg)
+            show_notify_dialog("app.tools_subpages.run_ffmpeg", result.error_msg)
             self.output_full_path_display.setText("")
             return err(result.error_msg, inner = result)
         
@@ -550,20 +550,20 @@ class RunFFmpegPage(BaseOutputPage):
                         reason = root_result.error_raw
                 except Exception:
                     pass
-                error_msg = i18n.t("app.media_subpages.run_ffmpeg.warning_task_submit_failed", error = reason)
-                show_notify_dialog("app.media_subpages.run_ffmpeg", error_msg)
+                error_msg = i18n.t("app.tools_subpages.run_ffmpeg.warning_task_submit_failed", error = reason)
+                show_notify_dialog("app.tools_subpages.run_ffmpeg", error_msg)
                 return
             
             runner_id, cmd_list = result.value
             self.output_widget.bind_current_runner_id(runner_id)
             
             # 显示悬浮通知
-            message = i18n.t("app.media_subpages.run_ffmpeg.notice_task_submit_success", task_id=runner_id)
+            message = i18n.t("app.tools_subpages.run_ffmpeg.notice_task_submit_success", task_id=runner_id)
             create_floating_notification(message, self.window())
 
 
         except Exception as e:
-            show_notify_dialog("app.media_subpages.run_ffmpeg",
-                i18n.t("app.media_subpages.run_ffmpeg.warning_unexpected_submit_error", error=traceback.format_exc()))
+            show_notify_dialog("app.tools_subpages.run_ffmpeg",
+                i18n.t("app.tools_subpages.run_ffmpeg.warning_unexpected_submit_error", error=traceback.format_exc()))
         finally:
             self.submit_button.setEnabled(True)

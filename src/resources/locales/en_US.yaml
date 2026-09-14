@@ -116,12 +116,12 @@ en_US:
     nav_bar:
       majdata_label: "MajdataX"
       auto_rechart_label: "Auto Rechart"
-      media_tools_label: "Multimedia Tools"
+      tools_label: "Tools"
       tasks_label: "Tasks"
       settings_label: "Settings"
       # majdata_desc: "Embed MajdataX"
       # auto_rechart_desc: "Auto recharting tool"
-      # media_tools_desc: "Multimedia processing toolkit"
+      # tools_desc: "Toolkit"
       # tasks_desc: "View and manage task queue"
       # settings_desc: "Application settings"
 
@@ -165,7 +165,7 @@ en_US:
 
 
 
-    media_subpages:
+    tools_subpages:
       arcade_timing:
         dialog_title: "Arcade Timing"
 

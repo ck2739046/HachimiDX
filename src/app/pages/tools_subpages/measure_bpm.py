@@ -18,7 +18,7 @@ import i18n
 
 
 
-I18N_Prefix = "app.media_subpages.measure_bpm"
+I18N_Prefix = "app.tools_subpages.measure_bpm"
 def _t(key: str, **kwargs) -> str:
     return i18n.t(f"{I18N_Prefix}.{key}", **kwargs)
 
