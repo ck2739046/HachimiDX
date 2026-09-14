@@ -131,6 +131,7 @@ zh_CN:
       simply_align_label: "快速对音"
       run_ffmpeg_label: "素材转码"
       measure_bpm_label: "测量 BPM"
+      merge_charts_label: "谱面合并"
       # arcade_timing_desc: "分析开头音频延时工具，与官方音频对齐"
       # simply_align_desc: "快速音频对齐工具"
       # run_ffmpeg_desc: "FFmpeg 转码工具"
@@ -167,6 +168,58 @@ zh_CN:
 
 
     tools_subpages:
+      merge_charts:
+        ui_input_divider: "输入谱面"
+        ui_select_files_button: "选择 TXT 文件"
+        ui_select_dirs_button: "选择谱面文件夹"
+        ui_selection_empty: "尚未选择输入文件"
+        ui_selection_summary: "有效文件 %{selected} 个，忽略 %{ignored} 项"
+
+        ui_header_divider: "共有参数"
+        ui_title_label: "&title:"
+        ui_artist_label: "&artist:"
+        ui_first_label: "&first:"
+        ui_des_label: "&des:"
+        ui_value_placeholder: "可从右侧下拉菜单选择，也可手动输入"
+
+        ui_chart_divider: "谱面等级"
+        ui_empty_option: "（空）"
+        ui_no_chart: "未选择谱面"
+        ui_chart_metadata: "等级: %{level}    谱师: %{designer}"
+        level_unknown: "Level %{level}"
+
+        ui_output_divider: "导出"
+        ui_output_dir_button: "选择输出文件夹"
+        ui_filename_label: "文件名:"
+        ui_full_path_label: "输出路径:"
+        ui_export_button: "导出"
+
+        dialog_select_files_title: "选择谱面文本文件"
+        dialog_select_dir_title: "选择谱面文件夹"
+        dialog_txt_filter: "文本文件 (*.txt)"
+        dialog_error_title: "谱面合并"
+        dialog_overwrite_title: "覆盖文件"
+
+        ignore_invalid_encoding: "文件不是有效的 UTF-8 / UTF-8-BOM 文本"
+        ignore_read_failed: "读取失败：%{error}"
+        ignore_unresolved: "无法解析路径"
+        ignore_not_txt: "不是 TXT 文件"
+        ignore_maidata_missing: "文件夹表层未找到 maidata.txt"
+        ignore_invalid_path: "路径不存在或不是文件/文件夹"
+        notice_ignored: "忽略：%{path}\n原因：%{reason}"
+        notice_export_success: "谱面已导出：%{path}"
+
+        warning_output_dir_required: "请先选择输出文件夹。"
+        warning_output_dir_invalid: "输出文件夹不存在，请重新选择。"
+        warning_filename_invalid: "输出文件名无效：%{error}"
+        warning_no_input: "请先选择至少一个有效的 UTF-8 谱面文本文件。"
+        warning_overwrite: |
+          输出文件已存在：
+          %{path}
+
+          是否覆盖？
+        warning_export_failed: "导出谱面失败：%{error}"
+
       arcade_timing:
         dialog_title: "Arcade Timing"
 
