@@ -7,7 +7,7 @@ from pathlib import Path
 
 _INOTE_RE = re.compile(r"^&inote_(\d+)=(.*)$")
 _PARAMETER_RE = re.compile(r"^&([a-zA-Z]+(?:_\d+)?)=(.*)$")
-_HEADER_KEYS = ("title", "artist", "first", "des")
+from .candidates import HEADER_KEYS
 
 
 @dataclass(frozen=True)
@@ -117,7 +117,7 @@ def _build_headers(parameters: dict[str, list[str]]) -> dict[str, str]:
     return {
         key: values[0]
         for key, values in parameters.items()
-        if key in _HEADER_KEYS and values
+        if key in HEADER_KEYS and values
     }
 
 
@@ -126,7 +126,7 @@ def _build_header_candidates(
 ) -> dict[str, tuple[str, ...]]:
     return {
         key: tuple(dict.fromkeys(parameters.get(key, [])))
-        for key in _HEADER_KEYS
+        for key in HEADER_KEYS
     }
 
 

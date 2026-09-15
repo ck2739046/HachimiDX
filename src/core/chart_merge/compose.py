@@ -3,11 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Mapping
 
+from .candidates import HEADER_KEYS
 from .parse import ChartBlock
-
-
-_HEADER_KEYS = ("title", "artist", "first", "des")
-
 
 def _collect_selected_charts(
     selected_charts: Mapping[int, ChartBlock | None],
@@ -23,7 +20,7 @@ def _render_maidata(
     headers: Mapping[str, str],
     selected_charts: Mapping[int, ChartBlock | None],
 ) -> str:
-    output = [f"&{key}={headers.get(key, '')}\n" for key in _HEADER_KEYS]
+    output = [f"&{key}={headers.get(key, '')}\n" for key in HEADER_KEYS]
     output.append("\n")
 
     charts = _collect_selected_charts(selected_charts)

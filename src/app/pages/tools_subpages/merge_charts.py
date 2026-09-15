@@ -19,9 +19,12 @@ from PyQt6.QtWidgets import (
 from src.core.chart_merge import (
     ChartBlock,
     CollectedInput,
+    HEADER_KEYS,
     ParsedChartFile,
+    aggregate_candidates,
     compose_maidata,
     import_chart_inputs,
+    ordered_chart_levels,
     path_key,
 )
 from src.core.tools import (
@@ -49,7 +52,6 @@ from ..base_output_page import BaseOutputPage
 
 
 I18N_PREFIX = "app.tools_subpages.merge_charts"
-_HEADER_KEYS = ("title", "artist", "first", "des")
 
 # 与 auto rechart 页 chart_lv 的英文标签保持一致
 _LEVEL_NAMES = {
@@ -106,7 +108,7 @@ class MergeChartsPage(BaseOutputPage):
         self._build_header_section()
         self._build_output_section()
 
-        self._create_level_rows(set())
+        self._create_level_rows({})
         self._sync_input_combo()
 
     def _build_input_section(self) -> None:
@@ -151,7 +153,7 @@ class MergeChartsPage(BaseOutputPage):
         header_row.setContentsMargins(0, 0, 0, 0)
         header_row.setSpacing(5)
 
-        for key in _HEADER_KEYS:
+        for key in HEADER_KEYS:
             label_text = _t(f"ui_{key}_label")
             if key != "title":
                 label_text = f" {label_text}"
@@ -261,8 +263,7 @@ class MergeChartsPage(BaseOutputPage):
     def _capture_level_state(self) -> dict[int, _LevelState]:
         state: dict[int, _LevelState] = {}
         for level, row in self._level_rows.items():
-            index = row.combo_box.currentIndex()
-            chart = row.candidates[index] if 0 <= index < len(row.candidates) else None
+            chart = self._chart_at(row)
             state[level] = _LevelState(
                 source_key=path_key(chart.source_path) if chart is not None else None,
                 had_candidates=len(row.candidates) > 1,
@@ -270,6 +271,12 @@ class MergeChartsPage(BaseOutputPage):
                 level_value=row.level_line_edit.text(),
             )
         return state
+
+    @staticmethod
+    def _chart_at(row: _LevelRow, index: int | None = None) -> ChartBlock | None:
+        if index is None:
+            index = row.combo_box.currentIndex()
+        return row.candidates[index] if 0 <= index < len(row.candidates) else None
 
     def _current_input_key(self) -> str | None:
         index = self._input_combo.currentIndex()
@@ -301,8 +308,8 @@ class MergeChartsPage(BaseOutputPage):
         had_files = bool(self._parsed_files)
         self._parsed_files.clear()
         self._sync_input_combo()
-        self._set_header_candidates({key: [] for key in _HEADER_KEYS})
-        self._create_level_rows(set())
+        self._set_header_candidates({key: [] for key in HEADER_KEYS})
+        self._create_level_rows({})
         if had_files:
             self._log(_MARKER_REMOVED, "log_cleared")
 
@@ -355,28 +362,20 @@ class MergeChartsPage(BaseOutputPage):
         preserve_headers: bool,
         previous_level_state: dict[int, _LevelState],
     ) -> None:
-        header_candidates, charts_by_level = self._collect_candidates()
-        self._set_header_candidates(header_candidates, preserve_text=preserve_headers)
-        self._create_level_rows(set(charts_by_level))
-        self._populate_level_rows(charts_by_level, previous_level_state)
-
-    def _collect_candidates(self) -> tuple[dict[str, list[str]], dict[int, list[ChartBlock]]]:
-        header_candidates = {key: [] for key in _HEADER_KEYS}
-        charts_by_level: dict[int, list[ChartBlock]] = {}
-
-        for parsed in self._parsed_files:
-            for key in _HEADER_KEYS:
-                for value in parsed.header_candidates[key]:
-                    if value not in header_candidates[key]:
-                        header_candidates[key].append(value)
-            for chart in parsed.charts:
-                charts_by_level.setdefault(chart.level, []).append(chart)
-
-        return header_candidates, charts_by_level
+        candidates = aggregate_candidates(self._parsed_files)
+        self._set_header_candidates(
+            candidates.header_candidates,
+            preserve_text=preserve_headers,
+        )
+        self._create_level_rows(candidates.charts_by_level)
+        self._populate_level_rows(
+            candidates.charts_by_level,
+            previous_level_state,
+        )
 
     def _set_header_candidates(
         self,
-        candidates: dict[str, list[str]],
+        candidates: dict[str, tuple[str, ...]],
         *,
         preserve_text: bool = False,
     ) -> None:
@@ -386,13 +385,10 @@ class MergeChartsPage(BaseOutputPage):
             if not preserve_text:
                 edit.setText(values[0] if values else "")
 
-    def _create_level_rows(self, extra_levels: set[int]) -> None:
+    def _create_level_rows(self, charts_by_level: dict[int, tuple[ChartBlock, ...]]) -> None:
         widget_utils.clear_layout(self._chart_rows_layout)
         self._level_rows.clear()
-        levels = sorted(
-            set(range(2, 8))
-            | {level for level in extra_levels if level not in range(2, 8)}
-        )
+        levels = ordered_chart_levels(charts_by_level)
 
         for row, level in enumerate(levels):
             level_text = _LEVEL_NAMES.get(level, f"Level {level}")
@@ -429,7 +425,7 @@ class MergeChartsPage(BaseOutputPage):
 
     def _populate_level_rows(
         self,
-        charts_by_level: dict[int, list[ChartBlock]],
+        charts_by_level: dict[int, tuple[ChartBlock, ...]],
         previous_level_state: dict[int, _LevelState],
     ) -> None:
         empty_state = _LevelState(None, False, "", "")
@@ -467,7 +463,7 @@ class MergeChartsPage(BaseOutputPage):
         row = self._level_rows.get(level)
         if row is None:
             return
-        chart = row.candidates[index] if 0 <= index < len(row.candidates) else None
+        chart = self._chart_at(row, index)
         if chart is None:
             row.designer_line_edit.clear()
             row.level_line_edit.clear()
@@ -487,8 +483,7 @@ class MergeChartsPage(BaseOutputPage):
     def _selected_charts(self) -> dict[int, ChartBlock | None]:
         selected: dict[int, ChartBlock | None] = {}
         for level, row in self._level_rows.items():
-            index = row.combo_box.currentIndex()
-            chart = row.candidates[index] if 0 <= index < len(row.candidates) else None
+            chart = self._chart_at(row)
             selected[level] = (
                 replace(
                     chart,
