@@ -45,17 +45,8 @@ class _ChartRange:
 
 
 def _read_utf8(path: Path) -> str:
-    data = path.read_bytes()
-    if data.startswith(b"\xef\xbb\xbf"):
-        data = data[3:]
-    return data.decode("utf-8")
-
-
-def _split_parameter(line: str) -> tuple[str, str] | None:
-    match = _PARAMETER_RE.match(line)
-    if not match:
-        return None
-    return match.group(1), match.group(2)
+    # utf-8-sig 会丢弃开头的 BOM；不可用 read_text，它会归一 \r\n
+    return path.read_bytes().decode("utf-8-sig")
 
 
 def _append_chart_range(
@@ -100,11 +91,11 @@ def _scan_lines(
         if stripped.startswith("&"):
             _append_chart_range(current, index, seen_levels, chart_ranges)
             current = None
-
-        parameter = _split_parameter(stripped)
-        if parameter is not None:
-            key, value = parameter
-            parameters.setdefault(key, []).append(value)
+            # 参数正则以 ^& 开头，只可能命中 & 行
+            parameter_match = _PARAMETER_RE.match(stripped)
+            if parameter_match:
+                key, value = parameter_match.group(1), parameter_match.group(2)
+                parameters.setdefault(key, []).append(value)
 
     _append_chart_range(current, len(lines), seen_levels, chart_ranges)
     return parameters, chart_ranges
