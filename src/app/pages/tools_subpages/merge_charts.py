@@ -3,11 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from PyQt6.QtWidgets import (
-    QAbstractItemView,
     QComboBox,
-    QFileDialog,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
     QLabel,
-    QListWidget,
     QScrollArea,
     QSizePolicy,
     QVBoxLayout,
@@ -16,11 +16,16 @@ from PyQt6.QtWidgets import (
 
 from ..base_output_page import BaseOutputPage, _create_row
 from src.core.chart_merge import ChartBlock, ParsedChartFile, collect_input_paths, compose_maidata, parse_chart_file
-from src.core.tools import show_confirm_dialog, show_notify_dialog, validate_windows_filename
+from src.core.tools import (
+    select_windows_files,
+    select_windows_folders,
+    show_confirm_dialog,
+    show_notify_dialog,
+    validate_windows_filename,
+)
 from ...widgets import (
     create_button,
     create_combo_box,
-    create_directory_selection_row,
     create_label,
     create_line_edit,
     create_path_display,
@@ -50,122 +55,175 @@ class MergeChartsPage(BaseOutputPage):
     def setup_content(self) -> None:
         self.content_layout = QVBoxLayout(self.content_area)
         self.content_layout.setContentsMargins(10, 10, 10, 10)
+        self.content_layout.setSpacing(10)
 
         self._parsed_files: list[ParsedChartFile] = []
-        self._selected_paths: list[Path] = []
-        self._level_rows: dict[int, tuple[QComboBox, QLabel, QLabel, list[ChartBlock | None]]] = {}
+        self._level_rows: dict[int, tuple[QComboBox, QLabel, list[ChartBlock | None]]] = {}
         self._header_edits = {}
 
-        self.content_layout.addWidget(create_label(_t("ui_input_divider"), bold=True))
         select_files_button = create_button(_t("ui_select_files_button"), width=150)
         select_dirs_button = create_button(_t("ui_select_dirs_button"), width=150)
-        self._selection_summary = create_label(_t("ui_selection_empty"))
-        self._selection_summary.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Preferred,
-        )
-        self._selected_files_list = QListWidget()
-        self._selected_files_list.setFixedHeight(70)
-        self._selected_files_list.setSelectionMode(QListWidget.SelectionMode.NoSelection)
+        self._input_combo = create_combo_box(show_tooltip=True)
+        self._remove_input_button = create_button(_t("ui_remove_current_button"), width=110)
+        self._clear_inputs_button = create_button(_t("ui_clear_all_button"), width=90)
         self.content_layout.addWidget(
-            _create_row(select_files_button, select_dirs_button, self._selection_summary, add_stretch=True)
+            _create_row(
+                create_label(_t("ui_input_divider"), bold=True),
+                select_files_button,
+                select_dirs_button,
+                self._input_combo,
+                self._remove_input_button,
+                self._clear_inputs_button,
+            )
         )
-        self.content_layout.addWidget(self._selected_files_list)
 
         select_files_button.clicked.connect(self._select_files)
-        select_dirs_button.clicked.connect(self._select_directory)
+        select_dirs_button.clicked.connect(self._select_directories)
+        self._remove_input_button.clicked.connect(self._remove_current_input)
+        self._clear_inputs_button.clicked.connect(self._clear_inputs)
 
-        self.content_layout.addWidget(create_label(_t("ui_header_divider"), bold=True))
-        for key in _HEADER_KEYS:
-            label = create_label(_t(f"ui_{key}_label"))
-            edit = create_split_drop_line_edit(length=360)
-            edit.setPlaceholderText(_t("ui_value_placeholder"))
-            self._header_edits[key] = edit
-            self.content_layout.addWidget(_create_row(label, edit, add_stretch=True))
+        lower_area = QWidget()
+        lower_layout = QHBoxLayout(lower_area)
+        lower_layout.setContentsMargins(0, 0, 0, 0)
+        lower_layout.setSpacing(10)
 
-        self.content_layout.addWidget(create_label(_t("ui_chart_divider"), bold=True))
+        chart_panel = QWidget()
+        chart_layout = QVBoxLayout(chart_panel)
+        chart_layout.setContentsMargins(0, 0, 0, 0)
+        chart_layout.setSpacing(5)
+        chart_layout.addWidget(create_label(_t("ui_chart_divider"), bold=True))
         self._chart_rows_widget = QWidget()
         self._chart_rows_layout = QVBoxLayout(self._chart_rows_widget)
         self._chart_rows_layout.setContentsMargins(0, 0, 0, 0)
+        self._chart_rows_layout.setSpacing(5)
         self._chart_scroll = QScrollArea()
+        self._chart_scroll.setFrameShape(QFrame.Shape.NoFrame)
         self._chart_scroll.setWidgetResizable(True)
         self._chart_scroll.setWidget(self._chart_rows_widget)
-        self._chart_scroll.setMinimumHeight(150)
-        self.content_layout.addWidget(self._chart_scroll, 1)
-        self._create_level_rows(set())
+        chart_layout.addWidget(self._chart_scroll, 1)
 
-        self.content_layout.addWidget(create_label(_t("ui_output_divider"), bold=True))
-        self.output_dir_button, self.output_dir_display, _ = create_directory_selection_row(
-            _t("ui_output_dir_button"), button_length=130
-        )
-        self.output_filename_edit = create_line_edit(default_text="maidata", length=180)
+        right_panel = QWidget()
+        right_layout = QVBoxLayout(right_panel)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(5)
+        right_layout.addWidget(create_label(_t("ui_header_divider"), bold=True))
+        header_grid = QGridLayout()
+        header_grid.setContentsMargins(0, 0, 0, 0)
+        header_grid.setHorizontalSpacing(5)
+        header_grid.setVerticalSpacing(5)
+        for key in _HEADER_KEYS:
+            label = create_label(_t(f"ui_{key}_label"))
+            edit = create_split_drop_line_edit()
+            edit.setPlaceholderText(_t("ui_value_placeholder"))
+            self._header_edits[key] = edit
+            row = _HEADER_KEYS.index(key)
+            header_grid.addWidget(label, row, 0)
+            header_grid.addWidget(edit, row, 1)
+        header_grid.setColumnStretch(1, 1)
+        right_layout.addLayout(header_grid)
+        right_layout.addStretch(1)
+
+        right_layout.addWidget(create_label(_t("ui_output_divider"), bold=True))
+        self.output_dir_button = create_button(_t("ui_output_dir_button"), width=130)
+        self.output_dir_display = create_path_display()
+        right_layout.addWidget(_create_row(self.output_dir_button, self.output_dir_display))
+        self.output_filename_edit = create_line_edit(default_text="maidata")
         self.output_suffix_label = create_label(".txt")
-        self.output_path_display = create_path_display()
         self.export_button = create_stated_button(_t("ui_export_button"), isbig=True)
-        self.content_layout.addWidget(
+        right_layout.addWidget(
             _create_row(
-                self.output_dir_button,
-                self.output_dir_display,
                 create_label(_t("ui_filename_label")),
                 self.output_filename_edit,
                 self.output_suffix_label,
-                add_stretch=True,
+                self.export_button,
             )
         )
-        self.content_layout.addWidget(_create_row(create_label(_t("ui_full_path_label")), self.output_path_display, add_stretch=True))
-        self.content_layout.addWidget(_create_row(self.export_button, add_stretch=True))
 
-        self.output_dir_display.textChanged.connect(self._update_output_path)
-        self.output_filename_edit.textChanged.connect(self._update_output_path)
+        lower_layout.addWidget(chart_panel, 11)
+        lower_layout.addWidget(right_panel, 9)
+        self.content_layout.addWidget(lower_area, 1)
+
+        self.output_dir_button.clicked.connect(self._select_output_directory)
         self.output_filename_edit.editingFinished.connect(self._normalize_filename)
         self.export_button.clicked.connect(self._export)
-        self.content_layout.addStretch()
+        self._create_level_rows(set())
+        self._sync_input_combo()
 
     def _select_files(self) -> None:
-        self._clear_inputs()
-        parent = self.window()
-        paths, _ = QFileDialog.getOpenFileNames(
-            parent,
-            _t("dialog_select_files_title"),
-            str(Path.cwd()),
-            _t("dialog_txt_filter"),
-        )
+        try:
+            paths = select_windows_files(
+                int(self.window().winId()),
+                _t("dialog_select_files_title"),
+                filter_name=_t("dialog_txt_filter"),
+            )
+        except OSError as exc:
+            show_notify_dialog(_t("dialog_error_title"), _t("warning_dialog_failed", error=str(exc)))
+            return
+        self._add_inputs(paths)
+
+    def _select_directories(self) -> None:
+        try:
+            paths = select_windows_folders(
+                int(self.window().winId()),
+                _t("dialog_select_dir_title"),
+            )
+        except OSError as exc:
+            show_notify_dialog(_t("dialog_error_title"), _t("warning_dialog_failed", error=str(exc)))
+            return
+        self._add_inputs(paths)
+
+    def _select_output_directory(self) -> None:
+        try:
+            paths = select_windows_folders(
+                int(self.window().winId()),
+                _t("ui_output_dir_button"),
+                multiple=False,
+            )
+        except OSError as exc:
+            show_notify_dialog(_t("dialog_error_title"), _t("warning_dialog_failed", error=str(exc)))
+            return
         if paths:
-            self._load_inputs(paths)
+            self.output_dir_display.setText(str(Path(paths[0]).resolve()))
 
-    def _select_directory(self) -> None:
-        self._clear_inputs()
-        parent = self.window()
-        dialog = QFileDialog(
-            parent,
-            _t("dialog_select_dir_title"),
-            self.output_dir_display.text().strip() or str(Path.cwd()),
-        )
-        dialog.setOption(QFileDialog.Option.DontUseNativeDialog, True)
-        dialog.setFileMode(QFileDialog.FileMode.Directory)
-        dialog.setOption(QFileDialog.Option.ShowDirsOnly, True)
-        dialog.setViewMode(QFileDialog.ViewMode.Detail)
-        for view in dialog.findChildren(QAbstractItemView):
-            view.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-        if dialog.exec():
-            paths = dialog.selectedFiles()
-            if paths:
-                self._load_inputs(paths)
+    @staticmethod
+    def _path_key(path: Path) -> str:
+        return str(path.resolve()).casefold()
 
-    def _clear_inputs(self) -> None:
-        self._selected_paths.clear()
-        self._parsed_files.clear()
-        self._selected_files_list.clear()
-        self._create_level_rows(set())
-        self._set_header_candidates({key: [] for key in _HEADER_KEYS})
-        self._selection_summary.setText(_t("ui_selection_empty"))
+    @staticmethod
+    def _path_label(path: Path) -> str:
+        return f"{path.parent.name}\\{path.name}"
 
-    def _load_inputs(self, paths: list[str]) -> None:
-        self._clear_inputs()
+    def _capture_level_state(self) -> dict[int, tuple[str | None, bool]]:
+        state: dict[int, tuple[str | None, bool]] = {}
+        for level, (combo, _metadata, candidates) in self._level_rows.items():
+            index = combo.currentIndex()
+            chart = candidates[index] if 0 <= index < len(candidates) else None
+            state[level] = (
+                self._path_key(chart.source_path) if chart is not None else None,
+                len(candidates) > 1,
+            )
+        return state
+
+    def _current_input_key(self) -> str | None:
+        index = self._input_combo.currentIndex()
+        if 0 <= index < len(self._parsed_files):
+            return self._path_key(self._parsed_files[index].path)
+        return None
+
+    def _add_inputs(self, paths: list[str]) -> None:
+        if not paths:
+            return
+        previous_level_state = self._capture_level_state()
+        current_input_key = self._current_input_key()
+        had_files = bool(self._parsed_files)
+        existing = {self._path_key(parsed.path) for parsed in self._parsed_files}
         collection = collect_input_paths(paths)
         ignored = list(collection.ignored)
 
         for path in collection.files:
+            key = self._path_key(path)
+            if key in existing:
+                continue
             try:
                 parsed = parse_chart_file(path)
             except UnicodeDecodeError:
@@ -175,15 +233,70 @@ class MergeChartsPage(BaseOutputPage):
                 ignored.append((path, _t("ignore_read_failed", error=str(exc))))
                 continue
             self._parsed_files.append(parsed)
-            self._selected_paths.append(path)
+            existing.add(key)
 
-        for path in self._selected_paths:
-            self._selected_files_list.addItem(str(path))
+        self._write_ignored(ignored)
+        self._sync_input_combo(current_input_key)
+        self._refresh_candidates(
+            preserve_headers=had_files,
+            previous_level_state=previous_level_state,
+        )
+
+    def _clear_inputs(self) -> None:
+        self._parsed_files.clear()
+        self._sync_input_combo()
+        self._set_header_candidates({key: [] for key in _HEADER_KEYS})
+        self._create_level_rows(set())
+
+    def _remove_current_input(self) -> None:
+        index = self._input_combo.currentIndex()
+        if not 0 <= index < len(self._parsed_files):
+            return
+        previous_level_state = self._capture_level_state()
+        self._parsed_files.pop(index)
+        self._sync_input_combo(selected_index=min(index, len(self._parsed_files) - 1))
+        self._refresh_candidates(
+            preserve_headers=True,
+            previous_level_state=previous_level_state,
+        )
+
+    def _write_ignored(self, ignored: list[tuple[Path, str]]) -> None:
         for path, reason in ignored:
             if reason in {"unresolved", "not_txt", "maidata_missing", "invalid_path"}:
                 reason = _t(f"ignore_{reason}")
             self.output_widget.append_text(_t("notice_ignored", path=str(path), reason=reason))
 
+    def _sync_input_combo(
+        self,
+        selected_key: str | None = None,
+        selected_index: int | None = None,
+    ) -> None:
+        self._input_combo.clear()
+        if self._parsed_files:
+            self._input_combo.addItems([self._path_label(parsed.path) for parsed in self._parsed_files])
+            self._input_combo.set_item_tooltips([str(parsed.path) for parsed in self._parsed_files])
+            if selected_key is not None:
+                for index, parsed in enumerate(self._parsed_files):
+                    if self._path_key(parsed.path) == selected_key:
+                        self._input_combo.setCurrentIndex(index)
+                        break
+            elif selected_index is not None and selected_index >= 0:
+                self._input_combo.setCurrentIndex(selected_index)
+            self._input_combo.setEnabled(True)
+        else:
+            self._input_combo.addItem(_t("ui_no_input_option"))
+            self._input_combo.set_item_tooltips([None])
+            self._input_combo.setEnabled(False)
+        enabled = bool(self._parsed_files)
+        self._remove_input_button.setEnabled(enabled)
+        self._clear_inputs_button.setEnabled(enabled)
+
+    def _refresh_candidates(
+        self,
+        *,
+        preserve_headers: bool,
+        previous_level_state: dict[int, tuple[str | None, bool]],
+    ) -> None:
         header_candidates = {key: [] for key in _HEADER_KEYS}
         charts_by_level: dict[int, list[ChartBlock]] = {}
         for parsed in self._parsed_files:
@@ -194,18 +307,21 @@ class MergeChartsPage(BaseOutputPage):
             for chart in parsed.charts:
                 charts_by_level.setdefault(chart.level, []).append(chart)
 
-        self._set_header_candidates(header_candidates)
+        self._set_header_candidates(header_candidates, preserve_text=preserve_headers)
         self._create_level_rows(set(charts_by_level))
-        self._populate_level_rows(charts_by_level)
-        self._selection_summary.setText(
-            _t("ui_selection_summary", selected=len(self._selected_paths), ignored=len(ignored))
-        )
+        self._populate_level_rows(charts_by_level, previous_level_state)
 
-    def _set_header_candidates(self, candidates: dict[str, list[str]]) -> None:
+    def _set_header_candidates(
+        self,
+        candidates: dict[str, list[str]],
+        *,
+        preserve_text: bool = False,
+    ) -> None:
         for key, edit in self._header_edits.items():
             values = candidates.get(key, [])
             edit.set_items(values)
-            edit.setText(values[0] if values else "")
+            if not preserve_text:
+                edit.setText(values[0] if values else "")
 
     def _create_level_rows(self, extra_levels: set[int]) -> None:
         while self._chart_rows_layout.count():
@@ -219,47 +335,60 @@ class MergeChartsPage(BaseOutputPage):
             level_text = f"{level} {_LEVEL_NAMES[level]}" if level in _LEVEL_NAMES else _t("level_unknown", level=level)
             level_label = create_label(level_text)
             level_label.setFixedWidth(95)
-            combo = create_combo_box(length=300)
+            combo = create_combo_box(show_tooltip=True)
             combo.addItem(_t("ui_empty_option"))
             metadata = create_label(_t("ui_no_chart"))
             metadata.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-            source_label = create_label("")
-            source_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
             candidates: list[ChartBlock | None] = [None]
-            self._level_rows[level] = (combo, metadata, source_label, candidates)
+            self._level_rows[level] = (combo, metadata, candidates)
             combo.currentIndexChanged.connect(lambda index, lv=level: self._on_chart_selected(lv, index))
-            self._chart_rows_layout.addWidget(
-                _create_row(level_label, combo, metadata, source_label, add_stretch=True)
-            )
+            row_widget = QWidget()
+            row_layout = QHBoxLayout(row_widget)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(5)
+            row_layout.addWidget(level_label)
+            row_layout.addWidget(combo, 3)
+            row_layout.addWidget(metadata, 2)
+            self._chart_rows_layout.addWidget(row_widget)
+        self._chart_rows_layout.addStretch(1)
 
-    def _populate_level_rows(self, charts_by_level: dict[int, list[ChartBlock]]) -> None:
-        for level, (combo, _metadata, _source_label, candidates) in self._level_rows.items():
+    def _populate_level_rows(
+        self,
+        charts_by_level: dict[int, list[ChartBlock]],
+        previous_level_state: dict[int, tuple[str | None, bool]],
+    ) -> None:
+        for level, (combo, _metadata, candidates) in self._level_rows.items():
             charts = charts_by_level.get(level, [])
             candidates[:] = [None, *charts]
             combo.clear()
             combo.addItem(_t("ui_empty_option"))
-            combo.addItems([str(chart.source_path) for chart in charts])
-            combo.setCurrentIndex(1 if len(charts) == 1 else 0)
+            combo.addItems([self._path_label(chart.source_path) for chart in charts])
+            combo.set_item_tooltips([None, *[str(chart.source_path) for chart in charts]])
+
+            previous_path, previously_had_candidates = previous_level_state.get(level, (None, False))
+            selected_index = 0
+            if previous_path is not None:
+                for index, chart in enumerate(charts, start=1):
+                    if self._path_key(chart.source_path) == previous_path:
+                        selected_index = index
+                        break
+            elif not previously_had_candidates and len(charts) == 1:
+                selected_index = 1
+            combo.setCurrentIndex(selected_index)
             self._on_chart_selected(level, combo.currentIndex())
 
     def _on_chart_selected(self, level: int, index: int) -> None:
         row = self._level_rows.get(level)
         if row is None:
             return
-        _combo, metadata, source_label, candidates = row
+        _combo, metadata, candidates = row
         chart = candidates[index] if 0 <= index < len(candidates) else None
         if chart is None:
             metadata.setText(_t("ui_no_chart"))
-            source_label.setText("")
+            metadata.setToolTip("")
             return
         metadata.setText(_t("ui_chart_metadata", level=chart.level_value or "-", designer=chart.designer or "-"))
-        source_label.setText(str(chart.source_path))
-        source_label.setToolTip(str(chart.source_path))
-
-    def _update_output_path(self) -> None:
-        directory = self.output_dir_display.text().strip()
-        filename = self._filename_base()
-        self.output_path_display.setText(str(Path(directory) / f"{filename}.txt") if directory and filename else "")
+        metadata.setToolTip(chart.designer)
 
     def _filename_base(self) -> str:
         filename = self.output_filename_edit.text().strip()
@@ -273,7 +402,7 @@ class MergeChartsPage(BaseOutputPage):
     def _selected_charts(self) -> dict[int, ChartBlock | None]:
         return {
             level: candidates[combo.currentIndex()] if 0 <= combo.currentIndex() < len(candidates) else None
-            for level, (combo, _metadata, _source_label, candidates) in self._level_rows.items()
+            for level, (combo, _metadata, candidates) in self._level_rows.items()
         }
 
     def _export(self) -> None:

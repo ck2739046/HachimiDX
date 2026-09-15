@@ -17,6 +17,9 @@ _LAZY_EXPORTS: dict[str, str] = {
     "validate_pydantic": ".pydantic_validation",
     # validate_windows_filename.py
     "validate_windows_filename": ".windows_filename_validation",
+    # windows_file_dialog.py
+    "select_windows_files": ".windows_file_dialog",
+    "select_windows_folders": ".windows_file_dialog",
     # media_ffprobe_inspect.py
     "FFprobeInspect": ".media_ffprobe_inspect",
     "FFprobeInspectResult": ".media_ffprobe_inspect",

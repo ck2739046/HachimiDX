@@ -171,8 +171,9 @@ en_US:
         ui_input_divider: "Input Charts"
         ui_select_files_button: "Select TXT Files"
         ui_select_dirs_button: "Select Chart Folders"
-        ui_selection_empty: "No input files selected"
-        ui_selection_summary: "%{selected} valid files, %{ignored} ignored items"
+        ui_no_input_option: "(No input files)"
+        ui_remove_current_button: "Remove Current"
+        ui_clear_all_button: "Clear All"
 
         ui_header_divider: "Shared Parameters"
         ui_title_label: "&title:"
@@ -190,7 +191,6 @@ en_US:
         ui_output_divider: "Export"
         ui_output_dir_button: "Select Output Folder"
         ui_filename_label: "Filename:"
-        ui_full_path_label: "Output path:"
         ui_export_button: "Export"
 
         dialog_select_files_title: "Select Chart Text Files"
@@ -210,6 +210,7 @@ en_US:
 
         warning_output_dir_required: "Select an output folder first."
         warning_output_dir_invalid: "The output folder does not exist. Select it again."
+        warning_dialog_failed: "Failed to open the Windows file picker: %{error}"
         warning_filename_invalid: "Invalid output filename: %{error}"
         warning_no_input: "Select at least one valid UTF-8 chart text file first."
         warning_overwrite: |

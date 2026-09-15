@@ -172,8 +172,9 @@ zh_CN:
         ui_input_divider: "输入谱面"
         ui_select_files_button: "选择 TXT 文件"
         ui_select_dirs_button: "选择谱面文件夹"
-        ui_selection_empty: "尚未选择输入文件"
-        ui_selection_summary: "有效文件 %{selected} 个，忽略 %{ignored} 项"
+        ui_no_input_option: "（无输入文件）"
+        ui_remove_current_button: "移除当前项"
+        ui_clear_all_button: "清空全部"
 
         ui_header_divider: "共有参数"
         ui_title_label: "&title:"
@@ -191,7 +192,6 @@ zh_CN:
         ui_output_divider: "导出"
         ui_output_dir_button: "选择输出文件夹"
         ui_filename_label: "文件名:"
-        ui_full_path_label: "输出路径:"
         ui_export_button: "导出"
 
         dialog_select_files_title: "选择谱面文本文件"
@@ -211,6 +211,7 @@ zh_CN:
 
         warning_output_dir_required: "请先选择输出文件夹。"
         warning_output_dir_invalid: "输出文件夹不存在，请重新选择。"
+        warning_dialog_failed: "打开 Windows 文件选择器失败：%{error}"
         warning_filename_invalid: "输出文件名无效：%{error}"
         warning_no_input: "请先选择至少一个有效的 UTF-8 谱面文本文件。"
         warning_overwrite: |
