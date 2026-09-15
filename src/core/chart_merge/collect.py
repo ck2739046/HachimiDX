@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Iterable
 
 
 REASON_UNRESOLVED = "unresolved"
@@ -9,16 +10,6 @@ REASON_NOT_TXT = "not_txt"
 REASON_MAIDATA_MISSING = "maidata_missing"
 REASON_INVALID_PATH = "invalid_path"
 REASON_DUPLICATE = "duplicate"
-
-# 页面按 ignore_<reason> 取翻译的既有原因码
-_IGNORED_REASONS = frozenset(
-    {
-        REASON_UNRESOLVED,
-        REASON_NOT_TXT,
-        REASON_MAIDATA_MISSING,
-        REASON_INVALID_PATH,
-    }
-)
 
 
 def path_key(path: Path) -> str:
@@ -40,22 +31,16 @@ class CollectedInput:
     detail: str = ""
 
 
-class PathCollection:
-    def __init__(self, entries: list[CollectedInput]) -> None:
-        self.entries = entries
-        self.files = [
-            entry.resolved_path for entry in entries if entry.reason is None
-        ]
-        self.ignored = [
-            (entry.resolved_path, entry.reason)
-            for entry in entries
-            if entry.reason in _IGNORED_REASONS
-        ]
+def collect_input_paths(
+    paths: list[str | Path],
+    seen_keys: Iterable[str] = (),
+) -> list[CollectedInput]:
+    """按选择顺序归一输入路径，重复项标记为 REASON_DUPLICATE.
 
-
-def collect_input_paths(paths: list[str | Path]) -> PathCollection:
+    seen_keys 为调用方已持有的路径键，使跨批次去重与批内去重共用同一规则.
+    """
     entries: list[CollectedInput] = []
-    seen: set[str] = set()
+    seen: set[str] = set(seen_keys)
 
     for raw_path in paths:
         input_path = Path(raw_path)
@@ -98,4 +83,4 @@ def collect_input_paths(paths: list[str | Path]) -> PathCollection:
         seen.add(key)
         entries.append(CollectedInput(input_path, candidate))
 
-    return PathCollection(entries)
+    return entries

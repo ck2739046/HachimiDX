@@ -19,15 +19,10 @@ class ChartBlock:
     level_value: str
     source_path: Path
 
-    @property
-    def source_label(self) -> str:
-        return str(self.source_path)
-
 
 @dataclass(frozen=True)
 class ParsedChartFile:
     path: Path
-    headers: dict[str, str]
     header_candidates: dict[str, tuple[str, ...]]
     charts: tuple[ChartBlock, ...]
 
@@ -113,14 +108,6 @@ def _scan_lines(
     return parameters, chart_ranges
 
 
-def _build_headers(parameters: dict[str, list[str]]) -> dict[str, str]:
-    return {
-        key: values[0]
-        for key, values in parameters.items()
-        if key in HEADER_KEYS and values
-    }
-
-
 def _build_header_candidates(
     parameters: dict[str, list[str]],
 ) -> dict[str, tuple[str, ...]]:
@@ -161,7 +148,6 @@ def parse_chart_file(path: str | Path) -> ParsedChartFile:
 
     return ParsedChartFile(
         path=source_path,
-        headers=_build_headers(parameters),
         header_candidates=_build_header_candidates(parameters),
         charts=_build_charts(source_path, lines, parameters, chart_ranges),
     )

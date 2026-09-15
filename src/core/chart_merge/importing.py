@@ -3,12 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from .collect import (
-    REASON_DUPLICATE,
-    CollectedInput,
-    collect_input_paths,
-    path_key,
-)
+from .collect import CollectedInput, collect_input_paths
 from .parse import ParsedChartFile, parse_chart_file
 
 
@@ -22,10 +17,6 @@ class ChartFileLoadResult:
     parsed: ParsedChartFile | None = None
     reason: str | None = None
     detail: str = ""
-
-    @property
-    def is_ok(self) -> bool:
-        return self.parsed is not None
 
 
 def load_chart_file(path: str | Path) -> ChartFileLoadResult:
@@ -52,23 +43,13 @@ def import_chart_inputs(
     existing_keys: set[str] | frozenset[str] = frozenset(),
 ) -> tuple[list[ParsedChartFile], list[CollectedInput]]:
     """按选择顺序处理一批输入项，返回可用谱面文件和逐项处理结果."""
-    collection = collect_input_paths(paths)
     loaded: list[ParsedChartFile] = []
     results: list[CollectedInput] = []
-    seen = set(existing_keys)
 
-    for entry in collection.entries:
+    for entry in collect_input_paths(paths, existing_keys):
         if entry.reason is not None:
             results.append(entry)
             continue
-
-        key = path_key(entry.resolved_path)
-        if key in seen:
-            results.append(
-                CollectedInput(entry.input_path, entry.resolved_path, REASON_DUPLICATE)
-            )
-            continue
-        seen.add(key)
 
         result = load_chart_file(entry.resolved_path)
         parsed = result.parsed
