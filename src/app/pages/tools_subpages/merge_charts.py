@@ -46,9 +46,10 @@ _LEVEL_NAMES = {
     6: "remaster",
     7: "utage",
 }
-_DESIGNER_EDIT_WIDTH = 320
-_LEVEL_EDIT_WIDTH = 45
+_DESIGNER_EDIT_WIDTH = 130
+_LEVEL_EDIT_WIDTH = 50
 _LEVEL_LABEL_WIDTH = 80
+_HEADER_FIXED_WIDTHS = {"artist": 130, "first": 78, "des": 130}
 
 
 def _t(key: str, **kwargs) -> str:
@@ -105,11 +106,11 @@ class MergeChartsPage(BaseOutputPage):
         header_row.setSpacing(5)
         for key in _HEADER_KEYS:
             label = create_label(_t(f"ui_{key}_label"))
-            edit = create_split_drop_line_edit()
-
+            edit = create_split_drop_line_edit(length=_HEADER_FIXED_WIDTHS.get(key))
             self._header_edits[key] = edit
             header_row.addWidget(label)
-            header_row.addWidget(edit, {"title": 50, "artist": 18, "first": 14, "des": 18}[key])
+            # 仅 title 动态占满，其余保持固定宽度
+            header_row.addWidget(edit, 1 if key == "title" else 0)
         self.content_layout.addLayout(header_row)
 
         self.output_dir_button = create_button(_t("ui_output_dir_button"), width=125)
