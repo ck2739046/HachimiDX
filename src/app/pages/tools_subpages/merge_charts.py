@@ -38,13 +38,14 @@ import i18n
 
 I18N_PREFIX = "app.tools_subpages.merge_charts"
 _HEADER_KEYS = ("title", "artist", "first", "des")
+# 与 auto rechart 页 chart_lv 的英文标签保持一致
 _LEVEL_NAMES = {
-    2: "basic",
-    3: "advanced",
-    4: "expert",
-    5: "master",
-    6: "remaster",
-    7: "utage",
+    2: "Basic",
+    3: "Advanced",
+    4: "Expert",
+    5: "Master",
+    6: "Re:Master",
+    7: "Utage",
 }
 _DESIGNER_EDIT_WIDTH = 130
 _LEVEL_EDIT_WIDTH = 50
@@ -321,7 +322,7 @@ class MergeChartsPage(BaseOutputPage):
         levels = sorted(set(range(2, 8)) | {level for level in extra_levels if level not in range(2, 8)})
 
         for row, level in enumerate(levels):
-            level_text = f"{level} {_LEVEL_NAMES[level]}" if level in _LEVEL_NAMES else _t("level_unknown", level=level)
+            level_text = _LEVEL_NAMES.get(level, f"Level {level}")
             level_label = create_label(level_text)
             level_label.setFixedWidth(_LEVEL_LABEL_WIDTH)
             combo = create_combo_box(show_tooltip=True)
