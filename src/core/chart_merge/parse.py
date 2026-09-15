@@ -7,7 +7,9 @@ from pathlib import Path
 
 _INOTE_RE = re.compile(r"^&inote_(\d+)=(.*)$")
 _PARAMETER_RE = re.compile(r"^&([a-zA-Z]+(?:_\d+)?)=(.*)$")
-from .candidates import HEADER_KEYS
+
+# 谱面文件级共有参数，按此顺序写入输出
+HEADER_KEYS = ("title", "artist", "first", "des")
 
 
 @dataclass(frozen=True)

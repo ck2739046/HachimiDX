@@ -4,8 +4,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Mapping
 
-from .candidates import HEADER_KEYS
-from .parse import ChartBlock
+from .parse import HEADER_KEYS, ChartBlock
 
 
 # level -> (designer, level_value)

@@ -3,11 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Iterable, Sequence
 
+from .parse import HEADER_KEYS
+
 if TYPE_CHECKING:
     from .parse import ChartBlock, ParsedChartFile
 
 
-HEADER_KEYS = ("title", "artist", "first", "des")
 STANDARD_LEVELS = tuple(range(2, 8))
 
 
