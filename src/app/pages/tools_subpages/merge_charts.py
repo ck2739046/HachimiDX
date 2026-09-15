@@ -6,6 +6,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import (
     QComboBox,
     QFrame,
+    QGridLayout,
     QHBoxLayout,
     QScrollArea,
     QVBoxLayout,
@@ -45,6 +46,9 @@ _LEVEL_NAMES = {
     6: "remaster",
     7: "utage",
 }
+_DESIGNER_EDIT_WIDTH = 320
+_LEVEL_EDIT_WIDTH = 45
+_LEVEL_LABEL_WIDTH = 80
 
 
 def _t(key: str, **kwargs) -> str:
@@ -85,9 +89,10 @@ class MergeChartsPage(BaseOutputPage):
 
         self.content_layout.addWidget(create_divider(_t("ui_chart_divider")))
         self._chart_rows_widget = QWidget()
-        self._chart_rows_layout = QVBoxLayout(self._chart_rows_widget)
+        self._chart_rows_layout = QGridLayout(self._chart_rows_widget)
         self._chart_rows_layout.setContentsMargins(0, 0, 0, 0)
-        self._chart_rows_layout.setSpacing(5)
+        self._chart_rows_layout.setHorizontalSpacing(4)
+        self._chart_rows_layout.setVerticalSpacing(5)
         self._chart_scroll = QScrollArea()
         self._chart_scroll.setFrameShape(QFrame.Shape.NoFrame)
         self._chart_scroll.setWidgetResizable(True)
@@ -313,29 +318,26 @@ class MergeChartsPage(BaseOutputPage):
 
         self._level_rows.clear()
         levels = sorted(set(range(2, 8)) | {level for level in extra_levels if level not in range(2, 8)})
-        for level in levels:
+
+        for row, level in enumerate(levels):
             level_text = f"{level} {_LEVEL_NAMES[level]}" if level in _LEVEL_NAMES else _t("level_unknown", level=level)
             level_label = create_label(level_text)
-            level_label.setFixedWidth(95)
+            level_label.setFixedWidth(_LEVEL_LABEL_WIDTH)
             combo = create_combo_box(show_tooltip=True)
             combo.addItem(_t("ui_empty_option"))
-            designer_edit = create_line_edit()
-            level_edit = create_line_edit(length=90)
+            designer_edit = create_line_edit(length=_DESIGNER_EDIT_WIDTH)
+            level_edit = create_line_edit(length=_LEVEL_EDIT_WIDTH)
             candidates: list[ChartBlock | None] = [None]
             self._level_rows[level] = (combo, designer_edit, level_edit, candidates)
             combo.currentIndexChanged.connect(lambda index, lv=level: self._on_chart_selected(lv, index))
-            row_widget = QWidget()
-            row_layout = QHBoxLayout(row_widget)
-            row_layout.setContentsMargins(0, 0, 0, 0)
-            row_layout.setSpacing(5)
-            row_layout.addWidget(level_label)
-            row_layout.addWidget(combo, 3)
-            row_layout.addWidget(create_label(_t("ui_designer_label", level=level)))
-            row_layout.addWidget(designer_edit, 2)
-            row_layout.addWidget(create_label(_t("ui_level_label", level=level)))
-            row_layout.addWidget(level_edit)
-            self._chart_rows_layout.addWidget(row_widget)
-        self._chart_rows_layout.addStretch(1)
+            self._chart_rows_layout.addWidget(level_label, row, 0)
+            self._chart_rows_layout.addWidget(combo, row, 1)
+            self._chart_rows_layout.addWidget(create_label(_t("ui_designer_label", level=level)), row, 2)
+            self._chart_rows_layout.addWidget(designer_edit, row, 3)
+            self._chart_rows_layout.addWidget(create_label(_t("ui_level_label", level=level)), row, 4)
+            self._chart_rows_layout.addWidget(level_edit, row, 5)
+        self._chart_rows_layout.setColumnStretch(1, 1)
+        self._chart_rows_layout.setRowStretch(len(levels), 1)
 
     def _populate_level_rows(
         self,

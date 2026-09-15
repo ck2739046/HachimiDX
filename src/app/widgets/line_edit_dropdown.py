@@ -153,6 +153,7 @@ class SplitDropLineEdit(QWidget):
             self,
             model=self._model,
             width=self.width(),
+            show_tooltip=True,
             on_item_clicked=self._on_item_clicked,
         )
 
