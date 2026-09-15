@@ -1,12 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Iterable, Sequence
+from typing import Iterable, Sequence
 
-from .parse import HEADER_KEYS
-
-if TYPE_CHECKING:
-    from .parse import ChartBlock, ParsedChartFile
+from .parse import HEADER_KEYS, ChartBlock, ParsedChartFile
 
 
 @dataclass(frozen=True, slots=True)

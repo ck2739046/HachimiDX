@@ -166,16 +166,16 @@ class MergeChartsPage(BaseOutputPage):
 
     def _build_chart_section(self) -> None:
         self.content_layout.addWidget(create_divider(_t("ui_chart_divider")))
-        self._chart_rows_widget = QWidget()
-        self._chart_rows_layout = QGridLayout(self._chart_rows_widget)
+        rows_widget = QWidget()
+        self._chart_rows_layout = QGridLayout(rows_widget)
         self._chart_rows_layout.setContentsMargins(0, 0, 0, 0)
         self._chart_rows_layout.setHorizontalSpacing(4)
         self._chart_rows_layout.setVerticalSpacing(5)
-        self._chart_scroll = QScrollArea()
-        self._chart_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self._chart_scroll.setWidgetResizable(True)
-        self._chart_scroll.setWidget(self._chart_rows_widget)
-        self.content_layout.addWidget(self._chart_scroll, 1)
+        chart_scroll = QScrollArea()
+        chart_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        chart_scroll.setWidgetResizable(True)
+        chart_scroll.setWidget(rows_widget)
+        self.content_layout.addWidget(chart_scroll, 1)
 
     def _build_header_section(self) -> None:
         self.content_layout.addWidget(create_divider(_t("ui_header_divider")))
@@ -193,24 +193,24 @@ class MergeChartsPage(BaseOutputPage):
         self.content_layout.addLayout(header_row)
 
     def _build_output_section(self) -> None:
-        self.output_dir_button = create_button(_t("ui_output_dir_button"), width=125)
+        output_dir_button = create_button(_t("ui_output_dir_button"), width=125)
         self.output_dir_display = create_path_display()
         self.output_filename_edit = create_line_edit(default_text="maidata", length=140)
-        self.output_suffix_label = create_label(".txt   ")
-        self.export_button = create_stated_button(_t("ui_export_button"), isbig=True)
+        output_suffix_label = create_label(".txt   ")
+        export_button = create_stated_button(_t("ui_export_button"), isbig=True)
 
         self.create_row(
-            self.output_dir_button,
+            output_dir_button,
             self.output_dir_display,
             create_label(_t("ui_filename_label")),
             self.output_filename_edit,
-            self.output_suffix_label,
-            self.export_button,
+            output_suffix_label,
+            export_button,
         )
 
-        self.output_dir_button.clicked.connect(self._select_output_directory)
+        output_dir_button.clicked.connect(self._select_output_directory)
         self.output_filename_edit.editingFinished.connect(self._normalize_filename)
-        self.export_button.clicked.connect(self._export)
+        export_button.clicked.connect(self._export)
 
     def _pick_paths(
         self,
@@ -221,10 +221,7 @@ class MergeChartsPage(BaseOutputPage):
         try:
             return picker(int(self.window().winId()), title, **kwargs)
         except OSError as exc:
-            show_notify_dialog(
-                _t("dialog_error_title"),
-                _t("warning_dialog_failed", error=str(exc)),
-            )
+            self._warn("warning_dialog_failed", error=str(exc))
             return []
 
     def _select_files(self) -> None:
@@ -266,6 +263,9 @@ class MergeChartsPage(BaseOutputPage):
         if marker is not None:
             prefix = f"{prefix} {marker}"
         self.output_widget.append_text(f"{prefix} {_t(key, **kwargs)}")
+
+    def _warn(self, key: str, **kwargs) -> None:
+        show_notify_dialog(_t("dialog_error_title"), _t(key, **kwargs))
 
     def _log_input_results(self, results: list[CollectedInput]) -> None:
         for entry in results:
@@ -321,7 +321,7 @@ class MergeChartsPage(BaseOutputPage):
         removed = self._parsed_files.pop(index)
         self._log(_MARKER_REMOVED, "log_removed", path=str(removed.path))
         self._sync_input_combo(selected_index=min(index, len(self._parsed_files) - 1))
-        self._refresh_candidates(preserve_headers=True)
+        self._refresh_candidates(preserve_headers=bool(self._parsed_files))
 
     def _sync_input_combo(
         self,
@@ -364,10 +364,10 @@ class MergeChartsPage(BaseOutputPage):
         self,
         candidates: dict[str, tuple[str, ...]],
         *,
-        preserve_text: bool = False,
+        preserve_text: bool,
     ) -> None:
         for key, edit in self._header_edits.items():
-            values = candidates.get(key, [])
+            values = candidates.get(key, ())
             edit.set_items(values)
             if not preserve_text:
                 edit.setText(values[0] if values else "")
@@ -392,7 +392,9 @@ class MergeChartsPage(BaseOutputPage):
         self._level_rows.clear()
 
         for row, level in enumerate(levels):
-            level_text = _LEVEL_NAMES.get(level, _t("level_unknown", level=level))
+            level_text = _LEVEL_NAMES.get(level)
+            if level_text is None:
+                level_text = _t("level_unknown", level=level)
             level_label = create_label(level_text)
             level_label.setFixedWidth(_LEVEL_LABEL_WIDTH)
             combo = create_combo_box(show_tooltip=True)
@@ -409,13 +411,13 @@ class MergeChartsPage(BaseOutputPage):
             self._chart_rows_layout.addWidget(level_label, row, 0)
             self._chart_rows_layout.addWidget(combo, row, 1)
             self._chart_rows_layout.addWidget(
-                create_label(" " + _t("ui_designer_label", level=level)),
+                create_label(_t("ui_designer_label", level=level)),
                 row,
                 2,
             )
             self._chart_rows_layout.addWidget(designer_edit, row, 3)
             self._chart_rows_layout.addWidget(
-                create_label(" " + _t("ui_level_label", level=level)),
+                create_label(_t("ui_level_label", level=level)),
                 row,
                 4,
             )
@@ -497,26 +499,17 @@ class MergeChartsPage(BaseOutputPage):
         directory = self.output_dir_display.text().strip()
         filename = self._filename_base()
         if not directory:
-            show_notify_dialog(
-                _t("dialog_error_title"),
-                _t("warning_output_dir_required"),
-            )
+            self._warn("warning_output_dir_required")
             return
         if not Path(directory).is_dir():
-            show_notify_dialog(
-                _t("dialog_error_title"),
-                _t("warning_output_dir_invalid"),
-            )
+            self._warn("warning_output_dir_invalid")
             return
         validation = validate_windows_filename(filename)
         if not validation.is_ok:
-            show_notify_dialog(
-                _t("dialog_error_title"),
-                _t("warning_filename_invalid", error=validation.error_msg),
-            )
+            self._warn("warning_filename_invalid", error=validation.error_msg)
             return
         if not self._parsed_files:
-            show_notify_dialog(_t("dialog_error_title"), _t("warning_no_input"))
+            self._warn("warning_no_input")
             return
 
         output_path = Path(directory) / f"{filename}.txt"
@@ -534,9 +527,6 @@ class MergeChartsPage(BaseOutputPage):
                 self._selections(),
             )
         except OSError as exc:
-            show_notify_dialog(
-                _t("dialog_error_title"),
-                _t("warning_export_failed", error=str(exc)),
-            )
+            self._warn("warning_export_failed", error=str(exc))
             return
         self._log(None, "notice_export_success", path=str(output_path))

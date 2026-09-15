@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from pathlib import Path
+from typing import Iterable
 
 from .collect import CollectedInput, collect_input_paths
 from .parse import ParsedChartFile, parse_chart_file
@@ -14,9 +15,13 @@ REASON_NO_VALID_CHART = "no_valid_chart"
 
 def import_chart_inputs(
     paths: list[str | Path],
-    existing_keys: set[str] | frozenset[str] = frozenset(),
+    existing_keys: Iterable[str] = (),
 ) -> tuple[list[ParsedChartFile], list[CollectedInput]]:
-    """按选择顺序处理一批输入项，返回可用谱面文件和逐项处理结果."""
+    """按选择顺序处理一批输入项，返回可用谱面文件和逐项处理结果.
+
+    谱面文件要求 UTF-8 / UTF-8-BOM 编码，且至少存在一个合法的 inote_x 谱面；
+    共有参数可以缺失.
+    """
     loaded: list[ParsedChartFile] = []
     results: list[CollectedInput] = []
 
