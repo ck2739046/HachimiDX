@@ -49,7 +49,7 @@ _LEVEL_NAMES = {
 }
 _DESIGNER_EDIT_WIDTH = 130
 _LEVEL_EDIT_WIDTH = 50
-_LEVEL_LABEL_WIDTH = 80
+_LEVEL_LABEL_WIDTH = 65
 _HEADER_FIXED_WIDTHS = {"artist": 130, "first": 78, "des": 130}
 
 
@@ -116,8 +116,8 @@ class MergeChartsPage(BaseOutputPage):
 
         self.output_dir_button = create_button(_t("ui_output_dir_button"), width=125)
         self.output_dir_display = create_path_display()
-        self.output_filename_edit = create_line_edit(default_text="maidata", length=180)
-        self.output_suffix_label = create_label(".txt")
+        self.output_filename_edit = create_line_edit(default_text="maidata", length=140)
+        self.output_suffix_label = create_label(".txt   ") # 与输出按钮保持间距
         self.export_button = create_stated_button(_t("ui_export_button"), isbig=True)
         self.content_layout.addWidget(
             _create_row(
