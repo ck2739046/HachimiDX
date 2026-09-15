@@ -128,9 +128,19 @@ class SplitDropLineEdit(QWidget):
         separator_x = self.width() - DROPDOWN_W
         painter.drawLine(separator_x, 0, separator_x, self.height())
 
-        if self.line_edit.hasFocus():
-            painter.setPen(QPen(QColor(c["accent_hover"]), 1))
-            painter.drawLine(5, self.height() - 1, separator_x - 5, self.height() - 1)
+        indicator_color = QColor(c["accent_hover"] if self.line_edit.hasFocus() else c["light_grey"])
+        indicator_height = BORDER_R * 2
+        indicator = QPainterPath()
+        indicator.addRoundedRect(
+            QRectF(0, self.height() - indicator_height, self.width(), indicator_height),
+            BORDER_R,
+            BORDER_R,
+        )
+        indicator_cutout = QPainterPath()
+        indicator_cutout.addRect(
+            QRectF(0, self.height() - indicator_height, self.width(), indicator_height - 2)
+        )
+        painter.fillPath(indicator.subtracted(indicator_cutout), indicator_color)
 
         painter.setPen(QPen(QColor(c["text_primary"]), 1.2))
         center_x = self.width() - DROPDOWN_W / 2

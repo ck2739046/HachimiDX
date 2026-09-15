@@ -184,8 +184,8 @@ en_US:
 
         ui_chart_divider: "Chart Levels"
         ui_empty_option: "(Empty)"
-        ui_no_chart: "No chart selected"
-        ui_chart_metadata: "Level: %{level}    Designer: %{designer}"
+        ui_designer_label: "&des_%{level}:"
+        ui_level_label: "&lv_%{level}:"
         level_unknown: "Level %{level}"
 
         ui_output_divider: "Export"

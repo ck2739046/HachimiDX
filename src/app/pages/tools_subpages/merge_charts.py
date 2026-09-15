@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 from PyQt6.QtWidgets import (
@@ -7,9 +8,7 @@ from PyQt6.QtWidgets import (
     QFrame,
     QGridLayout,
     QHBoxLayout,
-    QLabel,
     QScrollArea,
-    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -26,6 +25,7 @@ from src.core.tools import (
 from ...widgets import (
     create_button,
     create_combo_box,
+    create_divider,
     create_label,
     create_line_edit,
     create_path_display,
@@ -58,7 +58,7 @@ class MergeChartsPage(BaseOutputPage):
         self.content_layout.setSpacing(10)
 
         self._parsed_files: list[ParsedChartFile] = []
-        self._level_rows: dict[int, tuple[QComboBox, QLabel, list[ChartBlock | None]]] = {}
+        self._level_rows: dict[int, tuple[QComboBox, QWidget, QWidget, list[ChartBlock | None]]] = {}
         self._header_edits = {}
 
         select_files_button = create_button(_t("ui_select_files_button"), width=150)
@@ -66,9 +66,9 @@ class MergeChartsPage(BaseOutputPage):
         self._input_combo = create_combo_box(show_tooltip=True)
         self._remove_input_button = create_button(_t("ui_remove_current_button"), width=110)
         self._clear_inputs_button = create_button(_t("ui_clear_all_button"), width=90)
+        self.content_layout.addWidget(create_divider(_t("ui_input_divider")))
         self.content_layout.addWidget(
             _create_row(
-                create_label(_t("ui_input_divider"), bold=True),
                 select_files_button,
                 select_dirs_button,
                 self._input_combo,
@@ -82,16 +82,7 @@ class MergeChartsPage(BaseOutputPage):
         self._remove_input_button.clicked.connect(self._remove_current_input)
         self._clear_inputs_button.clicked.connect(self._clear_inputs)
 
-        lower_area = QWidget()
-        lower_layout = QHBoxLayout(lower_area)
-        lower_layout.setContentsMargins(0, 0, 0, 0)
-        lower_layout.setSpacing(10)
-
-        chart_panel = QWidget()
-        chart_layout = QVBoxLayout(chart_panel)
-        chart_layout.setContentsMargins(0, 0, 0, 0)
-        chart_layout.setSpacing(5)
-        chart_layout.addWidget(create_label(_t("ui_chart_divider"), bold=True))
+        self.content_layout.addWidget(create_divider(_t("ui_chart_divider")))
         self._chart_rows_widget = QWidget()
         self._chart_rows_layout = QVBoxLayout(self._chart_rows_widget)
         self._chart_rows_layout.setContentsMargins(0, 0, 0, 0)
@@ -100,13 +91,9 @@ class MergeChartsPage(BaseOutputPage):
         self._chart_scroll.setFrameShape(QFrame.Shape.NoFrame)
         self._chart_scroll.setWidgetResizable(True)
         self._chart_scroll.setWidget(self._chart_rows_widget)
-        chart_layout.addWidget(self._chart_scroll, 1)
+        self.content_layout.addWidget(self._chart_scroll, 1)
 
-        right_panel = QWidget()
-        right_layout = QVBoxLayout(right_panel)
-        right_layout.setContentsMargins(0, 0, 0, 0)
-        right_layout.setSpacing(5)
-        right_layout.addWidget(create_label(_t("ui_header_divider"), bold=True))
+        self.content_layout.addWidget(create_divider(_t("ui_header_divider")))
         header_grid = QGridLayout()
         header_grid.setContentsMargins(0, 0, 0, 0)
         header_grid.setHorizontalSpacing(5)
@@ -120,28 +107,24 @@ class MergeChartsPage(BaseOutputPage):
             header_grid.addWidget(label, row, 0)
             header_grid.addWidget(edit, row, 1)
         header_grid.setColumnStretch(1, 1)
-        right_layout.addLayout(header_grid)
-        right_layout.addStretch(1)
+        self.content_layout.addLayout(header_grid)
 
-        right_layout.addWidget(create_label(_t("ui_output_divider"), bold=True))
+        self.content_layout.addWidget(create_divider(_t("ui_output_divider")))
         self.output_dir_button = create_button(_t("ui_output_dir_button"), width=130)
         self.output_dir_display = create_path_display()
-        right_layout.addWidget(_create_row(self.output_dir_button, self.output_dir_display))
-        self.output_filename_edit = create_line_edit(default_text="maidata")
+        self.output_filename_edit = create_line_edit(default_text="maidata", length=180)
         self.output_suffix_label = create_label(".txt")
         self.export_button = create_stated_button(_t("ui_export_button"), isbig=True)
-        right_layout.addWidget(
+        self.content_layout.addWidget(
             _create_row(
+            self.output_dir_button,
+            self.output_dir_display,
                 create_label(_t("ui_filename_label")),
                 self.output_filename_edit,
                 self.output_suffix_label,
                 self.export_button,
             )
         )
-
-        lower_layout.addWidget(chart_panel, 11)
-        lower_layout.addWidget(right_panel, 9)
-        self.content_layout.addWidget(lower_area, 1)
 
         self.output_dir_button.clicked.connect(self._select_output_directory)
         self.output_filename_edit.editingFinished.connect(self._normalize_filename)
@@ -193,14 +176,16 @@ class MergeChartsPage(BaseOutputPage):
     def _path_label(path: Path) -> str:
         return f"{path.parent.name}\\{path.name}"
 
-    def _capture_level_state(self) -> dict[int, tuple[str | None, bool]]:
-        state: dict[int, tuple[str | None, bool]] = {}
-        for level, (combo, _metadata, candidates) in self._level_rows.items():
+    def _capture_level_state(self) -> dict[int, tuple[str | None, bool, str, str]]:
+        state: dict[int, tuple[str | None, bool, str, str]] = {}
+        for level, (combo, designer_edit, level_edit, candidates) in self._level_rows.items():
             index = combo.currentIndex()
             chart = candidates[index] if 0 <= index < len(candidates) else None
             state[level] = (
                 self._path_key(chart.source_path) if chart is not None else None,
                 len(candidates) > 1,
+                designer_edit.text(),
+                level_edit.text(),
             )
         return state
 
@@ -295,7 +280,7 @@ class MergeChartsPage(BaseOutputPage):
         self,
         *,
         preserve_headers: bool,
-        previous_level_state: dict[int, tuple[str | None, bool]],
+        previous_level_state: dict[int, tuple[str | None, bool, str, str]],
     ) -> None:
         header_candidates = {key: [] for key in _HEADER_KEYS}
         charts_by_level: dict[int, list[ChartBlock]] = {}
@@ -337,10 +322,10 @@ class MergeChartsPage(BaseOutputPage):
             level_label.setFixedWidth(95)
             combo = create_combo_box(show_tooltip=True)
             combo.addItem(_t("ui_empty_option"))
-            metadata = create_label(_t("ui_no_chart"))
-            metadata.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+            designer_edit = create_line_edit()
+            level_edit = create_line_edit(length=90)
             candidates: list[ChartBlock | None] = [None]
-            self._level_rows[level] = (combo, metadata, candidates)
+            self._level_rows[level] = (combo, designer_edit, level_edit, candidates)
             combo.currentIndexChanged.connect(lambda index, lv=level: self._on_chart_selected(lv, index))
             row_widget = QWidget()
             row_layout = QHBoxLayout(row_widget)
@@ -348,16 +333,19 @@ class MergeChartsPage(BaseOutputPage):
             row_layout.setSpacing(5)
             row_layout.addWidget(level_label)
             row_layout.addWidget(combo, 3)
-            row_layout.addWidget(metadata, 2)
+            row_layout.addWidget(create_label(_t("ui_designer_label", level=level)))
+            row_layout.addWidget(designer_edit, 2)
+            row_layout.addWidget(create_label(_t("ui_level_label", level=level)))
+            row_layout.addWidget(level_edit)
             self._chart_rows_layout.addWidget(row_widget)
         self._chart_rows_layout.addStretch(1)
 
     def _populate_level_rows(
         self,
         charts_by_level: dict[int, list[ChartBlock]],
-        previous_level_state: dict[int, tuple[str | None, bool]],
+        previous_level_state: dict[int, tuple[str | None, bool, str, str]],
     ) -> None:
-        for level, (combo, _metadata, candidates) in self._level_rows.items():
+        for level, (combo, designer_edit, level_edit, candidates) in self._level_rows.items():
             charts = charts_by_level.get(level, [])
             candidates[:] = [None, *charts]
             combo.clear()
@@ -365,7 +353,9 @@ class MergeChartsPage(BaseOutputPage):
             combo.addItems([self._path_label(chart.source_path) for chart in charts])
             combo.set_item_tooltips([None, *[str(chart.source_path) for chart in charts]])
 
-            previous_path, previously_had_candidates = previous_level_state.get(level, (None, False))
+            previous_path, previously_had_candidates, previous_designer, previous_level = previous_level_state.get(
+                level, (None, False, "", "")
+            )
             selected_index = 0
             if previous_path is not None:
                 for index, chart in enumerate(charts, start=1):
@@ -376,19 +366,22 @@ class MergeChartsPage(BaseOutputPage):
                 selected_index = 1
             combo.setCurrentIndex(selected_index)
             self._on_chart_selected(level, combo.currentIndex())
+            if selected_index > 0 and previous_path is not None:
+                designer_edit.setText(previous_designer)
+                level_edit.setText(previous_level)
 
     def _on_chart_selected(self, level: int, index: int) -> None:
         row = self._level_rows.get(level)
         if row is None:
             return
-        _combo, metadata, candidates = row
+        _combo, designer_edit, level_edit, candidates = row
         chart = candidates[index] if 0 <= index < len(candidates) else None
         if chart is None:
-            metadata.setText(_t("ui_no_chart"))
-            metadata.setToolTip("")
+            designer_edit.clear()
+            level_edit.clear()
             return
-        metadata.setText(_t("ui_chart_metadata", level=chart.level_value or "-", designer=chart.designer or "-"))
-        metadata.setToolTip(chart.designer)
+        designer_edit.setText(chart.designer)
+        level_edit.setText(chart.level_value)
 
     def _filename_base(self) -> str:
         filename = self.output_filename_edit.text().strip()
@@ -400,10 +393,16 @@ class MergeChartsPage(BaseOutputPage):
             self.output_filename_edit.setText(filename)
 
     def _selected_charts(self) -> dict[int, ChartBlock | None]:
-        return {
-            level: candidates[combo.currentIndex()] if 0 <= combo.currentIndex() < len(candidates) else None
-            for level, (combo, _metadata, candidates) in self._level_rows.items()
-        }
+        selected: dict[int, ChartBlock | None] = {}
+        for level, (combo, designer_edit, level_edit, candidates) in self._level_rows.items():
+            index = combo.currentIndex()
+            chart = candidates[index] if 0 <= index < len(candidates) else None
+            selected[level] = replace(
+                chart,
+                designer=designer_edit.text(),
+                level_value=level_edit.text(),
+            ) if chart is not None else None
+        return selected
 
     def _export(self) -> None:
         directory = self.output_dir_display.text().strip()
