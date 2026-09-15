@@ -183,9 +183,9 @@ zh_CN:
 
         ui_header_divider: "共有参数"
         ui_title_label: "title:"
-        ui_artist_label: "artist:"
-        ui_first_label: "first:"
-        ui_des_label: "designer:"
+        ui_artist_label: " artist:"
+        ui_first_label: " first:"
+        ui_des_label: " designer:"
 
         ui_chart_divider: "谱面等级"
         ui_empty_option: "（空）"

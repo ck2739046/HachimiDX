@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from functools import partial
 from pathlib import Path
+from typing import Callable
 
 import i18n
 from PyQt6.QtWidgets import (
@@ -20,6 +21,7 @@ from src.core.chart_merge import (
     ChartBlock,
     CollectedInput,
     HEADER_KEYS,
+    LevelSelection,
     ParsedChartFile,
     aggregate_candidates,
     compose_maidata,
@@ -86,11 +88,39 @@ class _LevelRow:
 
 
 @dataclass(frozen=True, slots=True)
-class _LevelState:
+class _RowState:
     source_key: str | None
     had_candidates: bool
     designer: str
     level_value: str
+
+
+_EMPTY_ROW_STATE = _RowState(None, False, "", "")
+
+
+def _chart_at(row: _LevelRow) -> ChartBlock | None:
+    index = row.combo_box.currentIndex()
+    return row.candidates[index] if 0 <= index < len(row.candidates) else None
+
+
+def _row_state(row: _LevelRow) -> _RowState:
+    chart = _chart_at(row)
+    return _RowState(
+        source_key=path_key(chart.source_path) if chart is not None else None,
+        had_candidates=len(row.candidates) > 1,
+        designer=row.designer_line_edit.text(),
+        level_value=row.level_line_edit.text(),
+    )
+
+
+def _apply_chart_text(row: _LevelRow) -> None:
+    chart = _chart_at(row)
+    if chart is None:
+        row.designer_line_edit.clear()
+        row.level_line_edit.clear()
+        return
+    row.designer_line_edit.setText(chart.designer)
+    row.level_line_edit.setText(chart.level_value)
 
 
 class MergeChartsPage(BaseOutputPage):
@@ -109,10 +139,7 @@ class MergeChartsPage(BaseOutputPage):
         self._build_output_section()
 
         self._sync_input_combo()
-        self._refresh_candidates(
-            preserve_headers=False,
-            previous_level_state={},
-        )
+        self._refresh_candidates(preserve_headers=False)
 
     def _build_input_section(self) -> None:
         self.content_layout.addWidget(create_divider(_t("ui_select_file_divider")))
@@ -157,10 +184,7 @@ class MergeChartsPage(BaseOutputPage):
         header_row.setSpacing(5)
 
         for key in HEADER_KEYS:
-            label_text = _t(f"ui_{key}_label")
-            if key != "title":
-                label_text = f" {label_text}"
-            label = create_label(label_text)
+            label = create_label(_t(f"ui_{key}_label"))
             edit = create_split_drop_line_edit(length=_HEADER_FIXED_WIDTHS.get(key))
             self._header_edits[key] = edit
             header_row.addWidget(label)
@@ -188,48 +212,44 @@ class MergeChartsPage(BaseOutputPage):
         self.output_filename_edit.editingFinished.connect(self._normalize_filename)
         self.export_button.clicked.connect(self._export)
 
-    def _select_files(self) -> None:
+    def _pick_paths(
+        self,
+        picker: Callable[..., list[str]],
+        title: str,
+        **kwargs,
+    ) -> list[str]:
         try:
-            paths = select_windows_files(
-                int(self.window().winId()),
+            return picker(int(self.window().winId()), title, **kwargs)
+        except OSError as exc:
+            show_notify_dialog(
+                _t("dialog_error_title"),
+                _t("warning_dialog_failed", error=str(exc)),
+            )
+            return []
+
+    def _select_files(self) -> None:
+        self._add_inputs(
+            self._pick_paths(
+                select_windows_files,
                 _t("dialog_select_files_title"),
                 filter_name=_t("dialog_txt_filter"),
             )
-        except OSError as exc:
-            show_notify_dialog(
-                _t("dialog_error_title"),
-                _t("warning_dialog_failed", error=str(exc)),
-            )
-            return
-        self._add_inputs(paths)
+        )
 
     def _select_directories(self) -> None:
-        try:
-            paths = select_windows_folders(
-                int(self.window().winId()),
+        self._add_inputs(
+            self._pick_paths(
+                select_windows_folders,
                 _t("dialog_select_dir_title"),
             )
-        except OSError as exc:
-            show_notify_dialog(
-                _t("dialog_error_title"),
-                _t("warning_dialog_failed", error=str(exc)),
-            )
-            return
-        self._add_inputs(paths)
+        )
 
     def _select_output_directory(self) -> None:
-        try:
-            paths = select_windows_folders(
-                int(self.window().winId()),
-                _t("ui_output_dir_button"),
-                multiple=False,
-            )
-        except OSError as exc:
-            show_notify_dialog(
-                _t("dialog_error_title"),
-                _t("warning_dialog_failed", error=str(exc)),
-            )
-            return
+        paths = self._pick_paths(
+            select_windows_folders,
+            _t("ui_output_dir_button"),
+            multiple=False,
+        )
         if paths:
             self.output_dir_display.setText(str(Path(paths[0]).resolve()))
 
@@ -263,24 +283,6 @@ class MergeChartsPage(BaseOutputPage):
                 reason=_t(f"ignore_{entry.reason}", error=entry.detail),
             )
 
-    def _capture_level_state(self) -> dict[int, _LevelState]:
-        state: dict[int, _LevelState] = {}
-        for level, row in self._level_rows.items():
-            chart = self._chart_at(row)
-            state[level] = _LevelState(
-                source_key=path_key(chart.source_path) if chart is not None else None,
-                had_candidates=len(row.candidates) > 1,
-                designer=row.designer_line_edit.text(),
-                level_value=row.level_line_edit.text(),
-            )
-        return state
-
-    @staticmethod
-    def _chart_at(row: _LevelRow, index: int | None = None) -> ChartBlock | None:
-        if index is None:
-            index = row.combo_box.currentIndex()
-        return row.candidates[index] if 0 <= index < len(row.candidates) else None
-
     def _current_input_key(self) -> str | None:
         index = self._input_combo.currentIndex()
         if 0 <= index < len(self._parsed_files):
@@ -291,7 +293,6 @@ class MergeChartsPage(BaseOutputPage):
         if not paths:
             return
 
-        previous_level_state = self._capture_level_state()
         current_input_key = self._current_input_key()
         had_files = bool(self._parsed_files)
         existing_keys = frozenset(
@@ -302,19 +303,13 @@ class MergeChartsPage(BaseOutputPage):
         self._parsed_files.extend(loaded)
         self._log_input_results(results)
         self._sync_input_combo(current_input_key)
-        self._refresh_candidates(
-            preserve_headers=had_files,
-            previous_level_state=previous_level_state,
-        )
+        self._refresh_candidates(preserve_headers=had_files)
 
     def _clear_inputs(self) -> None:
         had_files = bool(self._parsed_files)
         self._parsed_files.clear()
         self._sync_input_combo()
-        self._refresh_candidates(
-            preserve_headers=False,
-            previous_level_state={},
-        )
+        self._refresh_candidates(preserve_headers=False)
         if had_files:
             self._log(_MARKER_REMOVED, "log_cleared")
 
@@ -323,14 +318,10 @@ class MergeChartsPage(BaseOutputPage):
         if not 0 <= index < len(self._parsed_files):
             return
 
-        previous_level_state = self._capture_level_state()
         removed = self._parsed_files.pop(index)
         self._log(_MARKER_REMOVED, "log_removed", path=str(removed.path))
         self._sync_input_combo(selected_index=min(index, len(self._parsed_files) - 1))
-        self._refresh_candidates(
-            preserve_headers=True,
-            previous_level_state=previous_level_state,
-        )
+        self._refresh_candidates(preserve_headers=True)
 
     def _sync_input_combo(
         self,
@@ -338,7 +329,8 @@ class MergeChartsPage(BaseOutputPage):
         selected_index: int | None = None,
     ) -> None:
         self._input_combo.clear()
-        if self._parsed_files:
+        has_files = bool(self._parsed_files)
+        if has_files:
             self._input_combo.addItems(
                 [self._path_label(parsed.path) for parsed in self._parsed_files]
             )
@@ -357,26 +349,16 @@ class MergeChartsPage(BaseOutputPage):
             self._input_combo.addItem(_t("ui_no_input_option"))
             self._input_combo.set_item_tooltips([None])
             self._input_combo.setEnabled(False)
-        enabled = bool(self._parsed_files)
-        self._remove_input_button.setEnabled(enabled)
-        self._clear_inputs_button.setEnabled(enabled)
+        self._remove_input_button.setEnabled(has_files)
+        self._clear_inputs_button.setEnabled(has_files)
 
-    def _refresh_candidates(
-        self,
-        *,
-        preserve_headers: bool,
-        previous_level_state: dict[int, _LevelState],
-    ) -> None:
+    def _refresh_candidates(self, *, preserve_headers: bool) -> None:
         candidates = aggregate_candidates(self._parsed_files)
         self._set_header_candidates(
             candidates.header_candidates,
             preserve_text=preserve_headers,
         )
-        self._create_level_rows(candidates.charts_by_level)
-        self._populate_level_rows(
-            candidates.charts_by_level,
-            previous_level_state,
-        )
+        self._sync_level_rows(candidates.charts_by_level)
 
     def _set_header_candidates(
         self,
@@ -390,13 +372,27 @@ class MergeChartsPage(BaseOutputPage):
             if not preserve_text:
                 edit.setText(values[0] if values else "")
 
-    def _create_level_rows(self, charts_by_level: dict[int, tuple[ChartBlock, ...]]) -> None:
+    def _sync_level_rows(self, charts_by_level: dict[int, tuple[ChartBlock, ...]]) -> None:
+        previous = {
+            level: _row_state(row) for level, row in self._level_rows.items()
+        }
+        levels = ordered_chart_levels(charts_by_level)
+        if tuple(self._level_rows) != levels:
+            self._rebuild_level_rows(levels)
+
+        for level, row in self._level_rows.items():
+            self._populate_level_row(
+                row,
+                charts_by_level.get(level, ()),
+                previous.get(level, _EMPTY_ROW_STATE),
+            )
+
+    def _rebuild_level_rows(self, levels: tuple[int, ...]) -> None:
         widget_utils.clear_layout(self._chart_rows_layout)
         self._level_rows.clear()
-        levels = ordered_chart_levels(charts_by_level)
 
         for row, level in enumerate(levels):
-            level_text = _LEVEL_NAMES.get(level, f"Level {level}")
+            level_text = _LEVEL_NAMES.get(level, _t("level_unknown", level=level))
             level_label = create_label(level_text)
             level_label.setFixedWidth(_LEVEL_LABEL_WIDTH)
             combo = create_combo_box(show_tooltip=True)
@@ -431,57 +427,49 @@ class MergeChartsPage(BaseOutputPage):
         self,
         row: _LevelRow,
         charts: tuple[ChartBlock, ...],
+        selected_index: int,
     ) -> None:
-        """刷新候选项，下标 0 固定为空选项."""
+        """刷新候选项并设置选中下标；下标 0 固定为空选项."""
         row.candidates[:] = [None, *charts]
-        labels = [self._path_label(chart.source_path) for chart in charts]
-        tooltips = [str(chart.source_path) for chart in charts]
         row.combo_box.blockSignals(True)
         try:
             row.combo_box.clear()
             row.combo_box.addItem(_t("ui_empty_option"))
-            row.combo_box.addItems(labels)
-            row.combo_box.set_item_tooltips([None, *tooltips])
+            row.combo_box.addItems(
+                [self._path_label(chart.source_path) for chart in charts]
+            )
+            row.combo_box.set_item_tooltips(
+                [None, *(str(chart.source_path) for chart in charts)]
+            )
+            row.combo_box.setCurrentIndex(selected_index)
         finally:
             row.combo_box.blockSignals(False)
 
-    def _populate_level_rows(
+    def _populate_level_row(
         self,
-        charts_by_level: dict[int, tuple[ChartBlock, ...]],
-        previous_level_state: dict[int, _LevelState],
+        row: _LevelRow,
+        charts: tuple[ChartBlock, ...],
+        previous: _RowState,
     ) -> None:
-        empty_state = _LevelState(None, False, "", "")
-        for level, row in self._level_rows.items():
-            charts = charts_by_level.get(level, ())
-            self._sync_level_combo(row, charts)
+        selected_index = 0
+        if previous.source_key is not None:
+            for index, chart in enumerate(charts, start=1):
+                if path_key(chart.source_path) == previous.source_key:
+                    selected_index = index
+                    break
+        elif not previous.had_candidates and len(charts) == 1:
+            selected_index = 1
 
-            previous = previous_level_state.get(level, empty_state)
-            selected_index = 0
-            if previous.source_key is not None:
-                for index, chart in enumerate(charts, start=1):
-                    if path_key(chart.source_path) == previous.source_key:
-                        selected_index = index
-                        break
-            elif not previous.had_candidates and len(charts) == 1:
-                selected_index = 1
+        self._sync_level_combo(row, charts, selected_index)
+        _apply_chart_text(row)
+        if selected_index > 0 and previous.source_key is not None:
+            row.designer_line_edit.setText(previous.designer)
+            row.level_line_edit.setText(previous.level_value)
 
-            row.combo_box.setCurrentIndex(selected_index)
-            self._on_chart_selected(level, row.combo_box.currentIndex())
-            if selected_index > 0 and previous.source_key is not None:
-                row.designer_line_edit.setText(previous.designer)
-                row.level_line_edit.setText(previous.level_value)
-
-    def _on_chart_selected(self, level: int, index: int) -> None:
+    def _on_chart_selected(self, level: int, _index: int) -> None:
         row = self._level_rows.get(level)
-        if row is None:
-            return
-        chart = self._chart_at(row, index)
-        if chart is None:
-            row.designer_line_edit.clear()
-            row.level_line_edit.clear()
-            return
-        row.designer_line_edit.setText(chart.designer)
-        row.level_line_edit.setText(chart.level_value)
+        if row is not None:
+            _apply_chart_text(row)
 
     def _filename_base(self) -> str:
         filename = self.output_filename_edit.text().strip()
@@ -492,20 +480,18 @@ class MergeChartsPage(BaseOutputPage):
         if filename != self.output_filename_edit.text():
             self.output_filename_edit.setText(filename)
 
-    def _selected_charts(self) -> dict[int, ChartBlock | None]:
-        return {
-            level: self._chart_at(row)
-            for level, row in self._level_rows.items()
-        }
-
-    def _level_overrides(self) -> dict[int, tuple[str, str]]:
-        return {
-            level: (
-                row.designer_line_edit.text(),
-                row.level_line_edit.text(),
+    def _selections(self) -> dict[int, LevelSelection]:
+        selections: dict[int, LevelSelection] = {}
+        for level, row in self._level_rows.items():
+            chart = _chart_at(row)
+            if chart is None:
+                continue
+            selections[level] = LevelSelection(
+                chart=chart,
+                designer=row.designer_line_edit.text(),
+                level_value=row.level_line_edit.text(),
             )
-            for level, row in self._level_rows.items()
-        }
+        return selections
 
     def _export(self) -> None:
         directory = self.output_dir_display.text().strip()
@@ -545,8 +531,7 @@ class MergeChartsPage(BaseOutputPage):
             compose_maidata(
                 output_path,
                 headers,
-                self._selected_charts(),
-                self._level_overrides(),
+                self._selections(),
             )
         except OSError as exc:
             show_notify_dialog(

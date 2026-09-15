@@ -182,9 +182,9 @@ en_US:
 
         ui_header_divider: "Shared Params"
         ui_title_label: "title:"
-        ui_artist_label: "artist:"
-        ui_first_label: "first:"
-        ui_des_label: "designer:"
+        ui_artist_label: " artist:"
+        ui_first_label: " first:"
+        ui_des_label: " designer:"
 
         ui_chart_divider: "Chart Levels"
         ui_empty_option: "(Empty)"

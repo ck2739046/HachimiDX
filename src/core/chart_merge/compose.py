@@ -1,42 +1,45 @@
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Mapping
 
 from .parse import HEADER_KEYS, ChartBlock
 
 
-# level -> (designer, level_value)
-LevelOverride = tuple[str, str]
+@dataclass(frozen=True, slots=True)
+class LevelSelection:
+    """某个等级最终写入的谱面，以及覆盖 des_x / lv_x 的文本."""
+
+    chart: ChartBlock
+    designer: str
+    level_value: str
 
 
 def _collect_selected_charts(
-    selected_charts: Mapping[int, ChartBlock | None],
-    overrides: Mapping[int, LevelOverride],
+    selections: Mapping[int, LevelSelection],
 ) -> list[ChartBlock]:
     charts: list[ChartBlock] = []
-    for level, chart in sorted(selected_charts.items()):
-        if chart is None or chart.level != level:
-            continue
-        designer, level_value = overrides.get(
-            level, (chart.designer, chart.level_value)
-        )
+    for level in sorted(selections):
+        selection = selections[level]
         charts.append(
-            replace(chart, designer=designer, level_value=level_value)
+            replace(
+                selection.chart,
+                designer=selection.designer,
+                level_value=selection.level_value,
+            )
         )
     return charts
 
 
 def _render_maidata(
     headers: Mapping[str, str],
-    selected_charts: Mapping[int, ChartBlock | None],
-    overrides: Mapping[int, LevelOverride],
+    selections: Mapping[int, LevelSelection],
 ) -> str:
     output = [f"&{key}={headers.get(key, '')}\n" for key in HEADER_KEYS]
     output.append("\n")
 
-    charts = _collect_selected_charts(selected_charts, overrides)
+    charts = _collect_selected_charts(selections)
     for chart in charts:
         if chart.designer != "":
             output.append(f"&des_{chart.level}={chart.designer}\n")
@@ -60,12 +63,11 @@ def _render_maidata(
 def compose_maidata(
     output_path: str | Path,
     headers: Mapping[str, str],
-    selected_charts: Mapping[int, ChartBlock | None],
-    overrides: Mapping[int, LevelOverride],
+    selections: Mapping[int, LevelSelection],
 ) -> Path:
     path = Path(output_path)
     path.write_text(
-        _render_maidata(headers, selected_charts, overrides),
+        _render_maidata(headers, selections),
         encoding="utf-8",
         newline="",
     )

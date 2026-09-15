@@ -12,7 +12,7 @@ _PARAMETER_RE = re.compile(r"^&([a-zA-Z]+(?:_\d+)?)=(.*)$")
 HEADER_KEYS = ("title", "artist", "first", "des")
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ChartBlock:
     level: int
     inote_value: str
@@ -22,7 +22,7 @@ class ChartBlock:
     source_path: Path
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ParsedChartFile:
     path: Path
     header_candidates: dict[str, tuple[str, ...]]
@@ -52,7 +52,7 @@ def _read_utf8(path: Path) -> str:
 
 
 def _split_parameter(line: str) -> tuple[str, str] | None:
-    match = _PARAMETER_RE.match(line.rstrip("\r\n"))
+    match = _PARAMETER_RE.match(line)
     if not match:
         return None
     return match.group(1), match.group(2)

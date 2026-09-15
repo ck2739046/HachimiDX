@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Iterable
+
 from PyQt6.QtCore import QEvent, QRect, QRectF, QStringListModel, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import QLineEdit, QSizePolicy, QWidget
@@ -55,7 +57,7 @@ class SplitDropLineEdit(QWidget):
     def setPlaceholderText(self, text: str) -> None:
         self.line_edit.setPlaceholderText(text)
 
-    def set_items(self, items: list[str]) -> None:
+    def set_items(self, items: Iterable[str]) -> None:
         self._items = list(items)
         self._model.setStringList(self._items)
         self.hidePopup()
