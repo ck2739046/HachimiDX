@@ -176,21 +176,21 @@ zh_CN:
         ui_remove_current_button: "移除当前项"
         ui_clear_all_button: "清空全部"
         ui_input_help: |
-          可以选择多个 TXT 文件，也可以选择多个文件夹。
-          选择文件夹时，只读取文件夹表层的 maidata.txt。
+          可以选择多个谱面文件和文件夹。
+          程序只会读取每个所选文件夹表层的 maidata.txt。
           选中的谱面文件将作为候选来源，用于选择各个等级的谱面，
           并合并导出为一个新的谱面文件。
 
         ui_header_divider: "共有参数"
-        ui_title_label: "&title:"
-        ui_artist_label: "&artist:"
-        ui_first_label: "&first:"
-        ui_des_label: "&des:"
+        ui_title_label: "title:"
+        ui_artist_label: "artist:"
+        ui_first_label: "first:"
+        ui_des_label: "designer:"
 
         ui_chart_divider: "谱面等级"
         ui_empty_option: "（空）"
-        ui_designer_label: "&des_%{level}:"
-        ui_level_label: "&lv_%{level}:"
+        ui_designer_label: "des_%{level}:"
+        ui_level_label: "lv_%{level}:"
         level_unknown: "Level %{level}"
 
         ui_output_dir_button: "选择输出文件夹"
