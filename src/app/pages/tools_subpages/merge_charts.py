@@ -106,7 +106,9 @@ class MergeChartsPage(BaseOutputPage):
         header_row.setContentsMargins(0, 0, 0, 0)
         header_row.setSpacing(5)
         for key in _HEADER_KEYS:
-            label = create_label(_t(f"ui_{key}_label"))
+            # 后三个 label 前置空格，与左侧输入框拉开距离
+            label_text = _t(f"ui_{key}_label") if key == "title" else f" {_t(f'ui_{key}_label')}"
+            label = create_label(label_text)
             edit = create_split_drop_line_edit(length=_HEADER_FIXED_WIDTHS.get(key))
             self._header_edits[key] = edit
             header_row.addWidget(label)
@@ -334,9 +336,9 @@ class MergeChartsPage(BaseOutputPage):
             combo.currentIndexChanged.connect(lambda index, lv=level: self._on_chart_selected(lv, index))
             self._chart_rows_layout.addWidget(level_label, row, 0)
             self._chart_rows_layout.addWidget(combo, row, 1)
-            self._chart_rows_layout.addWidget(create_label(_t("ui_designer_label", level=level)), row, 2)
+            self._chart_rows_layout.addWidget(create_label(" " + _t("ui_designer_label", level=level)), row, 2)
             self._chart_rows_layout.addWidget(designer_edit, row, 3)
-            self._chart_rows_layout.addWidget(create_label(_t("ui_level_label", level=level)), row, 4)
+            self._chart_rows_layout.addWidget(create_label(" " + _t("ui_level_label", level=level)), row, 4)
             self._chart_rows_layout.addWidget(level_edit, row, 5)
         self._chart_rows_layout.setColumnStretch(1, 1)
         self._chart_rows_layout.setRowStretch(len(levels), 1)
