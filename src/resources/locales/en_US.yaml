@@ -208,7 +208,13 @@ en_US:
         ignore_not_txt: "Not a TXT file"
         ignore_maidata_missing: "maidata.txt was not found at the folder root"
         ignore_invalid_path: "Path does not exist or is not a file/folder"
-        notice_ignored: "Ignored: %{path}\nReason: %{reason}"
+        ignore_duplicate: "Duplicate input"
+        ignore_no_valid_chart: "No valid inote_x chart was found"
+
+        log_added: "Added %{path}"
+        log_ignored: "Ignored %{path}, reason: %{reason}"
+        log_removed: "Removed %{path}"
+        log_cleared: "Cleared all candidate files/folders"
         notice_export_success: "Chart exported: %{path}"
 
         warning_output_dir_required: "Please select an output folder first."

@@ -209,7 +209,13 @@ zh_CN:
         ignore_not_txt: "不是 TXT 文件"
         ignore_maidata_missing: "文件夹表层未找到 maidata.txt"
         ignore_invalid_path: "路径不存在或不是文件/文件夹"
-        notice_ignored: "忽略：%{path}\n原因：%{reason}"
+        ignore_duplicate: "重复输入"
+        ignore_no_valid_chart: "未找到任何合法的 inote_x 谱面"
+
+        log_added: "已添加 %{path}"
+        log_ignored: "已忽略 %{path}, 原因: %{reason}"
+        log_removed: "已移除 %{path}"
+        log_cleared: "已清除全部候选文件/文件夹"
         notice_export_success: "谱面已导出：%{path}"
 
         warning_output_dir_required: "请先选择输出文件夹。"

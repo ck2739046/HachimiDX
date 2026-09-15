@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
+from datetime import datetime
 from functools import partial
 from pathlib import Path
 
@@ -17,10 +18,11 @@ from PyQt6.QtWidgets import (
 
 from src.core.chart_merge import (
     ChartBlock,
+    CollectedInput,
     ParsedChartFile,
-    collect_input_paths,
     compose_maidata,
-    parse_chart_file,
+    import_chart_inputs,
+    path_key,
 )
 from src.core.tools import (
     select_windows_files,
@@ -62,6 +64,11 @@ _DESIGNER_EDIT_WIDTH = 130
 _LEVEL_EDIT_WIDTH = 50
 _LEVEL_LABEL_WIDTH = 65
 _HEADER_FIXED_WIDTHS = {"artist": 130, "first": 78, "des": 130}
+
+_MARKER_ADDED = "[+]"
+_MARKER_IGNORED = "[*]"
+_MARKER_REMOVED = "[-]"
+_TIMESTAMP_FORMAT = "%y.%m.%d %H:%M:%S"
 
 
 def _t(key: str, **kwargs) -> str:
@@ -222,12 +229,34 @@ class MergeChartsPage(BaseOutputPage):
             self.output_dir_display.setText(str(Path(paths[0]).resolve()))
 
     @staticmethod
-    def _path_key(path: Path) -> str:
-        return str(path.resolve()).casefold()
-
-    @staticmethod
     def _path_label(path: Path) -> str:
         return f"{path.parent.name}\\{path.name}"
+
+    @staticmethod
+    def _timestamp() -> str:
+        return datetime.now().strftime(_TIMESTAMP_FORMAT)
+
+    def _log(self, marker: str | None, key: str, **kwargs) -> None:
+        prefix = f"[{self._timestamp()}]"
+        if marker is not None:
+            prefix = f"{prefix} {marker}"
+        self.output_widget.append_text(f"{prefix} {_t(key, **kwargs)}")
+
+    def _log_input_results(self, results: list[CollectedInput]) -> None:
+        for entry in results:
+            if entry.reason is None:
+                self._log(
+                    _MARKER_ADDED,
+                    "log_added",
+                    path=str(entry.resolved_path),
+                )
+                continue
+            self._log(
+                _MARKER_IGNORED,
+                "log_ignored",
+                path=str(entry.resolved_path),
+                reason=_t(f"ignore_{entry.reason}", error=entry.detail),
+            )
 
     def _capture_level_state(self) -> dict[int, _LevelState]:
         state: dict[int, _LevelState] = {}
@@ -235,7 +264,7 @@ class MergeChartsPage(BaseOutputPage):
             index = row.combo_box.currentIndex()
             chart = row.candidates[index] if 0 <= index < len(row.candidates) else None
             state[level] = _LevelState(
-                source_key=self._path_key(chart.source_path) if chart is not None else None,
+                source_key=path_key(chart.source_path) if chart is not None else None,
                 had_candidates=len(row.candidates) > 1,
                 designer=row.designer_line_edit.text(),
                 level_value=row.level_line_edit.text(),
@@ -245,7 +274,7 @@ class MergeChartsPage(BaseOutputPage):
     def _current_input_key(self) -> str | None:
         index = self._input_combo.currentIndex()
         if 0 <= index < len(self._parsed_files):
-            return self._path_key(self._parsed_files[index].path)
+            return path_key(self._parsed_files[index].path)
         return None
 
     def _add_inputs(self, paths: list[str]) -> None:
@@ -255,26 +284,13 @@ class MergeChartsPage(BaseOutputPage):
         previous_level_state = self._capture_level_state()
         current_input_key = self._current_input_key()
         had_files = bool(self._parsed_files)
-        existing = {self._path_key(parsed.path) for parsed in self._parsed_files}
-        collection = collect_input_paths(paths)
-        ignored = list(collection.ignored)
+        existing_keys = frozenset(
+            path_key(parsed.path) for parsed in self._parsed_files
+        )
 
-        for path in collection.files:
-            key = self._path_key(path)
-            if key in existing:
-                continue
-            try:
-                parsed = parse_chart_file(path)
-            except UnicodeDecodeError:
-                ignored.append((path, _t("ignore_invalid_encoding")))
-                continue
-            except OSError as exc:
-                ignored.append((path, _t("ignore_read_failed", error=str(exc))))
-                continue
-            self._parsed_files.append(parsed)
-            existing.add(key)
-
-        self._write_ignored(ignored)
+        loaded, results = import_chart_inputs(paths, existing_keys)
+        self._parsed_files.extend(loaded)
+        self._log_input_results(results)
         self._sync_input_combo(current_input_key)
         self._refresh_candidates(
             preserve_headers=had_files,
@@ -282,10 +298,13 @@ class MergeChartsPage(BaseOutputPage):
         )
 
     def _clear_inputs(self) -> None:
+        had_files = bool(self._parsed_files)
         self._parsed_files.clear()
         self._sync_input_combo()
         self._set_header_candidates({key: [] for key in _HEADER_KEYS})
         self._create_level_rows(set())
+        if had_files:
+            self._log(_MARKER_REMOVED, "log_cleared")
 
     def _remove_current_input(self) -> None:
         index = self._input_combo.currentIndex()
@@ -293,20 +312,13 @@ class MergeChartsPage(BaseOutputPage):
             return
 
         previous_level_state = self._capture_level_state()
-        self._parsed_files.pop(index)
+        removed = self._parsed_files.pop(index)
+        self._log(_MARKER_REMOVED, "log_removed", path=str(removed.path))
         self._sync_input_combo(selected_index=min(index, len(self._parsed_files) - 1))
         self._refresh_candidates(
             preserve_headers=True,
             previous_level_state=previous_level_state,
         )
-
-    def _write_ignored(self, ignored: list[tuple[Path, str]]) -> None:
-        for path, reason in ignored:
-            if reason in {"unresolved", "not_txt", "maidata_missing", "invalid_path"}:
-                reason = _t(f"ignore_{reason}")
-            self.output_widget.append_text(
-                _t("notice_ignored", path=str(path), reason=reason)
-            )
 
     def _sync_input_combo(
         self,
@@ -323,7 +335,7 @@ class MergeChartsPage(BaseOutputPage):
             )
             if selected_key is not None:
                 for index, parsed in enumerate(self._parsed_files):
-                    if self._path_key(parsed.path) == selected_key:
+                    if path_key(parsed.path) == selected_key:
                         self._input_combo.setCurrentIndex(index)
                         break
             elif selected_index is not None and selected_index >= 0:
@@ -439,7 +451,7 @@ class MergeChartsPage(BaseOutputPage):
             selected_index = 0
             if previous.source_key is not None:
                 for index, chart in enumerate(charts, start=1):
-                    if self._path_key(chart.source_path) == previous.source_key:
+                    if path_key(chart.source_path) == previous.source_key:
                         selected_index = index
                         break
             elif not previous.had_candidates and len(charts) == 1:
@@ -530,4 +542,4 @@ class MergeChartsPage(BaseOutputPage):
                 _t("warning_export_failed", error=str(exc)),
             )
             return
-        self.output_widget.append_text(_t("notice_export_success", path=str(output_path)))
+        self._log(None, "notice_export_success", path=str(output_path))
