@@ -7,6 +7,7 @@ from pathlib import Path
 
 _INOTE_RE = re.compile(r"^&inote_(\d+)=(.*)$")
 _PARAMETER_RE = re.compile(r"^&([a-zA-Z]+(?:_\d+)?)=(.*)$")
+_HEADER_KEYS = ("title", "artist", "first", "des")
 
 
 @dataclass(frozen=True)
@@ -31,6 +32,21 @@ class ParsedChartFile:
     charts: tuple[ChartBlock, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class _OpenChart:
+    level: int
+    inote_value: str
+    body_start: int
+
+
+@dataclass(frozen=True, slots=True)
+class _ChartRange:
+    level: int
+    inote_value: str
+    body_start: int
+    body_end: int
+
+
 def _read_utf8(path: Path) -> str:
     data = path.read_bytes()
     if data.startswith(b"\xef\xbb\xbf"):
@@ -45,76 +61,107 @@ def _split_parameter(line: str) -> tuple[str, str] | None:
     return match.group(1), match.group(2)
 
 
-def parse_chart_file(path: str | Path) -> ParsedChartFile:
-    source_path = Path(path)
-    lines = _read_utf8(source_path).splitlines(keepends=True)
+def _append_chart_range(
+    current: _OpenChart | None,
+    body_end: int,
+    seen_levels: set[int],
+    chart_ranges: list[_ChartRange],
+) -> None:
+    if current is None or current.level in seen_levels:
+        return
+    chart_ranges.append(
+        _ChartRange(
+            level=current.level,
+            inote_value=current.inote_value,
+            body_start=current.body_start,
+            body_end=body_end,
+        )
+    )
+    seen_levels.add(current.level)
+
+
+def _scan_lines(
+    lines: list[str],
+) -> tuple[dict[str, list[str]], list[_ChartRange]]:
     parameters: dict[str, list[str]] = {}
-    chart_ranges: list[tuple[int, str, int, int]] = []
+    chart_ranges: list[_ChartRange] = []
     seen_levels: set[int] = set()
-
-    current_level: int | None = None
-    current_inote: str | None = None
-    current_start = 0
-
-    def finish_chart(end: int) -> None:
-        nonlocal current_level, current_inote, current_start
-        if (
-            current_level is not None
-            and current_inote is not None
-            and current_level not in seen_levels
-        ):
-            chart_ranges.append((current_level, current_inote, current_start, end))
-            seen_levels.add(current_level)
-        current_level = None
-        current_inote = None
+    current: _OpenChart | None = None
 
     for index, line in enumerate(lines):
         stripped = line.rstrip("\r\n")
         inote_match = _INOTE_RE.match(stripped)
         if inote_match:
-            finish_chart(index)
-            current_level = int(inote_match.group(1))
-            current_inote = inote_match.group(2)
-            current_start = index + 1
+            _append_chart_range(current, index, seen_levels, chart_ranges)
+            current = _OpenChart(
+                level=int(inote_match.group(1)),
+                inote_value=inote_match.group(2),
+                body_start=index + 1,
+            )
             continue
 
         if stripped.startswith("&"):
-            finish_chart(index)
+            _append_chart_range(current, index, seen_levels, chart_ranges)
+            current = None
+
         parameter = _split_parameter(stripped)
         if parameter is not None:
             key, value = parameter
             parameters.setdefault(key, []).append(value)
 
-    finish_chart(len(lines))
+    _append_chart_range(current, len(lines), seen_levels, chart_ranges)
+    return parameters, chart_ranges
 
-    headers = {
+
+def _build_headers(parameters: dict[str, list[str]]) -> dict[str, str]:
+    return {
         key: values[0]
         for key, values in parameters.items()
-        if key in {"title", "artist", "first", "des"} and values
-    }
-    header_candidates = {
-        key: tuple(dict.fromkeys(parameters.get(key, [])))
-        for key in ("title", "artist", "first", "des")
+        if key in _HEADER_KEYS and values
     }
 
+
+def _build_header_candidates(
+    parameters: dict[str, list[str]],
+) -> dict[str, tuple[str, ...]]:
+    return {
+        key: tuple(dict.fromkeys(parameters.get(key, [])))
+        for key in _HEADER_KEYS
+    }
+
+
+def _build_charts(
+    source_path: Path,
+    lines: list[str],
+    parameters: dict[str, list[str]],
+    chart_ranges: list[_ChartRange],
+) -> tuple[ChartBlock, ...]:
     charts: list[ChartBlock] = []
-    for level, inote_value, start, end in chart_ranges:
-        level_value = parameters.get(f"lv_{level}", [""])[0]
-        designer = parameters.get(f"des_{level}", [""])[0]
+    for chart_range in chart_ranges:
+        level = chart_range.level
         charts.append(
             ChartBlock(
                 level=level,
-                inote_value=inote_value,
-                body_lines=tuple(lines[start:end]),
-                designer=designer,
-                level_value=level_value,
+                inote_value=chart_range.inote_value,
+                body_lines=tuple(
+                    lines[chart_range.body_start:chart_range.body_end]
+                ),
+                designer=parameters.get(f"des_{level}", [""])[0],
+                level_value=parameters.get(f"lv_{level}", [""])[0],
                 source_path=source_path,
             )
         )
+    return tuple(charts)
+
+
+def parse_chart_file(path: str | Path) -> ParsedChartFile:
+    source_path = Path(path)
+    lines = _read_utf8(source_path).splitlines(keepends=True)
+    parameters, chart_ranges = _scan_lines(lines)
 
     return ParsedChartFile(
         path=source_path,
-        headers=headers,
-        header_candidates=header_candidates,
-        charts=tuple(charts),
+        headers=_build_headers(parameters),
+        header_candidates=_build_header_candidates(parameters),
+        charts=_build_charts(source_path, lines, parameters, chart_ranges),
     )

@@ -6,22 +6,27 @@ from typing import Mapping
 from .parse import ChartBlock
 
 
-def compose_maidata(
-    output_path: str | Path,
-    headers: Mapping[str, str],
+_HEADER_KEYS = ("title", "artist", "first", "des")
+
+
+def _collect_selected_charts(
     selected_charts: Mapping[int, ChartBlock | None],
-) -> Path:
-    path = Path(output_path)
-
-    output: list[str] = []
-    for key in ("title", "artist", "first", "des"):
-        output.append(f"&{key}={headers.get(key, '')}\n")
-    output.append("\n")
-
-    charts = [
-        chart for level, chart in sorted(selected_charts.items())
+) -> list[ChartBlock]:
+    return [
+        chart
+        for level, chart in sorted(selected_charts.items())
         if chart is not None and chart.level == level
     ]
+
+
+def _render_maidata(
+    headers: Mapping[str, str],
+    selected_charts: Mapping[int, ChartBlock | None],
+) -> str:
+    output = [f"&{key}={headers.get(key, '')}\n" for key in _HEADER_KEYS]
+    output.append("\n")
+
+    charts = _collect_selected_charts(selected_charts)
     for chart in charts:
         if chart.designer != "":
             output.append(f"&des_{chart.level}={chart.designer}\n")
@@ -32,8 +37,25 @@ def compose_maidata(
     for index, chart in enumerate(charts):
         output.append(f"&inote_{chart.level}={chart.inote_value}\n")
         output.extend(chart.body_lines)
-        if index != len(charts) - 1 and chart.body_lines and not chart.body_lines[-1].endswith(("\n", "\r")):
+        if (
+            index != len(charts) - 1
+            and chart.body_lines
+            and not chart.body_lines[-1].endswith(("\n", "\r"))
+        ):
             output.append("\n")
 
-    path.write_text("".join(output), encoding="utf-8", newline="")
+    return "".join(output)
+
+
+def compose_maidata(
+    output_path: str | Path,
+    headers: Mapping[str, str],
+    selected_charts: Mapping[int, ChartBlock | None],
+) -> Path:
+    path = Path(output_path)
+    path.write_text(
+        _render_maidata(headers, selected_charts),
+        encoding="utf-8",
+        newline="",
+    )
     return path
