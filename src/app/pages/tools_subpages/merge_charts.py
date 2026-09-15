@@ -6,7 +6,6 @@ from pathlib import Path
 from PyQt6.QtWidgets import (
     QComboBox,
     QFrame,
-    QGridLayout,
     QHBoxLayout,
     QScrollArea,
     QVBoxLayout,
@@ -26,6 +25,7 @@ from ...widgets import (
     create_button,
     create_combo_box,
     create_divider,
+    create_help_icon,
     create_label,
     create_line_edit,
     create_path_display,
@@ -61,16 +61,17 @@ class MergeChartsPage(BaseOutputPage):
         self._level_rows: dict[int, tuple[QComboBox, QWidget, QWidget, list[ChartBlock | None]]] = {}
         self._header_edits = {}
 
-        select_files_button = create_button(_t("ui_select_files_button"), width=150)
-        select_dirs_button = create_button(_t("ui_select_dirs_button"), width=150)
+        select_files_button = create_button(_t("ui_select_files_button"), width=85)
+        select_dirs_button = create_button(_t("ui_select_dirs_button"), width=103)
         self._input_combo = create_combo_box(show_tooltip=True)
-        self._remove_input_button = create_button(_t("ui_remove_current_button"), width=110)
-        self._clear_inputs_button = create_button(_t("ui_clear_all_button"), width=90)
-        self.content_layout.addWidget(create_divider(_t("ui_input_divider")))
+        self._remove_input_button = create_button(_t("ui_remove_current_button"), width=100)
+        self._clear_inputs_button = create_button(_t("ui_clear_all_button"), width=75)
+        self.content_layout.addWidget(create_divider(_t("ui_select_file_divider")))
         self.content_layout.addWidget(
             _create_row(
                 select_files_button,
                 select_dirs_button,
+                create_help_icon(_t("ui_input_help")),
                 self._input_combo,
                 self._remove_input_button,
                 self._clear_inputs_button,
@@ -94,23 +95,19 @@ class MergeChartsPage(BaseOutputPage):
         self.content_layout.addWidget(self._chart_scroll, 1)
 
         self.content_layout.addWidget(create_divider(_t("ui_header_divider")))
-        header_grid = QGridLayout()
-        header_grid.setContentsMargins(0, 0, 0, 0)
-        header_grid.setHorizontalSpacing(5)
-        header_grid.setVerticalSpacing(5)
+        header_row = QHBoxLayout()
+        header_row.setContentsMargins(0, 0, 0, 0)
+        header_row.setSpacing(5)
         for key in _HEADER_KEYS:
             label = create_label(_t(f"ui_{key}_label"))
             edit = create_split_drop_line_edit()
-            edit.setPlaceholderText(_t("ui_value_placeholder"))
-            self._header_edits[key] = edit
-            row = _HEADER_KEYS.index(key)
-            header_grid.addWidget(label, row, 0)
-            header_grid.addWidget(edit, row, 1)
-        header_grid.setColumnStretch(1, 1)
-        self.content_layout.addLayout(header_grid)
 
-        self.content_layout.addWidget(create_divider(_t("ui_output_divider")))
-        self.output_dir_button = create_button(_t("ui_output_dir_button"), width=130)
+            self._header_edits[key] = edit
+            header_row.addWidget(label)
+            header_row.addWidget(edit, {"title": 50, "artist": 18, "first": 14, "des": 18}[key])
+        self.content_layout.addLayout(header_row)
+
+        self.output_dir_button = create_button(_t("ui_output_dir_button"), width=125)
         self.output_dir_display = create_path_display()
         self.output_filename_edit = create_line_edit(default_text="maidata", length=180)
         self.output_suffix_label = create_label(".txt")

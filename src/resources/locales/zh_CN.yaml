@@ -169,19 +169,23 @@ zh_CN:
 
     tools_subpages:
       merge_charts:
-        ui_input_divider: "输入谱面"
-        ui_select_files_button: "选择 TXT 文件"
-        ui_select_dirs_button: "选择谱面文件夹"
+        ui_select_file_divider: "文件选择"
+        ui_select_files_button: "选择文件"
+        ui_select_dirs_button: "选择文件夹"
         ui_no_input_option: "（无输入文件）"
         ui_remove_current_button: "移除当前项"
         ui_clear_all_button: "清空全部"
+        ui_input_help: |
+          可以选择多个 TXT 文件，也可以选择多个文件夹。
+          选择文件夹时，只读取文件夹表层的 maidata.txt。
+          选中的谱面文件将作为候选来源，用于选择各个等级的谱面，
+          并合并导出为一个新的谱面文件。
 
         ui_header_divider: "共有参数"
         ui_title_label: "&title:"
         ui_artist_label: "&artist:"
         ui_first_label: "&first:"
         ui_des_label: "&des:"
-        ui_value_placeholder: "可从右侧下拉菜单选择，也可手动输入"
 
         ui_chart_divider: "谱面等级"
         ui_empty_option: "（空）"
@@ -189,7 +193,6 @@ zh_CN:
         ui_level_label: "&lv_%{level}:"
         level_unknown: "Level %{level}"
 
-        ui_output_divider: "导出"
         ui_output_dir_button: "选择输出文件夹"
         ui_filename_label: "文件名:"
         ui_export_button: "导出"

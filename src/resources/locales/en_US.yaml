@@ -168,19 +168,23 @@ en_US:
 
     tools_subpages:
       merge_charts:
-        ui_input_divider: "Input Charts"
-        ui_select_files_button: "Select TXT Files"
-        ui_select_dirs_button: "Select Chart Folders"
+        ui_select_file_divider: "File Selection"
+        ui_select_files_button: "Select Files"
+        ui_select_dirs_button: "Select Folders"
         ui_no_input_option: "(No input files)"
-        ui_remove_current_button: "Remove Current"
+        ui_remove_current_button: "Remove this"
         ui_clear_all_button: "Clear All"
+        ui_input_help: |
+          You can select multiple TXT files or multiple folders.
+          For each selected folder, only its top-level maidata.txt is read.
+          The selected chart files become candidate sources for each level
+          and are merged into one new chart file.
 
         ui_header_divider: "Shared Parameters"
         ui_title_label: "&title:"
         ui_artist_label: "&artist:"
         ui_first_label: "&first:"
         ui_des_label: "&des:"
-        ui_value_placeholder: "Choose from the menu or enter a value"
 
         ui_chart_divider: "Chart Levels"
         ui_empty_option: "(Empty)"
@@ -188,8 +192,7 @@ en_US:
         ui_level_label: "&lv_%{level}:"
         level_unknown: "Level %{level}"
 
-        ui_output_divider: "Export"
-        ui_output_dir_button: "Select Output Folder"
+        ui_output_dir_button: "Select Output Dir"
         ui_filename_label: "Filename:"
         ui_export_button: "Export"
 
