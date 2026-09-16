@@ -7,8 +7,11 @@ from importlib import import_module
 _LAZY_MAP: dict[str, str] = {
     # 核心管理
     "PathManage":       ".path_manage",
+    "ModelPaths":       ".path_manage",
+    "ResolvedModels":   ".path_manage",
     "SettingsManage":   ".settings_manage",
     "ModelInferenceManage": ".model_inference_manage",
+    "ModelInferenceCheckResult": ".model_inference_manage",
     "I18nManage":       ".i18n_manage",
 
     # majdata
@@ -23,6 +26,8 @@ _LAZY_MAP: dict[str, str] = {
     # 调度器数据模型
     "TaskInfo":         ".task_scheduler",
     "TaskStatus":       ".task_scheduler",
+    "TaskType":         ".task_scheduler",
+
 
     # pipeline
     "AutoRechartPipeline": ".pipeline.auto_rechart_pipeline",
@@ -49,15 +54,16 @@ def __getattr__(name: str):
 __all__ = [
     "AllServices",
     "PathManage",
+    "ModelPaths", "ResolvedModels",
     "SettingsManage",
-    "ModelInferenceManage",
+    "ModelInferenceManage", "ModelInferenceCheckResult",
     "I18nManage",
     "MajdataSession", "stop_majdata",
     "VideoSyncServer",
     "MajdataCommandClient",
     "AutoRechartPipeline",
     "MediaPipeline",
-    "TaskInfo", "TaskStatus",
+    "TaskInfo", "TaskStatus", "TaskType",
     "process_manager_api",
     "task_scheduler_api",
     "check_update",
