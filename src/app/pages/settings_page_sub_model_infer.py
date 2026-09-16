@@ -1,7 +1,11 @@
 from dataclasses import dataclass
 import json
 
-from src.core.schemas.model_inference_config import get_model_backend_id, get_model_group
+from src.core.schemas.model_inference_config import (
+    INFERENCE_DEVICE_RESULT_PREFIX,
+    get_model_backend_id,
+    get_model_group,
+)
 from src.services import ModelInferenceManage
 
 
@@ -24,7 +28,7 @@ class ModelInferenceView:
 
 
 def parse_inference_device_results(recent_output: str, backend: str) -> list[InferenceDeviceItem]:
-    prefix = "INFERENCE_DEVICE_RESULT:"
+    prefix = INFERENCE_DEVICE_RESULT_PREFIX
     results: list[InferenceDeviceItem] = []
     seen_device_ids: set[str] = set()
 

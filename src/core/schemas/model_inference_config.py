@@ -47,6 +47,9 @@ _MODEL_BACKEND_RULES = {
     },
 }
 
+# check_device worker 通过 stdout 回传设备列表, UI 侧按该前缀解析
+INFERENCE_DEVICE_RESULT_PREFIX: Final[str] = "INFERENCE_DEVICE_RESULT:"
+
 
 
 def get_model_backend_rule(backend) -> dict | None:

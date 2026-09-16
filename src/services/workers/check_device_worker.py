@@ -21,6 +21,7 @@ if root not in sys.path:
 
 
 from src.core.tools import redirect_native_stderr
+from src.core.schemas.model_inference_config import INFERENCE_DEVICE_RESULT_PREFIX
 
 from src.core.check_device.check_onnx_cpu import check as check_onnx_cpu
 from src.core.check_device.check_onnx_cuda import check as check_onnx_cuda
@@ -56,7 +57,7 @@ def main(runtime: str) -> bool:
     successful_devices = [device for device in devices if device.error is None]
     if not successful_devices:
         return False
-    print("INFERENCE_DEVICE_RESULT:" + json.dumps({
+    print(INFERENCE_DEVICE_RESULT_PREFIX + json.dumps({
         "devices": [
             {
                 "device_id": device.device_id,
