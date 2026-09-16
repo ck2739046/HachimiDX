@@ -86,12 +86,12 @@ class TasksPage(BaseOutputPage):
             f"""
             QScrollBar:vertical {{
                 background-color: {UI_Style.COLORS['bg']};
-                width: 12px;
+                width: 9px;
                 border: none;
             }}
             QScrollBar::handle:vertical {{
-                background-color: {UI_Style.COLORS['text_secondary']};
-                border-radius: 6px;
+                background-color: {UI_Style.COLORS['grey_hover']};
+                border-radius: 4px;
                 min-height: 20px;
             }}
             QScrollBar::handle:vertical:hover {{
@@ -106,12 +106,12 @@ class TasksPage(BaseOutputPage):
 
             QScrollBar:horizontal {{
                 background-color: {UI_Style.COLORS['bg']};
-                height: 12px;
+                height: 9px;
                 border: none;
             }}
             QScrollBar::handle:horizontal {{
-                background-color: {UI_Style.COLORS['text_secondary']};
-                border-radius: 6px;
+                background-color: {UI_Style.COLORS['grey_hover']};
+                border-radius: 4px;
                 min-width: 20px;
             }}
             QScrollBar::handle:horizontal:hover {{
