@@ -9,6 +9,7 @@ from .tools_subpages.arcade_timing import ArcadeTimingPage
 from .tools_subpages.simply_align import SimplyAlignPage
 from .tools_subpages.run_ffmpeg import RunFFmpegPage
 from .tools_subpages.measure_bpm import MeasureBpmPage
+from .tools_subpages.merge_charts import MergeChartsPage
 
 class ToolsPage(QWidget):
     """
@@ -37,6 +38,7 @@ class ToolsPage(QWidget):
             i18n.t("app.sub_nav_bar.simply_align_label"),
             i18n.t("app.sub_nav_bar.run_ffmpeg_label"),
             i18n.t("app.sub_nav_bar.measure_bpm_label"),
+            i18n.t("app.sub_nav_bar.merge_charts_label"),
         ]
         # nav_tooltips = [
         #     i18n.t("app.sub_nav_bar.arcade_timing_desc"),
@@ -61,6 +63,8 @@ class ToolsPage(QWidget):
         self.stack.addWidget(RunFFmpegPage())
         self.measure_bpm_page = MeasureBpmPage()
         self.stack.addWidget(self.measure_bpm_page)
+        self.merge_charts_page = MergeChartsPage()
+        self.stack.addWidget(self.merge_charts_page)
 
         # 连接信号：Arcade Timing → Simply Align 一键跳转
         self.arcade_timing_page.request_simply_align.connect(self._on_request_simply_align)

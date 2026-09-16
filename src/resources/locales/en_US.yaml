@@ -130,6 +130,7 @@ en_US:
       simply_align_label: "Align Audio"
       run_ffmpeg_label: "Transcoding"
       measure_bpm_label: "Measure Bpm"
+      merge_charts_label: "Merge Charts"
       # arcade_timing_desc: "Analyze startup audio delay to align with official audio"
       # simply_align_desc: "Quick audio alignment tool"
       # run_ffmpeg_desc: "FFmpeg transcoding tool"
@@ -166,6 +167,68 @@ en_US:
 
 
     tools_subpages:
+      merge_charts:
+        ui_select_file_divider: "File Selection"
+        ui_select_files_button: "Select Files"
+        ui_select_dirs_button: "Select Folders"
+        ui_no_input_option: "(No input files)"
+        ui_remove_current_button: "Remove this"
+        ui_clear_all_button: "Clear All"
+        ui_input_help: |
+          You can select multiple TXT files and folders.
+          For each selected folder, only its top-level maidata.txt is read.
+          The selected chart files become candidate sources for each level
+          and are merged into one new chart file.
+
+        ui_header_divider: "Shared Params"
+        ui_title_label: "title:"
+        ui_artist_label: " artist:"
+        ui_first_label: " first:"
+        ui_des_label: " designer:"
+
+        ui_chart_divider: "Chart Levels"
+        ui_empty_option: "(Empty)"
+        ui_designer_label: " des_%{level}:"
+        ui_level_label: " lv_%{level}:"
+        level_unknown: "Level %{level}"
+
+        ui_output_dir_button: "Select Output Dir"
+        ui_filename_label: "Filename:"
+        ui_export_button: "Export"
+
+        dialog_select_files_title: "Select Chart Text Files"
+        dialog_select_dir_title: "Select Chart Folders"
+        dialog_txt_filter: "Text Files (*.txt)"
+        dialog_error_title: "Merge Charts"
+        dialog_overwrite_title: "Overwrite File"
+
+        ignore_invalid_encoding: "The file is not valid UTF-8 / UTF-8-BOM text"
+        ignore_read_failed: "Read failed: %{error}"
+        ignore_unresolved: "Unable to resolve path"
+        ignore_not_txt: "Not a TXT file"
+        ignore_maidata_missing: "maidata.txt was not found at the folder root"
+        ignore_invalid_path: "Path does not exist or is not a file/folder"
+        ignore_duplicate: "Duplicate input"
+        ignore_no_valid_chart: "No valid inote_x chart was found"
+
+        log_added: "Added %{path}"
+        log_ignored: "Ignored %{path}, reason: %{reason}"
+        log_removed: "Removed %{path}"
+        log_cleared: "Cleared all candidate files/folders"
+        notice_export_success: "Chart exported: %{path}"
+
+        warning_output_dir_required: "Please select an output folder first."
+        warning_output_dir_invalid: "The output folder does not exist. Select it again."
+        warning_dialog_failed: "Failed to open the Windows file picker: %{error}"
+        warning_filename_invalid: "Invalid output filename: %{error}"
+        warning_no_input: "Select at least one valid UTF-8 chart text file first."
+        warning_overwrite: |
+          The output file already exists:
+          %{path}
+
+          Overwrite it?
+        warning_export_failed: "Failed to export chart: %{error}"
+
       arcade_timing:
         dialog_title: "Arcade Timing"
 
