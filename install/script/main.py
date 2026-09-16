@@ -283,11 +283,12 @@ def install_pytorch(tensorrt_gpu_config: tensorrt_config | None,
         torchvision_ver = "0.26.0"
         target = "cpu"
 
-    # 包含 PyTorch Cuda 本体的镜像列表
+    # 包含 PyTorch Cuda 本体的镜像列表，官方源保底
     pytorch_mirrors = [
         ("nju",  ["-i", f"https://mirrors.nju.edu.cn/pytorch/whl/{target}"]),
-        ("aliyun_pytorch", ["-f", f"https://mirrors.aliyun.com/pytorch-wheels/{target}"]),
         ("sjtu", ["-i", f"https://mirror.sjtu.edu.cn/pytorch-wheels/{target}"]),
+        ("aliyun_pytorch", ["-f", f"https://mirrors.aliyun.com/pytorch-wheels/{target}"]),
+        ("pytorch_official", ["-i", f"https://download.pytorch.org/whl/{target}"]),
     ]
 
     cmd = [sys.executable, "-m", "pip", "install",
@@ -540,12 +541,13 @@ def general_pip_install(package_name, cmd: list[str],
       自定义镜像列表（key, args_list），默认使用内置 PYPI_MIRRORS。
     """
 
-    # PyPI 镜像列表（key, args_list）优先级从上到下，首选清华源
+    # PyPI 镜像列表（key, args_list）优先级从上到下，首选清华源，官方源保底
     PYPI_MIRRORS = [
         ("thu",     ["-i", "https://pypi.tuna.tsinghua.edu.cn/simple"]),
         ("tencent", ["-i", "https://mirrors.cloud.tencent.com/pypi/simple"]),
         ("huawei",  ["-i", "https://repo.huaweicloud.com/repository/pypi/simple"]),
         ("aliyun",  ["-i", "https://mirrors.aliyun.com/pypi/simple"]),
+        ("official", ["-i", "https://pypi.org/simple"]),
     ]
 
     use_mirror = bool(USE_PyPI_Mirror) and add_pypi_mirror is not False
