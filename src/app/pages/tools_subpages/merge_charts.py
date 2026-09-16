@@ -38,6 +38,7 @@ from src.core.tools import (
 )
 from ...widgets import (
     SplitDropLineEdit,
+    ToolTipComboBox,
     create_button,
     create_combo_box,
     create_divider,
@@ -49,7 +50,6 @@ from ...widgets import (
     create_stated_button,
     widget_utils,
 )
-from ...widgets.combo_box import ToolTipComboBox
 from ..base_output_page import BaseOutputPage
 
 

@@ -160,7 +160,7 @@ def _replay(out: list[str], captures: dict[str, bytes]) -> None:
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     from PyQt6.QtWidgets import QApplication
 
-    from src.app.widgets.output_log import OutputLogWidget
+    from src.app.widgets import OutputLogWidget
 
     app = QApplication.instance() or QApplication([])
     widget = OutputLogWidget()
@@ -243,7 +243,7 @@ def _chunk_mix(out: list[str]) -> None:
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     from PyQt6.QtWidgets import QApplication
 
-    from src.app.widgets.output_log import OutputLogWidget
+    from src.app.widgets import OutputLogWidget
 
     app = QApplication.instance() or QApplication([])
     # 与 HachimiDX_log.txt 里那条真实记录一致的 57 字节 utf-8 前缀(奇数长度)
