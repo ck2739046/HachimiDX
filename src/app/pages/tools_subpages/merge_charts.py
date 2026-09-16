@@ -496,12 +496,13 @@ class MergeChartsPage(BaseOutputPage):
         return selections
 
     def _export(self) -> None:
-        directory = self.output_dir_display.text().strip()
+        directory_text = self.output_dir_display.text().strip()
         filename = self._filename_base()
-        if not directory:
+        if not directory_text:
             self._warn("warning_output_dir_required")
             return
-        if not Path(directory).is_dir():
+        directory = Path(directory_text)
+        if not directory.is_dir():
             self._warn("warning_output_dir_invalid")
             return
         validation = validate_windows_filename(filename)
@@ -512,7 +513,7 @@ class MergeChartsPage(BaseOutputPage):
             self._warn("warning_no_input")
             return
 
-        output_path = Path(directory) / f"{filename}.txt"
+        output_path = directory / f"{filename}.txt"
         if output_path.exists() and not show_confirm_dialog(
             _t("dialog_overwrite_title"),
             _t("warning_overwrite", path=str(output_path)),
