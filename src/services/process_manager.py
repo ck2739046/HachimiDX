@@ -8,7 +8,7 @@ from PyQt6.QtCore import QObject, QProcess, QTimer, pyqtSignal
 
 from src.core.schemas.op_result import OpResult, ok, err
 from src.core.tools import generate_uid
-from src.services.watchdog import _kill_process_tree
+from .watchdog import kill_process_tree
 
 
 @dataclass(slots=True)
@@ -295,7 +295,7 @@ class ProcessManager(QObject):
             return
 
         # 对每个进程的整棵进程树执行 psutil kill
-        _kill_process_tree(pid)
+        kill_process_tree(pid)
 
 
             

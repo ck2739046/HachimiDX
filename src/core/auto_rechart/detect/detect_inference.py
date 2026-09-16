@@ -7,7 +7,7 @@ from enum import Enum
 from ...schemas.op_result import OpResult, ok, err
 from .note_definition import *
 from .detect_inference_worker import inference_worker_main
-from src.services.watchdog import _kill_process_tree
+from src.services import kill_process_tree
 
 
 
@@ -387,7 +387,7 @@ class Inferencer:
                 p.join(timeout=_WORKER_EXIT_TIMEOUT)
                 # join 超时后, 使用 psutil 强杀整棵进程树
                 if p.is_alive():
-                    _kill_process_tree(p.pid)
+                    kill_process_tree(p.pid)
 
         for q in all_queues:
             try:

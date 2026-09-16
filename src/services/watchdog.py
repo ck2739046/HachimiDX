@@ -6,7 +6,7 @@ from typing import Optional
 import psutil
 
 
-def _kill_process_tree(pid: int) -> None:
+def kill_process_tree(pid: int) -> None:
     """强杀 pid 及其整棵子进程树"""
     try:
         root = psutil.Process(pid)
@@ -56,7 +56,7 @@ def _force_kill_process_by_name(target: str) -> None:
     if result:
         print(f"Found {len(result)} '{target}' process(es): {result}, will force kill...")
         for pid in result:
-            _kill_process_tree(pid)
+            kill_process_tree(pid)
 
 
 
@@ -143,7 +143,7 @@ def shutdown_orphaned_subprocesses(parent_pid: int) -> None:
     print(f"[watchdog] Found {len(pids)} orphaned descendant process(es): {pids}, force killing...")
     for pid in pids:
         # 强杀每个进程的整棵进程树
-        _kill_process_tree(pid)
+        kill_process_tree(pid)
 
 
 

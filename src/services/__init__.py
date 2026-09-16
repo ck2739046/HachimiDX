@@ -28,6 +28,8 @@ _LAZY_MAP: dict[str, str] = {
     "TaskStatus":       ".task_scheduler",
     "TaskType":         ".task_scheduler",
 
+    # 进程树清理
+    "kill_process_tree": ".watchdog",
 
     # pipeline
     "AutoRechartPipeline": ".pipeline.auto_rechart_pipeline",
@@ -64,6 +66,7 @@ __all__ = [
     "AutoRechartPipeline",
     "MediaPipeline",
     "TaskInfo", "TaskStatus", "TaskType",
+    "kill_process_tree",
     "process_manager_api",
     "task_scheduler_api",
     "check_update",
