@@ -1,4 +1,5 @@
 @echo off
+title HachimiDX Installer
 cd /d "%~dp0"
 
 :: 日志位置

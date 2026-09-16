@@ -896,7 +896,7 @@ class SettingsPage(BaseOutputPage):
         if not confirmed:
             return
 
-        launched = launch_console_script(install_bat, "HachimiDX Installer")
+        launched = launch_console_script(install_bat)
         if not launched:
             show_notify_dialog(
                 i18n.t(f"{I18N_Prefix}.dialog_title"),
