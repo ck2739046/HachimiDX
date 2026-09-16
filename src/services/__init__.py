@@ -40,9 +40,15 @@ _LAZY_MAP: dict[str, str] = {
 }
 
 
+# 子模块命名空间（用于区分同名函数，如 cancel / get_signals）
+_SUBMODULE_NAMES = ("process_manager_api", "task_scheduler_api")
+
+
+
+
 def __getattr__(name: str):
     # 子模块命名空间（用于区分同名函数，如 cancel / get_signals）
-    if name in ("process_manager_api", "task_scheduler_api"):
+    if name in _SUBMODULE_NAMES:
         module = import_module(f".{name}", __name__)
         return module
 
@@ -53,21 +59,5 @@ def __getattr__(name: str):
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-__all__ = [
-    "AllServices",
-    "PathManage",
-    "ModelPaths", "ResolvedModels",
-    "SettingsManage",
-    "ModelInferenceManage", "ModelInferenceCheckResult",
-    "I18nManage",
-    "MajdataSession", "stop_majdata",
-    "VideoSyncServer",
-    "MajdataCommandClient",
-    "AutoRechartPipeline",
-    "MediaPipeline",
-    "TaskInfo", "TaskStatus", "TaskType",
-    "kill_process_tree",
-    "process_manager_api",
-    "task_scheduler_api",
-    "check_update",
-]
+# 从 _LAZY_MAP 派生，避免新增符号时漏改 __all__
+__all__ = [*_LAZY_MAP, *_SUBMODULE_NAMES]
