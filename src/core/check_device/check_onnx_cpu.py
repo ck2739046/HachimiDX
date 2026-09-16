@@ -1,4 +1,4 @@
-from src.services.workers.check_device.common import (
+from .common import (
     DeviceResult,
     get_windows_cpu_name,
     print_device_results,

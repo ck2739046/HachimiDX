@@ -22,11 +22,11 @@ if root not in sys.path:
 
 from src.core.tools import redirect_native_stderr
 
-from src.services.workers.check_device.check_onnx_cpu import check as check_onnx_cpu
-from src.services.workers.check_device.check_onnx_cuda import check as check_onnx_cuda
-from src.services.workers.check_device.check_onnx_dml import check as check_onnx_dml
-from src.services.workers.check_device.check_ncnn import check as check_ncnn_vulkan
-from src.services.workers.check_device.check_trt import check as check_tensorrt
+from src.core.check_device.check_onnx_cpu import check as check_onnx_cpu
+from src.core.check_device.check_onnx_cuda import check as check_onnx_cuda
+from src.core.check_device.check_onnx_dml import check as check_onnx_dml
+from src.core.check_device.check_ncnn import check as check_ncnn_vulkan
+from src.core.check_device.check_trt import check as check_tensorrt
 
 
 
