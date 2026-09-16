@@ -2,7 +2,7 @@ import os
 import traceback
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
-from ..base_output_page import BaseOutputPage, _create_row
+from ..base_output_page import BaseOutputPage
 from ...ui_style import UI_Style
 from ...widgets import *
 
@@ -90,12 +90,13 @@ class RunFFmpegPage(BaseOutputPage):
         video_panel = QWidget()
         video_layout = QVBoxLayout(video_panel)
         video_layout.setContentsMargins(0, 0, 0, 0)
-        row = _create_row(video_quality_label, self.video_quality_combo_box, video_quality_help,
+        row = self.create_row(video_quality_label, self.video_quality_combo_box, video_quality_help,
                           video_resolution_label, self.video_resolution_combo_box, video_resolution_help,
                           video_fps_label, self.video_fps_combo_box, video_fps_help,
                           video_gop_optimize_label, self.video_gop_optimize_check_box, video_gop_optimize_help,
                           delete_audio_label, self.delete_audio_check_box, delete_audio_help,
-                          add_stretch=True)
+                          add_stretch=True,
+                          add_to_layout=False)
         video_layout.addWidget(row)
         self.content_layout.addWidget(video_panel)
         self.video_overlay = OverlayWidget(video_panel)
@@ -120,12 +121,13 @@ class RunFFmpegPage(BaseOutputPage):
         audio_panel = QWidget()
         audio_layout = QVBoxLayout(audio_panel)
         audio_layout.setContentsMargins(0, 0, 0, 0)
-        row = _create_row(audio_format_label, self.audio_format_combo_box, audio_format_help,
+        row = self.create_row(audio_format_label, self.audio_format_combo_box, audio_format_help,
                           audio_bitrate_label, self.audio_bitrate_combo_box, audio_bitrate_help,
                           audio_sample_rate_label, self.audio_sample_rate_combo_box, audio_sample_rate_help,
                           audio_volume_label, self.audio_volume_line_edit, audio_volume_help,
                           delete_video_label, self.delete_video_check_box, delete_video_help,
-                          add_stretch=True)
+                          add_stretch=True,
+                          add_to_layout=False)
         audio_layout.addWidget(row)
         self.content_layout.addWidget(audio_panel)
         self.audio_overlay = OverlayWidget(audio_panel)

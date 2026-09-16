@@ -3,7 +3,7 @@ from pathlib import Path
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
-from .base_output_page import BaseOutputPage, _create_row
+from .base_output_page import BaseOutputPage
 from ..ui_style import UI_Style
 from ..widgets import *
 from src.services import AutoRechartPipeline, SettingsManage, process_manager_api
@@ -321,7 +321,7 @@ class AutoRechartPage(BaseOutputPage):
         song_name_label = create_label(i18n.t(f"{I18N_Prefix}.ui_song_name_label"))
         self.song_name_line_edit = create_line_edit(clear_button=True)
 
-        row = _create_row(song_name_label, self.song_name_line_edit)
+        row = self.create_row(song_name_label, self.song_name_line_edit, add_to_layout=False)
         layout.addWidget(row)
 
         # Row 2
@@ -332,14 +332,15 @@ class AutoRechartPage(BaseOutputPage):
         self.need_screen_rectification_check_box = create_check_box(AC_Defs.need_screen_rectification.default)
         need_screen_rectification_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_need_screen_rectification_help"))
 
-        row = _create_row(video_mode_label,
+        row = self.create_row(video_mode_label,
                           self.video_mode_combo_box,
 
                           need_screen_rectification_label,
                           self.need_screen_rectification_check_box,
                           need_screen_rectification_help,
 
-                          add_stretch=True)
+                          add_stretch=True,
+                          add_to_layout=False)
         layout.addWidget(row)
 
         # Row 3
@@ -353,7 +354,7 @@ class AutoRechartPage(BaseOutputPage):
 
         self.video_range_visualizer = RangeVisualizer()
 
-        row = _create_row(start_sec_label,
+        row = self.create_row(start_sec_label,
                           self.start_sec_line_edit,
                           start_sec_help,
 
@@ -362,7 +363,8 @@ class AutoRechartPage(BaseOutputPage):
                           trim_end_help,
                           
                           self.video_range_visualizer,
-                          add_stretch=True)
+                          add_stretch=True,
+                          add_to_layout=False)
         layout.addWidget(row)
 
         self.content_layout.addWidget(standardize_panel)
@@ -429,11 +431,12 @@ class AutoRechartPage(BaseOutputPage):
         self.skip_export_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_skip_export_tracked_help"))
 
         # 此处手动创建是要保存 row 引用，以便后续控制 显示/隐藏
-        # row = _create_row(enable_reid_label, self.enable_reid_check_box, enable_reid_help,
-        row = _create_row(self.skip_detect_label, self.skip_detect_check_box, self.skip_detect_help,
+        # row = self.create_row(enable_reid_label, self.enable_reid_check_box, enable_reid_help,
+        row = self.create_row(self.skip_detect_label, self.skip_detect_check_box, self.skip_detect_help,
                           self.skip_cls_label, self.skip_cls_check_box, self.skip_cls_help,
                           self.skip_export_label, self.skip_export_tracked_check_box, self.skip_export_help,
-                          add_stretch=True)
+                          add_stretch=True,
+                          add_to_layout=False)
         layout.addWidget(row)
 
         self.content_layout.addWidget(detect_panel)
@@ -484,10 +487,11 @@ class AutoRechartPage(BaseOutputPage):
             name_filter="bpm config (*.txt)",
         )
 
-        row = _create_row(bpm_type_label, self.bpm_type_combo_box,
+        row = self.create_row(bpm_type_label, self.bpm_type_combo_box,
                           self.input_static_bpm_label, self.static_bpm_line_edit, self.static_bpm_help,
                           self.static_bpm_spacer,
-                          self.bpm_config_select_button, self.bpm_config_help, self.bpm_config_path_display)
+                          self.bpm_config_select_button, self.bpm_config_help, self.bpm_config_path_display,
+                          add_to_layout=False)
         layout.addWidget(row)
 
         # Row 2
@@ -506,11 +510,12 @@ class AutoRechartPage(BaseOutputPage):
         self.duration_denominator_combo_box = self._create_combobox_with_options(AC_Defs.duration_denominator, length=58)
         dd_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_duration_denominator_help"))
 
-        row = _create_row(chart_lv_label, self.chart_lv_combo_box,
+        row = self.create_row(chart_lv_label, self.chart_lv_combo_box,
                           is_big_touch_label, self.is_big_touch_check_box, is_big_touch_help,
                           bd_label, self.base_denominator_combo_box, bd_help,
                           dd_label, self.duration_denominator_combo_box, dd_help,
-                          add_stretch=True)
+                          add_stretch=True,
+                          add_to_layout=False)
         layout.addWidget(row)
 
         self.content_layout.addWidget(analyze_panel)
@@ -614,7 +619,7 @@ class AutoRechartPage(BaseOutputPage):
         # 清空输出按钮
         self.clear_output_button = create_button(i18n.t(f"{I18N_Prefix}.ui_clear_output_button"))
 
-        row = _create_row(advanced_label, self.advanced_mode_check_box)
+        row = self.create_row(advanced_label, self.advanced_mode_check_box, add_to_layout=False)
         row.layout().addSpacing(UI_Style.widget_spacing)
         row.layout().addWidget(self.clear_output_button)
         self.content_layout.addWidget(row, alignment=Qt.AlignmentFlag.AlignRight)
