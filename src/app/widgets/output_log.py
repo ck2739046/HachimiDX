@@ -248,17 +248,18 @@ class OutputLogWidget(QWidget):
         text: str,
         replace_last: bool = False,
         runner_id: str | None = None,
-    ) -> None:
+    ) -> bool:
         """
         添加输出文本
         
         :param text: 要添加的文本
         :param replace_last: 是否替换最后一行（用于进度条更新，处理 \\r）
         :param runner_id: 该输出归属的 runner；用于把同一行镜像写到对应日志文件
+        :return: 这条逻辑行是否真的上了屏；被过滤的行返回 False, 调用方据此决定要不要收尾
         """
         
         if self._should_ignore_line(text):
-            return
+            return False
 
         # 保存当前滚动条位置
         scrollbar = self.text_edit.verticalScrollBar()
@@ -302,6 +303,8 @@ class OutputLogWidget(QWidget):
         else:
             # 如果用户不在底部，恢复原来的滚动位置
             scrollbar.setValue(old_scroll_value)
+
+        return True
 
 
 
@@ -567,13 +570,17 @@ class OutputLogWidget(QWidget):
                     self._process_text_buffer(key, text)
             buffered_text = self._text_buffers.pop(key, "")
             if buffered_text.strip():
-                self._append_output(
+                rendered = self._append_output(
                     strip_ansi(buffered_text),
                     replace_last=False,
                     runner_id=runner_id,
                 )
-            # 半条记录到此为止, 新的一行从零开始
-            self._end_current_line(runner_id)
+                # 被过滤的行没上过屏, 收尾会误清掉上一进度行的可替换状态
+                if rendered:
+                    self._end_current_line(runner_id)
+            else:
+                # 半条记录到此为止, 新的一行从零开始
+                self._end_current_line(runner_id)
 
 
 
@@ -625,20 +632,25 @@ class OutputLogWidget(QWidget):
                     segments = line.split('\r')
                     content = segments[-1] if segments[-1].strip() else segments[-2]
                     if content.strip():
-                        self._append_output(
+                        rendered = self._append_output(
                             strip_ansi(content),
                             replace_last=True,
                             runner_id=key[0],
                         )
-                    self._end_current_line(key[0])
+                        # 被过滤的行等同于没来过: 收尾会误清掉上一进度行的可替换状态
+                        if rendered:
+                            self._end_current_line(key[0])
+                    else:
+                        self._end_current_line(key[0])
                 elif line.strip():
                     # 没有 \\r: 重绘标记为真说明这是上一条进度行的收尾渲染
-                    self._append_output(
+                    rendered = self._append_output(
                         strip_ansi(line),
                         replace_last=self._is_line_redrawn,
                         runner_id=key[0],
                     )
-                    self._end_current_line(key[0])
+                    if rendered:
+                        self._end_current_line(key[0])
                 else:
                     # 空行: 标记为真说明上一批那个悬空的 '\\r' 只是被撕裂 CRLF 的前半,
                     # 那一行已经显示好了, 这里不能再输出空行
