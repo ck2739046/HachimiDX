@@ -644,6 +644,7 @@ zh_CN:
 
         是否继续？
       warning_install_script_missing: "未找到安装脚本: %{path}"
+      warning_install_script_launch_failed: "启动安装脚本失败: %{path}"
 
       ui_ffmpeg_divider: "FFmpeg"
       ui_ffmpeg_encoder_label: "视频编码器: "

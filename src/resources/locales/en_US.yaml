@@ -649,6 +649,7 @@ en_US:
 
         Continue?
       warning_install_script_missing: "Install script not found: %{path}"
+      warning_install_script_launch_failed: "Failed to launch install script: %{path}"
 
       ui_ffmpeg_divider: "FFmpeg"
       ui_ffmpeg_encoder_label: "Video Encoder: "

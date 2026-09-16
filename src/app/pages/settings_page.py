@@ -1,4 +1,3 @@
-import subprocess
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -18,7 +17,7 @@ from ..ui_style import UI_Style
 from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
 from src.services import ModelInferenceManage
 from src.core.schemas.op_result import print_op_result, ok, err
-from src.core.tools import show_confirm_dialog, show_notify_dialog
+from src.core.tools import show_confirm_dialog, show_notify_dialog, launch_console_script
 from src.core.build_worker_cmd import build_cmd_head_python_exe
 from src.services import PathManage, SettingsManage, process_manager_api, check_update
 
@@ -897,11 +896,14 @@ class SettingsPage(BaseOutputPage):
         if not confirmed:
             return
 
-        subprocess.Popen(
-            ["cmd", "/c", str(install_bat)],
-            creationflags=subprocess.CREATE_NEW_CONSOLE,
-        )
-        
+        launched = launch_console_script(install_bat, "HachimiDX Installer")
+        if not launched:
+            show_notify_dialog(
+                i18n.t(f"{I18N_Prefix}.dialog_title"),
+                i18n.t(f"{I18N_Prefix}.warning_install_script_launch_failed", path=str(install_bat)),
+            )
+            return
+
         self.window().close()  # 走 closeEvent 正常退出
 
 

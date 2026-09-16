@@ -26,6 +26,8 @@ _LAZY_EXPORTS: dict[str, str] = {
     # popup_dialog.py
     "show_confirm_dialog": ".popup_dialog",
     "show_notify_dialog": ".popup_dialog",
+    # shell_launch.py
+    "launch_console_script": ".shell_launch",
     # native_stream.py
     "OutputStreamDecoder": ".native_stream",
     "strip_ansi": ".native_stream",
