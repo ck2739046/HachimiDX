@@ -143,6 +143,10 @@ zh_CN:
 
     widgets:
 
+      # output_log
+      output_log:
+        ui_clear_output_button: "清空输出"
+
       # media_input_probe_widget
       media_input_probe_widget:
 
@@ -588,7 +592,6 @@ zh_CN:
         启用: 对音符识别结果进行分析，生成最终谱面。
         禁用: 跳过此步骤。
 
-      ui_clear_output_button: "清空输出"
       ui_advanced_mode_label: "高级模式: "
 
       ui_low_fps_warning_title: "警告: 帧率过低"

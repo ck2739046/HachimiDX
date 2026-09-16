@@ -142,6 +142,10 @@ en_US:
 
     widgets:
 
+      # output_log
+      output_log:
+        ui_clear_output_button: "Clear Output"
+
       # media_input_probe_widget
       media_input_probe_widget:
       
@@ -593,7 +597,6 @@ en_US:
         Enabled: analyze note detection results and generate the final chart.
         Disabled: skip this step.
 
-      ui_clear_output_button: "Clear Output"
       ui_advanced_mode_label: "Advanced Mode: "
 
       ui_low_fps_warning_title: "Warning: FPS too low"

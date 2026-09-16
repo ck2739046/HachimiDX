@@ -79,7 +79,6 @@ class AutoRechartPage(BaseOutputPage):
         self.submit_button = None
 
         # bottom panel
-        self.clear_output_button = None
         self.advanced_mode_check_box = None
 
 
@@ -616,15 +615,9 @@ class AutoRechartPage(BaseOutputPage):
         advanced_label = create_label(i18n.t(f"{I18N_Prefix}.ui_advanced_mode_label"))
         self.advanced_mode_check_box = create_check_box(False)
 
-        # 清空输出按钮
-        self.clear_output_button = create_button(i18n.t(f"{I18N_Prefix}.ui_clear_output_button"))
-
         row = self.create_row(advanced_label, self.advanced_mode_check_box, add_to_layout=False)
-        row.layout().addSpacing(UI_Style.widget_spacing)
-        row.layout().addWidget(self.clear_output_button)
         self.content_layout.addWidget(row, alignment=Qt.AlignmentFlag.AlignRight)
 
-        self.clear_output_button.clicked.connect(self.output_widget.clear)
         self.advanced_mode_check_box.stateChanged.connect(self.swtich_advanced_mode)
 
 

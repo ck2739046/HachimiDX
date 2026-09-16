@@ -3,12 +3,19 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TextIO
 
-from PyQt6.QtGui import QTextBlockFormat, QTextCursor
-from PyQt6.QtWidgets import QTextEdit, QVBoxLayout, QWidget
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QCursor, QTextBlockFormat, QTextCursor
+from PyQt6.QtWidgets import QPushButton, QTextEdit, QVBoxLayout, QWidget
 
 from src.core.tools import OutputStreamDecoder, strip_ansi
 
 from ..ui_style import UI_Style
+import i18n
+
+I18N_Prefix = "app.widgets.output_log"
+
+_TEXT_EDIT_PADDING = 10
+_TEXT_EDIT_SCROLLBAR_WIDTH = 9
 
 
 
@@ -122,18 +129,18 @@ class OutputLogWidget(QWidget):
                 background-color: {UI_Style.COLORS['grey']};
                 color: {UI_Style.COLORS['text_primary']};
                 border: none;
-                padding: 10px;
+                padding: {_TEXT_EDIT_PADDING}px;
                 font-family: 'Consolas', 'Courier New', monospace;
                 font-size: 12px;
             }}
             QScrollBar:vertical {{
                 background-color: {UI_Style.COLORS['bg']};
-                width: 12px;
+                width: {_TEXT_EDIT_SCROLLBAR_WIDTH}px;
                 border: none;
             }}
             QScrollBar::handle:vertical {{
-                background-color: {UI_Style.COLORS['text_secondary']};
-                border-radius: 6px;
+                background-color: {UI_Style.COLORS['grey_hover']};
+                border-radius: 3px;
                 min-height: 20px;
             }}
             QScrollBar::handle:vertical:hover {{
@@ -150,8 +157,50 @@ class OutputLogWidget(QWidget):
 
         layout.addWidget(self.text_edit)
 
+        # 浮动"清空输出"按钮: 不进布局, 由 _reposition_clear_button() 贴到右上角,
+        # 这样所有用本组件的页面都自带该按钮
+        self.clear_button = QPushButton(i18n.t(f"{I18N_Prefix}.ui_clear_output_button"), self)
+        self.clear_button.setFixedHeight(22)
+        self.clear_button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.clear_button.setStyleSheet(
+            f"""
+            QPushButton {{
+                background-color: rgba(95, 95, 95, 30%);
+                color: rgba(190, 190, 190, 30%);
+                border: none;
+                border-radius: 4px;
+                padding: 0px 6px;
+                font-size: 11px;
+            }}
+            QPushButton:hover {{
+                background-color: {UI_Style.COLORS['accent']};
+                color: {UI_Style.COLORS['text_primary']};
+            }}
+            """
+        )
+        self.clear_button.clicked.connect(self.clear)
+        self.clear_button.raise_()
+        self._reposition_clear_button()
+
         # 段落间距 = 字体高度的 0.7 倍
         self._output_line_spacing = round(self.text_edit.fontMetrics().height() * 0.7)
+
+
+    def _reposition_clear_button(self) -> None:
+        """把浮动按钮贴到文本区右上角, 并让开右侧的 padding 与垂直滚动条."""
+        button = self.clear_button
+        # 按钮不在布局里, 宽度不会自动跟随文本, 每次先按 sizeHint 收紧
+        button.adjustSize()
+        # 横向 offset: 按钮到整个组件右侧的边距
+        #              => 按钮到滚动条的间距 + 滚动条宽度 + 滚动条到组件右侧的间距
+        offset = _TEXT_EDIT_PADDING + _TEXT_EDIT_SCROLLBAR_WIDTH + _TEXT_EDIT_PADDING
+        x = self.width() - button.width() - offset
+        button.move(max(x, _TEXT_EDIT_PADDING), _TEXT_EDIT_PADDING)
+
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._reposition_clear_button()
 
 
 
