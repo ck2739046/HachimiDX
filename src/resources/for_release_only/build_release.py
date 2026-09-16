@@ -32,8 +32,8 @@ def main():
         dest_file.write_bytes(src_file.read_bytes())
 
     copy_app_resources()
-
     copy_root()
+    print("\nRelease build completed.")
 
 
 
@@ -69,11 +69,7 @@ def copy_app_resources():
     copy_to_release(pip_ini_path, python_target_path / "pip.ini")
     # 更新 pip & wheel
     python_exe = python_target_path / "python.exe"
-    result = subprocess.run([str(python_exe), "-m", "pip", "install",
-                             "--upgrade", "pip", "wheel", "--no-warn-script-location",
-                             "-i", "https://pypi.tuna.tsinghua.edu.cn/simple"])
-    if result.returncode != 0:
-        raise RuntimeError(f"更新 pip & wheel 失败: {result.stderr}")
+    upgrade_pip(python_exe)
     # 删除 pip 缓存
     pip_cache_dir = python_target_path / "pip-cache"
     if pip_cache_dir.is_dir():
@@ -196,6 +192,28 @@ def copy_to_release(input_path: Path, target_path: Path = None):
 
     else:
         print(f"copy_to_release: Warning: {input_path} is not a file or dir, skipping.")
+
+
+
+
+def upgrade_pip(python_exe: Path):
+    # 与 install/script/main.py 的 PYPI_MIRRORS 保持一致, 前者失败时回退到下一个
+    PIP_MIRRORS = (
+        ("Tsinghua Uni", "https://pypi.tuna.tsinghua.edu.cn/simple"),
+        ("Tencent Cloud", "https://mirrors.cloud.tencent.com/pypi/simple"),
+        ("Huawei Cloud", "https://repo.huaweicloud.com/repository/pypi/simple"),
+        ("Alibaba Cloud", "https://mirrors.aliyun.com/pypi/simple"),
+        ("Official", "https://pypi.org/simple"),
+    )
+    for name, index in PIP_MIRRORS:
+        print(f"update pip & wheel (mirror: {name})")
+        result = subprocess.run(
+            [str(python_exe), "-m", "pip", "install", "--upgrade", "pip", "wheel",
+             "--no-warn-script-location", "-i", index])
+        if result.returncode == 0:
+            return
+        print(f"mirror「{name}」installation failed, switching to the next mirror...")
+    raise RuntimeError("All pypi mirrors failed to update pip & wheel")
 
 
 
