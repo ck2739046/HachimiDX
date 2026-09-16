@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout
+from PyQt6.QtWidgets import QHBoxLayout, QWidget, QVBoxLayout
 from PyQt6.QtCore import pyqtSignal
 import i18n
 
@@ -6,7 +6,6 @@ from src.core.tools import FFprobeInspect, FFprobeInspectResult
 from src.core.schemas.op_result import print_op_result
 from src.core.schemas.media_config import MediaType
 
-from ..pages.base_output_page import _create_row
 from .file_selection_row import create_file_selection_row
 from .label import create_label
 from .help_icon import create_help_icon
@@ -14,6 +13,8 @@ from .help_icon import create_help_icon
 
 
 I18N_Prefix = "app.widgets.media_input_probe_widget"
+
+_ROW_SPACING = 5
 
 
 class MediaInputProbeWidget(QWidget):
@@ -72,11 +73,14 @@ class MediaInputProbeWidget(QWidget):
             name_filter = select_file_filter,
         )
 
-        row1 = _create_row(select_file_button,
-                           select_file_help,
-                           self.input_file_path_display_line_edit)
-        
-        layout.addWidget(row1)
+        row1_layout = QHBoxLayout()
+        row1_layout.setSpacing(_ROW_SPACING)
+        row1_layout.setContentsMargins(0, 0, 0, 0)
+        # select_file_help 在未提供 help 文本时为 None，需跳过
+        for widget in (select_file_button, select_file_help, self.input_file_path_display_line_edit):
+            if widget is not None:
+                row1_layout.addWidget(widget)
+        layout.addLayout(row1_layout)
 
 
         
@@ -90,11 +94,13 @@ class MediaInputProbeWidget(QWidget):
         
         self.probe_result_display_label = create_label(expand=True)
 
-        row2 = _create_row(probe_result_display_prefix,
-                           probe_result_display_help,
-                           self.probe_result_display_label)
-        
-        layout.addWidget(row2)
+        row2_layout = QHBoxLayout()
+        row2_layout.setSpacing(_ROW_SPACING)
+        row2_layout.setContentsMargins(0, 0, 0, 0)
+        row2_layout.addWidget(probe_result_display_prefix)
+        row2_layout.addWidget(probe_result_display_help)
+        row2_layout.addWidget(self.probe_result_display_label)
+        layout.addLayout(row2_layout)
         
 
 
