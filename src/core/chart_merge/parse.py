@@ -77,6 +77,10 @@ def _scan_lines(
     current: _OpenChart | None = None
 
     for index, line in enumerate(lines):
+        # 两个正则都以 ^& 开头，正文行直接跳过，省去 rstrip 与正则开销
+        if not line.startswith("&"):
+            continue
+
         stripped = line.rstrip("\r\n")
         inote_match = _INOTE_RE.match(stripped)
         if inote_match:
@@ -88,14 +92,12 @@ def _scan_lines(
             )
             continue
 
-        if stripped.startswith("&"):
-            _append_chart_range(current, index, seen_levels, chart_ranges)
-            current = None
-            # 参数正则以 ^& 开头，只可能命中 & 行
-            parameter_match = _PARAMETER_RE.match(stripped)
-            if parameter_match:
-                key, value = parameter_match.group(1), parameter_match.group(2)
-                parameters.setdefault(key, []).append(value)
+        _append_chart_range(current, index, seen_levels, chart_ranges)
+        current = None
+        parameter_match = _PARAMETER_RE.match(stripped)
+        if parameter_match:
+            key, value = parameter_match.group(1), parameter_match.group(2)
+            parameters.setdefault(key, []).append(value)
 
     _append_chart_range(current, len(lines), seen_levels, chart_ranges)
     return parameters, chart_ranges

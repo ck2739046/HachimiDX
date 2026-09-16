@@ -89,7 +89,7 @@ class _LevelRow:
 
 @dataclass(frozen=True, slots=True)
 class _RowState:
-    source_key: str | None
+    chart: ChartBlock | None
     had_candidates: bool
     designer: str
     level_value: str
@@ -104,9 +104,8 @@ def _chart_at(row: _LevelRow) -> ChartBlock | None:
 
 
 def _row_state(row: _LevelRow) -> _RowState:
-    chart = _chart_at(row)
     return _RowState(
-        source_key=path_key(chart.source_path) if chart is not None else None,
+        chart=_chart_at(row),
         had_candidates=len(row.candidates) > 1,
         designer=row.designer_line_edit.text(),
         level_value=row.level_line_edit.text(),
@@ -254,14 +253,9 @@ class MergeChartsPage(BaseOutputPage):
     def _path_label(path: Path) -> str:
         return f"{path.parent.name}\\{path.name}"
 
-    @staticmethod
-    def _timestamp() -> str:
-        return datetime.now().strftime(_TIMESTAMP_FORMAT)
-
     def _log(self, marker: str | None, key: str, **kwargs) -> None:
-        prefix = f"[{self._timestamp()}]"
-        if marker is not None:
-            prefix = f"{prefix} {marker}"
+        timestamp = datetime.now().strftime(_TIMESTAMP_FORMAT)
+        prefix = f"[{timestamp}]" if marker is None else f"[{timestamp}] {marker}"
         self.output_widget.append_text(f"{prefix} {_t(key, **kwargs)}")
 
     def _warn(self, key: str, **kwargs) -> None:
@@ -432,7 +426,7 @@ class MergeChartsPage(BaseOutputPage):
         selected_index: int,
     ) -> None:
         """刷新候选项并设置选中下标；下标 0 固定为空选项."""
-        row.candidates[:] = [None, *charts]
+        row.candidates = [None, *charts]
         row.combo_box.blockSignals(True)
         try:
             row.combo_box.clear()
@@ -454,19 +448,21 @@ class MergeChartsPage(BaseOutputPage):
         previous: _RowState,
     ) -> None:
         selected_index = 0
-        if previous.source_key is not None:
+        if previous.chart is not None:
             for index, chart in enumerate(charts, start=1):
-                if path_key(chart.source_path) == previous.source_key:
+                # 候选项始终来自同一批 ChartBlock 实例，用同一性比较即可
+                if chart is previous.chart:
                     selected_index = index
                     break
         elif not previous.had_candidates and len(charts) == 1:
             selected_index = 1
 
         self._sync_level_combo(row, charts, selected_index)
-        _apply_chart_text(row)
-        if selected_index > 0 and previous.source_key is not None:
+        if selected_index > 0 and previous.chart is not None:
             row.designer_line_edit.setText(previous.designer)
             row.level_line_edit.setText(previous.level_value)
+        else:
+            _apply_chart_text(row)
 
     def _on_chart_selected(self, level: int, _index: int) -> None:
         row = self._level_rows.get(level)

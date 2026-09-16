@@ -15,7 +15,11 @@ class CandidateCollection:
 def aggregate_candidates(
     parsed_files: Sequence[ParsedChartFile],
 ) -> CandidateCollection:
-    """按输入顺序聚合共有参数和各等级谱面候选."""
+    """按输入顺序聚合共有参数和各等级谱面候选.
+
+    各等级的 ChartBlock 直接复用 ParsedChartFile 中的原实例，不做拷贝或重建；
+    同一等级内同一来源至多出现一次，调用方可用实例身份或相等性定位候选.
+    """
     # dict 兼作有序去重集合，保留首次出现顺序
     header_values: dict[str, dict[str, None]] = {key: {} for key in HEADER_KEYS}
     charts_by_level: dict[int, list[ChartBlock]] = {}
