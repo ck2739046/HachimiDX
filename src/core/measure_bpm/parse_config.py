@@ -318,6 +318,7 @@ def beat_to_time_sec(target_beat_index: float,
         else:
             break
 
-    seg_beat_index, seg_bpm, seg_start_sec = segments[target_idx]
-    time_sec = seg_start_sec + (target_beat - seg_beat_index) * (60.0 / seg_bpm)
+    # segments 里的起始时间是毫秒，统一换算成秒再累加
+    seg_beat_index, seg_bpm, seg_start_ms = segments[target_idx]
+    time_sec = seg_start_ms / 1000.0 + (target_beat - seg_beat_index) * (60.0 / seg_bpm)
     return ok(time_sec)
