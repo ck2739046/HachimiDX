@@ -4,7 +4,7 @@ import sys
 from PyQt6 import sip
 from PyQt6.QtWidgets import (
     QComboBox, QStyledItemDelegate, QListView, QFrame, QVBoxLayout,
-    QStyle, QAbstractItemView, QApplication,
+    QStyle, QAbstractItemView, QApplication, QGraphicsDropShadowEffect,
 )
 from PyQt6.QtCore import (
     QPoint, QEvent, Qt, QPropertyAnimation, QRect, QRectF, QTimer,
@@ -22,6 +22,7 @@ c = UI_Style.COLORS
 BORDER_R = 5
 BORDER_R_Sub = 3   # 下拉菜单内部子项的矩形圆角
 POPUP_MAX_H = 300  # 下拉菜单最大高度，超出则显示滚动条
+SHADOW_MARGIN = 12  # 弹窗四周留给外圈阴影的边距（与 PopupToolTip 的留白一致）
 
 # 最近一个已隐藏的弹窗。不能在 hideEvent 里就地销毁：Qt 在 emit 完 clicked 之后还会继续
 # 使用同一个对象，槽内若有嵌套事件循环（模态框、processEvents 等）更是如此。改为等到下
@@ -147,11 +148,25 @@ class _ComboPopup(QFrame):
         self._escape_shortcut.activated.connect(self.close)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        # 边距供主体外圈的阴影使用，阴影只能画在主体之外
+        layout.setContentsMargins(SHADOW_MARGIN, SHADOW_MARGIN, SHADOW_MARGIN, SHADOW_MARGIN)
         layout.setSpacing(0)
 
+        # 阴影挂在主体上：列表自己画圆角与边框，阴影会顺着它的 alpha 铺开
+        self._bubble = QFrame(self)
+        shadow = QGraphicsDropShadowEffect(self._bubble)
+        shadow.setBlurRadius(20)               # 模糊半径
+        shadow.setColor(QColor(0, 0, 0, 100))  # 半透明黑色
+        shadow.setOffset(0, 3)                 # 向右下方向
+        self._bubble.setGraphicsEffect(shadow)
+        layout.addWidget(self._bubble)
+
+        bubble_layout = QVBoxLayout(self._bubble)
+        bubble_layout.setContentsMargins(0, 0, 0, 0)
+        bubble_layout.setSpacing(0)
+
         self.view = ComboListView(combo, model)
-        layout.addWidget(self.view)
+        bubble_layout.addWidget(self.view)
         if self._show_tooltip:
             self.view.entered.connect(self._on_view_entered)
             self.view.viewport().installEventFilter(self)
@@ -249,18 +264,22 @@ class _ComboPopup(QFrame):
             # 隐藏滚动条
             self.view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
-        # 设置最终 geometry
-        self.setGeometry(QRect(pos.x(), pos.y(), width, full_h))
-        self._end_y = pos.y()
-        start_pos = QPoint(pos.x(), pos.y() - full_h)
-        # 设置起始位置 + 初始 mask
+        # 设置最终 geometry：pos 是内容左上角，窗口要再向外扩一圈容纳阴影
+        win_w = width + SHADOW_MARGIN * 2
+        win_h = full_h + SHADOW_MARGIN * 2
+        end_pos = QPoint(pos.x() - SHADOW_MARGIN, pos.y() - SHADOW_MARGIN)
+        start_pos = QPoint(end_pos.x(), end_pos.y() - full_h)
+
+        self.setGeometry(QRect(end_pos.x(), end_pos.y(), win_w, win_h))
+        self._end_y = end_pos.y()
+        # 设置起始位置 + 初始 mask（整块内容都还在下方，即不可见）
         self.move(start_pos)
-        self.setMask(QRegion(0, full_h, width, full_h))
+        self.setMask(QRegion(0, SHADOW_MARGIN + full_h, win_w, win_h))
 
         # 创建并启动动画
         self._ani = QPropertyAnimation(self, b'pos', self)
         self._ani.setStartValue(start_pos)
-        self._ani.setEndValue(pos)
+        self._ani.setEndValue(end_pos)
         self._ani.setDuration(200)
         self._ani.setEasingCurve(QEasingCurve.Type.OutQuad)
         self._ani.valueChanged.connect(self._on_ani_step)
@@ -273,8 +292,8 @@ class _ComboPopup(QFrame):
         self._outside_click_timer.start()
 
     def _on_ani_step(self):
-        """动画每帧更新 mask"""
-        y = self._end_y - self.y()
+        """动画每帧更新 mask，从上往下逐行露出内容（边距内的阴影随动画一起裁掉）"""
+        y = SHADOW_MARGIN + self._end_y - self.y()
         self.setMask(QRegion(0, y, self.width(), self.height()))
 
     def _on_ani_finished(self):
@@ -325,6 +344,10 @@ class _ComboPopup(QFrame):
             return bool(ctypes.windll.user32.GetAsyncKeyState(0x1B) & 0x8000)
         return False
 
+    def _content_rect(self) -> QRect:
+        """弹出内容（列表）的全局矩形，不含四周留给阴影的边距"""
+        return QRect(self._bubble.mapToGlobal(QPoint(0, 0)), self._bubble.size())
+
     def _check_outside_click(self):
         if self._escape_key_down():
             self.close()
@@ -334,7 +357,8 @@ class _ComboPopup(QFrame):
             if not left_button_down:
                 self._wait_for_mouse_button_release = False
             return
-        if left_button_down and not self.frameGeometry().contains(QCursor.pos()):
+        # 用内容矩形判断：窗口比内容大一圈（阴影边距），点在那儿也算外部
+        if left_button_down and not self._content_rect().contains(QCursor.pos()):
             self.close()
 
 
