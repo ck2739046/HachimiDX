@@ -1,6 +1,7 @@
 import ctypes
 import sys
 
+from PyQt6 import sip
 from PyQt6.QtWidgets import (
     QComboBox, QStyledItemDelegate, QListView, QFrame, QVBoxLayout,
     QStyle, QAbstractItemView, QApplication,
@@ -21,6 +22,11 @@ c = UI_Style.COLORS
 BORDER_R = 5
 BORDER_R_Sub = 3   # 下拉菜单内部子项的矩形圆角
 POPUP_MAX_H = 300  # 下拉菜单最大高度，超出则显示滚动条
+
+# 最近一个已隐藏的弹窗。不能在 hideEvent 里就地销毁：Qt 在 emit 完 clicked 之后还会继续
+# 使用同一个对象，槽内若有嵌套事件循环（模态框、processEvents 等）更是如此。改为等到下
+# 一个弹窗隐藏时再回收它 —— 那时它早已不在任何事件处理路径上。
+_retired_popup = None
 
 
 class ComboItemDelegate(QStyledItemDelegate):
@@ -109,7 +115,10 @@ class _ComboPopup(QFrame):
 
     def __init__(self, combo: QComboBox | None = None, model=None, anchor=None,
                  show_tooltip: bool = False, item_tooltips: list[str | None] | None = None):
-        super().__init__(None)
+        anchor = anchor if anchor is not None else combo
+        # parent 交给锚点所在窗口：C++ 对象由 Qt 持有，Python 引用丢失不会销毁它，
+        # 从而避免在鼠标事件处理途中（如 QListView 的 clicked 槽内）被析构
+        super().__init__(anchor.window() if anchor is not None else None)
         self.setWindowFlags(
             Qt.WindowType.Tool
             | Qt.WindowType.FramelessWindowHint  # 无边框
@@ -117,9 +126,13 @@ class _ComboPopup(QFrame):
             | Qt.WindowType.WindowDoesNotAcceptFocus
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)  # 透明背景
+        # 挂在父窗口下会把父窗口样式表里的 background-color 一并继承给弹窗自身及其
+        # 未自绘的子控件（如列表滚动条底色），用自身规则把弹窗背景恢复为透明
+        self.setStyleSheet("background-color: transparent;")
 
         self._combo = combo
-        self._anchor = anchor if anchor is not None else combo
+        self._anchor = anchor
+        self._released = False
         self._show_tooltip = show_tooltip
         self._item_tooltips = item_tooltips
         self._tooltip = get_shared_tooltip() if show_tooltip else None
@@ -268,6 +281,16 @@ class _ComboPopup(QFrame):
         """动画结束，清除 mask"""
         self.setMask(QRegion())
 
+    def _release(self) -> None:
+        """把上一个已隐藏的弹窗排队销毁，自己顶替它的位置等待下一次回收。"""
+        global _retired_popup
+        if self._released:
+            return
+        self._released = True
+        previous, _retired_popup = _retired_popup, self
+        if previous is not None and not sip.isdeleted(previous):
+            previous.deleteLater()
+
     def hideEvent(self, event):
         self._hide_tooltip()
         # 发送停止信号
@@ -281,11 +304,13 @@ class _ComboPopup(QFrame):
 
         # cleanup
         anchor = self._anchor
-        if anchor is not None and getattr(anchor, '_popup', None) is self:
+        if (anchor is not None and not sip.isdeleted(anchor)
+                and getattr(anchor, '_popup', None) is self):
             anchor._popup = None
 
         self._outside_click_timer.stop()
         self._escape_shortcut.setEnabled(False)
+        self._release()
         super().hideEvent(event)
 
     @staticmethod
@@ -338,7 +363,8 @@ def open_combo_popup(anchor, combo=None, model=None, width=None, on_item_clicked
         item_tooltips=item_tooltips,
     )
     if popup.view.model().rowCount() == 0:
-        popup.close()
+        popup.close()  # 不可见，不会触发 hideEvent；也从未显示过，可立即排队销毁
+        popup.deleteLater()
         return False
 
     anchor._popup = popup
