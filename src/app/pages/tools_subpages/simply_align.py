@@ -21,23 +21,23 @@ I18N_Simply_Align_Prefix = "app.tools_subpages.simply_align"
 
 
 # audio_align_worker 的 stdout 文本契约：
-# "Audio files are perfectly aligned (offset < 10 ms)"  → 0
-# "Target file needs delay X ms"                        → +X
-# "Target file needs trim X ms"                         → -X
-_DELAY_RE = re.compile(r"Target file needs delay\s+(\d+)\s*ms", re.IGNORECASE)
-_TRIM_RE = re.compile(r"Target file needs trim\s+(\d+)\s*ms", re.IGNORECASE)
+# "Audio files are perfectly aligned (offset < 0.01 sec)"  → 0
+# "Target file needs delay X sec"                         → +X
+# "Target file needs trim X sec"                          → -X
+_DELAY_RE = re.compile(r"Target file needs delay\s+(\d+(?:\.\d+)?)\s*sec(?!\w)", re.IGNORECASE)
+_TRIM_RE = re.compile(r"Target file needs trim\s+(\d+(?:\.\d+)?)\s*sec(?!\w)", re.IGNORECASE)
 _ALIGNED_RE = re.compile(r"Audio files are perfectly aligned", re.IGNORECASE)
 
 
-def parse_offset_ms(recent_output: str) -> int | None:
+def parse_offset_sec(recent_output: str) -> float | None:
     """
-    从 audio_align_worker 的 stdout 文本中解析 offset（带符号毫秒）。
+    从 audio_align_worker 的 stdout 文本中解析 offset（带符号秒）。
     从后往前扫描每行，命中第一个可识别的契约行即返回。
 
     Args:
         recent_output: worker 的最近输出文本 get_recent_lines(6)。
     Returns:
-        带符号毫秒整数（delay→正，trim→负，aligned→0）；无法解析返回 None。
+        带符号秒浮点数（delay→正，trim→负，aligned→0.0）；无法解析返回 None。
     """
     if not recent_output:
         return None
@@ -48,19 +48,19 @@ def parse_offset_ms(recent_output: str) -> int | None:
             continue
 
         if _ALIGNED_RE.search(s):
-            return 0
+            return 0.0
 
         m = _DELAY_RE.search(s)
         if m:
             try:
-                return int(m.group(1))
+                return float(m.group(1))
             except ValueError:
                 continue
 
         m = _TRIM_RE.search(s)
         if m:
             try:
-                return -int(m.group(1))
+                return -float(m.group(1))
             except ValueError:
                 continue
 
@@ -73,7 +73,7 @@ def build_edit_media_raw_data(
     target_media_type: MediaType,
     target_duration: float,
     offset_action: str | None,
-    offset_value_ms: int | None,
+    offset_value_sec: float | None,
     output_suffix: str | None = None
 ) -> OpResult[tuple[dict, Path]]:
     """构建一键编辑媒体的 raw_data 和输出路径，包含完整参数校验。
@@ -83,7 +83,7 @@ def build_edit_media_raw_data(
         target_media_type: 目标文件的媒体类型
         target_duration: 目标文件的时长（秒）
         offset_action: "delay" 或 "trim"
-        offset_value_ms: offset 毫秒绝对值
+        offset_value_sec: offset 秒绝对值
         output_suffix: 输出文件名后缀 (可选)
     Returns:
         OpResult[(raw_data, output_path)]
@@ -103,11 +103,11 @@ def build_edit_media_raw_data(
         return err(i18n.t(f"{I18N_Simply_Align_Prefix}.warning_offset_not_ready"))
     
     # 校验 action
-    if offset_action == "aligned" or offset_value_ms == 0:
+    if offset_action == "aligned" or offset_value_sec == 0:
         return err(i18n.t(f"{I18N_Simply_Align_Prefix}.notice_skip_zero_offset"))
     
     # 校验 offset
-    if offset_action is None or offset_value_ms is None:
+    if offset_action is None or offset_value_sec is None:
         return err(i18n.t(f"{I18N_Simply_Align_Prefix}.warning_offset_not_ready"))
 
     # 确定输出 audio_format
@@ -132,7 +132,7 @@ def build_edit_media_raw_data(
     output_path = Path(res.value[0])
 
     # 组装 raw_data
-    offset_sec = round(offset_value_ms / 1000.0, 3)
+    offset_sec = round(offset_value_sec, 3)
     raw_data = {
         M_Defs.media_type.key: target_media_type,
         M_Defs.duration.key: target_duration,
@@ -163,7 +163,7 @@ class SimplyAlignPage(BaseOutputPage):
         self._active_media_runner_id = None
         self._media_output_path = None
         self._offset_action = None
-        self._offset_value_ms = None
+        self._offset_value_sec = None
 
         self.quick_export_divider = None
         self.quick_trim_label = None
@@ -220,11 +220,11 @@ class SimplyAlignPage(BaseOutputPage):
 
         # Quick export: trim
         self.quick_trim_label = create_label(i18n.t(f"{I18N_Simply_Align_Prefix}.ui_quick_trim_label"))
-        self.quick_trim_line_edit = create_line_edit(validator='int', length=100)
+        self.quick_trim_line_edit = create_line_edit(validator='float', length=100)
 
         # Quick export: delay
         self.quick_delay_label = create_label(i18n.t(f"{I18N_Simply_Align_Prefix}.ui_quick_delay_label"))
-        self.quick_delay_line_edit = create_line_edit(validator='int', length=100)
+        self.quick_delay_line_edit = create_line_edit(validator='float', length=100)
 
         self.generate_video_label = create_label(
             i18n.t(f"{I18N_Simply_Align_Prefix}.ui_generate_video_label")
@@ -392,12 +392,12 @@ class SimplyAlignPage(BaseOutputPage):
 
 
     def _try_parse_offset(self) -> None:
-        offset = parse_offset_ms(self.output_widget.get_recent_lines(6))
+        offset = parse_offset_sec(self.output_widget.get_recent_lines(6))
 
         if offset is None:
             self.output_widget.append_text("ui: failed to parse offset from output")
             self._offset_action = None
-            self._offset_value_ms = None
+            self._offset_value_sec = None
             self.offset_label.hide()
             self.offset_help_icon.hide()
             self._set_quick_export_visible(False)
@@ -405,7 +405,7 @@ class SimplyAlignPage(BaseOutputPage):
 
         if offset == 0:
             self._offset_action = "aligned"
-            self._offset_value_ms = 0
+            self._offset_value_sec = 0.0
             self.offset_label.hide()
             self.offset_help_icon.hide()
             self._set_quick_export_visible(False)
@@ -413,15 +413,15 @@ class SimplyAlignPage(BaseOutputPage):
 
         if offset > 0:  # delay
             self._offset_action = "delay"
-            self._offset_value_ms = offset
-            self.offset_label.setText(f"  Offset: delay {offset} ms ")
-            self.quick_delay_line_edit.setText(str(offset))
+            self._offset_value_sec = offset
+            self.offset_label.setText(f"  Offset: delay {offset:.3f} sec ")
+            self.quick_delay_line_edit.setText(f"{offset:.3f}")
         else:  # trim
             value = abs(offset)
             self._offset_action = "trim"
-            self._offset_value_ms = value
-            self.offset_label.setText(f"  Offset: trim {value} ms ")
-            self.quick_trim_line_edit.setText(str(value))
+            self._offset_value_sec = value
+            self.offset_label.setText(f"  Offset: trim {value:.3f} sec ")
+            self.quick_trim_line_edit.setText(f"{value:.3f}")
         self.offset_label.show()
         self.offset_help_icon.show()
         self._set_quick_export_visible(True)
@@ -497,10 +497,10 @@ class SimplyAlignPage(BaseOutputPage):
         # 从当前激活的 line edit 读取用户修改后的值
         active_edit = self.quick_trim_line_edit if self._offset_action == "trim" else self.quick_delay_line_edit
         try:
-            offset_ms = int(active_edit.text().strip())
+            offset_sec = float(active_edit.text().strip())
         except Exception:
             return
-        if offset_ms < 0:
+        if offset_sec < 0:
             show_notify_dialog(
                 i18n.t(f"{I18N_Simply_Align_Prefix}.dialog_title"),
                 i18n.t(f"{I18N_Simply_Align_Prefix}.warning_negative_quick_offset"),
@@ -529,7 +529,7 @@ class SimplyAlignPage(BaseOutputPage):
 
         output_path = self._get_sync_output_path(target_path)
 
-        offset_sec = round(offset_ms / 1000.0, 3)
+        offset_sec = round(offset_sec, 3)
         pad_start = offset_sec if self._offset_action == "delay" else None
         start = offset_sec if self._offset_action == "trim" else None
 

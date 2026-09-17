@@ -5,7 +5,7 @@ from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QVBoxLayout
 
 from ..base_output_page import BaseOutputPage
-from .simply_align import parse_offset_ms, build_edit_media_raw_data
+from .simply_align import parse_offset_sec, build_edit_media_raw_data
 from ...widgets import *
 from ...ui_style import UI_Style
 
@@ -44,7 +44,7 @@ class ArcadeTimingPage(BaseOutputPage):
 
         self.waveform_label = None
         self._offset_action = None
-        self._offset_value_ms = None
+        self._offset_value_sec = None
 
         self._active_runner_id = None
         self._active_media_runner_id = None
@@ -109,7 +109,7 @@ class ArcadeTimingPage(BaseOutputPage):
     def _reset_result_state(self) -> None:
         """重置分析结果相关 UI 状态（不涉及输入控件）"""
         self._offset_action = None
-        self._offset_value_ms = None
+        self._offset_value_sec = None
         self.offset_label.setText("")
         self.offset_label.hide()
         self.offset_help_icon.hide()
@@ -352,30 +352,30 @@ class ArcadeTimingPage(BaseOutputPage):
 
 
     def _try_parse_offset(self) -> None:
-        offset = parse_offset_ms(self.output_widget.get_recent_lines(6))
+        offset = parse_offset_sec(self.output_widget.get_recent_lines(6))
 
         if offset is None:
             self.output_widget.append_text("ui: failed to parse offset from output")
             self._offset_action = None
-            self._offset_value_ms = None
+            self._offset_value_sec = None
             self.edit_target_button.hide()
             return
 
         if offset == 0:
             self._offset_action = "aligned"
-            self._offset_value_ms = 0
+            self._offset_value_sec = 0.0
             self.edit_target_button.hide()
             return
 
         if offset > 0:  # delay
             self._offset_action = "delay"
-            self._offset_value_ms = offset
-            self.offset_label.setText(f"  Offset: delay {offset} ms ")
+            self._offset_value_sec = offset
+            self.offset_label.setText(f"  Offset: delay {offset:.3f} sec ")
         else:  # trim
             value = abs(offset)
             self._offset_action = "trim"
-            self._offset_value_ms = value
-            self.offset_label.setText(f"  Offset: trim {value} ms ")
+            self._offset_value_sec = value
+            self.offset_label.setText(f"  Offset: trim {value:.3f} sec ")
         self.offset_label.show()
         self.offset_help_icon.show()
         self.edit_target_button.show()
@@ -393,7 +393,7 @@ class ArcadeTimingPage(BaseOutputPage):
 
         data_res = build_edit_media_raw_data(
             target_file, target_media_type, target_duration,
-            self._offset_action, self._offset_value_ms,
+            self._offset_action, self._offset_value_sec,
         )
         if not data_res.is_ok:
             show_notify_dialog(

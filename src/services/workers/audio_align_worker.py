@@ -95,11 +95,11 @@ def main(args: list[str]) -> bool:
         # 不执行后续动作了
         if is_simply_align.strip().lower() == "true":
             if abs(target_match_offset) < 10:
-                print("Audio files are perfectly aligned (offset < 10 ms)")
+                print("Audio files are perfectly aligned (offset < 0.01 sec)")
             elif target_match_offset > 0:
-                print(f"Target file needs delay {round(target_match_offset)} ms")
+                print(f"Target file needs delay {target_match_offset / 1000:.3f} sec")
             else:
-                print(f"Target file needs trim {abs(round(target_match_offset))} ms")
+                print(f"Target file needs trim {abs(target_match_offset) / 1000:.3f} sec")
             return True
 
 
@@ -135,11 +135,11 @@ def main(args: list[str]) -> bool:
         # print(f"在基准文件中，目标文件从 {target_match_offset:.2f} ms 开始")
 
         if abs(final_offset) < 10:
-            print("Audio files are perfectly aligned (offset < 10 ms)")
+            print("Audio files are perfectly aligned (offset < 0.01 sec)")
         elif final_offset > 0:
-            print(f"Target file needs trim {round(final_offset)} ms")
+            print(f"Target file needs trim {final_offset / 1000:.3f} sec")
         else:
-            print(f"Target file needs delay {abs(round(final_offset))} ms")
+            print(f"Target file needs delay {abs(final_offset) / 1000:.3f} sec")
 
 
         # 4. 生成音频波形图

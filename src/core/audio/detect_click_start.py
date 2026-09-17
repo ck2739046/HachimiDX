@@ -209,7 +209,7 @@ def template_match(y_target, y_template, sr):
         sr,
         STEP_MS,
     )
-    print(f"  -> Offset: {offset_ms:.2f} ms")
+    print(f"  -> Offset: {offset_ms / 1000:.3f} sec")
 
     return offset_ms
 
