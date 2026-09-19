@@ -172,6 +172,7 @@ def _build_video_args(data: MediaModel) -> OpResult[list[str]]:
     vf = _build_video_filter(
         size = data.video_side_resolution,
         crop = (data.video_crop_w, data.video_crop_h, data.video_crop_x, data.video_crop_y),
+        center_crop = data.video_center_crop,
         pad = data.pad_start,
         start = data.start,
         end = data.end,
@@ -202,7 +203,8 @@ def _build_video_filter(size: Optional[int],
                         start: Optional[float],
                         end: Optional[float],
                         brightness: Optional[float],
-                        perspective: tuple[Optional[float], Optional[float], Optional[float], Optional[float], Optional[float], Optional[float], Optional[float], Optional[float]] = None
+                        perspective: Optional[tuple[Optional[float], Optional[float], Optional[float], Optional[float], Optional[float], Optional[float], Optional[float], Optional[float]]],
+                        center_crop: Optional[bool]
                        ) -> Optional[str]:
     """构建视频滤镜"""
 
@@ -243,7 +245,7 @@ def _build_video_filter(size: Optional[int],
         
     # Resize
     if size:
-        filters.append(_build_resize_filter(size, crop))
+        filters.append(_build_resize_filter(size, crop, center_crop))
 
     # 有些神秘视频像素宽高比居然不是1:1
     # 此处强制设置为1:1
@@ -298,15 +300,20 @@ def _build_crop_filter(w, h, x, y) -> tuple[str, str]:
 
 
 
-def _build_resize_filter(size, crop) -> str:
 
+def _build_resize_filter(size, crop, center_crop) -> str:
+
+    # 优先处理 crop, 始终强制拉伸到目标尺寸
     if all(v is not None for v in crop):
-        w, h, x, y = crop
-        if w != h:
-            # 不是正方形，不保持宽高比，直接缩放
-            return f"scale={size}:{size}"
-    
-    # 没有裁剪信息，保持宽高比缩放，然后填充到正方形
+        return f"scale={size}:{size}"
+
+    # 先将原始视频居中裁成正方形，再缩放到目标尺寸
+    if center_crop:
+        side = "min(iw,ih)".replace(",", r"\,") # 对逗号转义
+        crop_cmd = f"crop={side}:{side}:(iw-{side})/2:(ih-{side})/2"
+        return f"{crop_cmd},scale={size}:{size}"
+
+    # 保持宽高比缩放到正方形，用黑边填充剩余
     scale_expr = f"if(gt(iw,ih),{size},-1):if(gt(iw,ih),-1,{size})".replace(",", r"\,") # 对逗号转义
     pad_expr = f"{size}:{size}:(ow-iw)/2:(oh-ih)/2:black"
     return f"scale={scale_expr},pad={pad_expr}"

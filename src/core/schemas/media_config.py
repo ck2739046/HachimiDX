@@ -221,6 +221,13 @@ class MediaConfig_Definitions:
         }
     )
 
+    video_center_crop = MediaConfig_Definition(
+        key="video_center_crop",
+        type="bool",
+        group="video",
+        default=False
+    )
+
     video_fps = MediaConfig_Definition(
         key="video_fps",
         type="int",

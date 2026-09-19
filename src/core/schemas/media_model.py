@@ -77,6 +77,8 @@ class MediaModel(BaseModel):
     )
     
     video_side_resolution: Optional[int] = Field(default=M_Defs.video_side_resolution.default)
+
+    video_center_crop: Optional[bool] = Field(default=M_Defs.video_center_crop.default)
     
     video_fps: Optional[int] = Field(default=M_Defs.video_fps.default)
     
