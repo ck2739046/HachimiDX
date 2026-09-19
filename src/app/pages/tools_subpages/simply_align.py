@@ -172,6 +172,9 @@ class SimplyAlignPage(BaseOutputPage):
         self.quick_delay_line_edit = None
         self.generate_video_label = None
         self.generate_video_button = None
+        self.center_crop_label = None
+        self.center_crop_check_box = None
+        self.center_crop_help = None
 
         self._build_file_section()
         self._build_action_section()
@@ -232,11 +235,20 @@ class SimplyAlignPage(BaseOutputPage):
         self.generate_video_button = create_stated_button(
             i18n.t(f"{I18N_Simply_Align_Prefix}.ui_generate_video_button")
         )
+
+        self.center_crop_label = create_label(
+            i18n.t(f"{I18N_Simply_Align_Prefix}.ui_center_crop_label")
+        )
+        self.center_crop_check_box = create_check_box(M_Defs.video_center_crop.default)
+        self.center_crop_help = create_help_icon(
+            i18n.t(f"{I18N_Simply_Align_Prefix}.ui_center_crop_help")
+        )
         
         self.create_row(
             self.quick_trim_label, self.quick_trim_line_edit,
             self.quick_delay_label, self.quick_delay_line_edit,
             self.generate_video_label, self.generate_video_button,
+            self.center_crop_label, self.center_crop_check_box, self.center_crop_help,
             add_stretch=True
         )
 
@@ -438,6 +450,9 @@ class SimplyAlignPage(BaseOutputPage):
             self.quick_export_divider.show()
             self.generate_video_label.show()
             self.generate_video_button.show()
+            self.center_crop_label.show()
+            self.center_crop_check_box.show()
+            self.center_crop_help.show()
             # 根据 action 显示对应控件
             if self._offset_action == "trim":
                 self.quick_trim_label.show()
@@ -459,6 +474,11 @@ class SimplyAlignPage(BaseOutputPage):
             self.quick_delay_line_edit.hide()
             self.generate_video_label.hide()
             self.generate_video_button.hide()
+            self.center_crop_label.hide()
+            self.center_crop_check_box.hide()
+            self.center_crop_help.hide()
+            # 隐藏即视为一轮快速导出结束，重置勾选状态，下次出现时回到默认值
+            self.center_crop_check_box.setChecked(M_Defs.video_center_crop.default)
 
 
 
@@ -539,6 +559,7 @@ class SimplyAlignPage(BaseOutputPage):
             M_Defs.output_path.key: str(output_path),
             M_Defs.duration.key: target_duration,
             M_Defs.video_side_resolution.key: 480,
+            M_Defs.video_center_crop.key: self.center_crop_check_box.isChecked(),
             M_Defs.video_fps.key: video_fps,
             M_Defs.video_gop_optimize.key: True,
             M_Defs.pad_start.key: pad_start,

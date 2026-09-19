@@ -287,6 +287,15 @@ en_US:
         ui_quick_delay_label: "Delay (sec): "
         ui_generate_video_label: " Generate MajdataView Reference Video: "
         ui_generate_video_button: "Generate"
+        ui_center_crop_label: " Center Crop: "
+        ui_center_crop_help: |
+          Whether to crop the longer side to make the
+          reference video square
+
+          On:  crop the longer side, keep only the
+               centered square region.
+          Off: keep the full frame, pad the shorter
+               side with black bars.
         notice_video_generate_start: "Start generating reference video..."
         notice_video_generate_success: "Reference video generated.\nOutput file: %{output_path}"
         warning_negative_quick_offset: "Offset cannot be negative."
