@@ -29,6 +29,9 @@ class RunFFmpegPage(BaseOutputPage):
         # video widgets
         self.video_quality_combo_box = None
         self.video_resolution_combo_box = None
+        self.video_center_crop_check_box = None
+        self.video_center_crop_label = None
+        self.video_center_crop_help = None
         self.video_fps_combo_box = None
         self.video_gop_optimize_check_box = None
         self.delete_audio_check_box = None
@@ -77,28 +80,37 @@ class RunFFmpegPage(BaseOutputPage):
         # labels
         video_quality_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_quality_label"))
         video_resolution_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_resolution_label"))
+        video_center_crop_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_center_crop_label"))
         video_fps_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_fps_label"))
         video_gop_optimize_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_gop_optimize_label"))
         delete_audio_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_delete_audio_label"))
         # help icons
         video_quality_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_quality_help"))
         video_resolution_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_resolution_help"))
+        video_center_crop_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_center_crop_help"))
+        self.video_center_crop_label = video_center_crop_label
+        self.video_center_crop_help = video_center_crop_help
         video_fps_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_fps_help"))
         video_gop_optimize_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_gop_optimize_help"))
         delete_audio_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_delete_audio_help"))
-        # create video panel + row
+        # create video panel + rows
         video_panel = QWidget()
         video_layout = QVBoxLayout(video_panel)
         video_layout.setContentsMargins(0, 0, 0, 0)
         row = self.create_row(video_quality_label, self.video_quality_combo_box, video_quality_help,
                           video_resolution_label, self.video_resolution_combo_box, video_resolution_help,
-                          video_fps_label, self.video_fps_combo_box, video_fps_help,
+                          video_center_crop_label, self.video_center_crop_check_box, video_center_crop_help,
+                          add_stretch=True,
+                          add_to_layout=False)
+        video_layout.addWidget(row)
+        row = self.create_row(video_fps_label, self.video_fps_combo_box, video_fps_help,
                           video_gop_optimize_label, self.video_gop_optimize_check_box, video_gop_optimize_help,
                           delete_audio_label, self.delete_audio_check_box, delete_audio_help,
                           add_stretch=True,
                           add_to_layout=False)
         video_layout.addWidget(row)
         self.content_layout.addWidget(video_panel)
+        self._update_center_crop_visibility()
         self.video_overlay = OverlayWidget(video_panel)
         self.video_overlay.show()
         
@@ -179,6 +191,8 @@ class RunFFmpegPage(BaseOutputPage):
         self.delete_audio_check_box.toggled.connect(self._on_delete_option_toggled)
         self.delete_video_check_box.toggled.connect(self._on_delete_option_toggled)
 
+        self.video_resolution_combo_box.currentTextChanged.connect(self._update_center_crop_visibility)
+
         self.output_filename_line_edit.textChanged.connect(self.update_output_full_path_display)
 
         self.audio_format_combo_box.currentTextChanged.connect(self.update_output_full_path_display)
@@ -258,6 +272,17 @@ class RunFFmpegPage(BaseOutputPage):
             self.audio_overlay.show()
 
 
+    def _update_center_crop_visibility(self, *_) -> None:
+        """分辨率为 original 时居中裁剪不生效，隐藏对应控件。"""
+
+        is_original = str(self.video_resolution_combo_box.currentText()).strip().lower() == "original"
+
+        for widget in (self.video_center_crop_label,
+                       self.video_center_crop_check_box,
+                       self.video_center_crop_help):
+            widget.setVisible(not is_original)
+
+
     def _on_delete_option_toggled(self) -> None:
         """delete_audio / delete_video 互斥联动，并刷新受影响的 UI 状态。"""
 
@@ -300,6 +325,9 @@ class RunFFmpegPage(BaseOutputPage):
         # video resolution combo box
         self.video_resolution_combo_box = self._create_ffmpeg_widget(
             widget_type="combo_box", param=M_Defs.video_side_resolution, length=110, transfer_fn=self.transfer_res)
+        # center crop check box
+        self.video_center_crop_check_box = self._create_ffmpeg_widget(
+            widget_type="check_box", param=M_Defs.video_center_crop)
         # video fps combo box
         self.video_fps_combo_box = self._create_ffmpeg_widget(
             widget_type="combo_box", param=M_Defs.video_fps, length=90, transfer_fn=self.transfer_fps)
@@ -523,6 +551,9 @@ class RunFFmpegPage(BaseOutputPage):
                 # video stream
                 M_Defs.video_quality.key: try_int(self.video_quality_combo_box.currentText().strip()),
                 M_Defs.video_side_resolution.key: self.transfer_res(self.video_resolution_combo_box.currentText().strip()),
+                # 分辨率选 original 时控件被隐藏，但勾选状态会残留，此处照常提交；
+                # 后端 build_ffmpeg_cmd 只在设置了目标分辨率时生成滤镜，故 original 下该参数自然无效
+                M_Defs.video_center_crop.key: self.video_center_crop_check_box.isChecked(),
                 M_Defs.video_fps.key: self.transfer_fps(self.video_fps_combo_box.currentText().strip()),
                 M_Defs.video_gop_optimize.key: self.video_gop_optimize_check_box.isChecked(),
                 M_Defs.delete_audio.key: self.delete_audio_check_box.isChecked(),

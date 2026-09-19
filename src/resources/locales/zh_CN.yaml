@@ -327,6 +327,14 @@ zh_CN:
 
           original：保持原始分辨率
           其他选项：保持原始比例, 缩放至目标尺寸
+        ui_video_center_crop_label: "居中裁剪: "
+        ui_video_center_crop_help: |
+          是否把画面居中裁剪为正方形
+
+          启用：裁切较长的一边，仅保留画面中心的正方形区域
+          关闭：保留完整画面，不足处补黑边
+
+          注意: 分辨率为 original 时不生效
         ui_video_fps_label: "帧率: "
         ui_video_fps_help: |
           设置输出视频的帧率

@@ -327,6 +327,17 @@ en_US:
           original: keep original resolution.
           others:   scale to the target resolution,
                     while preserving aspect ratio.
+        ui_video_center_crop_label: "Center Crop: "
+        ui_video_center_crop_help: |
+          Whether to crop the longer side to make a
+          square output
+
+          On:  crop the longer side, keep only the
+               centered square region.
+          Off: keep the full frame, pad the shorter
+               side with black bars.
+
+          Note: Has no effect when Resolution is "original".
         ui_video_fps_label: "FPS: "
         ui_video_fps_help: |
           Sets output frame rate
