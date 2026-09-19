@@ -112,6 +112,13 @@ def _build_header_candidates(
     }
 
 
+def _strip_trailing_blank_lines(body: list[str]) -> tuple[str, ...]:
+    end = len(body)
+    while end > 0 and body[end - 1].strip() == "":
+        end -= 1
+    return tuple(body[:end])
+
+
 def _build_charts(
     source_path: Path,
     lines: list[str],
@@ -125,7 +132,7 @@ def _build_charts(
             ChartBlock(
                 level=level,
                 inote_value=chart_range.inote_value,
-                body_lines=tuple(
+                body_lines=_strip_trailing_blank_lines(
                     lines[chart_range.body_start:chart_range.body_end]
                 ),
                 designer=parameters.get(f"des_{level}", [""])[0],

@@ -50,11 +50,10 @@ def _render_maidata(
     for index, chart in enumerate(charts):
         output.append(f"&inote_{chart.level}={chart.inote_value}\n")
         output.extend(chart.body_lines)
-        if (
-            index != len(charts) - 1
-            and chart.body_lines
-            and not chart.body_lines[-1].endswith(("\n", "\r"))
-        ):
+        if chart.body_lines and not chart.body_lines[-1].endswith(("\n", "\r")):
+            output.append("\n")
+        # 谱面之间以空行隔开；文件末尾只保留最后一行换行，不再追加额外空行
+        if index != len(charts) - 1:
             output.append("\n")
 
     return "".join(output)
