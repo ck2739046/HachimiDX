@@ -28,6 +28,7 @@ from src.core.chart_merge import (
     import_chart_inputs,
     ordered_chart_levels,
     path_key,
+    select_header_default,
 )
 from src.core.tools import (
     select_windows_files,
@@ -131,6 +132,7 @@ class MergeChartsPage(BaseOutputPage):
         self._parsed_files: list[ParsedChartFile] = []
         self._level_rows: dict[int, _LevelRow] = {}
         self._header_edits: dict[str, SplitDropLineEdit] = {}
+        self._header_defaults: dict[str, str] = {}
 
         self._build_input_section()
         self._build_chart_section()
@@ -362,9 +364,12 @@ class MergeChartsPage(BaseOutputPage):
     ) -> None:
         for key, edit in self._header_edits.items():
             values = candidates.get(key, ())
+            default = select_header_default(key, values)
             edit.set_items(values)
-            if not preserve_text:
-                edit.setText(values[0] if values else "")
+            # 仅在未手动改动时套用新默认值，避免覆盖用户输入
+            if not preserve_text or edit.text() in ("", self._header_defaults.get(key, "")):
+                edit.setText(default)
+            self._header_defaults[key] = default
 
     def _sync_level_rows(self, charts_by_level: dict[int, tuple[ChartBlock, ...]]) -> None:
         previous = {

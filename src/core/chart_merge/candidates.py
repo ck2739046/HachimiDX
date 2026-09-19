@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, Sequence
+from typing import Callable, Iterable, Sequence
 
 from .parse import HEADER_KEYS, ChartBlock, ParsedChartFile
 
@@ -42,3 +42,38 @@ def aggregate_candidates(
 
 def ordered_chart_levels(extra_levels: Iterable[int] = ()) -> tuple[int, ...]:
     return tuple(sorted(set(range(2, 8)).union(extra_levels)))
+
+
+def _first_matching(
+    values: tuple[str, ...],
+    predicate: Callable[[str], bool],
+) -> str:
+    """返回首个满足条件候选项，全部不满足时回落到首个候选项."""
+    for value in values:
+        if predicate(value):
+            return value
+    return values[0] if values else ""
+
+
+# 标题来源常含"谱面确认"，这类值一般不是真正的曲名
+_TITLE_CONFIRM_MARKER = "谱面确认"
+# artist 的 "default" 多为占位值
+_ARTIST_PLACEHOLDER = "default"
+
+_DEFAULT_PICKERS: dict[str, Callable[[tuple[str, ...]], str]] = {
+    "title": lambda values: _first_matching(
+        values, lambda value: _TITLE_CONFIRM_MARKER not in value
+    ),
+    "artist": lambda values: _first_matching(
+        values, lambda value: value.strip().casefold() != _ARTIST_PLACEHOLDER
+    ),
+}
+
+
+def select_header_default(key: str, values: tuple[str, ...]) -> str:
+    picker = _DEFAULT_PICKERS.get(key)
+    return (
+        picker(values)
+        if picker is not None
+        else (values[0] if values else "")
+    )
