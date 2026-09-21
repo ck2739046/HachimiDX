@@ -18,7 +18,7 @@ if str(project_root) not in sys.path:
 author = "ck2739046"
 repo_name = "HachimiDX"
 
-VERSION = "1.6.4"
+VERSION = "1.6.5"
 REPO = f"https://github.com/{author}/{repo_name}"
 API_RELEASE_LATEST = f"https://api.github.com/repos/{author}/{repo_name}/releases/latest"
 
