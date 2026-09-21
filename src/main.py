@@ -9,54 +9,6 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 
-
-
-def prompt_missing_dependencies() -> None:
-    """依赖库缺失时弹窗，引导用户先跑安装脚本"""
-    import subprocess
-    from tkinter import messagebox
-    from src.services import PathManage
-    install_bat = PathManage.INSTALL_BAT_PATH
-
-    # 先检查安装脚本是否存在
-    if not install_bat.is_file():
-        messagebox.showerror(
-            "HachimiDX",
-            "尚未安装依赖库，且安装脚本不存在，请检查安装包完整性。\n" +
-            "Dependencies are not installed, and the installation script is missing. Please check the integrity of the installation package.",
-        )
-        return 1
-    # 选 No 直接退出
-    if not messagebox.askyesno(
-        "HachimiDX",
-        "尚未安装依赖库，是否现在安装？\n" +
-        "Dependencies are not installed, install now?",
-    ):
-        return
-    # 选 Yes 启动安装脚本
-    subprocess.Popen(
-        ["cmd", "/c", str(install_bat)],
-        creationflags=subprocess.CREATE_NEW_CONSOLE,
-    )
-
-
-
-
-
-try:
-    from PyQt6.QtCore import QSharedMemory
-    from PyQt6.QtWidgets import QApplication, QStyleFactory
-    from PyQt6.QtGui import QFont
-except ModuleNotFoundError:
-    prompt_missing_dependencies()
-    sys.exit(0)
-
-
-from src.core.schemas.op_result import print_op_result
-from src.app import MainWindow
-from src.services import AllServices
-
-
 # Exit-code:
 # 0. normal exit
 # 1. general error
@@ -69,10 +21,6 @@ repo_name = "HachimiDX"
 VERSION = "1.6.4"
 REPO = f"https://github.com/{author}/{repo_name}"
 API_RELEASE_LATEST = f"https://api.github.com/repos/{author}/{repo_name}/releases/latest"
-
-
-
-
 
 # generate by https://patorjk.com/software/taag using font "Terrace"
 logo = """
@@ -92,7 +40,41 @@ logo = """
 
 
 
-def setup_font(app: QApplication) -> None:
+
+
+
+def prompt_missing_dependencies() -> None:
+    """依赖库缺失时弹窗，引导用户先跑安装脚本"""
+    import subprocess
+    from tkinter import messagebox
+    from src.services import PathManage
+    install_bat = PathManage.INSTALL_BAT_PATH
+
+    # 先检查安装脚本是否存在
+    if not install_bat.is_file():
+        messagebox.showerror(
+            "HachimiDX",
+            "尚未安装依赖库，且安装脚本不存在，请检查安装包完整性。\n" +
+            "Dependencies are not installed, and the installation script is missing." +
+            "Please check the integrity of the installation package.",
+        )
+        return 1
+    # 选 No 直接退出
+    if not messagebox.askyesno(
+        "HachimiDX",
+        "尚未安装依赖库，是否现在安装？\n" +
+        "Dependencies are not installed, install now?",
+    ):
+        return
+    # 选 Yes 启动安装脚本
+    subprocess.Popen(
+        ["cmd", "/c", str(install_bat)],
+        creationflags=subprocess.CREATE_NEW_CONSOLE,
+    )
+
+
+def setup_font(app) -> None:
+    from PyQt6.QtGui import QFont
     try:
         # 加载外部字体文件
         # font_path = PathManage.FONT_EN_PATH
@@ -123,9 +105,22 @@ def exception_handler(exctype, value, traceback):
     print(build_str("End of error."))
 
 
+
+
+
+
 def main(is_lite: bool = False) -> int:
     """程序主入口，返回退出码"""
 
+    # 依赖缺失时弹窗引导用户跑安装脚本
+    try:
+        from PyQt6.QtCore import QSharedMemory
+        from PyQt6.QtWidgets import QApplication, QStyleFactory
+    except ModuleNotFoundError:
+        prompt_missing_dependencies()
+        return 0
+
+    # 打印 logo
     print(logo)
 
     # 设置全局异常处理器
@@ -148,7 +143,10 @@ def main(is_lite: bool = False) -> int:
         creationflags=subprocess.CREATE_NO_WINDOW,
     )
 
-    # 阶段1: 前初始化 在创建 QApplication 之前执行
+    from src.core.schemas.op_result import print_op_result
+    from src.services import AllServices
+
+    # 阶段1: 前初始化, 在创建 QApplication 之前执行
     result = AllServices.pre_initialize(is_lite)
     if not result.is_ok:
         print(build_str("Pre-Initialization Error:"))
@@ -159,16 +157,15 @@ def main(is_lite: bool = False) -> int:
     # 创建应用
     app = QApplication(sys.argv)
     app.aboutToQuit.connect(AllServices.shutdown_all)
+    app._single_instance_lock = shared_memory # 保持引用
 
-    # 阶段2: 后初始化 在创建 QApplication 之后执行
+    # 阶段2: 后初始化, 在创建 QApplication 之后执行
     result = AllServices.post_initialize()
     if not result.is_ok:
         print(build_str("Post-Initialization Error:"))
         print(print_op_result(result))
         print(build_str("End of Post-Initialization Error."))
         return 3
-
-    app._single_instance_lock = shared_memory # 保持引用
 
     # 设置界面风格
     # print(f"Available styles: {QStyleFactory.keys()}")
@@ -179,6 +176,9 @@ def main(is_lite: bool = False) -> int:
     setup_font(app)
 
     # 启动主窗口
+    # 必须等 pre_initialize 初始化 PathManage 后再导入 MainWindow
+    # 因为页面会检查 PathManage.is_lite()
+    from src.app import MainWindow
     window = MainWindow()
     window.show()
 
@@ -187,7 +187,11 @@ def main(is_lite: bool = False) -> int:
     return exit_code
 
 
+
+
+
 if __name__ == "__main__":
+
     # launcher 传入 --is_lite true|false，如不提供则默认 false
     is_lite = False
     if "--is_lite" in sys.argv:
@@ -197,4 +201,5 @@ if __name__ == "__main__":
             print(f"Invalid --is_lite value: {raw_value!r}, expected 'true' or 'false'.")
             sys.exit(1)
         is_lite = raw_value == "true"
+        
     sys.exit(main(is_lite))
