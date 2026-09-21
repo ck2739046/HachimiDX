@@ -34,13 +34,18 @@ A tool for the rhythm game **maimai** that converts chart confirmation videos in
 
 ## ✨ Highlights
 
-- **Powerful recharting capabilities**
+> HachimiDX ships in two editions, **Full** and **Lite**. The **Lite** edition has no auto rechart.
+
+- **Powerful recharting capabilities** *(Full edition only)*
     - Supports recognition and duration inference for all note types: `tap` `slide` `touch` `hold` `touch-hold`.
     - Supports all note variants classification: `ex` `break` `ex-break`.
     - Supports all simai slide movement syntax: `-` `V` `><` `pq` `ppqq` `sz` `v`.
 
-- **Custom vision models**
+- **Custom vision models** *(Full edition only)*
     - Optimized specifically for maimai gameplay, with robust performance in complex scenes.
+
+- **Flexible inference backends** *(Full edition only)*
+    - Supports ONNX CPU / ONNX DirectML / ONNX Cuda / NCNN / NVIDIA TensorRT inference backends for compatibility with a range of hardware.
 
 - **GUI-first design**
     - Everything is done through a visual interface — no CLI commands required.
@@ -51,9 +56,6 @@ A tool for the rhythm game **maimai** that converts chart confirmation videos in
 - **Built-in BPM measurement tool**
     - Integrates [`Bpm-Measurer`](https://github.com/ck2739046/Bpm-Measurer), a handy tool for measuring a song's BPM.
 
-- **Flexible inference backends**
-    - Supports ONNX CPU / ONNX DirectML / ONNX Cuda / NCNN / NVIDIA TensorRT inference backends for compatibility with a range of hardware.
-
 - **Handy multimedia tools**
     - Trim videos, sync audio, convert formats, adjust arcade timing, etc.
 
@@ -63,9 +65,11 @@ A tool for the rhythm game **maimai** that converts chart confirmation videos in
 
 ## 💻 System Requirements
 
-- **OS**: Windows 10 / 11 (x64) only
-- **RAM**: at least 4 GB available
-- **Disk**: at least 7 GB free
+| | **Full** | **Lite** |
+|---|---|---|
+| **OS** | Win10/11 (x64) | Win10/11 (x64) |
+| **RAM** | 4 GB | 0.5 GB |
+| **ROM** | 6 GB | 1.5 GB |
 
 
 
