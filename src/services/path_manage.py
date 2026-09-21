@@ -24,6 +24,9 @@ class PathManage:
     所有的路径属性都是 pathlib.Path 对象，而不是字符串。
     """
 
+    # 由 init() 赋值
+    _is_lite: bool = False
+
     # 以下是静态路径，因为不会变，所以设置为常量
 
     # 初始化时必须存在的路径
@@ -233,9 +236,15 @@ class PathManage:
 
 
     @classmethod
-    def init(cls) -> OpResult[None]:
+    def is_lite(cls) -> bool:
+        return cls._is_lite
+
+    @classmethod
+    def init(cls, is_lite: bool = False) -> OpResult[None]:
         """初始化检查一些必须存在的路径"""
-        
+
+        cls._is_lite = bool(is_lite)
+
         # 检查必须存在的目录
         for dir_path in [cls.RESOURCES_DIR, cls.MODELS_DIR, cls.LOCALES_DIR, cls.WORKERS_DIR, cls.DATA_DIR]:
             if not dir_path.is_dir():
@@ -259,9 +268,11 @@ class PathManage:
                 error_msg = f"Critical Error: Required file not found: {file_path}"
                 return err(error_msg)
 
-        model_result = cls.validate_source_model_paths(cls.get_source_model_paths())
-        if not model_result.is_ok:
-            return err("Critical Error: Required source model artifact not found", inner=model_result)
+        # Lite 版不需要模型
+        if not cls._is_lite:
+            model_result = cls.validate_source_model_paths(cls.get_source_model_paths())
+            if not model_result.is_ok:
+                return err("Critical Error: Required source model artifact not found", inner=model_result)
             
         # 检查 worker 是否存在
         for file_path in [cls.AUTO_RECHART_WORKER_PATH,

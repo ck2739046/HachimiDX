@@ -65,6 +65,11 @@ class SettingsPage(BaseOutputPage):
         self.ffmpeg_hw_encoder_combo_box = None
         self.check_ffmpeg_hw_accel_button = None
 
+        # Lite 版无模型推理功能，隐藏相关组件
+        self.model_divider = None
+        self.model_backend_row = None
+        self.inference_device_row = None
+
         self._task_state = _SettingsTaskState()
         self._model_view: ModelInferenceView | None = None
 
@@ -114,6 +119,13 @@ class SettingsPage(BaseOutputPage):
         self._build_common_section()
         self._build_window_section()
         self._build_actions()
+
+        # Lite 版无模型推理功能，隐藏相关组件
+        if PathManage.is_lite():
+            self.model_divider.setVisible(False)
+            self.model_backend_row.setVisible(False)
+            self.inference_device_row.setVisible(False)
+
         self.content_layout.addStretch()
         self.build_bottom_section()
 
@@ -127,7 +139,8 @@ class SettingsPage(BaseOutputPage):
 
 
     def _build_model_section(self) -> None:
-        self.content_layout.addWidget(create_divider(i18n.t(f"{I18N_Prefix}.ui_model_divider")))
+        self.model_divider = create_divider(i18n.t(f"{I18N_Prefix}.ui_model_divider"))
+        self.content_layout.addWidget(self.model_divider)
 
         backend_label = create_label(i18n.t(f"{I18N_Prefix}.ui_model_backend_label"))
         self.model_backend_combo_box = self._create_combo_from_definition(S_Defs.model_backend, length=120)
@@ -149,7 +162,7 @@ class SettingsPage(BaseOutputPage):
         self.model_status_label.setVisible(False)          # 默认隐藏
         self.open_install_script_button.setVisible(False)  # 默认隐藏
 
-        self.create_row(
+        self.model_backend_row = self.create_row(
             backend_label,
             self.model_backend_combo_box,
             self.check_model_button,
@@ -159,7 +172,7 @@ class SettingsPage(BaseOutputPage):
             self.model_status_label,
             add_stretch = True,
         )
-        self.create_row(
+        self.inference_device_row = self.create_row(
             self.inference_device_label,
             self.inference_device_combo_box,
             self.convert_model_button,

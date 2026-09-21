@@ -16,7 +16,6 @@ from .ui_style import UI_Style
 from .pages.majdata_page import MajdataPage
 from .pages.tools_page import ToolsPage
 from .pages.tasks_page import TasksPage
-from .pages.auto_rechart_page import AutoRechartPage
 from .pages.settings_page import SettingsPage
 
 import i18n
@@ -24,6 +23,10 @@ from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Def
 from src.core.schemas.settings_config import MAIN_APP_W_MIN, MAIN_APP_W_MAX, MAIN_APP_H_MIN, MAIN_APP_H_MAX
 from src.core.schemas.op_result import ok, err, OpResult
 from src.services import SettingsManage, PathManage, MajdataSession, VideoSyncServer, check_update
+
+# Lite 版跳过导入 auto_rechart_page
+if not PathManage.is_lite():
+    from .pages.auto_rechart_page import AutoRechartPage
 
 
 class _CallbackEmitter(QObject):
@@ -136,11 +139,12 @@ class RightPanel(QWidget):
         # 1. 主导航栏
         nav_items = [
             i18n.t("app.nav_bar.majdata_label"),
-            i18n.t("app.nav_bar.auto_rechart_label"),
             i18n.t("app.nav_bar.tools_label"),
             i18n.t("app.nav_bar.tasks_label"),
             i18n.t("app.nav_bar.settings_label"),
         ]
+        if not PathManage.is_lite():
+            nav_items.insert(1, i18n.t("app.nav_bar.auto_rechart_label"))
         # nav_tooltips = [
         #     i18n.t("app.nav_bar.majdata_desc"),
         #     i18n.t("app.nav_bar.auto_rechart_desc"),
@@ -161,9 +165,11 @@ class RightPanel(QWidget):
         # 0: Majdata
         self.majdata_page = MajdataPage()
         self.stack.addWidget(self.majdata_page)
-        # 1: Auto Rechart
-        self.auto_rechart_page = AutoRechartPage()
-        self.stack.addWidget(self.auto_rechart_page)
+        # 1: Auto Rechart (Lite 版无此页)
+        self.auto_rechart_page = None
+        if not PathManage.is_lite():
+            self.auto_rechart_page = AutoRechartPage()
+            self.stack.addWidget(self.auto_rechart_page)
         # 2: Tools
         self.tools_page = ToolsPage()
         self.stack.addWidget(self.tools_page)
@@ -173,7 +179,8 @@ class RightPanel(QWidget):
         self.stack.addWidget(SettingsPage())
 
         # 连接信号：Measure Bpm → Auto Rechart 一键填入
-        self.tools_page.request_send_to_auto_rechart.connect(self._on_send_to_auto_rechart)
+        if not PathManage.is_lite():
+            self.tools_page.request_send_to_auto_rechart.connect(self._on_send_to_auto_rechart)
 
         # 连接信号
         self.nav_bar.currentChanged.connect(self.stack.setCurrentIndex)
@@ -181,6 +188,8 @@ class RightPanel(QWidget):
 
     def _on_send_to_auto_rechart(self, bpm_config_path: str) -> None:
         """处理 Measure Bpm 的一键填入请求：填入 Auto Rechart 并跳转。"""
+        if self.auto_rechart_page is None:
+            return
         success = self.auto_rechart_page.set_measure_bpm_result(bpm_config_path)
         if success:
             self.nav_bar.setCurrentIndex(1)  # 切到 Auto Rechart

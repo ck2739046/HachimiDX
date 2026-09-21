@@ -5,7 +5,6 @@ from src.core.schemas.op_result import OpResult, ok, err
 from .path_manage import PathManage
 from .settings_manage import SettingsManage
 from .i18n_manage import I18nManage
-from .pipeline.auto_rechart_pipeline import AutoRechartPipeline
 from .pipeline.media_pipeline import MediaPipeline
 from .majdata_sync_server import VideoSyncServer
 from .process_manager import ProcessManager
@@ -18,7 +17,7 @@ class AllServices:
     _is_post_initialized = False
 
     @classmethod
-    def pre_initialize(cls) -> OpResult[None]:
+    def pre_initialize(cls, is_lite: bool = False) -> OpResult[None]:
         """阶段1: 前初始化（在 QApplication 创建之前调用）"""
 
         if cls._is_pre_initialized:
@@ -29,7 +28,7 @@ class AllServices:
 
         # PathManage
         # 后续其他组件都依赖它提供的路径，因此必须最先初始化
-        result = PathManage.init()
+        result = PathManage.init(is_lite)
         if result.is_ok:
             print("PathManage initialization completed.")
         else:
@@ -97,11 +96,14 @@ class AllServices:
         else:
             return err("Failed to initialize MediaPipeline.", inner=result)
 
-        result = AutoRechartPipeline.init()
-        if result.is_ok:
-            print("AutoRechartPipeline initialization completed.")
-        else:
-            return err("Failed to initialize AutoRechartPipeline.", inner=result)
+        # Lite 版没有自动抄谱
+        if not PathManage.is_lite():
+            from .pipeline.auto_rechart_pipeline import AutoRechartPipeline  # 惰性导入
+            result = AutoRechartPipeline.init()
+            if result.is_ok:
+                print("AutoRechartPipeline initialization completed.")
+            else:
+                return err("Failed to initialize AutoRechartPipeline.", inner=result)
 
 
         print(i18n.t("all_services.notice_all_initialized"))

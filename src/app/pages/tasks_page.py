@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.services import TaskInfo, TaskStatus, task_scheduler_api
+from src.services import PathManage, TaskInfo, TaskStatus, task_scheduler_api
 
 from .base_output_page import BaseOutputPage
 from ..ui_style import UI_Style
@@ -55,6 +55,10 @@ class TasksPage(BaseOutputPage):
 
         auto_rechart_panel, self._auto_rechart_scroll, self._auto_rechart_list_layout = self._create_queue_panel(i18n.t("app.tasks_page.auto_rechart_panel_title"))
         media_panel, self._media_scroll, self._media_list_layout = self._create_queue_panel(i18n.t("app.tasks_page.media_panel_title"))
+
+        # Lite 版无自动抄谱任务，隐藏面板
+        if PathManage.is_lite():
+            auto_rechart_panel.setVisible(False)
 
         self.content_layout.addWidget(auto_rechart_panel)
         self.content_layout.addWidget(media_panel)

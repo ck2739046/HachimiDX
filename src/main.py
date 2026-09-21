@@ -123,7 +123,7 @@ def exception_handler(exctype, value, traceback):
     print(build_str("End of error."))
 
 
-def main() -> int:
+def main(is_lite: bool = False) -> int:
     """程序主入口，返回退出码"""
 
     print(logo)
@@ -149,7 +149,7 @@ def main() -> int:
     )
 
     # 阶段1: 前初始化 在创建 QApplication 之前执行
-    result = AllServices.pre_initialize()
+    result = AllServices.pre_initialize(is_lite)
     if not result.is_ok:
         print(build_str("Pre-Initialization Error:"))
         print(print_op_result(result))
@@ -188,4 +188,13 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # launcher 传入 --is_lite true|false，如不提供则默认 false
+    is_lite = False
+    if "--is_lite" in sys.argv:
+        arg_index = sys.argv.index("--is_lite") + 1
+        raw_value = sys.argv[arg_index] if arg_index < len(sys.argv) else ""
+        if raw_value not in ("true", "false"):
+            print(f"Invalid --is_lite value: {raw_value!r}, expected 'true' or 'false'.")
+            sys.exit(1)
+        is_lite = raw_value == "true"
+    sys.exit(main(is_lite))

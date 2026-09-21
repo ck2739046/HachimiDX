@@ -245,7 +245,9 @@ class MeasureBpmPage(BaseOutputPage):
         out_path = res.value
         self.output_widget.append_text(_t("notice_compute_success", output_path=out_path))
         self._last_exported_config_path = str(out_path)
-        self.send_to_auto_rechart_button.show()
+        # Lite 版无自动抄谱页面
+        if not PathManage.is_lite():
+            self.send_to_auto_rechart_button.show()
         self._set_all_buttons_enabled(True)
 
 
