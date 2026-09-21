@@ -35,6 +35,16 @@ class Program
 
 
 
+#if LITE
+    // 由 csproj 的 -p:IsLite=true 决定启动指令
+    private const string MAIN_ARGS = "-u src/main.py --is_lite true";
+#else
+    private const string MAIN_ARGS = "-u src/main.py --is_lite false";
+#endif
+
+
+
+
     public static void Main()
     {
         AllocConsole();
@@ -46,7 +56,7 @@ class Program
             new ProcessStartInfo
             {
                 FileName = @".\python\python.exe",
-                Arguments = "-u src/main.py",
+                Arguments = MAIN_ARGS,
                 UseShellExecute = false
             }
         );
