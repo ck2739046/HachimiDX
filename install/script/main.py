@@ -26,6 +26,32 @@ USE_PyPI_Mirror = False
 # 特殊返回码：告知 install.bat 安装成功且用户选择立即启动软件，跳过 pause
 EXIT_LAUNCH_HACHIMIDX = 273
 
+# 由 install.bat / install_lite.bat 传入的参数
+IS_LITE = False
+
+# 两个版本共用的基础依赖
+GENERAL_DEPENDENCIES = [
+    "PyQt6==6.10.2",
+    "pywin32==312",
+    "librosa==0.11.0",
+    "pydantic==2.13.4",
+    "python-i18n==0.3.9",
+    "nanoid==2.0.0",
+]
+
+# 仅完整版需要（自动抄谱的 OC-SORT 跟踪）
+FULL_ONLY_DEPENDENCIES = [
+    "filterpy==1.4.5",
+]
+
+# 仅 Lite 版需要
+LITE_ONLY_DEPENDENCIES = [
+    "numpy==2.4.6",
+    "psutil==7.2.2",
+    "pyyaml==6.0.3",       # python-i18n 读 locales/*.yaml 必需
+    "matplotlib==3.11.1",  # draw_audio_wave 绘制波形图必需
+]
+
 
 
 
@@ -36,6 +62,9 @@ def main():
         raise RuntimeError(
             "Lack of installation log path parameter.\n缺少安装日志路径参数。"
         )
+
+    global IS_LITE
+    IS_LITE = len(sys.argv) > 2 and str(sys.argv[2]).strip() == "1"
 
     # 必须在任何输出之前接手控制台，日志靠跟随屏幕缓冲区产生
     console_journal.start(Path(sys.argv[1]))
@@ -79,26 +108,33 @@ def main():
                                             "--no-warn-script-location"])
 
         # main menu
-        print("\n-----")
-        choice = ask(T.main_menu.prompt + hint(T.input_hint))
-        if choice == "1":
-            result = install()
+        if IS_LITE:
+            # Lite 版无其他选项，直接进入安装
+            result = install_lite()
             if not result.is_ok:
                 print(red(print_op_result(result)))
-
-        elif choice == "2":
-            result = reinstall_backend()
-            if not result.is_ok:
-                print(red(print_op_result(result)))
-
-        elif choice == "3":
-            sys.exit(0)
-
         else:
-            print(note_on_hint(yellow(T.input_hint), T.main_menu.defaulting))
-            result = install()
-            if not result.is_ok:
-                print(red(print_op_result(result)))
+            # 完整版有安装、重装后端、退出选项
+            print("\n-----")
+            choice = ask(T.main_menu.prompt + hint(T.input_hint))
+            if choice == "1":
+                result = install()
+                if not result.is_ok:
+                    print(red(print_op_result(result)))
+
+            elif choice == "2":
+                result = reinstall_backend()
+                if not result.is_ok:
+                    print(red(print_op_result(result)))
+
+            elif choice == "3":
+                sys.exit(0)
+
+            else:
+                print(note_on_hint(yellow(T.input_hint), T.main_menu.defaulting))
+                result = install()
+                if not result.is_ok:
+                    print(red(print_op_result(result)))
 
     except KeyboardInterrupt:
         print("\n" + yellow("KeyboardInterrupt detected, exiting..."))
@@ -167,6 +203,31 @@ def reinstall_backend() -> OpResult[None]:
 
 
 
+def install_lite() -> OpResult[None]:
+    """Lite 版：只装通用依赖，不涉及模型推理后端与自动抄谱"""
+
+    print("\n-----\n")
+    print(cyan(T.install.start))
+
+    cmd = [sys.executable, "-m", "pip", "install",
+           *GENERAL_DEPENDENCIES, *LITE_ONLY_DEPENDENCIES, "--no-warn-script-location"]
+    is_success = general_pip_install("Dependencies", cmd)
+    if not is_success:
+        return err("Failed to install dependencies.")
+
+    # 结束
+    print("\n-----\n")
+    print(green(T.install.done))
+
+    # 询问是否立即打开 HachimiDX
+    ask_open_hachimidx()
+
+    return ok()
+
+
+
+
+
 def install(is_reinstall: bool = False) -> OpResult[None]:
 
     print("\n-----\n")
@@ -216,17 +277,8 @@ def install(is_reinstall: bool = False) -> OpResult[None]:
         if not is_success: sys.exit(1)
 
     # install others
-    dependencies = [
-        "PyQt6==6.10.2",
-        "pywin32==312",
-        "librosa==0.11.0",
-        "pydantic==2.13.4",
-        "python-i18n==0.3.9",
-        "nanoid==2.0.0",
-        "filterpy==1.4.5",
-    ]
     cmd = [sys.executable, "-m", "pip", "install",
-           *dependencies, "--no-warn-script-location"]
+           *GENERAL_DEPENDENCIES, *FULL_ONLY_DEPENDENCIES, "--no-warn-script-location"]
     is_success = general_pip_install("Other dependencies", cmd)
     if not is_success: sys.exit(1)
         
@@ -515,7 +567,7 @@ def ask_open_hachimidx() -> None:
         print(note_on_hint(yellow(T.input_hint), T.open_hachimidx.defaulting))
     # 启动 HachimiDX
     print("\n-----\n")
-    exe = ROOT / "HachimiDX.exe"
+    exe = ROOT / ("HachimiDX-Lite.exe" if IS_LITE else "HachimiDX.exe")
     if not exe.exists():
         print(red(T.open_hachimidx.not_found))
         return

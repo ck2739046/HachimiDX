@@ -6,8 +6,8 @@ cd /d "%~dp0"
 set "LOG_PATH=..\data\logs\install_log.txt"
 for %%I in ("%~dp0%LOG_PATH%") do set "LOG_PATH=%%~fI"
 
-:: 启动 python 脚本 (is_lite=0)
-"..\python\python.exe" -u -m script.main "%LOG_PATH%" 0
+:: 启动 python 脚本  (is_lite=1)
+"..\python\python.exe" -u -m script.main "%LOG_PATH%" 1
 set "EXIT_CODE=%errorlevel%"
 
 :: 若用户选择立即打开 HachimiDX（特殊返回码 273），安装窗口自动关闭
