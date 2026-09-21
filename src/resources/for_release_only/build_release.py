@@ -12,12 +12,49 @@ if root not in sys.path:
 from src.services import PathManage
 
 
-RELEASE_DIR = PathManage.ROOT_DIR / "HachimiDX"
 FOR_RELEASE_ONLY_DIR = PathManage.RESOURCES_DIR / "for_release_only"
 
 
 
 def main():
+
+    for variant in VARIANTS:
+        set_variant(variant)
+        build_release()
+
+    print("\nAll release builds completed.\n")
+
+
+
+
+
+# 每次运行会构建出这两个版本
+VARIANTS = (
+    {"dir_name": "HachimiDX",
+     "LAUNCHER_exe_name": "HachimiDX.exe",
+     "is_lite": False},
+    {"dir_name": "HachimiDX-Lite",
+     "LAUNCHER_exe_name": "HachimiDX-Lite.exe",
+     "is_lite": True},
+)
+
+# 由 set_variant() 设置
+RELEASE_DIR = None
+IS_LITE = None
+LAUNCHER_EXE_NAME = None
+
+def set_variant(variant: dict) -> None:
+    global RELEASE_DIR, IS_LITE, LAUNCHER_EXE_NAME
+    RELEASE_DIR = PathManage.ROOT_DIR / variant["dir_name"]
+    IS_LITE = variant["is_lite"]
+    LAUNCHER_EXE_NAME = variant["LAUNCHER_exe_name"]
+
+
+
+
+def build_release() -> None:
+
+    print(f"\nBuilding {RELEASE_DIR.name}...\n")
 
     if RELEASE_DIR.is_dir():
         shutil.rmtree(RELEASE_DIR)
@@ -33,7 +70,7 @@ def main():
 
     copy_app_resources()
     copy_root()
-    print("\nRelease build completed.")
+    print(f"\n{RELEASE_DIR.name} build completed.")
 
 
 
@@ -52,10 +89,14 @@ def copy_app_resources():
     copy_to_release(PathManage.TEST_H264_PATH)
 
     # 解压 models
-    models_dir = FOR_RELEASE_ONLY_DIR / "models"
-    for model_zip in models_dir.glob("*.zip"):
-        target_dir = RELEASE_DIR / "data" / "models"
-        extract_with_bandizip(model_zip, target_dir, mode='file')
+    # Lite 版无模型，只建空目录以通过 PathManage 校验
+    models_target_dir = RELEASE_DIR / "data" / "models"
+    if IS_LITE:
+        models_target_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        models_dir = FOR_RELEASE_ONLY_DIR / "models"
+        for model_zip in models_dir.glob("*.zip"):
+            extract_with_bandizip(model_zip, models_target_dir, mode='file')
 
     # 解压 python 到目录
     python_path = FOR_RELEASE_ONLY_DIR / "python_portable" / "python.zip"
@@ -95,8 +136,8 @@ def copy_app_resources():
     copy_to_release(bpm_measurer_dir, bpm_measurer_target_path)
 
     # 复制 launcher
-    launcher = FOR_RELEASE_ONLY_DIR / "Launcher" / "HachimiDX.exe"
-    copy_to_release(launcher, RELEASE_DIR / "HachimiDX.exe")
+    launcher = FOR_RELEASE_ONLY_DIR / "launcher" / LAUNCHER_EXE_NAME
+    copy_to_release(launcher, RELEASE_DIR / LAUNCHER_EXE_NAME)
 
 
 
@@ -105,6 +146,16 @@ def copy_root():
     
     # /install
     copy_to_release(PathManage.ROOT_DIR / "install")
+
+    # install.bat
+    install_bat = RELEASE_DIR / "install" / "install.bat"
+    install_lite_bat = RELEASE_DIR / "install" / "install_lite.bat"
+    if IS_LITE:
+        install_bat.unlink(missing_ok=True)
+        install_lite_bat.replace(install_bat)
+    else:
+        install_lite_bat.unlink(missing_ok=True)
+
     # license
     copy_to_release(PathManage.ROOT_DIR / "LICENSE")
     # readme
