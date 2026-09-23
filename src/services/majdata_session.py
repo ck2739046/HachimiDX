@@ -57,7 +57,8 @@ class MajdataSession(QObject):
         self._poll_timer.setInterval(20)
         self._poll_timer.timeout.connect(self._poll_hwnds)
         self._poll_started_at: Optional[float] = None
-        self._poll_timeout_s: float = 20.0
+        # 等待 majdata 启动并出现窗口
+        self._poll_timeout_s: float = 30.0
 
         self._shutdown_in_progress: bool = False
         self._restart_pending: bool = False
