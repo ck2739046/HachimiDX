@@ -274,13 +274,16 @@ class SettingsPage(BaseOutputPage):
         remember_window_state_label = create_label(
             i18n.t(f"{I18N_Prefix}.ui_remember_window_state_label"))
         self.remember_window_state_checkbox = create_check_box()
+        self.create_row(
+            remember_window_state_label,
+            self.remember_window_state_checkbox,
+            add_stretch=True,
+        )
         self.reset_window_state_label = create_label(
             i18n.t(f"{I18N_Prefix}.ui_reset_window_state_label"))
         self.reset_window_state_button = create_stated_button(
             i18n.t(f"{I18N_Prefix}.ui_reset_window_state_button"))
         self.create_row(
-            remember_window_state_label,
-            self.remember_window_state_checkbox,
             self.reset_window_state_label,
             self.reset_window_state_button,
             add_stretch=True,

@@ -696,7 +696,7 @@ en_US:
       ui_default_size_label: "Default Window Size (W×H): "
       ui_ui_scale_label: "UI Scale: "
       ui_remember_window_state_label: "Remember Last Window Size/Position: "
-      ui_reset_window_state_label: " Reset Window Size/Position to Default: "
+      ui_reset_window_state_label: "Reset Window Size/Position to Default: "
       ui_reset_window_state_button: "Reset"
 
       ui_save_button: "Save"
