@@ -12,7 +12,7 @@ from .combo_box import StyledComboBox, ToolTipComboBox, create_combo_box
 from .line_edit import StyledLineEdit, create_line_edit
 from .line_edit_dropdown import SplitDropLineEdit, create_split_drop_line_edit
 from .check_box import StyledCheckBox, create_check_box
-from .divider import create_divider
+from .divider import create_divider, create_vertical_divider
 from .file_selection_row import create_file_selection_row, create_directory_selection_row
 from .media_input_probe_widget import MediaInputProbeWidget
 from .path_display import create_path_display
@@ -36,7 +36,7 @@ __all__ = [
     'StyledLineEdit', 'create_line_edit',
     'SplitDropLineEdit', 'create_split_drop_line_edit',
     'StyledCheckBox', 'create_check_box',
-    'create_divider',
+    'create_divider', 'create_vertical_divider',
     'create_file_selection_row', 'create_directory_selection_row',
     'MediaInputProbeWidget',
     'create_path_display',

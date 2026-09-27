@@ -1,6 +1,6 @@
 import os
 import traceback
-from PyQt6.QtWidgets import QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 
 from ..base_output_page import BaseOutputPage
 from ...ui_style import UI_Style
@@ -54,6 +54,9 @@ class RunFFmpegPage(BaseOutputPage):
         self.taskname_line_edit = None
         self.submit_button = None
 
+        # 参数区所有行的左侧 label，宽度统一取其中最宽的一个
+        self._param_row_labels = []
+
 
 
 
@@ -74,17 +77,32 @@ class RunFFmpegPage(BaseOutputPage):
 
 
 
-        # 第三行: video 参数
-        video_divider = create_divider(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_divider"))
-        self.content_layout.addWidget(video_divider)
-        # labels
+        # 第三-五行: 视频 / 音频 / 通用 三列并列
+        params_divider = create_divider(i18n.t("app.tools_subpages.run_ffmpeg.ui_params_divider"))
+        self.content_layout.addWidget(params_divider)
+
+        params_row = QWidget()
+        params_layout = QHBoxLayout(params_row)
+        params_layout.setContentsMargins(0, 0, 0, 0)
+        params_layout.setSpacing(UI_Style.widget_spacing)
+
+        video_col, video_panel, video_body = self._create_param_column()
+        audio_col, audio_panel, audio_body = self._create_param_column()
+        common_col, common_panel, common_body = self._create_param_column()
+        for index, column in enumerate((video_col, audio_col, common_col)):
+            if index:
+                params_layout.addWidget(create_vertical_divider())
+            params_layout.addWidget(column, 1)
+        self.content_layout.addWidget(params_row)
+
+        # video labels
         video_quality_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_quality_label"))
         video_resolution_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_resolution_label"))
         video_center_crop_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_center_crop_label"))
         video_fps_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_fps_label"))
         video_gop_optimize_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_gop_optimize_label"))
         delete_audio_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_delete_audio_label"))
-        # help icons
+        # video help icons
         video_quality_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_quality_help"))
         video_resolution_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_resolution_help"))
         video_center_crop_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_center_crop_help"))
@@ -93,77 +111,61 @@ class RunFFmpegPage(BaseOutputPage):
         video_fps_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_fps_help"))
         video_gop_optimize_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_gop_optimize_help"))
         delete_audio_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_delete_audio_help"))
-        # create video panel + rows
-        video_panel = QWidget()
-        video_layout = QVBoxLayout(video_panel)
-        video_layout.setContentsMargins(0, 0, 0, 0)
-        row = self.create_row(video_quality_label, self.video_quality_combo_box, video_quality_help,
-                          video_resolution_label, self.video_resolution_combo_box, video_resolution_help,
-                          video_center_crop_label, self.video_center_crop_check_box, video_center_crop_help,
-                          add_stretch=True,
-                          add_to_layout=False)
-        video_layout.addWidget(row)
-        row = self.create_row(video_fps_label, self.video_fps_combo_box, video_fps_help,
-                          video_gop_optimize_label, self.video_gop_optimize_check_box, video_gop_optimize_help,
-                          delete_audio_label, self.delete_audio_check_box, delete_audio_help,
-                          add_stretch=True,
-                          add_to_layout=False)
-        video_layout.addWidget(row)
-        self.content_layout.addWidget(video_panel)
+        # video rows
+        self._add_column_row(video_body, video_quality_label, self.video_quality_combo_box, video_quality_help)
+        self._add_column_row(video_body, video_resolution_label, self.video_resolution_combo_box, video_resolution_help)
+        self._add_column_row(video_body, video_center_crop_label, self.video_center_crop_check_box, video_center_crop_help)
+        self._add_column_row(video_body, video_fps_label, self.video_fps_combo_box, video_fps_help)
+        self._add_column_row(video_body, video_gop_optimize_label, self.video_gop_optimize_check_box, video_gop_optimize_help)
+        self._add_column_row(video_body, delete_audio_label, self.delete_audio_check_box, delete_audio_help)
         self._update_center_crop_visibility()
         self.video_overlay = OverlayWidget(video_panel)
         self.video_overlay.show()
         
-        # 第四行: audio 参数
-        audio_divider = create_divider(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_divider"))
-        self.content_layout.addWidget(audio_divider)
-        # labels
+        # audio labels
         audio_format_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_format_label"))
         audio_bitrate_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_bitrate_label"))
         audio_sample_rate_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_sample_rate_label"))
         audio_volume_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_volume_label"))
         delete_video_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_delete_video_label"))
-        # help icons
+        # audio help icons
         audio_format_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_format_help"))
         audio_bitrate_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_bitrate_help"))
         audio_sample_rate_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_sample_rate_help"))
         audio_volume_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_volume_help"))
         delete_video_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_delete_video_help"))
-        # create audio panel + row
-        audio_panel = QWidget()
-        audio_layout = QVBoxLayout(audio_panel)
-        audio_layout.setContentsMargins(0, 0, 0, 0)
-        row = self.create_row(audio_format_label, self.audio_format_combo_box, audio_format_help,
-                          audio_bitrate_label, self.audio_bitrate_combo_box, audio_bitrate_help,
-                          audio_sample_rate_label, self.audio_sample_rate_combo_box, audio_sample_rate_help,
-                          audio_volume_label, self.audio_volume_line_edit, audio_volume_help,
-                          delete_video_label, self.delete_video_check_box, delete_video_help,
-                          add_stretch=True,
-                          add_to_layout=False)
-        audio_layout.addWidget(row)
-        self.content_layout.addWidget(audio_panel)
+        # audio rows
+        self._add_column_row(audio_body, audio_format_label, self.audio_format_combo_box, audio_format_help)
+        self._add_column_row(audio_body, audio_bitrate_label, self.audio_bitrate_combo_box, audio_bitrate_help)
+        self._add_column_row(audio_body, audio_sample_rate_label, self.audio_sample_rate_combo_box, audio_sample_rate_help)
+        self._add_column_row(audio_body, audio_volume_label, self.audio_volume_line_edit, audio_volume_help)
+        self._add_column_row(audio_body, delete_video_label, self.delete_video_check_box, delete_video_help)
         self.audio_overlay = OverlayWidget(audio_panel)
         self.audio_overlay.show()
         
-        # 第五行: common 参数
-        common_divider = create_divider(i18n.t("app.tools_subpages.run_ffmpeg.ui_common_divider"))
-        self.content_layout.addWidget(common_divider)
-        # labels
+        # common labels
         adjust_start_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_adjust_start_label"))
         trim_end_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_trim_end_label"))
         clear_metadata_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_clear_metadata_label"))
-        # help icons
+        # common help icons
         adjust_start_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_adjust_start_help"))
         trim_end_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_trim_end_help"))
         clear_metadata_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_clear_metadata_help"))
-        # create rows
-        self.create_row(adjust_start_label, self.common_adjust_start_line_edit, adjust_start_help,
-                        trim_end_label, self.common_end_line_edit, trim_end_help,
-                        clear_metadata_label, self.common_clear_metadata_check_box, clear_metadata_help,
-                        add_stretch=True)
+        # common rows
+        self._add_column_row(common_body, adjust_start_label, self.common_adjust_start_line_edit, adjust_start_help)
+        self._add_column_row(common_body, trim_end_label, self.common_end_line_edit, trim_end_help)
+        self._add_column_row(common_body, clear_metadata_label, self.common_clear_metadata_check_box, clear_metadata_help)
+
+        self._apply_param_label_width()
 
 
 
+
+        # 导出设置固定在最底部
+        self.content_layout.addStretch()
+
+        export_divider = create_divider(i18n.t("app.tools_subpages.run_ffmpeg.ui_export_divider"))
+        self.content_layout.addWidget(export_divider)
 
         # 第六行: 输出文件名+完整输出路径显示
         output_filename_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_output_filename_label"))
@@ -202,8 +204,6 @@ class RunFFmpegPage(BaseOutputPage):
         # Connect runner output signals to our output widget
         process_manager_api.get_signals().runner_output.connect(self.output_widget.handle_process_output)
         process_manager_api.get_signals().runner_ended.connect(self.output_widget.handle_process_ended)
-
-        self.content_layout.addStretch()  # 添加弹性空间，使内容从顶部开始显示
 
 
 
@@ -282,6 +282,9 @@ class RunFFmpegPage(BaseOutputPage):
                        self.video_center_crop_help):
             widget.setVisible(not is_original)
 
+        # 整行一起隐藏，否则布局会留下空行间距
+        self.video_center_crop_label.parentWidget().setVisible(not is_original)
+
 
     def _on_delete_option_toggled(self) -> None:
         """delete_audio / delete_video 互斥联动，并刷新受影响的 UI 状态。"""
@@ -308,6 +311,44 @@ class RunFFmpegPage(BaseOutputPage):
 
 
             
+
+
+    def _create_param_column(self):
+        """创建参数列: 纵向内容区。返回 (列容器, 内容控件, 内容布局)。"""
+
+        column = QWidget()
+        column_layout = QVBoxLayout(column)
+        column_layout.setContentsMargins(0, 0, 0, 0)
+        column_layout.setSpacing(UI_Style.widget_spacing)
+
+        body = QWidget()
+        body_layout = QVBoxLayout(body)
+        body_layout.setContentsMargins(0, 0, 0, 0)
+        body_layout.setSpacing(5)
+        column_layout.addWidget(body)
+        column_layout.addStretch()
+
+        return column, body, body_layout
+
+
+    def _add_column_row(self, body_layout, label, *widgets) -> None:
+        """把一行参数加入列内容区。"""
+
+        self._param_row_labels.append(label)
+        body_layout.addWidget(self.create_row(label, *widgets, add_stretch=True, add_to_layout=False))
+
+
+    def _apply_param_label_width(self) -> None:
+        """取所有行 label 中最宽的文本宽度，使三列右侧控件左对齐。"""
+
+        widths = []
+        for label in self._param_row_labels:
+            label.ensurePolished() # 否则 sizeHint 还是样式表生效前的默认字体宽度
+            widths.append(label.sizeHint().width())
+
+        width = max(widths)
+        for label in self._param_row_labels:
+            label.setFixedWidth(width)
 
 
     def init_ffmpeg_widgets(self):

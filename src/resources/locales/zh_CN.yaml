@@ -317,17 +317,16 @@ zh_CN:
       run_ffmpeg:
         
         ui_select_file_divider: "文件选择"
-        ui_video_divider: "视频设置"
-        ui_audio_divider: "音频设置"
-        ui_common_divider: "通用设置"
+        ui_params_divider: "参数设置"
+        ui_export_divider: "导出设置"
 
         # ---- 视频设置 ----
-        ui_video_quality_label: "质量: "
+        ui_video_quality_label: "视频质量: "
         ui_video_quality_help: |
           控制输出视频的质量
 
           数值越低，质量越高，文件越大。
-        ui_video_resolution_label: "分辨率: "
+        ui_video_resolution_label: "视频分辨率: "
         ui_video_resolution_help: |
           设置输出视频的分辨率
 
@@ -341,13 +340,13 @@ zh_CN:
           关闭：保留完整画面，不足处补黑边
 
           注意: 分辨率为 original 时不生效
-        ui_video_fps_label: "帧率: "
+        ui_video_fps_label: "视频帧率: "
         ui_video_fps_help: |
           设置输出视频的帧率
 
           original：保持原始帧率
           其他选项：重采样至目标帧率
-        ui_video_gop_optimize_label: "优化GOP: "
+        ui_video_gop_optimize_label: "优化 GOP: "
         ui_video_gop_optimize_help: |
           是否启用 GOP 优化
 
@@ -361,16 +360,16 @@ zh_CN:
         ui_delete_video_help: "如果启用，输出视频将不包含视频"
 
         # ---- 音频设置 ----
-        ui_audio_format_label: "编码: "
+        ui_audio_format_label: "音频编码: "
         ui_audio_format_help: 选择输出音频的编码格式
-        ui_audio_bitrate_label: "码率: "
+        ui_audio_bitrate_label: "音频码率: "
         ui_audio_bitrate_help: |
           控制输出音频的质量
 
           码率越高，质量越高，文件越大
 
           注意: 此选项使用 CBR（恒定码率）编码
-        ui_audio_sample_rate_label: "采样率: "
+        ui_audio_sample_rate_label: "音频采样率: "
         ui_audio_sample_rate_help: 设置输出音频的采样率
         ui_audio_volume_label: "音量(%): "
         ui_audio_volume_help: |

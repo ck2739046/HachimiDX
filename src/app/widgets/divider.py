@@ -43,3 +43,23 @@ def create_divider(text, up_margin=5, down_margin=5):
         divider_layout.addWidget(line_right)
 
     return divider_container
+
+
+def create_vertical_divider():
+    """
+    创建竖直分隔线，用于并列区域之间的简单分隔
+
+    颜色与 create_divider 的横线一致
+
+    Returns:
+        QFrame: 竖直分隔线
+    """
+
+    line = QFrame()
+    line.setFrameShape(QFrame.Shape.VLine)
+    line.setFixedWidth(3) # 无固定高度
+    line.setStyleSheet(f"color: {UI_Style.COLORS['grey']};")
+    # 设置大小策略，让竖直分隔线在垂直方向上能够充分利用可用空间
+    line.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
+    
+    return line

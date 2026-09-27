@@ -319,12 +319,11 @@ en_US:
       run_ffmpeg:
         
         ui_select_file_divider: "File Selection"
-        ui_video_divider: "Video Stream"
-        ui_audio_divider: "Audio Stream"
-        ui_common_divider: "Common"
+        ui_params_divider: "Parameters"
+        ui_export_divider: "Export"
 
         # ---- Video Settings ----
-        ui_video_quality_label: "Quality: "
+        ui_video_quality_label: "Video Quality: "
         ui_video_quality_help: |
           Control the output video quality
 
@@ -347,7 +346,7 @@ en_US:
                side with black bars.
 
           Note: Has no effect when Resolution is "original".
-        ui_video_fps_label: "FPS: "
+        ui_video_fps_label: "Video FPS: "
         ui_video_fps_help: |
           Sets output frame rate
 
@@ -369,9 +368,9 @@ en_US:
         ui_delete_video_help: "If enabled, the output will not contain video."
         
         # ---- Audio Settings ----
-        ui_audio_format_label: "Codec: "
+        ui_audio_format_label: "Audio Codec: "
         ui_audio_format_help: Selects the audio codec
-        ui_audio_bitrate_label: "Bitrate: "
+        ui_audio_bitrate_label: "Audio Bitrate: "
         ui_audio_bitrate_help: |
           Controls the output audio quality
 
