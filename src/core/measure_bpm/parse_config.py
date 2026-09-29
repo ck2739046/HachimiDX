@@ -10,7 +10,7 @@ from src.core.tools import generate_uid
 from src.core.build_bpm_measurer_cmd import build_parse_config_cmd
 
 
-# Bpm-Measurer --parse_config 无头模式退出码语义（见 App.HeadlessExport.cs）。
+# BPM-Measurer --parse_config 无头模式退出码语义（见 App.HeadlessExport.cs）。
 # 0（成功）不在表中；其他码 / None（崩溃）均视为失败。
 _EXIT_CODE_REASON: dict[int, str] = {
     1: "failed to read or parse config",
@@ -28,9 +28,9 @@ def generate_notify_path() -> Path:
 
 def parse_config(config_path: str | Path, timeout: float | None = 60.0) -> OpResult[Path]:
     """
-    同用 Bpm-Measurer 的 --parse_config 模式，生成 bpm notify 文件。
+    同用 BPM-Measurer 的 --parse_config 模式，生成 bpm notify 文件。
 
-    Bpm-Measurer 退出码语义（详见 App.HeadlessExport.cs）：
+    BPM-Measurer 退出码语义（详见 App.HeadlessExport.cs）：
         0   = 成功：notify_path 已写入 JSON
         1   = 读取或解析配置失败
         2   = 写 notify 文件失败
@@ -63,7 +63,7 @@ def parse_config(config_path: str | Path, timeout: float | None = 60.0) -> OpRes
     try:
         proc = subprocess.run(cmd, capture_output=True, timeout=timeout)
     except (OSError, subprocess.SubprocessError) as e:
-        return err(f"failed to launch Bpm-Measurer: {e}", error_raw=e)
+        return err(f"failed to launch BPM-Measurer: {e}", error_raw=e)
 
     exit_code = proc.returncode
     if exit_code == 0:
@@ -72,7 +72,7 @@ def parse_config(config_path: str | Path, timeout: float | None = 60.0) -> OpRes
     reason = _EXIT_CODE_REASON.get(exit_code, "unknown error")
     stderr_tail = proc.stderr.decode("utf-8", errors="replace").strip()
     return err(
-        f"Bpm-Measurer parse_config failed (exit={exit_code}): {reason}",
+        f"BPM-Measurer parse_config failed (exit={exit_code}): {reason}",
         error_raw=f"stderr: {stderr_tail}" if stderr_tail else ""
     )
 
@@ -88,7 +88,7 @@ def parse_config(config_path: str | Path, timeout: float | None = 60.0) -> OpRes
 
 def load_timing_points(notify_path: str | Path) -> OpResult[list[tuple[float, float, float]]]:
     """
-    读取 Bpm-Measurer 输出的 notify JSON，计算每个 bpm 段的起始绝对时间(ms)。
+    读取 BPM-Measurer 输出的 notify JSON，计算每个 bpm 段的起始绝对时间(ms)。
 
     Args:
         notify_path: notify JSON 文件路径（通常由 parse_config 生成）。
@@ -114,9 +114,9 @@ def load_timing_points(notify_path: str | Path) -> OpResult[list[tuple[float, fl
 
 def _load_notify(notify_path: str | Path) -> OpResult[tuple[float, list[dict]]]:
     """
-    读取 Bpm-Measurer notify JSON
+    读取 BPM-Measurer notify JSON
 
-    notify JSON 格式（见 Bpm-Measurer/App.HeadlessExport.cs）：
+    notify JSON 格式（见 BPM-Measurer/App.HeadlessExport.cs）：
         {
           "global_offset": <秒, float>,
           "timing_points": [
@@ -165,7 +165,7 @@ def _load_notify(notify_path: str | Path) -> OpResult[tuple[float, list[dict]]]:
 
 def _compute_segment_starts(global_offset_sec: float, timing_points: list[dict]) -> OpResult[list[tuple[float, float, float]]]:
     """
-    段起始绝对时间计算（复刻 Bpm-Measurer/TimingEngine.cs RecalculateTiming)
+    段起始绝对时间计算（复刻 BPM-Measurer/TimingEngine.cs RecalculateTiming)
         time_sec[0] = global_offset
         time_sec[i] = time_sec[i-1] + (beat_index[i] - beat_index[i-1]) * 60.0 / bpm[i-1]
 

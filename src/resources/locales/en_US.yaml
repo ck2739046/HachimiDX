@@ -435,10 +435,10 @@ en_US:
         dialog_title: "Measure BPM"
 
         ui_block1_divider: "Measure BPM"
-        ui_enable_bpm_measurer_label: "Use BPM Measurer: "
+        ui_enable_bpm_measurer_label: "Use BPM-Measurer: "
         ui_select_config_button: "Select BPM Config"
-        ui_select_config_help: "The timing_config.txt exported by Bpm-Measurer."
-        ui_open_bpm_measurer_button: "Open BPM Measurer"
+        ui_select_config_help: "The timing_config.txt exported by BPM-Measurer."
+        ui_open_bpm_measurer_button: "Open BPM-Measurer"
         ui_manual_mode_hint: " Please select the BPM config file below"
 
         ui_block2_divider: "Compute Offset"
@@ -460,18 +460,18 @@ en_US:
         ui_update_timing_config_button: "Compute & Export"
         ui_send_to_auto_rechart_button: "Send to Auto Rechart Page"
 
-        warning_bpm_measurer_start_failed: "Failed to start Bpm-Measurer:\n%{error}"
-        warning_bpm_measurer_failed: "Bpm-Measurer exited unexpectedly (exit code %{code})."
-        warning_manifest_missing: "Bpm-Measurer export manifest not found. Please select the config manually."
-        warning_manifest_read_failed: "Failed to read Bpm-Measurer export manifest:\n%{error}"
+        warning_bpm_measurer_start_failed: "Failed to start BPM-Measurer:\n%{error}"
+        warning_bpm_measurer_failed: "BPM-Measurer exited unexpectedly (exit code %{code})."
+        warning_manifest_missing: "BPM-Measurer export manifest not found. Please select the config manually."
+        warning_manifest_read_failed: "Failed to read BPM-Measurer export manifest:\n%{error}"
         warning_compute_prerequisite: "Please select a BPM config and fill in the first note time and beat index first."
         warning_first_note_invalid: "Invalid first note time. Please enter a number (milliseconds)."
         warning_beat_index_invalid: "Invalid beat index. Please enter a number."
         warning_compute_failed: "Compute or export failed:\n%{error}"
 
-        notice_bpm_measurer_start: "Bpm-Measurer started. Please measure and export the config there…"
-        notice_bpm_measurer_cancelled: "Bpm-Measurer was closed without exporting."
-        notice_bpm_measurer_success: "Config auto-filled from Bpm-Measurer."
+        notice_bpm_measurer_start: "BPM-Measurer started. Please measure and export the config there…"
+        notice_bpm_measurer_cancelled: "BPM-Measurer was closed without exporting."
+        notice_bpm_measurer_success: "Config auto-filled from BPM-Measurer."
         notice_compute_success: "Aligned BPM config exported:\n%{output_path}"
 
 

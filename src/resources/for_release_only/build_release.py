@@ -130,9 +130,9 @@ def copy_app_resources():
     majdata_target_path = RELEASE_DIR / "src" / "resources" / "majdatax"
     copy_to_release(majdata_dir, majdata_target_path)
 
-    # 复制 bpm measurer
-    bpm_measurer_dir = FOR_RELEASE_ONLY_DIR / "Bpm Measurer"
-    bpm_measurer_target_path = RELEASE_DIR / "src" / "resources" / "Bpm Measurer"
+    # 复制 BPM-Measurer
+    bpm_measurer_dir = FOR_RELEASE_ONLY_DIR / "BPM-Measurer"
+    bpm_measurer_target_path = RELEASE_DIR / "src" / "resources" / "BPM-Measurer"
     copy_to_release(bpm_measurer_dir, bpm_measurer_target_path)
 
     # 复制 launcher

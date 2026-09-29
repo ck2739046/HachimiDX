@@ -51,7 +51,7 @@ class PathManage:
     MajdataView_EXE_PATH: Path = RESOURCES_DIR / "majdatax" / "MajdataViewX.exe"
     MajdataEdit_EXE_PATH: Path = RESOURCES_DIR / "majdatax" / "MajdataEdit-Neo.exe"
 
-    BPM_MEASURER_EXE_PATH: Path = RESOURCES_DIR / "Bpm Measurer" / "Bpm Measurer.exe"
+    BPM_MEASURER_EXE_PATH: Path = RESOURCES_DIR / "BPM-Measurer" / "BPM-Measurer.exe"
 
     MODELS_DIR: Path = DATA_DIR / "models"
     DETECT_PT_PATH: Path = MODELS_DIR / "detect.pt"

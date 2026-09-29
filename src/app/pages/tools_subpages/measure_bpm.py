@@ -138,7 +138,7 @@ class MeasureBpmPage(BaseOutputPage):
                 self._notify_path.unlink()
             except Exception:
                 pass
-        # 启动 bpm measurer
+        # 启动 BPM-Measurer
         cmd = build_launch_cmd(self._notify_path, audio_path=None)
         self.output_widget.append_text(_t("notice_bpm_measurer_start"))
         result = process_manager_api.start(cmd)
@@ -292,7 +292,7 @@ class MeasureBpmPage(BaseOutputPage):
 
     def _on_runner_ended(self, runner_id: str, ended) -> None:
 
-        # ---- Bpm-Measurer ----
+        # ---- BPM-Measurer ----
         if self._bpm_measurer_runner_id:
             if runner_id == self._bpm_measurer_runner_id:
                 # 重置状态
@@ -302,7 +302,7 @@ class MeasureBpmPage(BaseOutputPage):
                 # 0 = 已导出；1 = 用户未导出即关闭；其它/2 = 异常
                 exit_code = getattr(ended, "exit_code", None)
                 if exit_code == 0:
-                    # 解析 bpm measurer 回传信息
+                    # 解析 BPM-Measurer 回传信息
                     self._parse_bpm_measurer_manifest()
                 elif exit_code == 1:
                     self.output_widget.append_text(_t("notice_bpm_measurer_cancelled"))

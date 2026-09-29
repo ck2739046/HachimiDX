@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import QFileDialog
 from src.core.schemas.op_result import OpResult, ok, err
 from .parse_config import parse_config, compute_aligned_global_offset
 
-# 仅识别 Bpm-Measurer 导出格式的 global_offset 行：
+# 仅识别 BPM-Measurer 导出格式的 global_offset 行：
 #   global_offset = <number>     (number 可带千分位 / 小数 / 前导符号)
 # 大小写不敏感；前导空白容错。
 # 其余行（段表 beat_index/bpm、注释、空行）逐字透传，不做任何解析或校验。
@@ -23,12 +23,12 @@ _GLOBAL_OFFSET_RE = re.compile(
 
 def set_global_offset(raw_config_text: str, new_offset_sec: float) -> OpResult[str]:
     """
-    读 Bpm-Measurer 原始配置文本
+    读 BPM-Measurer 原始配置文本
     将 global_offset 行替换为 new_offset_sec
     其余行（段表 beat_index/bpm、注释、空行）原样保留
 
     Args:
-        raw_config_text: Bpm-Measurer 导出的 timing_config.txt 全文。
+        raw_config_text: BPM-Measurer 导出的 timing_config.txt 全文。
         new_offset_sec: 目标 global_offset（秒，float）。
 
     Returns:
