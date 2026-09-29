@@ -13,22 +13,20 @@
 
 **小团体不拉我，拿不到最新最热，所以自己抄谱** 😡😡😡😭😭😭🤔🤔🤔😋😋😋
 
-为音乐游戏 **maimai** 设计的工具，自动将谱面确认视频转换为 simai 格式 (`maidata.txt`)
+本工具可将谱面确认视频转为 simai 格式 (`maidata.txt`)
 
 <br>
 
 ![](https://img.shields.io/github/stars/ck2739046/HachimiDX?label=Stars)
 ![](https://img.shields.io/github/downloads/ck2739046/HachimiDX/total?label=下载次数)
 
-🔗 [**项目地址**](https://github.com/ck2739046/HachimiDX)
-&nbsp;•&nbsp;
 📥︎ [**软件下载**](https://github.com/ck2739046/HachimiDX/releases/latest)
 &nbsp;•&nbsp;
-▶️ [**教程视频**](https://www.bilibili.com/video/BV1Rz5c6vEQH)
+▶️ [**演示视频**](https://www.bilibili.com/video/BV1Rz5c6vEQH)
 
 </div>
 
-> <img src="src/resources/doc/images/qq_icon.svg" width="14px" style="vertical-align: middle;"> 如果在使用中遇到问题、需要帮助、想反馈 Bug 或提出建议，亦或参与开发讨论，欢迎加入 QQ 交流群 **`868888361`**
+> <img src="src/resources/doc/images/qq_icon.svg" width="14px" style="vertical-align: middle;"> 如果要反馈问题、分享建议，或参与开发讨论，欢迎加入 QQ 交流群 **`868888361`**
 
 <br>
 
@@ -36,110 +34,83 @@
 
 ## ✨ 主要亮点
 
-> HachimiDX 提供 **完整版** 与 **精简版** 两个版本。**精简版** 没有自动抄谱。
+> 分为 **完整版** 与 **精简版**，**精简版** 无自动抄谱。
 
-- **强大的抄谱能力**（仅完整版）
-    - 支持 `tap` `slide` `touch` `hold` `touch-hold` 全种类音符识别与时值推理。
-    - 支持 `ex` `break` `ex-break` 全子类音符变体分类。
-    - 支持所有 simai 星星轨迹语法: `-` `V` `><` `pq` `ppqq` `sz` `v`。
+- 💪 **强大的抄谱引擎**
+    - 支持所有音符类型：`tap` `slide` `touch` `hold` `touch-hold`，包含时值推理。
+    - 支持所有音符变体：`ex` `break` `ex-break`。
+    - 支持所有星星语法：`-` `V` `><` `pq` `ppqq` `sz` `v`。
 
-- **定制视觉模型**（仅完整版）
-    - 专门针对游戏画面优化，能够适应复杂场景，识别更稳健。
+- 🔍 **定制 AI 视觉模型**
+    - 专门针对游戏画面训练，复杂场景下识别更稳健。
 
-- **多后台推理支持**（仅完整版）
-    - 支持 ONNX CPU / ONNX DirectML / ONNX Cuda / NCNN / NVIDIA TensorRT 多种深度学习推理后端，兼容各类硬件。
+- ⚙️ **兼容各类硬件**
+    - 支持 ONNX、NCNN、TensorRT 多种模型推理后端。
 
-- **可视化图形界面**
-    - 全程通过可视化界面操作，无需输入命令行。
+- 🪄 **超多实用工具**
+    - 素材转码、快速对音、谱面合并、开头延时分析等。
 
-- **内置谱面编辑器**
+- 🖥️ **图形界面优先**
+    - 全程在图形界面操作，无需命令行。
+
+- ✏️ **内置谱面编辑器**
     - 内嵌 [`MajdataEdit-Neo`](https://github.com/re-poem/MajdataEdit-Neo) 和 [`MajdataViewX`](https://github.com/re-poem/MajdataViewX)，抄谱结果一站式预览与修改。
 
-- **内置 BPM 测速工具**
-    - 集成 [`Bpm-Measurer`](https://github.com/ck2739046/Bpm-Measurer)，一款实用的歌曲 BPM 测量工具。
-
-- **便捷的多媒体处理**
-    - 内置多个实用工具：视频裁剪、音频匹配、格式转换，街机延迟调整等。
+- 🎵 **内置 BPM 测速工具**
+    - 集成 [`BPM-Measurer`](https://github.com/ck2739046/BPM-Measurer)，用于测量乐曲 BPM。
 
 
 
 
 
-## 💻 硬件 / 运行环境要求
 
-| | **完整版** | **精简版** |
-|---|---|---|
-| **操作系统** | Win10/11 (x64) | Win10/11 (x64) |
-| **内存** | 4 GB | 0.5 GB |
-| **硬盘** | 6 GB | 1.5 GB |
+## 💻 最低硬件要求
+
+| | **操作系统** | **内存** | **硬盘**
+|---|---|---|---|
+| **精简版** | Win10 x64 | 0.5 GB | 1.5 GB |
+| **完整版** | Win10 x64 | 4 GB | 6 GB |
 
 
 
 
 ## 🚧 已知问题
 
-- 不支持识别 Touch/Touch-Hold 烟花特效 (`f`)
+- 不支持 Touch/Touch-Hold 烟花特效 (`f`)。
 
-- 不支持伪双押 (`` ` ``)
+- 不支持伪双押 (`` ` ``)。
 
-- 相机实拍屏幕的视频可能存在画面歪斜、色彩偏移、曝光异常、残影等问题，抄谱准确性可能会下降。
+- 用相机实拍屏幕的视频可能存在画面歪斜、色彩偏移、曝光异常、残影等问题，抄谱准确性可能会下降。
 
 - 多个 slide 同时存在，且部分轨迹发生重叠或交叉时，可能会无法识别（例如 `1v6[8:1]/3v6[8:1]`）。
 
-- 不支持非标准的启动等待时间的 slide 音符。
+- 不支持启动等待时间非标准的 slide 音符。
 
 
 
-## 🎯 模型训练
+## 🎯 数据采集
 
-模型训练数据均为自行采集：
-
-- **全自动标注**
-    - 用 [Mod](archive/yolo-train/mod_dump_notes/Dump_Notes.cs) 捕获游戏内部原始数据，配合 [脚本](archive/yolo-train/label_notes.py) 自动生成标注，坐标和类别高度准确。整个数据集构建过程便捷高效，能够快速按需获取海量优质样本。
-
-- **分任务训练**
-    - 各个模型各自使用专门的数据集，针对性优化。
-    - `train_detect` — 识别 tap/slide/touch/touch-hold 音符
-    - `train_obb` — 识别 hold 音符
-    - `train_detect_touch_hold` — 识别 touch-hold 进度
-    - `train_classify` — 判断 ex、break 等变体类型
+模型训练数据均为自行采集：使用 [Mod](archive/yolo-train/mod_dump_notes/Dump_Notes.cs) 捕获游戏内部原始数据，配合 [脚本](archive/yolo-train/label_notes.py) 自动生成标注，坐标和类别高度准确。整个数据集构建过程便捷高效，能够快速按需获取海量优质样本。
 
 
 
 
-## 🧩 技术架构
 
-代码集中在 `src` 目录，分三层。中间层通过 **子进程 worker** 驱动核心算法，将重计算隔离在 GUI 之外，保证界面流畅。
+## 🧩 技术栈
 
-- **UI 层 (`src/app`)** — 基于 **PyQt6** 的图形界面
-    - `QSharedMemory` 单实例
-    - 功能分页：Majdata 编辑、自动抄谱、实用工具集、任务队列、软件设置
-    - 统一 Widget 组件库（`src/app/widgets`），视觉与操作风格一致
-    - 内嵌视频播放器，与谱面编辑器联动预览
-    - 支持 UI 缩放与多语言（`i18n`，中/英切换）
-- **中间层 (`src/services`)** — 服务生命周期与任务调度
-    - **两阶段初始化**：统一管理服务：路径 → 设置 → i18n → 同步服务 → 初始化各管线
-    - **任务调度器**：管理任务队列，按类型控制并发并向 UI 推送状态快照
-    - **进程管理器**：统一托管 `QProcess`，为子任务分配 runner_id、合并输出并定时刷新
-    - **独立管线**（`AutoRechartPipeline` / `MediaPipeline`）：用 **pydantic** 校验参数、组装 CLI 指令并提交调度器
-    - 子任务以独立 **worker 子进程** 运行（抄谱 / 音频对齐 / 模型转换 / 硬件检测等），由进程管理器统一调度
-    - **视频同步服务**：通过 UDP 接收 MajdataEdit / MajdataView 的转指令，驱动内嵌播放器
-    - **看门狗**：子进程在退出时清理残留 Majdata 进程；
-    - 内置 GitHub Releases 版本更新检查
-- **核心算法层 (`src/core`)** — 抄谱按 `standardize → detect → analyze` 三阶段运行：
-    - **视频规范化**
-        - **OpenCV** 检测外屏圆 + 透视矫正
-        - **FFmpeg** 执行裁剪 / 分辨率统一 / 重编码
-    - **检测与追踪**：
-        - **目标检测**：**YOLO**（ultralytics）多进程流式并行推理 `detect` 与 `obb` 模型
-        - **变体分类**：ex / break 采用生产者-消费者管线（解码线程 + GPU 推理，双缓冲）实现 CPU/GPU 重叠
-        - **路径追踪**：使用 **BOTSORT** 和自定义 **OCSort** 追踪音符
-    - **音符分析**：按 tap / touch / hold / touch-hold / slide 分别做预处理 → 速度估计 → 时差 / 时值推演 → slide 移动模式分析
-    - **simai 语法转换**：输出 `maidata.txt`
-    - **音频处理**：**librosa + scipy** 互相关做匹配同步、确认点击起点检测、街机延时 (arcade timing) 推演
-    - **BPM 测量**：对接外部 `Bpm-Measurer`
-    - **数据模型**：**pydantic** 定义配置与数据模型
-    - **错误处理**：类 **Rust** 风格 `OpResult`（`ok` / `err`），统一封装每次操作结果
+- **Python / C#**: 开发语言
+- **PyQt6**: 图形界面
+- **pydantic**: 数据校验
+- **python-i18n**: 多语言支持
+- **OpenCV**: 图像处理、自动标注
+- **FFmpeg / FFprobe**: 音视频处理
+- **YOLO (ultralytics)**: 模型基座
+- **PyTorch / ONNX / TensorRT / NCNN**: 模型推理
+- **BOTSORT + 定制 OC-SORT**: 目标追踪
+- **librosa**: 音频处理
+- **Matplotlib**: 波形绘制
+- **.NET**: 启动器、MajdataEdit
+- **Unity (MelonLoader)**: 游戏 Mod、MajdataView
 
 
 
@@ -158,18 +129,18 @@
 
 ### 3. 获取 MajdataX
 
-编译 [MajdataEdit-Neo](https://github.com/ck2739046/MajdataEdit-Neo/tree/HachimiDX) & [MajdataViewX](https://github.com/ck2739046/MajdataViewX/tree/HachimiDX)，将编译输出放入 `src/resources/majdatax`：
+编译 [MajdataEdit-Neo](https://github.com/ck2739046/MajdataEdit-Neo/tree/HachimiDX) & [MajdataViewX](https://github.com/ck2739046/MajdataViewX/tree/HachimiDX)，将编译输出放入 `src/resources/majdatax`。
 
 > *请自行从其他渠道获取 `SFX` 和 `Skin`，放入文件夹中。*
 
-### 4. 获取 BPM 测量工具
+### 4. 获取 BPM-Measurer
 
-编译 [Bpm-Measurer](https://github.com/ck2739046/Bpm-Measurer)，将编译输出放入 `src/resources/Bpm Measurer/`。
+编译 [BPM-Measurer](https://github.com/ck2739046/BPM-Measurer)，将编译输出放入 `src/resources/BPM-Measurer/`。
 
 ### 5. 安装并启动
 
-运行 `install/script/main.py` 安装依赖。<br>
-运行 `src/main.py` 启动程序。
+运行 `install/script/main.py` 以安装依赖。<br>
+运行 `src/main.py` 以启动程序。
 
 
 
