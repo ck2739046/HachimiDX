@@ -196,16 +196,13 @@ class AutoRechartPage(BaseOutputPage):
         self.chart_lv_combo_box.setCurrentIndex(
             chart_lv_options.index(AC_Defs.chart_lv.default)
         )
-        bd_default = AC_Defs.base_denominator.default
-        for i in range(self.base_denominator_combo_box.count()):
-            item_text = self.base_denominator_combo_box.itemText(i)
-            raw = self._transfer_base_denominator(item_text)
-            if int(raw) == bd_default:
-                self.base_denominator_combo_box.setCurrentIndex(i)
-                break
-        dd_options = AC_Defs.duration_denominator.constraints["options"]
-        self.duration_denominator_combo_box.setCurrentIndex(
-            dd_options.index(AC_Defs.duration_denominator.default)
+        self._set_denominator_combo_value(
+            self.base_denominator_combo_box,
+            AC_Defs.base_denominator.default,
+        )
+        self._set_denominator_combo_value(
+            self.duration_denominator_combo_box,
+            AC_Defs.duration_denominator.default,
         )
 
         # Reset common panel
@@ -502,11 +499,11 @@ class AutoRechartPage(BaseOutputPage):
         is_big_touch_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_is_big_touch_help"))
 
         bd_label = create_label(i18n.t(f"{I18N_Prefix}.ui_base_denominator_label"))
-        self.base_denominator_combo_box = self._create_combobox_with_options(AC_Defs.base_denominator, length=58, transfer_fn=self._transfer_base_denominator)
+        self.base_denominator_combo_box = self._create_combobox_with_options(AC_Defs.base_denominator, length=58, transfer_fn=self._transfer_denominator)
         bd_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_base_denominator_help"))
 
         dd_label = create_label(i18n.t(f"{I18N_Prefix}.ui_duration_denominator_label"))
-        self.duration_denominator_combo_box = self._create_combobox_with_options(AC_Defs.duration_denominator, length=58)
+        self.duration_denominator_combo_box = self._create_combobox_with_options(AC_Defs.duration_denominator, length=58, transfer_fn=self._transfer_denominator)
         dd_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_duration_denominator_help"))
 
         row = self.create_row(chart_lv_label, self.chart_lv_combo_box,
@@ -728,8 +725,8 @@ class AutoRechartPage(BaseOutputPage):
                 raw_data.update({
                     AC_Defs.is_big_touch.key: self.is_big_touch_check_box.isChecked(),
                     AC_Defs.chart_lv.key: try_int(self.chart_lv_combo_box.currentText()),
-                    AC_Defs.base_denominator.key: try_int(self._transfer_base_denominator(self.base_denominator_combo_box.currentText())),
-                    AC_Defs.duration_denominator.key: try_int(self.duration_denominator_combo_box.currentText()),
+                    AC_Defs.base_denominator.key: try_int(self._transfer_denominator(self.base_denominator_combo_box.currentText())),
+                    AC_Defs.duration_denominator.key: try_int(self._transfer_denominator(self.duration_denominator_combo_box.currentText())),
                 })
                 # BPM 二选一：
                 #   index 0 = 静态 BPM → 写 bpm
@@ -815,21 +812,15 @@ class AutoRechartPage(BaseOutputPage):
         # is_big_touch
         self.is_big_touch_check_box.setChecked(preset[AC_Defs.is_big_touch.key])
 
-        # base_denominator — combo 显示 "16*" 格式，用 transfer 函数反向翻译后匹配
-        bd_value: int = preset[AC_Defs.base_denominator.key]
-        for i in range(self.base_denominator_combo_box.count()):
-            item_text = self.base_denominator_combo_box.itemText(i)
-            raw = self._transfer_base_denominator(item_text)
-            if int(raw) == bd_value:
-                self.base_denominator_combo_box.setCurrentIndex(i)
-                break
-
-        # duration_denominator — 直接字符串匹配
-        dd_value: int = preset[AC_Defs.duration_denominator.key]
-        for i in range(self.duration_denominator_combo_box.count()):
-            if int(self.duration_denominator_combo_box.itemText(i)) == dd_value:
-                self.duration_denominator_combo_box.setCurrentIndex(i)
-                break
+        # denominator combo 显示 "16*" 格式，用 transfer 函数反向翻译后匹配
+        self._set_denominator_combo_value(
+            self.base_denominator_combo_box,
+            preset[AC_Defs.base_denominator.key],
+        )
+        self._set_denominator_combo_value(
+            self.duration_denominator_combo_box,
+            preset[AC_Defs.duration_denominator.key],
+        )
 
 
 
@@ -849,7 +840,8 @@ class AutoRechartPage(BaseOutputPage):
 
 
 
-    def _transfer_base_denominator(self, input):
+    def _transfer_denominator(self, input):
+        """显示文本与真实数值互转：>=12 的分辨率文本最后添加*号"""
 
         if "*" in str(input):
             return input.replace("*", "").strip()
@@ -864,6 +856,15 @@ class AutoRechartPage(BaseOutputPage):
             return output
 
         return input
+
+
+
+    def _set_denominator_combo_value(self, combo_box, value: int):
+        """按真实数值选中 combo 项 (忽略显示用的 "*" 标记)"""
+        for i in range(combo_box.count()):
+            if int(self._transfer_denominator(combo_box.itemText(i))) == value:
+                combo_box.setCurrentIndex(i)
+                return
 
 
 

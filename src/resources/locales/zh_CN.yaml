@@ -562,7 +562,9 @@ zh_CN:
       ui_chart_lv_7_tooltip: "宴会场 Utage"
       ui_base_denominator_16_tooltip: "支持 12 分"
       ui_base_denominator_32_tooltip: "支持 12 & 24 分"
-      ui_base_denominator_64_tooltip: "完整支持 12 & 24 分音符；48 分仅限 1/48"
+      ui_base_denominator_64_tooltip: |
+        完整支持 12 & 24 分音符
+        有限支持 48 分 (仅 1/48)
       ui_base_denominator_label: "音符间隔分辨率: "
       ui_base_denominator_help: |
         程序解析音符间隔的时间分辨率。
@@ -572,6 +574,9 @@ zh_CN:
         单位时间计算: 240000 / bpm / 分辨率 (ms)
         建议单位时间 ≥30ms。
         如果 BPM 较高，需要适当降低分辨率以保证准确性。
+      ui_duration_denominator_16_tooltip: "支持 12 分"
+      ui_duration_denominator_32_tooltip: "支持 12 分"
+      ui_duration_denominator_64_tooltip: "支持 12 分"
       ui_duration_denominator_label: "音符时值分辨率: "
       ui_duration_denominator_help: |
         程序解析音符时值的时间分辨率

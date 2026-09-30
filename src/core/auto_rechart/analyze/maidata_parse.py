@@ -187,18 +187,20 @@ def _parse_note_duration(one_bar_Msec, note_type, note_duration, base_denominato
 
     duration_in_bar = note_duration / one_bar_Msec
 
-    # 分类处理
+    # 时值分类处理
     if note_type == NoteType.TOUCH_HOLD or note_type == NoteType.SLIDE:
         # touch_hold / slide -> duration_denominator
         denominator_to_use = duration_denominator
     else:
         # hold -> base_denominator
-        # 因为 hold 移动模式与 tap 相同，所以时值与 tap 一样用 base_denominator 处理
+        # 因为 hold 足够精确，所以与 tap 一样用 base_denominator 处理
         denominator_to_use = base_denominator
     
     # 将 duration 变为分数形式
     numerator, denominator, one = get_fraction(
-        duration_in_bar, denominator_to_use, enable_12=False, enable_24=False, enable_48_1=False)
+        duration_in_bar, denominator_to_use,
+        auto_12=True, auto_24=False, auto_48=False
+    )
     # 将整数部分加入分子
     if one > 0:
         numerator = numerator + one * denominator
