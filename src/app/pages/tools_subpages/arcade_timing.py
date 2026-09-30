@@ -206,7 +206,7 @@ class ArcadeTimingPage(BaseOutputPage):
             bpm = float((self.bpm_line_edit.text() if self.bpm_line_edit else "").strip())
         except Exception:
             return err(i18n.t(f"{I18N_Prefix}.warning_invalid_bpm"))
-        if not 10 <= bpm <= 400:
+        if not 30 <= bpm <= 400:
             return err(i18n.t(f"{I18N_Prefix}.warning_invalid_bpm"))
 
         try:
