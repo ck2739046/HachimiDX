@@ -101,7 +101,7 @@ def get_note_DefaultMsec(shared_context, detected_note_speed):
         # 游戏源码实现
         OptionNotespeed = round(ui_speed * 100 + 100) # 6.25 = 725
         NoteSpeedForBeat = 1000 / (OptionNotespeed / 60)
-        DefaultMsec = NoteSpeedForBeat * 4
+        DefaultMsec = NoteSpeedForBeat * 4  # 一小节四拍
         return DefaultMsec, OptionNotespeed
 
     total_dist = shared_context.note_travel_dist

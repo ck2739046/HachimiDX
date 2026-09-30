@@ -579,7 +579,7 @@ en_US:
       ui_base_denominator_label: "Base Denominator: "
       ui_base_denominator_help: |
         Time resolution used to parse note intervals.
-        For example, 32 means one unit is 1/32 beat, written as "{32}," in simai syntax.
+        For example, 32 means one unit is 1/32 of a bar, written as "{32}," in simai syntax.
         The program aligns note intervals to this time unit.
 
         Unit time calculation: 240000 / bpm / denominator (ms)
@@ -591,7 +591,7 @@ en_US:
       ui_duration_denominator_label: "Duration Denominator: "
       ui_duration_denominator_help: |
         Time resolution used to parse note durations.
-        For example, 32 means one unit is 1/32 beat, written as "[32:x]," in simai syntax.
+        For example, 32 means one unit is 1/32 of a bar, written as "[32:x]," in simai syntax.
         The program aligns note durations to this time unit.
 
         Unit time calculation: 240000 / bpm / denominator (ms)

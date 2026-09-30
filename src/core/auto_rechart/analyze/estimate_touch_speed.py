@@ -159,7 +159,7 @@ def get_touch_DefaultMsec(detected_touch_DefaultMsec):
         ui_speed = f'{ui_speed:.2f}'
         OptionNotespeed = option_touchspeed_dict[float(ui_speed)]
         NoteSpeedForBeat = 1000 / (OptionNotespeed / 60)
-        DefaultMsec = NoteSpeedForBeat * 4
+        DefaultMsec = NoteSpeedForBeat * 4  # 一小节四拍
         return DefaultMsec, OptionNotespeed
     
     # 查找最接近的 DefaultMsec
