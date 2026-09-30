@@ -7,11 +7,11 @@
   <br>HachimiDX
 </h1>
 
-<h3>🐱 Maimai auto rechart tool 🐱</h3>
+<h3>🐱 maimai auto rechart tool 🐱</h3>
 
 <br>
 
-A tool that converts chart confirmation videos into simai format (`maidata.txt`).
+A tool that converts maimai gameplay videos into a simai chart (`maidata.txt`).
 
 <br>
 
@@ -32,27 +32,27 @@ A tool that converts chart confirmation videos into simai format (`maidata.txt`)
 
 ## ✨ Highlights
 
-> Two editions: **Full** and **Lite**. **Lite** has no auto rechart.
+> Two editions: **Full** and **Lite**. The **Lite** edition ships without the auto-rechart engine.
 
-- 💪 **Powerful rechart engine**
-    - Supports all note types: `tap` `slide` `touch` `hold` `touch-hold`, with duration inference.
+- 💪 **Powerful auto-rechart engine**
+    - Supports all note types: `tap` `slide` `touch` `hold` `touch-hold` — including duration inference.
     - Supports all note variants: `ex` `break` `ex-break`.
     - Supports all slide syntax: `-` `V` `><` `pq` `ppqq` `sz` `v`.
 
 - 🔍 **Custom AI vision models**
-    - Trained specifically on maimai gameplay; robust in complex scenes.
+    - Trained specifically on maimai gameplay; performs reliably even in complex scenes.
 
 - ⚙️ **Broad hardware support**
-    - Supports the ONNX, NCNN and TensorRT inference backends.
+    - Supports the ONNX, NCNN, and TensorRT inference backends.
 
 - 🪄 **Lots of handy tools**
-    - Media transcoding, audio alignment, chart merging, arcade timing analysis, and more.
+    - Media transcoding, audio alignment, chart merging, arcade timing calibration, and more.
 
 - 🖥️ **GUI-first design**
-    - Everything works through the GUI — no command line required.
+    - Everything can be done through the GUI; no command line is required.
 
 - ✏️ **Built-in editor & viewer**
-    - Integrates [`MajdataEdit-Neo`](https://github.com/re-poem/MajdataEdit-Neo) and [`MajdataViewX`](https://github.com/re-poem/MajdataViewX) so rechart results can be previewed and modified in one place.
+    - Integrates [`MajdataEdit-Neo`](https://github.com/re-poem/MajdataEdit-Neo) and [`MajdataViewX`](https://github.com/re-poem/MajdataViewX), so results can be previewed and edited in a single place.
 
 - 🎵 **Built-in BPM measurement tool**
     - Integrates [`BPM-Measurer`](https://github.com/ck2739046/BPM-Measurer) for measuring a song's BPM.
@@ -62,9 +62,9 @@ A tool that converts chart confirmation videos into simai format (`maidata.txt`)
 
 
 
-## 💻 Minimum Hardware Requirements
+## 💻 Minimum System Requirements
 
-| | **OS** | **Memory** | **Storage**
+| | **OS** | **Memory** | **Storage** |
 |---|---|---|---|
 | **Lite** | Win10 x64 | 0.5 GB | 1.5 GB |
 | **Full** | Win10 x64 | 4 GB | 6 GB |
@@ -74,21 +74,21 @@ A tool that converts chart confirmation videos into simai format (`maidata.txt`)
 
 ## 🚧 Known Issues
 
-- Touch/Touch-Hold fireworks effects (`f`) are not supported.
+- Touch / Touch-Hold fireworks effects (`f`) are not supported.
 
 - Fake jumps (`` ` ``) are not supported.
 
-- Footage filmed off the screen may suffer from skew, color shift, abnormal exposure, or ghosting, which can reduce recharting accuracy.
+- Video captured by filming the screen with a camera may be skewed, color-shifted, or abnormally exposed, or may show ghosting; this can reduce charting accuracy.
 
-- When multiple slides exist simultaneously and some trajectories overlap or intersect, such slides may fail to be recognized (e.g., `1v6[8:1]/3v6[8:1]`).
+- When several slides appear at the same time and their trajectories overlap or intersect, those slides may not be recognized (e.g., `1v6[8:1]/3v6[8:1]`).
 
-- Slide notes with non-standard startup waiting time are not supported.
+- Slide notes whose startup delay is non-standard are not supported.
 
 
 
 ## 🎯 Data Collection
 
-All training data was collected in-house: a [Mod](archive/yolo-train/mod_dump_notes/Dump_Notes.cs) captures raw game data, and a [script](archive/yolo-train/label_notes.py) automatically generates annotations. Coordinates and categories are highly accurate. This makes dataset construction efficient and scalable, enabling large volumes of high-quality samples on demand.
+All training data was collected in-house: a [Mod](archive/yolo-train/mod_dump_notes/Dump_Notes.cs) captures raw in-game data, and a [script](archive/yolo-train/label_notes.py) generates annotations automatically. The resulting coordinates and labels are highly accurate, which makes dataset construction efficient and scalable and allows large volumes of high-quality samples to be produced on demand.
 
 
 
@@ -115,19 +115,19 @@ All training data was collected in-house: a [Mod](archive/yolo-train/mod_dump_no
 
 ### 1. Set up the Python environment
 
-- Follow this [`guide`](src/resources/for_release_only/python_portable/用conda创建py环境.md) to create a `python/` folder in the project root, then use `./python/python.exe` to run scripts.
+- Follow this [`guide`](src/resources/for_release_only/python_portable/创建py环境.md) to create a `python/` folder in the project root, then run scripts with `./python/python.exe`.
 
 ### 2. Extract resource files
 
 - Extract all `.zip` files from [`models/`](src/resources/for_release_only/models/) into `data/models/`.
-- Extract [`ffmpeg`](src/resources/for_release_only/ffmpeg-8.0.1-essentials_build.7z) into `src/resources/ffmpeg/`.
+- Extract the [`ffmpeg`](src/resources/for_release_only/ffmpeg-8.0.1-essentials_build.7z) archive into `src/resources/ffmpeg/`.
 - (Optional) Compile the [`launcher`](src/resources/for_release_only/launcher) and place it in the project root.
 
 ### 3. Obtain MajdataX
 
-Compile [MajdataEdit-Neo](https://github.com/ck2739046/MajdataEdit-Neo/tree/HachimiDX) & [MajdataViewX](https://github.com/ck2739046/MajdataViewX/tree/HachimiDX) and place the outputs into `src/resources/majdatax`.
+Compile [MajdataEdit-Neo](https://github.com/ck2739046/MajdataEdit-Neo/tree/HachimiDX) and [MajdataViewX](https://github.com/ck2739046/MajdataViewX/tree/HachimiDX), then place the outputs into `src/resources/majdatax/`.
 
-> *Obtain `SFX` and `Skin` from other sources and put them in the folder.*
+> *Obtain `SFX` and `Skin` from other sources and put them in the same folder.*
 
 ### 4. Obtain BPM-Measurer
 
@@ -135,7 +135,7 @@ Compile [BPM-Measurer](https://github.com/ck2739046/BPM-Measurer) and place the 
 
 ### 5. Install & launch
 
-Run `install/script/main.py` to install dependencies.<br>
+Run `install/script/main.py` to install the dependencies.<br>
 Run `src/main.py` to launch the application.
 
 
@@ -143,7 +143,7 @@ Run `src/main.py` to launch the application.
 
 ## 💖 Donate
 
-If this project helps you, feel free to support it with a donation! ❤️
+If this project has been helpful to you, consider supporting it with a donation! ❤️
 
 <div align="center">
 
