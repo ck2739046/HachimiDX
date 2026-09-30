@@ -1,7 +1,8 @@
 from PyQt6.QtWidgets import QCheckBox, QStyle, QStyleOptionButton
-from PyQt6.QtCore import Qt, QRectF
+from PyQt6.QtCore import QEvent, Qt, QRectF
 from PyQt6.QtGui import QPainter, QColor, QPen, QPainterPath
 from ..ui_style import UI_Style
+from .widget_utils import set_pointer_cursor
 
 class StyledCheckBox(QCheckBox):
     def __init__(self, colors, size, border_width, parent=None):
@@ -27,6 +28,14 @@ class StyledCheckBox(QCheckBox):
                 border: none;
             }}
         """)
+
+        set_pointer_cursor(self)
+
+    def changeEvent(self, event) -> None:
+        super().changeEvent(event)
+        # 禁用/启用（含父级被禁用）时同步光标
+        if event.type() == QEvent.Type.EnabledChange:
+            set_pointer_cursor(self)
 
     def enterEvent(self, event):
         """鼠标进入"""

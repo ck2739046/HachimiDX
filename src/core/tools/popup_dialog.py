@@ -7,7 +7,7 @@ import unicodedata
 
 import i18n
 from PyQt6.QtCore import QEventLoop, QTimer, Qt
-from PyQt6.QtGui import QCloseEvent, QFont, QGuiApplication, QIcon, QTextOption
+from PyQt6.QtGui import QCloseEvent, QCursor, QFont, QGuiApplication, QIcon, QTextOption
 from PyQt6.QtWidgets import QApplication, QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QSizePolicy
 
 from src.services import PathManage
@@ -109,14 +109,19 @@ class _PopupConfirmDialog(QDialog):
         self._cancel_button: QPushButton | None = None
         self._ok_button: QPushButton | None = None
 
+        def _make_button(text: str) -> QPushButton:
+            button = QPushButton(text)
+            button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+            return button
+
         if self._mode == "confirm":
-            self._confirm_button = QPushButton(i18n.t("popup_dialog.ui_confirm"))
-            self._cancel_button = QPushButton(i18n.t("popup_dialog.ui_cancel"))
+            self._confirm_button = _make_button(i18n.t("popup_dialog.ui_confirm"))
+            self._cancel_button = _make_button(i18n.t("popup_dialog.ui_cancel"))
             btn_row.addWidget(self._confirm_button)
             btn_row.addSpacing(20)
             btn_row.addWidget(self._cancel_button)
         else:
-            self._ok_button = QPushButton(i18n.t("popup_dialog.ui_ok"))
+            self._ok_button = _make_button(i18n.t("popup_dialog.ui_ok"))
             btn_row.addWidget(self._ok_button)
 
         btn_row.addStretch(1)

@@ -16,7 +16,7 @@ from .divider import create_divider, create_vertical_divider
 from .file_selection_row import create_file_selection_row, create_directory_selection_row
 from .media_input_probe_widget import MediaInputProbeWidget
 from .path_display import create_path_display
-from .button import StatedButton, create_stated_button, create_button
+from .button import PointerCursorButton, StatedButton, create_stated_button, create_button
 from .floating_notification import create_floating_notification
 from .split_drop_button import SplitDropButton, create_split_drop_button
 from .overlay_widget import OverlayWidget
@@ -40,7 +40,7 @@ __all__ = [
     'create_file_selection_row', 'create_directory_selection_row',
     'MediaInputProbeWidget',
     'create_path_display',
-    'StatedButton', 'create_button', 'create_stated_button',
+    'PointerCursorButton', 'StatedButton', 'create_button', 'create_stated_button',
     'SplitDropButton', 'create_split_drop_button',
     'create_floating_notification',
     'OverlayWidget',

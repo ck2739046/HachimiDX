@@ -1,8 +1,8 @@
+from PyQt6.QtCore import QEvent
 from PyQt6.QtWidgets import QPushButton
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QCursor
 
 from ..ui_style import UI_Style
+from .widget_utils import set_pointer_cursor
 
 
 c = UI_Style.COLORS
@@ -19,7 +19,25 @@ def button_qss_base(color):
     )
 
 
-class StatedButton(QPushButton):
+class PointerCursorButton(QPushButton):
+    """普通按钮：手型光标，禁用时回退为箭头。
+
+    create_button() 返回它；StatedButton 也继承它。
+    """
+
+    def __init__(self, text: str = "", parent=None):
+        super().__init__(text, parent)
+        set_pointer_cursor(self)
+
+
+    def changeEvent(self, event) -> None:
+        super().changeEvent(event)
+        # 禁用/启用（含父级被禁用）时同步光标
+        if event.type() == QEvent.Type.EnabledChange:
+            set_pointer_cursor(self)
+
+
+class StatedButton(PointerCursorButton):
     """A primary button.
 
     States:
@@ -36,7 +54,6 @@ class StatedButton(QPushButton):
             self.setFixedHeight(height)
 
         self._apply_style(isbig)
-        self._update_cursor()
 
 
     def _apply_style(self, isbig: bool) -> None:
@@ -52,16 +69,6 @@ class StatedButton(QPushButton):
                 + "}"
             )
             
-
-    def _update_cursor(self) -> None:
-        if self.isEnabled():
-            self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        else:
-            self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
-
-    def setEnabled(self, enabled: bool) -> None:  # type: ignore[override]
-        super().setEnabled(enabled)
-        self._update_cursor()
 
 
 
@@ -115,7 +122,7 @@ def create_button(text: str, width: int = None, color = 'accent') -> QPushButton
         QPushButton: 按钮实例
     """
     
-    button = QPushButton(text)
+    button = PointerCursorButton(text)
     button.setFixedHeight(UI_Style.element_height)
     if width is not None:
         button.setFixedWidth(width)

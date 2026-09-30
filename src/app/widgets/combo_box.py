@@ -1,9 +1,10 @@
 from PyQt6.QtWidgets import QComboBox, QSizePolicy
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QEvent, Qt
 from PyQt6.QtGui import QPainter, QPen, QColor
 
 from ..ui_style import UI_Style
 from .dropdown_widget import open_combo_popup
+from .widget_utils import set_pointer_cursor
 
 c = UI_Style.COLORS
 BORDER_R = 5
@@ -22,6 +23,7 @@ class StyledComboBox(QComboBox):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._popup = None
+        set_pointer_cursor(self)
 
         self.setStyleSheet(
             f"QComboBox {{"
@@ -40,6 +42,12 @@ class StyledComboBox(QComboBox):
             f"  border: none;"
             f"}}"
         )
+
+    def changeEvent(self, event) -> None:
+        super().changeEvent(event)
+        # 禁用/启用（含父级被禁用）时同步光标
+        if event.type() == QEvent.Type.EnabledChange:
+            set_pointer_cursor(self)
 
     # ---- popup 生命周期管理 ----
     def mousePressEvent(self, event):

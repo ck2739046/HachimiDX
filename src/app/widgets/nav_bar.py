@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QButtonGroup
-from PyQt6.QtCore import pyqtSignal, QEvent
+from PyQt6.QtCore import Qt, pyqtSignal, QEvent
 from ..ui_style import UI_Style
 # from .popup_tooltip import install_tooltip  # tooltip 已关闭
 
@@ -38,6 +38,8 @@ class SegmentedNavBar(QWidget):
             btn.setFixedHeight(self.height)
             btn.setMouseTracking(True)
             btn.installEventFilter(self)
+            # 导航栏按钮特殊处理：有意保持箭头光标，不跟随其他按钮变成手型
+            btn.setCursor(Qt.CursorShape.ArrowCursor)
             
             # 设置样式
             btn.setStyleSheet(f"""
