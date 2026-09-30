@@ -77,38 +77,6 @@ class TransformMixin:
         )
 
 
-    def _apply_perspective_correction(self, frame: np.ndarray) -> np.ndarray:
-        """按当前四边形透视点对整帧做透视矫正"""
-        if self.quad_points is None:
-            return frame
-
-        src_quad = self.quad_points.astype(np.float32)
-        dst_quad = self._build_target_quad(src_quad)
-        matrix = cv2.getPerspectiveTransform(src_quad, dst_quad)
-        return cv2.warpPerspective(
-            frame,
-            matrix,
-            (self.frame_width, self.frame_height),
-            flags=cv2.INTER_LINEAR,
-            borderMode=cv2.BORDER_CONSTANT,
-            borderValue=(0, 0, 0),
-        )
-
-
-    def _apply_output_stretch(self, frame: np.ndarray) -> np.ndarray:
-        """按 stretch_x / stretch_y 拉伸整帧"""
-        stretch_x = self.output_stretch_x_percent / 100.0
-        stretch_y = self.output_stretch_y_percent / 100.0
-
-        if abs(stretch_x - 1.0) < 1e-6 and abs(stretch_y - 1.0) < 1e-6:
-            return frame
-
-        frame_h, frame_w = frame.shape[:2]
-        stretched_w = max(1, int(round(frame_w * stretch_x)))
-        stretched_h = max(1, int(round(frame_h * stretch_y)))
-        return cv2.resize(frame, (stretched_w, stretched_h), interpolation=cv2.INTER_LINEAR)
-
-
     def _apply_output_brightness(self, frame: np.ndarray) -> np.ndarray:
         """实现帧画面的亮度调整"""
         brightness = self.output_brightness_percent / 100.0

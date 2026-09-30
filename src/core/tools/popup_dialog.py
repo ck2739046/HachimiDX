@@ -7,7 +7,7 @@ import unicodedata
 
 import i18n
 from PyQt6.QtCore import QEventLoop, QTimer, Qt
-from PyQt6.QtGui import QCloseEvent, QCursor, QFont, QGuiApplication, QIcon, QTextOption
+from PyQt6.QtGui import QCloseEvent, QCursor, QFont, QGuiApplication, QIcon
 from PyQt6.QtWidgets import QApplication, QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QSizePolicy
 
 from src.services import PathManage

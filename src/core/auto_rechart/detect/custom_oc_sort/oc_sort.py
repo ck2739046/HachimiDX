@@ -32,17 +32,6 @@ def speed_direction(bbox1: np.ndarray, bbox2: np.ndarray) -> np.ndarray:
     return speed / norm
 
 
-def convert_bbox_to_z(bbox: np.ndarray) -> np.ndarray:
-    """[x1,y1,x2,y2] → [x,y,s,r] as (4,1)."""
-    w = bbox[2] - bbox[0]
-    h = bbox[3] - bbox[1]
-    x = bbox[0] + w / 2.0
-    y = bbox[1] + h / 2.0
-    s = w * h
-    r = w / float(h + 1e-6)
-    return np.array([x, y, s, r], dtype=np.float32).reshape((4, 1))
-
-
 def _convert_wh_to_z(cx: float, cy: float, w: float, h: float) -> np.ndarray:
     """(cx,cy,w,h) → [x,y,s,r] as (4,1); avoids re-extracting w/h from bbox."""
     s = w * h

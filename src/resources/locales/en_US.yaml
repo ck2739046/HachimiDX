@@ -58,31 +58,10 @@ en_US:
 
 
   task_scheduler:
-    notice_user_terminated_task: "Task %{task_id} terminated by user."
     status_pending: "Pending"
     status_running: "Running"
     status_ended: "Ended"
     ui_task_status_tooltip: "Task Status: %{status}"
-
-  media_task_launcher:
-    error_unsupported_config: "Unsupported media task config."
-    error_ffmpeg_not_found: "FFmpeg not found: %{path}"
-    error_invalid_io_path: "Invalid input/output path: %{error}"
-    error_failed_create_output_dir: "Failed to create output directory: %{error}"
-    error_failed_remove_existing_output: "Failed to remove existing output file: %{error}"
-    error_invalid_media_config: "Invalid media task config: %{error}"
-    notice_ffmpeg_started: "FFmpeg started, command:\n%{command}"
-
-  pydantic_models:
-    run_ffmpeg:
-      error_invalid_output_filename: "Invalid output filename: cannot contain characters: \\ / : * ? \" < > |"
-      empty_output_extension: "Output file extension cannot be empty"
-      invalid_output_extension: "Invalid output file extension: must start with '.'"
-      ui_prompt_delete_existing_output_file: |
-        Output file already exists: %{file_path}
-        It will be deleted when the task starts.
-        Continue?
-
 
 
 
@@ -635,8 +614,6 @@ en_US:
 
         Continue anyway?
 
-      ui_reset_page_confirm_title: "Reset Confirmation"
-      ui_reset_page_confirm_text: "A chart confirmation video or chart folder is currently selected in the Auto Rechart page. Are you sure you want to reset the page? All inputs will be cleared."
       ui_overwrite_bpm_confirm_title: "Overwrite BPM"
       ui_overwrite_bpm_confirm_text: "The Auto Rechart page already has a BPM set (static value or dynamic config). Overwrite the BPM setting with the new config? Other settings are not affected."
 
@@ -649,7 +626,6 @@ en_US:
       ui_model_divider: "Model Inference"
       ui_model_backend_label: "Model Backend: "
       ui_inference_device_label: "Inference Device: "
-      warning_inference_device_not_found: "Failed to parse available devices from the check result. Please retry later or check your driver."
       ui_model_backend_onnx_cpu_tooltip: "Slowest, CPU only, best compatibility"
       ui_model_backend_ncnn_tooltip: "Slower, requires a Vulkan-compatible GPU"
       ui_model_backend_onnx_dml_tooltip: "Medium, requires a DX12-compatible GPU"
@@ -745,8 +721,3 @@ en_US:
       notice_convert_success: "Model conversion finished and passed validation: %{backend}"
       notice_convert_cancelled: "Model conversion cancelled: %{backend}"
       notice_cancel_requested: "Cancel requested. Waiting for process to stop..."
-
-      notice_hw_detect_start: "Starting FFmpeg hardware acceleration detection..."
-      notice_hw_detect_result: "Detection complete: encoder=%{encoder}, decoder=%{decoder}"
-      warning_hw_detect_failed: "FFmpeg hardware acceleration detection failed"
-      notice_hw_detect_cancelled: "Hardware acceleration detection cancelled"

@@ -6,7 +6,6 @@
 import os
 from fractions import Fraction
 from itertools import groupby, tee
-import math
 
 from .shared_context import *
 from .maidata_generate import MaidataItem
@@ -158,62 +157,6 @@ def _gap_configs(g: Fraction, R: int):
 
     return configs
 
-
-
-
-
-def _emit_bar_text(events, gaps, seg_map) -> str:
-    """
-    将一个小节的 events / gaps / seg_map 拼接成一行 maidata 文本
-
-    输入:
-        events:  [(小节内时间, BPM文本, 音符文本), ...]
-        gaps:    [Fraction, ...], 长度 = len(events)+1
-                 各间隔长度 (以小节为单位)
-        seg_map: {间隔序号: [(N, k), ...]}
-                 每个非零间隔的分段方案
-    """
-
-    out = []
-    cur_div = None
-
-    def emit_div(D):
-        """必要时写一次 {D}; 只有 D 与当前分音不同时才写"""
-        nonlocal cur_div
-        if D != cur_div:
-            out.append(f"{{{D}}}")
-            cur_div = D
-
-    # 如果第一个间隔非零, 先写它的分音和逗号
-    if gaps[0] > 0:
-        for (N, k) in seg_map[0]:
-            emit_div(N)
-            out.append("," * k)
-
-    # 逐音符输出
-    for note_idx in range(len(events)):
-
-        gap_idx = note_idx + 1  # 该音符后面的间隔序号
-        _, bpm, notes = events[note_idx]
-
-        # 1. 写 BPM
-        if bpm:
-            out.append(bpm)
-            # cur_div = None  # 换 BPM 后强制重写 {N}, 即使分音没变
-        
-        # 2. 写分音 {N}
-        emit_div(seg_map[gap_idx][0][0])
-
-        # 3. 写音符
-        if notes:
-            out.append(notes)
-
-        # 4. 写间隔的逗号
-        for (N, k) in seg_map[gap_idx]:
-            emit_div(N)
-            out.append("," * k)
-
-    return "".join(out) + "\n"
 
 
 
@@ -525,73 +468,6 @@ class _LayoutEngine:
         result = _gap_configs(g, R)
         cache[ck] = result
         return result
-
-
-
-
-    def _layout_bar(self, events) -> str:
-        """
-        排版单个小节
-        输入: list of (小节内时间, BPM文本, 音符文本)
-        返回: 一整行 maidata 文本
-        """
-
-        # 从 n 个事件中提取出 n+1 个间隔
-        # 小节头 -> 事件1, 事件1 -> 事件2, ..., 事件n -> 小节尾
-        # 计算每个间隔的长度 (以小节为单位)
-        relative_times = [t for t, _, _ in events]
-        gaps = []
-        prev = Fraction(0)
-        for t in relative_times:
-            gaps.append(t - prev)
-            prev = t
-        gaps.append(Fraction(1) - prev)
-        
-        # 本小节的 tick 分辨率 R = 所有间隔的分母的最小公倍数
-        R = 1
-        for g in gaps:
-            if g > 0:
-                R = math.lcm(R, g.denominator)
-
-        # 为每个非零间隔求出所有 "性价比最优" 的写法
-        active = []
-        for idx, g in enumerate(gaps):
-            if g > 0:
-                cfg = self._gap_configs_cached(g, R)
-                active.append((idx, cfg))
-
-        # 外层 DP: 跨所有间隔, 让"相邻间隔的衔接处"尽量用同一分音 (省一次切换)。
-        # 总代价 = 切换次数*_MAX_COMMAS + 逗号总数; 用加权和是为了让逗号数也能反过来
-        # 抵消"为省一次切换而堆一大堆逗号"的情况。
-        first_idx, first_cfg = active[0]
-        cur_layer = {}
-        for (fd, ld), (sw, segs) in first_cfg.items():
-            commas = sum(k for (_, k) in segs)
-            cost = sw * _MAX_COMMAS + commas
-            if ld not in cur_layer or cost < cur_layer[ld][0]:
-                cur_layer[ld] = (cost, [(first_idx, segs)])
-        for a_idx in range(1, len(active)):
-            gi, cfg = active[a_idx]
-            next_layer = {}
-            for (fd, ld), (sw, segs) in cfg.items():
-                seg_commas = sum(k for (_, k) in segs)
-                best = None
-                for prev_ld, (prev_cost, prev_choices) in cur_layer.items():
-                    tot = prev_cost + (0 if prev_ld == fd else 1) * _MAX_COMMAS + sw * _MAX_COMMAS + seg_commas
-                    if best is None or tot < best[0]:
-                        best = (tot, prev_choices + [(gi, segs)])
-                if ld not in next_layer or best[0] < next_layer[ld][0]:
-                    next_layer[ld] = best
-            cur_layer = next_layer
-        chosen = min(cur_layer.values(), key=lambda v: v[0])[1]   # [(间隔序号, 分段列表)]
-        seg_map = {gi: segs for (gi, segs) in chosen}
-
-        # 拼接这一行的文本
-        return _emit_bar_text(events, gaps, seg_map)
-
-
-
-
 
 
 def write_maidata(shared_context, items: list[MaidataItem],

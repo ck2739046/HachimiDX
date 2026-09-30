@@ -35,16 +35,6 @@ class MajdataSession(QObject):
     shutdown_finished = pyqtSignal()
 
 
-    @property
-    def majdataview_hwnd(self) -> Optional[int]:
-        return self._majdataview_hwnd
-
-    @property
-    def majdataedit_hwnd(self) -> Optional[int]:
-        return self._majdataedit_hwnd
-
-
-
     def __init__(self, parent: Optional[QObject] = None) -> None:
         super().__init__(parent)
 

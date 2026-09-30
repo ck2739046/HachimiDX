@@ -58,33 +58,10 @@ zh_CN:
 
 
   task_scheduler:
-    notice_user_terminated_task: "任务 %{task_id} 被用户中止。"
     status_pending: "等待中"
     status_running: "运行中"
     status_ended: "已完成"
     ui_task_status_tooltip: "任务状态: %{status}"
-
-  media_task_launcher:
-    error_unsupported_config: "不支持的媒体任务配置。"
-    error_ffmpeg_not_found: "未找到 FFmpeg：%{path}"
-    error_invalid_io_path: "无效的输入/输出路径：%{error}"
-    error_failed_create_output_dir: "创建输出目录失败：%{error}"
-    error_failed_remove_existing_output: "删除已存在的输出文件失败：%{error}"
-    error_invalid_media_config: "媒体任务配置无效：%{error}"
-    notice_ffmpeg_started: "FFmpeg 已启动，指令：\n%{command}"
-
-  pydantic_models:
-    run_ffmpeg:
-      error_invalid_output_filename: "无效的输出文件名：不能包含字符：\\ / : * ? \" < > |"
-      empty_output_extension: "输出文件扩展名不能为空"
-      invalid_output_extension: "无效的输出文件扩展名：必须以 '.' 开头"
-      ui_prompt_delete_existing_output_file: |
-        输出文件已存在：%{file_path}
-        该文件将在任务开始时被删除。
-        是否继续？
-
-
-
 
 
   check_update:
@@ -624,8 +601,6 @@ zh_CN:
 
         是否仍要继续？
 
-      ui_reset_page_confirm_title: "重置确认"
-      ui_reset_page_confirm_text: "当前已在自动抄谱页面（auto rechart）选择了谱面确认视频或谱面文件夹，确定要重置页面吗？所有输入内容将被清空。"
       ui_overwrite_bpm_confirm_title: "BPM 覆盖确认"
       ui_overwrite_bpm_confirm_text: "自动抄谱页面已设置 BPM（静态数值或动态配置），是否用新配置覆盖 BPM 设置？其他设置不受影响。"
 
@@ -638,7 +613,6 @@ zh_CN:
       ui_model_divider: "模型推理"
       ui_model_backend_label: "模型后端: "
       ui_inference_device_label: "推理设备: "
-      warning_inference_device_not_found: "未能从检查结果中解析出可用设备，请稍后重试或检查驱动程序。"
       ui_model_backend_onnx_cpu_tooltip: "最慢，仅使用 CPU，兼容性最高"
       ui_model_backend_ncnn_tooltip: "较慢，需要兼容 Vulkan 的 GPU"
       ui_model_backend_onnx_dml_tooltip: "中等，需要兼容 DX12 的 GPU"
@@ -734,8 +708,3 @@ zh_CN:
       notice_convert_success: "模型转换完成并通过复检: %{backend}"
       notice_convert_cancelled: "模型转换已取消: %{backend}"
       notice_cancel_requested: "已发送取消请求，等待进程结束..."
-
-      notice_hw_detect_start: "开始检测 FFmpeg 硬件加速支持..."
-      notice_hw_detect_result: "检测完成: 编码器=%{encoder}, 解码器=%{decoder}"
-      warning_hw_detect_failed: "FFmpeg 硬件加速检测失败"
-      notice_hw_detect_cancelled: "硬件加速检测已取消"
