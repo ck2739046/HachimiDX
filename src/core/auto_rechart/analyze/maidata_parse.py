@@ -191,15 +191,23 @@ def _parse_note_duration(one_bar_Msec, note_type, note_duration, base_denominato
     if note_type == NoteType.TOUCH_HOLD or note_type == NoteType.SLIDE:
         # touch_hold / slide -> duration_denominator
         denominator_to_use = duration_denominator
+        # 仅智能启用 12 分, 始终禁用 24/48 分
+        auto_12 = True
+        auto_24 = False
+        auto_48 = False
     else:
         # hold -> base_denominator
         # 因为 hold 足够精确，所以与 tap 一样用 base_denominator 处理
         denominator_to_use = base_denominator
-    
+        # 12/24/48 分也随 base_denominator 一起启用
+        auto_12 = True
+        auto_24 = True
+        auto_48 = True
+
     # 将 duration 变为分数形式
     numerator, denominator, one = get_fraction(
         duration_in_bar, denominator_to_use,
-        auto_12=True, auto_24=False, auto_48=False
+        auto_12, auto_24, auto_48
     )
     # 将整数部分加入分子
     if one > 0:

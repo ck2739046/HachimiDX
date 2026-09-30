@@ -587,8 +587,9 @@ zh_CN:
         建议单位时间 ≥30ms。
         如果 BPM 较高，需要适当降低分辨率以保证准确性。
         
-        注: 此选项仅适用于 slide 和 touch-hold 音符的时值，
-            hold 音符的时值的分辨率与“音符间隔分辨率”相同。
+        注: 此选项仅适用于 slide 和 touch-hold 音符的时值。
+            hold 音符的时值的分辨率与“音符间隔分辨率”相同，
+            并跟随其 12/24/48 分设置。
 
       ui_enable_standardize_label: "启用视频标准化模块: "
       ui_enable_standardize_help: |

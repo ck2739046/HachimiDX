@@ -599,7 +599,8 @@ en_US:
         If BPM is high, lower the denominator for better accuracy.
 
         Note: This option only applies to slide and touch-hold durations.
-              Hold duration uses the same denominator as "Base Denominator".
+              Hold duration uses the same denominator as "Base Denominator",
+              and follows its 12/24/48 support.
 
       ui_enable_standardize_label: "Enable Video Standardization: "
       ui_enable_standardize_help: |
