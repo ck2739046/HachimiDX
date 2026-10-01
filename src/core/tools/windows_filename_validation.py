@@ -1,3 +1,5 @@
+import i18n
+
 from ..schemas.op_result import OpResult, ok, err
 
 def validate_windows_filename(v: str) -> OpResult[None]:
@@ -11,12 +13,12 @@ def validate_windows_filename(v: str) -> OpResult[None]:
     v = str(v).strip()
     
     if not v:
-        return err("filename cannot be empty or pure whitespace(s)")
+        return err(i18n.t("windows_filename_validation.error_empty_name"))
     
     # Windows 文件名禁止字符
     invalid_chars = {'\\', '/', ':', '*', '?', '"', '<', '>', '|'}
     if any(c in invalid_chars for c in v):
-        return err(f"filename '{v}' cannot contain invalid characters: \\ / : * ? \" < > |")
+        return err(i18n.t("windows_filename_validation.error_invalid_chars", name=v))
         
     # 禁止保留名称
     reserved_names = {
@@ -25,6 +27,6 @@ def validate_windows_filename(v: str) -> OpResult[None]:
         'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'
     }
     if v.upper() in reserved_names:
-        return err(f"filename '{v}' cannot be a reserved system name")
+        return err(i18n.t("windows_filename_validation.error_reserved_name", name=v))
         
     return ok()

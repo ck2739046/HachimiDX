@@ -5,6 +5,7 @@ from ..detect.note_definition import *
 from ...measure_bpm.parse_config import load_timing_points
 from ...schemas.op_result import OpResult, ok, err
 from ..tool import *
+import i18n
 from .shared_context import *
 
 from .preprocess_tap import preprocess_tap_data
@@ -46,7 +47,7 @@ def main(std_video_path: Path,
         ) -> OpResult[None]:
     
     try:
-        print('开始音符分析...')
+        print(i18n.t("analyze_main.notice_module_started"))
 
         # 统一解析 bpm 一次（供 slide 与 generate_maidata 共用，避免 slide 重复解析）
         # timing_points: [(beat_index, bpm, start_ms), ...]，首段返回真实 global_offset

@@ -357,7 +357,7 @@ class OutputLogWidget(QWidget):
         if not enabled:
             return
         if logtxt_path is None or not str(logtxt_path).strip():
-            raise ValueError("logtxt_path is required when file logging is enabled")
+            raise ValueError(i18n.t("output_log.error_logtxt_path_required"))
 
         try:
             path, path_key = self._normalize_log_path(logtxt_path)

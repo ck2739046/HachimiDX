@@ -21,12 +21,15 @@ if root not in sys.path:
 
 
 # 显式指定 audioread ffmpeg 的绝对路径，并刷新后端缓存
-from src.services import PathManage
+from src.services import PathManage, I18nManage
 import audioread
 _ffmpeg_exe = str(PathManage.FFMPEG_EXE_PATH)
 if _ffmpeg_exe not in audioread.ffdec.COMMANDS:
     audioread.ffdec.COMMANDS = (_ffmpeg_exe,) + audioread.ffdec.COMMANDS
 audioread.available_backends(flush_cache=True)
+
+# worker 子进程没有经过 I18nManage.init(), 这里按父进程传入的 locale 环境变量初始化
+I18nManage.init_headless()
 
 
 from src.core.audio.detect_click_start import main as detect_click_start_main

@@ -8,6 +8,7 @@ from audioread.exceptions import NoBackendError
 
 from src.services import PathManage
 from ..schemas.op_result import OpResult, ok, err
+import i18n
 
 MATCH_DURATION_SEC = 10
 
@@ -103,16 +104,16 @@ def _load_audio_file(path):
     """
     try:
         if not os.path.exists(path):
-            raise FileNotFoundError(f"Audio file not found: {path}")
+            raise FileNotFoundError(i18n.t("detect_click_start.error_audio_not_found", path=str(path)))
         with suppress_audio_warnings():
             data, sr = librosa.load(path, sr=None, mono=True)
             if data is None or len(data) == 0:
-                raise ValueError(f"Cannot load audio data from: {path}")
+                raise ValueError(i18n.t("detect_click_start.error_audio_load_failed", path=str(path)))
             return data, sr
     except NoBackendError:
         raise NoBackendError(f"NoBackendError: {str(path)}")
     except Exception as e:
-        raise Exception(f"Error loading audio file '{path}': {e}")
+        raise Exception(i18n.t("detect_click_start.error_audio_load_error", path=str(path), error=e))
 
 
 
@@ -124,7 +125,7 @@ def _extract_segment(audio_data, sr, start_time_sec, duration_sec):
 
     start_time_sec = float(start_time_sec)
     if start_time_sec < 0:
-        raise ValueError(f"start_time_sec must be >= 0, got {start_time_sec}")
+        raise ValueError(i18n.t("detect_click_start.error_start_time_negative", value=start_time_sec))
 
     start_sample = int(round(start_time_sec * sr))
     duration_samples = int(round(float(duration_sec) * sr))
@@ -132,12 +133,13 @@ def _extract_segment(audio_data, sr, start_time_sec, duration_sec):
 
     if start_sample >= len(audio_data):
         raise ValueError(
-            f"start_time_sec ({start_time_sec}) exceeds audio length ({len(audio_data) / sr:.2f}s)"
+            i18n.t("detect_click_start.error_start_time_exceeds_audio",
+                   start_time_sec=start_time_sec, length_sec=f"{len(audio_data) / sr:.2f}")
         )
 
     segment = audio_data[start_sample:min(end_sample, len(audio_data))]
     if segment is None or len(segment) == 0:
-        raise ValueError("Extracted segment is empty")
+        raise ValueError(i18n.t("detect_click_start.error_segment_empty"))
 
     return segment
 
@@ -197,7 +199,7 @@ def template_match(y_target, y_template, sr):
     阶段二：局部波形精调
     """
     if len(y_target) < len(y_template):
-        raise ValueError("Audio data too short for template matching")
+        raise ValueError(i18n.t("detect_click_start.error_audio_too_short_template"))
 
     # 直接由原始波形计算能量包络
     target_env = compute_energy_envelope(y_target, sr, ENVELOPE_SMOOTH_MS)
@@ -224,10 +226,10 @@ def match_sliding_window(target_env, template_env, sr, step_ms):
     """
 
     if len(template_env) <= 0:
-        raise ValueError("Template is empty")
+        raise ValueError(i18n.t("detect_click_start.error_template_empty"))
 
     if len(target_env) < len(template_env):
-        raise ValueError("Audio data too short for sliding window matching")
+        raise ValueError(i18n.t("detect_click_start.error_audio_too_short_window"))
 
     template_norm = normalize_vector(template_env)
     template_len = len(template_env)
@@ -257,7 +259,7 @@ def compute_energy_envelope(y, sr, smooth_ms=8.0):
     能量包络：先取平方能量，再做滑动平均平滑
     """
     if y is None or len(y) == 0:
-        raise ValueError("Audio is empty")
+        raise ValueError(i18n.t("detect_click_start.error_audio_empty"))
 
     win_len = max(1, int(round(smooth_ms * sr / 1000.0)))
     kernel = np.ones(win_len, dtype=np.float64) / float(win_len)

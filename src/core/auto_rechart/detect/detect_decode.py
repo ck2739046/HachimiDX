@@ -3,6 +3,7 @@ import torch
 import torch.utils.data
 
 from ...schemas.op_result import OpResult, ok, err
+import i18n
 
 
 
@@ -108,7 +109,7 @@ class _VideoFrameDataset(torch.utils.data.IterableDataset):
     def __iter__(self):
         cap = cv2.VideoCapture(self._std_video_path)
         if not cap.isOpened():
-            raise RuntimeError(f"Failed to open video file: {self._std_video_path}")
+            raise RuntimeError(i18n.t("detect_decode.error_open_video_failed", path=str(self._std_video_path)))
         try:
             frame_idx = 0
             while True:
@@ -118,8 +119,8 @@ class _VideoFrameDataset(torch.utils.data.IterableDataset):
                     if frame_idx >= self._total_frames * 0.98:
                         break  # 接近预期总帧数，视为正常 EOF
                     raise RuntimeError(
-                        f"Video decoding stopped early at frame {frame_idx}; "
-                        f"expected at least {self._total_frames * 0.98:.2f} frames"
+                        i18n.t("detect_decode.error_decode_stopped_early",
+                               frame=frame_idx, expected=f"{self._total_frames * 0.98:.2f}")
                     )
 
                 # 此处提前 resize 好可以避免在推理内部 resize 从而加快推理速度

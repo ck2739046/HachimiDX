@@ -5,6 +5,7 @@ from pathlib import Path
 
 from ...schemas.op_result import OpResult, ok, err, print_op_result
 from ..tool import print_progress
+import i18n
 
 
 
@@ -80,7 +81,7 @@ def main(input_video: Path,
 
             # 打印进度
             frame_counter += 1
-            print_progress('初始圆检测', frame_counter, search_end_frame - search_start_frame)
+            print_progress(i18n.t("detect_circle.progress_label"), frame_counter, search_end_frame - search_start_frame)
 
             ret, frame = cap.read()
             if not ret: break  # 视频结束

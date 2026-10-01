@@ -13,6 +13,7 @@ from ...schemas.op_result import OpResult, ok, err
 from .note_definition import *
 from .detect import _load_detect_results
 from ..tool import print_progress
+import i18n
 # from ..tool import print_progress, SEEK_THRESHOLD
 from .custom_oc_sort.oc_sort import OCSort
 
@@ -258,7 +259,7 @@ def main(std_video_path: Path,
         # 记录正向追踪中已被匹配的检测框 (用于反向追踪时筛选候选框)
         matched_note_ids = set()
 
-        print("开始追踪模块...")
+        print(i18n.t("track.notice_module_started"))
 
         # 遍历每一帧
         for frame_number in range(total_frames):
@@ -330,16 +331,18 @@ def main(std_video_path: Path,
             # 打印进度
             counter += 1
             if counter % 100 == 0:
-                print_progress('追踪', counter, total_frames)
+                print_progress(i18n.t("track.progress_label"), counter, total_frames)
 
         # 最后再打印一次进度
         time.sleep(0.1)  # 等待全部结果完成
-        print_progress('追踪', counter, total_frames, final=True)
+        print_progress(i18n.t("track.progress_label"), counter, total_frames, final=True)
                         
         # 结束
         if cap and cap.isOpened(): cap.release()
         finish_time = time.time()
-        print(f"追踪模块完成, 耗时{finish_time - start_time:.1f}s, 平均{total_frames / (finish_time - start_time):.1f}fps       ")
+        print(i18n.t("track.notice_module_finished",
+                     seconds=f"{finish_time - start_time:.1f}",
+                     fps=f"{total_frames / (finish_time - start_time):.1f}"))
 
         # === 反向追踪 slide tracks ===
         # 对每条 slide track 尝试反向追踪
@@ -361,7 +364,7 @@ def main(std_video_path: Path,
                     reverse_count += 1
 
         if reverse_count > 0:
-            print(f"反向追踪: 补充了 {reverse_count} 个点")
+            print(i18n.t("track.notice_reverse_tracking", count=reverse_count))
 
         # 保存到文件
         _save_track_results(final_tracked_results, std_video_path.parent, call_fn="track")
@@ -486,7 +489,7 @@ def _save_track_results(tracks, output_dir, call_fn=None):
                 f.write('\n')  # track_id 之间空行分隔
     
     prefix = f"[{call_fn}]: " if call_fn else ""
-    print(f"{prefix}追踪结果已保存到 {track_result_path}")
+    print(i18n.t("track.notice_result_saved", prefix=prefix, path=str(track_result_path)))
 
 
 

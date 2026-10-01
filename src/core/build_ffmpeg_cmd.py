@@ -6,6 +6,7 @@ from .schemas.media_model import MediaModel
 from src.core.schemas.op_result import OpResult, ok, err
 from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
 from src.core.schemas.media_config import MediaConfig_Definitions as M_Defs
+import i18n
 
 
 
@@ -96,7 +97,7 @@ def _build_constant_args() -> OpResult[list[str]]:
 
     ffmpeg_exe = PathManage.FFMPEG_EXE_PATH
     if not ffmpeg_exe.is_file():
-        return err(f"FFmpeg executable not found at: {ffmpeg_exe}")
+        return err(i18n.t("build_ffmpeg_cmd.error_ffmpeg_not_found", path=str(ffmpeg_exe)))
     
     args = [
         str(ffmpeg_exe),

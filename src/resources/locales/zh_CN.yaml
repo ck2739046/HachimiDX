@@ -6,7 +6,7 @@
 
 zh_CN:
   general:
-    error_SettingsManage_get_failed: "从 SettingsManager 获取 %{keyy} 失败。"
+    error_SettingsManage_get_failed: "从 SettingsManager 读取 %{keyy} 失败。"
 
 
   # ---- core.services ----
@@ -46,6 +46,13 @@ zh_CN:
     notice_ignore_invalid_audio_stream: "--FFprobe_Inspect: 忽略无效音频流 (%{na_fields}=N/A):\n%{stream_info}"
     notice_ignore_invalid_audio_stream_no_duration: "--FFprobe_Inspect: 忽略无效音频流（没有时长）:\n%{stream_info}"
     notice_multiple_streams_detected: "FFprobe_Inspect: 检测到多个 %{codec_type} 流，选择索引 %{selected_index}"
+    notice_timestamps_finished: "视频帧时间戳分析完成，耗时: %{seconds}s"
+    notice_start_precise_timestamps: "开始精确逐帧解析视频帧时间戳..."
+    error_cfr_no_video_stream: "CFR 探测失败：未找到视频流"
+    error_cfr_parse_avg_frame_rate: "CFR 探测失败：无法解析 avg_frame_rate=%{value}"
+    error_cfr_parse_r_frame_rate: "CFR 探测失败：无法解析 r_frame_rate=%{value}"
+    error_cfr_parse_nb_frames: "CFR 探测失败：无法解析 nb_frames=%{value}"
+    error_cfr_nb_frames_non_positive: "CFR 探测失败：nb_frames=%{value} <= 0"
 
 
 
@@ -86,6 +93,176 @@ zh_CN:
       
       是否前往下载页面？
 
+
+  media_model:
+    error_video_extension: "视频输出必须使用 .mp4 扩展名，当前为 %{ext}"
+    error_audio_extension: "音频输出必须使用 %{expected} 扩展名，当前为 %{ext}"
+    ui_prompt_output_exists_title: "输出文件已存在"
+    ui_prompt_output_exists_text: |
+      输出文件已存在：
+      %{path}
+      
+      是否先删除该文件？
+    error_output_same_as_input: "输出路径不能与输入路径相同"
+    error_delete_existing_failed: "删除已存在的输出文件失败：%{error}"
+    error_output_exists_kept: "输出文件已存在，且未删除该文件"
+    error_audio_sample_rate_options: "音频采样率必须是 %{allowed} 之一，当前为 %{value}"
+    error_video_side_resolution_options: "视频分辨率必须是 %{allowed} 之一，当前为 %{value}"
+    error_video_fps_options: "视频帧率必须是 %{allowed} 之一，当前为 %{value}"
+    error_media_type_unknown: "媒体类型不能为未知 (UNKNOWN)"
+    error_start_needs_duration: "设置起始时间时必须同时设置视频总时长"
+    error_end_needs_duration: "设置截止时间时必须同时设置视频总时长"
+    error_start_pad_start_mutex: "起始时间与片头留空不能同时设置"
+    error_start_ge_duration: "起始时间必须小于视频总时长"
+    error_end_ge_duration: "截止时间必须小于视频总时长"
+    error_start_ge_end: "起始时间必须小于截止时间"
+    error_audio_format_options: "音频编码必须是 %{allowed} 之一，当前为 %{value}"
+    error_audio_bitrate_options: "音频码率必须是 %{allowed} 之一，当前为 %{value}"
+    error_delete_audio_video_mutex: "不能同时启用删除音频与删除视频"
+    error_read_ffmpeg_hw_encoder_failed: "读取视频编码器设置失败：%{error}"
+    error_video_quality_options: "视频质量必须是 %{allowed} 之一，当前为 %{value}"
+    error_video_crop_params: "居中裁剪的 w/h/x/y 必须同时设置或同时留空"
+    error_video_perspective_params: "透视校正参数必须同时设置或同时留空"
+
+  windows_filename_validation:
+    error_empty_name: "文件名不能为空或纯空白字符"
+    error_invalid_chars: "文件名 '%{name}' 不能包含这些字符：\\ / : * ? \" < > |"
+    error_reserved_name: "文件名 '%{name}' 不能使用系统保留名称"
+
+  build_ffmpeg_cmd:
+    error_ffmpeg_not_found: "未找到 FFmpeg 可执行文件：%{path}"
+
+
+  auto_rechart_model:
+    error_at_least_one_module: "视频标准化、音符识别、音符分析 至少需要启用一个模块"
+    error_video_not_selected: "未选择谱面确认视频"
+    error_video_not_exist: "谱面确认视频不存在：'%{path}'"
+    error_video_dir_not_accessible: "谱面确认视频所在目录不可读写：'%{path}'"
+    error_song_name_invalid: "歌曲名称 '%{name}' 包含 Windows 文件名非法字符"
+    error_default_song_name_invalid: "由谱面确认视频推导出的默认歌曲名称 '%{name}' 不是合法的 Windows 文件名"
+    error_video_mode_required: "启用视频标准化时必须选择视频形式"
+    error_video_mode_options: "视频形式必须是 %{allowed} 之一，当前为 %{value}"
+    error_media_type_required: "启用视频标准化时必须提供媒体类型"
+    error_media_type_options: "媒体类型必须是 %{allowed} 之一，当前为 %{value}"
+    error_duration_invalid: "视频总时长必须大于 0，当前为 %{value}"
+    error_start_sec_ge_duration: "起始时间必须小于视频总时长"
+    error_end_sec_ge_duration: "截止时间必须小于视频总时长"
+    error_start_sec_ge_end_sec: "起始时间必须小于截止时间"
+    error_bpm_source_missing: "启用音符分析时必须提供静态 BPM 或动态 BPM 配置"
+    error_bpm_config_parse_failed: "解析 BPM 配置失败：%{error}"
+    error_chart_lv_required: "启用音符分析时必须选择谱面难度"
+    error_chart_lv_options: "谱面难度必须是 %{allowed} 之一，当前为 %{value}"
+    error_base_denominator_required: "启用音符分析时必须提供音符间隔分辨率"
+    error_base_denominator_options: "音符间隔分辨率必须是 %{allowed} 之一，当前为 %{value}"
+    error_duration_denominator_required: "启用音符分析时必须提供音符时值分辨率"
+    error_duration_denominator_options: "音符时值分辨率必须是 %{allowed} 之一，当前为 %{value}"
+    error_selected_folder_required: "必须选择谱面文件夹"
+    error_selected_folder_not_exist: "谱面文件夹不存在：'%{path}'"
+
+  settings_model:
+    error_model_backend_options: "模型后端必须是 %{allowed} 之一"
+    error_inference_device_invalid: "推理设备无效：'%{value}'"
+    error_ffmpeg_hw_encoder_options: "视频编码器必须是 %{allowed} 之一"
+    error_language_options: "语言必须是 %{allowed} 之一"
+    error_last_check_update_time_invalid: "上次检查更新时间格式无效，应为 yyyy-mm-dd，当前为 '%{value}'"
+
+  output_log:
+    error_logtxt_path_required: "启用文件日志时必须提供日志文件路径"
+
+  auto_rechart_tool:
+    # 串尾 5 个空格用于覆盖上一行 (\r) 的残留, 请勿删除
+    progress_line: "%{name} 进度: %{counter}/%{total} (%{percent}%)     "
+
+  detect_click_start:
+    error_audio_not_found: "未找到音频文件：%{path}"
+    error_audio_load_failed: "无法加载音频数据：%{path}"
+    error_audio_load_error: "加载音频文件 '%{path}' 出错：%{error}"
+    error_start_time_negative: "起始时间必须 >= 0，当前为 %{value}"
+    error_start_time_exceeds_audio: "起始时间 (%{start_time_sec}) 超出音频长度 (%{length_sec}s)"
+    error_segment_empty: "截取到的音频片段为空"
+    error_audio_too_short_template: "音频数据太短，无法进行模板匹配"
+    error_template_empty: "模板为空"
+    error_audio_too_short_window: "音频数据太短，无法进行滑窗匹配"
+    error_audio_empty: "音频为空"
+
+  shared_context:
+    error_frame_index_negative: "帧序号必须 >= 0，当前为 %{value}"
+    error_msec_range_invalid: "start_msec 必须 <= end_msec，当前 start_msec=%{start_msec}, end_msec=%{end_msec}"
+    error_msec_range_out_of_bounds: "毫秒范围超出帧时间戳范围：start_msec=%{start_msec}, end_msec=%{end_msec}, timestamp_range=(%{min_msec}, %{max_msec})"
+    error_frame_timestamps_load_failed: "加载用于分析的帧时间戳失败，请用有效视频重新运行音符识别/音符分析。\n%{detail}"
+    error_track_frame_exceeds: "轨迹帧序号超出可用帧时间戳。max_track_frame=%{max_track_frame}, timestamp_count=%{timestamp_count}"
+
+  maidata_generate:
+    error_previous_bpm_segment: "无法把音符 %{track_id} 加入更早的 BPM 段：index %{index} < %{current_index}"
+
+  detect:
+    notice_module_finished: "检测模块完成, 耗时%{seconds}s"
+    notice_result_saved: "检测结果已保存到：%{path}"
+    error_read_video_width_failed: "[detect] 无法读取视频宽度：%{path}"
+    error_progress_stalled: "进度超过 %{timeout}s 无推进, 可能程序卡住了"
+    error_result_file_not_found: "文件不存在：%{path}"
+
+  detect_decode:
+    error_open_video_failed: "打开视频文件失败：%{path}"
+    error_decode_stopped_early: "视频解码提前结束于第 %{frame} 帧；至少需要 %{expected} 帧"
+
+  detect_main:
+    notice_skip_detect_existing: "跳过检测模块，使用已有检测结果..."
+    notice_skip_classify: "跳过分类模块"
+    notice_skip_export_video: "跳过导出视频模块"
+    error_model_not_found: "模型不存在：%{path}"
+    error_read_total_frames_failed: "读取视频总帧数失败：%{detail}"
+    error_batch_invalid: "batch_detect 或 batch_cls 参数无效（必须大于 0）：batch_detect=%{batch_detect}, batch_cls=%{batch_cls}"
+
+  classify:
+    notice_module_started: "开始分类模块..."
+    # 串尾空格用于覆盖进度行 (\r) 残留: 进度行最长为 name+32 字符 (counter/total 各 6 位), 请勿删除
+    notice_module_finished: "分类模块完成, 耗时%{seconds}s                       "
+    notice_no_tracks: "没有需要分类的轨迹"
+    progress_label: "分类"
+    error_crop_note_image: "裁剪音符图像时出错：%{error}"
+    error_extract_frame_image: "提取第 %{frame} 帧的图像时出错：%{error}"
+    warning_sample_inconsistent: "警告: 轨迹 %{track_id} 的采样点分类结果不一致，采用默认分类 %{variant}"
+    warning_path_inconsistent: "警告: 路径分类结果不一致，采用默认分类 NORMAL"
+
+  track:
+    notice_module_started: "开始追踪模块..."
+    # 串尾空格用于覆盖进度行 (\r) 残留: 进度行最长为 name+32 字符 (counter/total 各 6 位), 请勿删除
+    notice_module_finished: "追踪模块完成, 耗时%{seconds}s, 平均%{fps}fps       "
+    notice_reverse_tracking: "反向追踪：补充了 %{count} 个点"
+    notice_result_saved: "%{prefix}追踪结果已保存到 %{path}"
+    progress_label: "追踪"
+
+  export_track_video:
+    notice_module_started: "开始导出视频模块..."
+    # 串尾空格用于覆盖进度行 (\r) 残留: 进度行最长为 name+32 字符 (counter/total 各 6 位), 请勿删除
+    notice_export_finished: "追踪视频导出完成，耗时%{seconds}s, 平均%{fps}fps               "
+    notice_video_saved: "追踪视频已保存到：%{path}"
+    error_ffmpeg_failed: "FFmpeg 处理失败，返回码 %{code}：%{error}"
+
+  standardize_main:
+    # 串尾空格用于覆盖进度行 (\r) 残留: 进度行最长为 name+32 字符 (counter/total 各 6 位), 请勿删除
+    notice_module_finished: "标准化模块完成, 耗时%{seconds}s                       "
+
+  model_convert_worker:
+    error_trt_export_incomplete: "TensorRT 引擎导出不完整，缺少：%{path}"
+    error_ncnn_output_not_dir: "NCNN 输出路径不是目录：%{path}"
+    error_unexpected_ncnn_path: "NCNN 导出路径异常：期望 %{expected}，实际 %{actual}"
+    error_ncnn_export_incomplete: "NCNN 导出不完整，缺少：%{path}"
+    error_onnx_output_not_file: "ONNX 输出路径不是文件：%{path}"
+    error_unexpected_onnx_path: "ONNX 导出路径异常：期望 %{expected}，实际 %{actual}"
+    error_onnx_export_incomplete: "ONNX 导出不完整：%{path}"
+    error_invalid_half: "无效的 half 值：%{value}"
+
+  detect_inference:
+    error_batch_size_invalid: "[inferencer] batch_size 必须为正整数, got %{value}"
+    error_imgsz_mismatch: "detect/obb imgsz 不一致, 两者必须相同"
+
+  analyze_main:
+    notice_module_started: "开始音符分析..."
+
+  detect_circle:
+    progress_label: "初始圆检测"
 
   # ---- app ----
 
@@ -212,7 +389,8 @@ zh_CN:
         warning_export_failed: "导出谱面失败：%{error}"
 
       arcade_timing:
-        dialog_title: "Arcade Timing"
+        dialog_title: "开头延时分析"
+        notice_offset_parse_failed: "无法从 worker 输出中解析偏移量"
 
         ui_select_file_divider: "文件选择"
         ui_params_divider: "参数设置"
@@ -220,7 +398,7 @@ zh_CN:
         ui_reference_file_button: "选择基准文件"
         ui_reference_file_help: "包含启动拍的音频或视频文件。"
         ui_target_file_button: "选择目标文件"
-        ui_target_file_help: "需要匹配 arcade timing 的音频或视频文件。"
+        ui_target_file_help: "需要匹配开头延时的音频或视频文件。"
 
         ui_bpm_label: "初始 BPM: "
         ui_bpm_help: "启动拍的 BPM 值。"
@@ -238,16 +416,17 @@ zh_CN:
         warning_no_audio_stream_ref: "基准文件: 选择的文件不包含音频流，请选择包含音频的文件。"
         warning_no_audio_stream_target: "目标文件: 选择的文件不包含音频流，请选择包含音频的文件。"
         warning_invalid_bpm: "初始 BPM 参数无效，请输入在 30~400 之间的数字。"
+        warning_invalid_click_count: "启动拍数量无效，请输入大于等于 1 的整数。"
         warning_invalid_click_start_time: "起始时间无效，请输入大于等于 0 的数字。"
         warning_worker_start_failed: "启动任务失败：\n%{error}"
         warning_run_failed: "分析失败。"
         warning_wave_not_found: "未找到波形图文件。"
         warning_wave_load_failed: "波形图读取失败。"
-        warning_offset_not_ready: "尚未解析到 offset，请先完成分析。"
+        warning_offset_not_ready: "尚未解析到偏移量，请先完成分析。"
         warning_edit_target_failed: "编辑目标文件失败：\n%{error}"
         warning_edit_target_failed_log: "编辑目标文件失败。"
 
-        notice_run_start: "开始执行 Arcade Timing 分析..."
+        notice_run_start: "开始执行开头延时分析..."
         notice_run_cancelled: "分析已取消。"
         notice_run_success: "分析完成。"
         notice_edit_target_start: "开始编辑目标文件..."
@@ -255,7 +434,8 @@ zh_CN:
 
 
       simply_align:
-        dialog_title: "Simply Align"
+        dialog_title: "快速对音"
+        notice_offset_parse_failed: "无法从 worker 输出中解析偏移量"
 
         ui_reference_file_help: "音频或视频文件，是时间对齐的基准。"
         ui_target_file_help: "音频或视频文件，需要与基准文件进行对齐。"
@@ -273,7 +453,7 @@ zh_CN:
           关闭：保留完整画面，不足处补黑边
         notice_video_generate_start: "开始生成参考视频..."
         notice_video_generate_success: "参考视频生成完成。\n输出文件：%{output_path}"
-        warning_negative_quick_offset: "Offset 不能为负数。"
+        warning_negative_quick_offset: "偏移量不能为负数。"
         warning_sync_file_exists: |
           输出文件已存在：
 
@@ -283,8 +463,8 @@ zh_CN:
           取消：保留已存在文件，生成新文件，文件名带后缀（例如 sync_1）。
         warning_video_generate_failed: "生成参考视频失败：\n%{error}"
         warning_video_generate_failed_log: "生成参考视频失败。"
-        warning_offset_not_ready: "尚未解析到 offset，请先完成分析。"
-        notice_skip_zero_offset: "Offset 为 0 秒，无需编辑。"
+        warning_offset_not_ready: "尚未解析到偏移量，请先完成分析。"
+        notice_skip_zero_offset: "偏移量为 0 秒，无需编辑。"
         warning_target_file_required: "请先选择目标文件。"
         warning_target_file_missing: "目标文件不存在，请重新选择。"
         warning_build_output_path_failed: "构建输出路径失败：\n%{error}"
@@ -292,7 +472,7 @@ zh_CN:
 
 
       run_ffmpeg:
-        
+        dialog_title: "素材转码"
         ui_select_file_divider: "文件选择"
         ui_params_divider: "参数设置"
         ui_export_divider: "导出设置"
@@ -458,7 +638,7 @@ zh_CN:
         1. 谱面文件 (*.txt)
         2. 音频文件 (*.mp3, *.ogg)
         3. 视频文件 (*.mp4)
-      ui_view_label: "View:"
+      ui_view_label: "视图: "
 
 
 
@@ -466,6 +646,7 @@ zh_CN:
     # ---- auto rechart 页面 ----
 
     auto_rechart_page:
+      dialog_title: "自动抄谱"
       ui_select_file_divider: "文件选择"
       ui_standardize_divider: "视频标准化"
       ui_detect_divider: "音符识别"

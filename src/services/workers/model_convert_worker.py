@@ -22,8 +22,13 @@ if root not in sys.path:
 
 from ultralytics import YOLO
 
-from src.services import PathManage
+from src.services import PathManage, I18nManage
 from src.core.auto_rechart.detect.note_definition import get_imgsz
+
+# worker 子进程没有经过 I18nManage.init(), 这里按父进程传入的 locale 环境变量初始化
+I18nManage.init_headless()
+
+import i18n
 
 
 
@@ -115,7 +120,7 @@ def _convert_to_tensorrt(detect_obb_batch, cls_batch, touch_hold_batch, half: bo
                 )
                 exported_path = current_exported_path
                 if not exported_path.is_file():
-                    raise RuntimeError(f"TensorRT engine export is incomplete, missing: {exported_path}")
+                    raise RuntimeError(i18n.t("model_convert_worker.error_trt_export_incomplete", path=str(exported_path)))
                 if exported_path.resolve() != current_engine_path.resolve():
                     exported_path.replace(current_engine_path)
             finally:
@@ -147,7 +152,7 @@ def _convert_to_ncnn(detect_obb_batch, cls_batch, touch_hold_batch, half: bool) 
             for path in (current_ncnn_path, current_exported_path):
                 if path.exists():
                     if not path.is_dir():
-                        raise RuntimeError(f"NCNN output path is not a directory: {path}")
+                        raise RuntimeError(i18n.t("model_convert_worker.error_ncnn_output_not_dir", path=str(path)))
                     shutil.rmtree(path)
 
             print(f"- Export NCNN from: {m.pt_path.name}")
@@ -165,7 +170,8 @@ def _convert_to_ncnn(detect_obb_batch, cls_batch, touch_hold_batch, half: bool) 
 
             if exported_path != current_exported_path.resolve():
                 raise RuntimeError(
-                    f"Unexpected NCNN export path: expected {current_exported_path}, got {exported_path}"
+                    i18n.t("model_convert_worker.error_unexpected_ncnn_path",
+                           expected=str(current_exported_path), actual=str(exported_path))
                 )
 
             missing_files = [
@@ -174,7 +180,7 @@ def _convert_to_ncnn(detect_obb_batch, cls_batch, touch_hold_batch, half: bool) 
                 if not (exported_path / file_name).is_file()
             ]
             if missing_files:
-                raise RuntimeError(f"NCNN export is incomplete, missing: {missing_files[0]}")
+                raise RuntimeError(i18n.t("model_convert_worker.error_ncnn_export_incomplete", path=str(missing_files[0])))
             shutil.move(str(exported_path), str(current_ncnn_path))
 
         return True
@@ -212,7 +218,7 @@ def _convert_to_onnx(detect_obb_batch, cls_batch, touch_hold_batch, half: bool) 
             m.trt_onnx_path.unlink(missing_ok=True)
 
             if current_onnx_path.exists() and not current_onnx_path.is_file():
-                raise RuntimeError(f"ONNX output path is not a file: {current_onnx_path}")
+                raise RuntimeError(i18n.t("model_convert_worker.error_onnx_output_not_file", path=str(current_onnx_path)))
             current_onnx_path.unlink(missing_ok=True)
 
             print(f"- Export ONNX from: {m.pt_path.name}")
@@ -233,10 +239,11 @@ def _convert_to_onnx(detect_obb_batch, cls_batch, touch_hold_batch, half: bool) 
 
             if exported_path != m.trt_onnx_path.resolve():
                 raise RuntimeError(
-                    f"Unexpected ONNX export path: expected {m.trt_onnx_path}, got {exported_path}"
+                    i18n.t("model_convert_worker.error_unexpected_onnx_path",
+                           expected=str(m.trt_onnx_path), actual=str(exported_path))
                 )
             if not exported_path.is_file():
-                raise RuntimeError(f"ONNX export is incomplete: {exported_path}")
+                raise RuntimeError(i18n.t("model_convert_worker.error_onnx_export_incomplete", path=str(exported_path)))
 
             exported_path.replace(current_onnx_path)
 
@@ -263,7 +270,7 @@ def main(backend, detect_obb_batch, cls_batch, touch_hold_batch, half="false") -
         touch_hold_batch = int(touch_hold_batch)
         half_text = str(half).strip().lower()
         if half_text not in {"true", "false"}:
-            raise ValueError(f"Invalid half value: {half}")
+            raise ValueError(i18n.t("model_convert_worker.error_invalid_half", value=half))
         half = half_text == "true"
     except Exception as e:
         print(f"Invalid arguments: {e}")

@@ -13,6 +13,7 @@ from .model_inference_config import (
     normalize_inference_device_for_backend,
     normalize_inference_device_id,
 )
+import i18n
 
 
 class MainAppWindowState(BaseModel):
@@ -61,7 +62,7 @@ class SettingsModel(BaseModel):
     def validate_model_backend_options(cls, v: str) -> str:
         allowed = S_Defs.model_backend.constraints["options"]
         if v not in allowed:
-            raise ValueError(f"model_backend must be one of {allowed}")
+            raise ValueError(i18n.t("settings_model.error_model_backend_options", allowed=allowed))
         return v
 
 
@@ -71,7 +72,7 @@ class SettingsModel(BaseModel):
     def validate_inference_device_options(cls, v: str) -> str:
         normalized = normalize_inference_device_id(v)
         if normalized is None:
-            raise ValueError(f"invalid inference_device: '{v}'")
+            raise ValueError(i18n.t("settings_model.error_inference_device_invalid", value=v))
         return normalized
 
     @field_validator("ffmpeg_hw_encoder")
@@ -79,7 +80,7 @@ class SettingsModel(BaseModel):
     def validate_ffmpeg_hw_encoder_options(cls, v: str) -> str:
         allowed = S_Defs.ffmpeg_hw_encoder.constraints["options"]
         if v not in allowed:
-            raise ValueError(f"ffmpeg_hw_encoder must be one of {allowed}")
+            raise ValueError(i18n.t("settings_model.error_ffmpeg_hw_encoder_options", allowed=allowed))
         return v
 
 
@@ -90,7 +91,7 @@ class SettingsModel(BaseModel):
     def validate_language_options(cls, v: str) -> str:
         allowed = S_Defs.language.constraints["options"]
         if v not in allowed:
-            raise ValueError(f"language must be one of {allowed}")
+            raise ValueError(i18n.t("settings_model.error_language_options", allowed=allowed))
         return v
 
 
@@ -104,7 +105,7 @@ class SettingsModel(BaseModel):
             date.fromisoformat(v)
         except (ValueError, TypeError):
             raise ValueError(
-                f"last_check_update_time is invalid, expect yyyy-mm-dd format, got '{v}'"
+                i18n.t("settings_model.error_last_check_update_time_invalid", value=v)
             )
         return v
 

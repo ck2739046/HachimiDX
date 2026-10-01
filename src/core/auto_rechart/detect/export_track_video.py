@@ -16,6 +16,7 @@ from .note_definition import *
 from .track import _load_track_results
 from ..tool import catmull_rom_spline, print_progress
 from .custom_oc_sort.oc_sort import _KalmanBoxTracker
+import i18n
 
 from src.services import PathManage
 
@@ -281,7 +282,8 @@ class ExportConsumer(Consumer):
 
         # 正常路径下 ffmpeg 失败要抛出 (异常路径不再追加错误)
         if is_normal and ffmpeg_return_code is not None and ffmpeg_return_code != 0:
-            raise Exception(f"FFmpeg processing failed with code {ffmpeg_return_code}: {ffmpeg_stderr}")
+            raise Exception(i18n.t("export_track_video.error_ffmpeg_failed",
+                                   code=ffmpeg_return_code, error=ffmpeg_stderr))
 
 
 
@@ -570,7 +572,7 @@ def _build_manifests(track_results: dict, total_frames: int) -> tuple:
 # 主入口
 def main(std_video_path: Path, total_frames: int) -> OpResult[Path]:
 
-    print("开始导出视频模块...")
+    print(i18n.t("export_track_video.notice_module_started"))
 
     try:
         # 读取追踪结果
@@ -652,9 +654,9 @@ def main(std_video_path: Path, total_frames: int) -> OpResult[Path]:
 
         # 正常结束: 打印耗时
         average_fps = total_frames / consumer.elapsed_time if consumer.elapsed_time > 0 else 0
-        print(f"追踪视频导出完成，耗时{consumer.elapsed_time:.1f}s, 平均{average_fps:.2f}fps"
-              f"               ")
-        print(f"追踪视频已保存到：{final_track_video_path}")
+        print(i18n.t("export_track_video.notice_export_finished",
+                     seconds=f"{consumer.elapsed_time:.1f}", fps=f"{average_fps:.2f}"))
+        print(i18n.t("export_track_video.notice_video_saved", path=str(final_track_video_path)))
 
         return ok(Path(final_track_video_path))
 

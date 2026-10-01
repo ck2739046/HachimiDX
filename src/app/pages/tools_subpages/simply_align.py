@@ -407,7 +407,7 @@ class SimplyAlignPage(BaseOutputPage):
         offset = parse_offset_sec(self.output_widget.get_recent_lines(6))
 
         if offset is None:
-            self.output_widget.append_text("ui: failed to parse offset from output")
+            self.output_widget.append_text(i18n.t(f"{I18N_Simply_Align_Prefix}.notice_offset_parse_failed"))
             self._offset_action = None
             self._offset_value_sec = None
             self.offset_label.hide()

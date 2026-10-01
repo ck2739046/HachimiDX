@@ -136,6 +136,7 @@ def query_directml_precision_support(adapter_index: int) -> tuple[bool, bool]:
                 ctypes.byref(support),
             )
             if result < 0:
+                # HRESULT 属于底层 COM 诊断信息, 保持英文更易读
                 raise RuntimeError(
                     f"DirectML {precision} query failed: HRESULT 0x{result & 0xFFFFFFFF:08X}"
                 )

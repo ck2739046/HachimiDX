@@ -189,7 +189,7 @@ class FFprobeInspect:
 
 
         # 如果 CFR 解析失败, 或者解析成功但视频为 VFR, 精确解析每帧时间戳
-        print("开始精确逐帧解析视频帧时间戳...")
+        print(i18n.t("media_ffprobe_inspect.notice_start_precise_timestamps"))
         args = ["-v", "error",
                 "-select_streams", "v:0",
                 "-show_entries", "frame=best_effort_timestamp_time,pkt_pts_time",
@@ -231,7 +231,7 @@ class FFprobeInspect:
                 msec_list[i] = msec_list[i - 1]
 
         end_time = time.time()
-        print(f'视频帧时间戳分析完成，耗时: {end_time - start_time:.1f}s')
+        print(i18n.t("media_ffprobe_inspect.notice_timestamps_finished", seconds=f"{end_time - start_time:.1f}"))
 
         return ok(msec_list)
     
@@ -264,12 +264,12 @@ class FFprobeInspect:
                 input_path]
         result = cls._run_ffprobe(ffprobe_exe, args, parse_json=True)
         if not result.is_ok:
-            return err("CFR 探测失败", inner=result)
+            return err("CFR detection failed", inner=result)
         data = result.value
 
         streams = data.get("streams", [])
         if not streams:
-            return err("CFR 探测失败: 未找到视频流")
+            return err(i18n.t("media_ffprobe_inspect.error_cfr_no_video_stream"))
 
         stream = streams[0]
         avg_frame_rate_raw = stream.get("avg_frame_rate", "N/A")
@@ -279,12 +279,12 @@ class FFprobeInspect:
         # Parse avg_frame_rate
         fps = _parse_float(avg_frame_rate_raw)
         if fps is None or fps <= 0:
-            return err(f"CFR 探测失败: 无法解析 avg_frame_rate={avg_frame_rate_raw}")
+            return err(i18n.t("media_ffprobe_inspect.error_cfr_parse_avg_frame_rate", value=avg_frame_rate_raw))
 
         # Parse r_frame_rate
         r_fps = _parse_float(r_frame_rate_raw)
         if r_fps is None or r_fps <= 0:
-            return err(f"CFR 探测失败: 无法解析 r_frame_rate={r_frame_rate_raw}")
+            return err(i18n.t("media_ffprobe_inspect.error_cfr_parse_r_frame_rate", value=r_frame_rate_raw))
 
         # CFR 判定: avg_frame_rate == r_frame_rate
         if abs(fps - r_fps) > 0.001:
@@ -294,10 +294,10 @@ class FFprobeInspect:
         try:
             nb_frames = int(nb_frames_raw)
         except Exception:
-            return err(f"CFR 探测失败: 无法解析 nb_frames={nb_frames_raw}")
+            return err(i18n.t("media_ffprobe_inspect.error_cfr_parse_nb_frames", value=nb_frames_raw))
 
         if nb_frames <= 0:
-            return err(f"CFR 探测失败: nb_frames={nb_frames} <= 0")
+            return err(i18n.t("media_ffprobe_inspect.error_cfr_nb_frames_non_positive", value=nb_frames))
 
         return ok((True, fps, nb_frames))
 

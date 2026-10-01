@@ -1,5 +1,6 @@
 import numpy as np
 import gc
+import i18n
 
 from src.services import ModelInferenceManage
 
@@ -9,10 +10,14 @@ SEEK_THRESHOLD = 200
 
 
 def print_progress(name, counter, total, *, final: bool = False):
-    """{name} progress: counter/total (percent%)"""
+    """{name} 进度行: counter/total (percent%)，串尾空格用于覆盖上一行 (\r) 的残留
+
+    文案取自 auto_rechart_tool.progress_line, 串尾空格属于文案的一部分, 不要删除。
+    """
     progress = (counter / total) * 100 if total else 0.0
     print(
-        f"{name} progress: {counter}/{total} ({progress:.1f}%)     ",
+        i18n.t("auto_rechart_tool.progress_line",
+               name=name, counter=counter, total=total, percent=f"{progress:.1f}"),
         end="\n" if final else "\r",
         flush=True,
     )

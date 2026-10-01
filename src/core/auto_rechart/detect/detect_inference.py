@@ -8,6 +8,7 @@ from ...schemas.op_result import OpResult, ok, err
 from .note_definition import *
 from .detect_inference_worker import inference_worker_main
 from src.services import kill_process_tree
+import i18n
 
 
 
@@ -49,9 +50,9 @@ def create_inferencer(detect_model_path, obb_model_path,
     """构造 Inferencer (而不是直接调用 Inferencer.__init__)"""
 
     if batch_size <= 0:
-        return err(f"[inferencer] batch_size 必须为正整数, got {batch_size}")
+        return err(i18n.t("detect_inference.error_batch_size_invalid", value=batch_size))
     if get_imgsz('detect') != get_imgsz('obb'):
-        return err("detect/obb imgsz 不一致, 两者必须相同")
+        return err(i18n.t("detect_inference.error_imgsz_mismatch"))
 
     # 构造进程间共享对象
     input_queue_detect = tmp.Queue(maxsize=_FRAME_QUEUE_CAP)

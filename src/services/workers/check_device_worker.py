@@ -22,6 +22,10 @@ if root not in sys.path:
 
 from src.core.tools import redirect_native_stderr
 from src.core.schemas.model_inference_config import INFERENCE_DEVICE_RESULT_PREFIX
+from src.services import I18nManage
+
+# worker 子进程没有经过 I18nManage.init(), 这里按父进程传入的 locale 环境变量初始化
+I18nManage.init_headless()
 
 from src.core.check_device.check_onnx_cpu import check as check_onnx_cpu
 from src.core.check_device.check_onnx_cuda import check as check_onnx_cuda

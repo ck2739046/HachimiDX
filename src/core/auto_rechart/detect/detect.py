@@ -7,6 +7,7 @@ import numpy as np
 from collections import defaultdict
 
 from ...schemas.op_result import OpResult, ok, err
+import i18n
 from .note_definition import *
 from .detect_decode import Decoder
 from .detect_inference import create_inferencer
@@ -45,7 +46,7 @@ def main(std_video_path,
         std_video_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
         cap.release()
         if not std_video_width or std_video_width <= 0:
-            return err(f"[detect] 无法读取视频宽度: {std_video_path}")
+            return err(i18n.t("detect.error_read_video_width_failed", path=str(std_video_path)))
         coord_scale = std_video_width / decode_imgsz
 
         # 2. 构造 Decoder
@@ -56,7 +57,7 @@ def main(std_video_path,
                                      batch_detect, inference_device, coord_scale,
                                      model_backend, half)
         if not create_r.is_ok:
-            return err("[detect] create_inferencer 失败", inner=create_r)
+            return err("[detect] create_inferencer failed", inner=create_r)
         inferencer = create_r.value
 
         # 3. 构造 progress monitor (打印进度 + 停滞检测)
@@ -68,7 +69,7 @@ def main(std_video_path,
         while True:
             get_r = inferencer.get_results()
             if not get_r.is_ok:
-                return err("[detect.main.loop1] inferencer.get_results 失败", inner=get_r)
+                return err("[detect.main.loop1] inferencer.get_results failed", inner=get_r)
             raw_results.extend(get_r.value)
 
             update_r = monitor.update(inferencer)
@@ -77,18 +78,18 @@ def main(std_video_path,
 
             batch_r = decoder.get_next_batch()
             if not batch_r.is_ok:
-                return err("[detect.main.loop1] decoder.get_next_batch 失败", inner=batch_r)
+                return err("[detect.main.loop1] decoder.get_next_batch failed", inner=batch_r)
             if batch_r.value is None:
                 break  # 解码 EOF
 
             put_r = inferencer.put_batch(batch_r.value)
             if not put_r.is_ok:
-                return err("[detect.main.loop1] inferencer.put_batch 失败", inner=put_r)
+                return err("[detect.main.loop1] inferencer.put_batch failed", inner=put_r)
 
         # 解码完成, 通知 worker 不再有新输入
         eof_r = inferencer.send_eof()
         if not eof_r.is_ok:
-            return err("[detect.main] inferencer.send_eof 失败", inner=eof_r)
+            return err("[detect.main] inferencer.send_eof failed", inner=eof_r)
 
 
 
@@ -96,7 +97,7 @@ def main(std_video_path,
         while not inferencer.is_done:
             get_r = inferencer.get_results()
             if not get_r.is_ok:
-                return err("[detect.main.loop2] inferencer.get_results 失败", inner=get_r)
+                return err("[detect.main.loop2] inferencer.get_results failed", inner=get_r)
             raw_results.extend(get_r.value)
 
             update_r = monitor.update(inferencer)
@@ -118,11 +119,11 @@ def main(std_video_path,
         final_results = _postprocess_results(raw_results, std_video_path)
         _save_detect_results(final_results, std_video_path.parent)
 
-        print(f"检测模块完成, 耗时{time.time() - start_time:.1f}s")
+        print(i18n.t("detect.notice_module_finished", seconds=f"{time.time() - start_time:.1f}"))
         return ok()
 
     except KeyboardInterrupt:
-        print("\n[detect] 中断")
+        print("\n[detect] interrupted")
         return err("[detect.main] KeyboardInterrupt")
     except Exception as e:
         return err("[detect.main] unexpected error", error_raw=e)
@@ -158,7 +159,7 @@ class _ProgressMonitor:
             self._last_progress = progress
             self._last_change_time = time.monotonic()
         elif time.monotonic() - self._last_change_time > self._stall_timeout:
-            return err(f"进度超过 {self._stall_timeout}s 无推进, 可能程序卡住了")
+            return err(i18n.t("detect.error_progress_stalled", timeout=self._stall_timeout))
 
         # 3. 打印进度
         total = self._total_frames
@@ -353,7 +354,7 @@ def _save_detect_results(detections, output_dir):
             ]
             f.write(', '.join(data) + '\n')
 
-    print(f"检测结果已保存到: {detect_result_path}")
+    print(i18n.t("detect.notice_result_saved", path=str(detect_result_path)))
 
 
 def _load_detect_results(output_dir):
@@ -361,7 +362,7 @@ def _load_detect_results(output_dir):
     detections = []
     detect_result_path = os.path.join(output_dir, "detect_result.txt")
     if not os.path.exists(detect_result_path):
-        raise FileNotFoundError(f"文件不存在: {detect_result_path}")
+        raise FileNotFoundError(i18n.t("detect.error_result_file_not_found", path=str(detect_result_path)))
     
     with open(detect_result_path, 'r', encoding='utf-8') as f:
         current_frame = -1

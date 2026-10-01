@@ -6,6 +6,7 @@ from typing import List, Tuple, Dict, Any
 from ..detect.track import _load_track_results
 from ...tools import FFprobeInspect
 from ...schemas.op_result import print_op_result
+import i18n
 
 
 
@@ -46,7 +47,7 @@ class SharedContext:
 
     def frame_to_msec(self, frame_idx: int) -> float:
         if frame_idx < 0:
-            raise ValueError(f"frame index must be >= 0, got: {frame_idx}")
+            raise ValueError(i18n.t("shared_context.error_frame_index_negative", value=frame_idx))
         if frame_idx >= len(self.frame_timestamps_msec):
             raise IndexError(
                 f"frame index out of range, frame={frame_idx}, timestamps={len(self.frame_timestamps_msec)}"
@@ -55,12 +56,13 @@ class SharedContext:
     
     def get_frames_in_msec_range(self, start_msec: float, end_msec: float) -> List[int]:
         if start_msec > end_msec:
-            raise ValueError(f"start_msec must be <= end_msec, got: start_msec={start_msec}, end_msec={end_msec}")
+            raise ValueError(i18n.t("shared_context.error_msec_range_invalid", start_msec=start_msec, end_msec=end_msec))
         if start_msec > self.frame_timestamps_msec[-1] or end_msec < self.frame_timestamps_msec[0]:
             raise ValueError(
-                f"msec range is out of bounds of frame timestamps, "
-                f"start_msec={start_msec}, end_msec={end_msec}, "
-                f"timestamp_range=({self.frame_timestamps_msec[0]}, {self.frame_timestamps_msec[-1]})"
+                i18n.t("shared_context.error_msec_range_out_of_bounds",
+                       start_msec=start_msec, end_msec=end_msec,
+                       min_msec=self.frame_timestamps_msec[0],
+                       max_msec=self.frame_timestamps_msec[-1])
             )
         frames = []
         for idx, timestamp in enumerate(self.frame_timestamps_msec):
@@ -86,8 +88,7 @@ def create_shared_context(std_video_path: Path, is_big_touch: bool) -> SharedCon
     result = FFprobeInspect.inspect_video_frame_timestamps_msec(str(std_video_path))
     if not result.is_ok:
         raise ValueError(
-            "Failed to load frame timestamps for analyze. "
-            f"Please rerun detect/analyze with a valid video.\n{print_op_result(result)}"
+            i18n.t("shared_context.error_frame_timestamps_load_failed", detail=print_op_result(result))
         )
     frame_timestamps_msec = result.value
     
@@ -123,8 +124,8 @@ def create_shared_context(std_video_path: Path, is_big_touch: bool) -> SharedCon
                 max_track_frame = frame_num
     if max_track_frame is not None and max_track_frame >= len(frame_timestamps_msec):
         raise ValueError(
-            "Track frame index exceeds available frame timestamps. "
-            f"max_track_frame={max_track_frame}, timestamp_count={len(frame_timestamps_msec)}"
+            i18n.t("shared_context.error_track_frame_exceeds",
+                   max_track_frame=max_track_frame, timestamp_count=len(frame_timestamps_msec))
         )
     
     return SharedContext(

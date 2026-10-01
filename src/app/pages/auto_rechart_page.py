@@ -182,7 +182,7 @@ class AutoRechartPage(BaseOutputPage):
     def on_std_input_selected(self, error_msg: str) -> None:
         # Show error in popup window
         if len(error_msg) > 0:
-            show_notify_dialog("app.auto_rechart", error_msg)
+            show_notify_dialog(i18n.t("app.auto_rechart_page.dialog_title"), error_msg)
             return
         # 更新 Song Name
         self.song_name_line_edit.setText(Path(self.chart_confirm_video_input.get_path()).stem)
@@ -697,7 +697,7 @@ class AutoRechartPage(BaseOutputPage):
             create_floating_notification(message, self.window())
 
         except Exception as e:
-            show_notify_dialog("app.auto_rechart_page",
+            show_notify_dialog(i18n.t("app.auto_rechart_page.dialog_title"),
                 i18n.t("app.tools_subpages.run_ffmpeg.warning_unexpected_submit_error", error=traceback.format_exc()))
         finally:
             self.submit_button.setEnabled(True)

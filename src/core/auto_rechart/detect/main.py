@@ -12,6 +12,7 @@ from .export_track_video import main as export_video_module
 from ...schemas.op_result import OpResult, ok, err
 from ...schemas.op_result import print_op_result
 from ...tools import FFprobeInspect
+import i18n
 
 
 original_level = LOGGER.level
@@ -43,20 +44,21 @@ def main(std_video_path,
             path = os.path.abspath(path)
             path = os.path.normpath(path)
             if not os.path.exists(path):
-                raise FileNotFoundError(f"模型不存在: {path}")
+                raise FileNotFoundError(i18n.t("detect_main.error_model_not_found", path=str(path)))
             paths.append(path)
         std_video_path, detect_model_path, obb_model_path, cls_ex_model_path, cls_break_model_path = paths 
         std_video_path = Path(std_video_path)
 
         # 检查模型配置
         if batch_detect <= 0 or batch_cls <= 0:
-            raise ValueError(f"batch_detect 或 batch_cls 参数无效, 必须大于0: batch_detect={batch_detect}, batch_cls={batch_cls}")
+            raise ValueError(i18n.t("detect_main.error_batch_invalid",
+                                    batch_detect=batch_detect, batch_cls=batch_cls))
 
         # 统一通过 ffprobe 逐帧时间戳计算总帧数，避免 VFR 下 OpenCV 帧数不准
         total_frames_result = _get_total_frames_by_ffprobe(std_video_path)
         if not total_frames_result.is_ok:
             detail = print_op_result(total_frames_result)
-            return err(f"读取视频总帧数失败: {detail}", inner=total_frames_result)
+            return err(i18n.t("detect_main.error_read_total_frames_failed", detail=detail), inner=total_frames_result)
         total_frames = total_frames_result.value
 
         # 检测模块
@@ -67,20 +69,20 @@ def main(std_video_path,
                                    detect_model_path, obb_model_path,
                                    model_backend, half)
             if not result.is_ok:
-                return err("检测模块失败", inner=result)
+                return err("detect module failed", inner=result)
         else:
-            print("跳过检测模块，使用已有检测结果...")
+            print(i18n.t("detect_main.notice_skip_detect_existing"))
 
         # 追踪模块
         # result = track_module(std_video_path, total_frames, enable_reid)
         result = track_module(std_video_path, total_frames)
         if not result.is_ok:
-            return err("追踪模块失败", inner=result)
+            return err("track module failed", inner=result)
 
         # 追踪后处理模块
         result = post_track_module(std_video_path)
         if not result.is_ok:
-            return err("追踪后处理模块失败", inner=result)
+            return err("post-track module failed", inner=result)
 
         # 分类模块
         if not skip_cls:
@@ -89,22 +91,22 @@ def main(std_video_path,
                                      cls_ex_model_path, cls_break_model_path,
                                      half=half)
             if not result.is_ok:
-                return err("分类模块失败", inner=result)
+                return err("classify module failed", inner=result)
         else:
-            print("跳过分类模块")
+            print(i18n.t("detect_main.notice_skip_classify"))
 
         # 导出追踪视频模块
         if not skip_export_tracked_video:
             result = export_video_module(std_video_path, total_frames)
             if not result.is_ok:
-                return err("导出追踪视频模块失败", inner=result)
+                return err("export track video module failed", inner=result)
         else:
-            print("跳过导出视频模块")
+            print(i18n.t("detect_main.notice_skip_export_video"))
 
         return ok()
         
     except KeyboardInterrupt:
-        print("\n中断")
-        return err("用户中断 (KeyboardInterrupt)")
+        print("\nInterrupted")
+        return err("Interrupted by user (KeyboardInterrupt)")
     except Exception as e:
         return err("Unexcepted error in auto_rechart > detect > main", e)

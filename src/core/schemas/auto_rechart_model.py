@@ -7,6 +7,7 @@ from .auto_rechart_config import AutoRechartConfig_Definitions as AC_Defs
 from src.core.tools import validate_windows_filename
 from src.core.measure_bpm.parse_config import parse_config
 from .media_config import MediaType
+import i18n
 
 
 
@@ -102,7 +103,7 @@ class AutoRechartModel(BaseModel):
     @model_validator(mode='after')
     def validate_at_least_one_module_enabled(self):
         if not (self.is_standardize_enabled or self.is_detect_enabled or self.is_analyze_enabled):
-            raise ValueError("At least one of standardize, detect, or analyze must be enabled.")
+            raise ValueError(i18n.t("auto_rechart_model.error_at_least_one_module"))
         return self
 
 
@@ -122,11 +123,11 @@ class AutoRechartModel(BaseModel):
         # 验证 path 合法性
         input_path: Path = self.standardize_input_video_path
         if input_path is None:
-            raise ValueError("chart confirmation video not selected")
+            raise ValueError(i18n.t("auto_rechart_model.error_video_not_selected"))
         if not input_path.exists() or not input_path.is_file():
-            raise ValueError(f"chart confirmation video does not exist: '{input_path}'")
+            raise ValueError(i18n.t("auto_rechart_model.error_video_not_exist", path=str(input_path)))
         if not os.access(input_path.parent, os.R_OK | os.W_OK):
-            raise ValueError(f"Directory of chart confirmation video is not readable or writable: '{input_path.parent}'")
+            raise ValueError(i18n.t("auto_rechart_model.error_video_dir_not_accessible", path=str(input_path.parent)))
         
         # 验证 song_name 合法性
         if self.song_name is not None:
@@ -134,7 +135,7 @@ class AutoRechartModel(BaseModel):
             if res.is_ok:
                 return self
             else:
-                raise ValueError(f"song_name '{self.song_name}' contains invalid characters for Windows filenames.")
+                raise ValueError(i18n.t("auto_rechart_model.error_song_name_invalid", name=self.song_name))
         
         # 如果没有输入 song_name，使用输入文件名作为默认歌曲名称
         default_name = self.standardize_input_video_path.stem
@@ -143,7 +144,7 @@ class AutoRechartModel(BaseModel):
             self.song_name = default_name # update
             return self
         else:
-            raise ValueError(f"Derived default song name '{default_name}' from chart confirmation video is not a valid Windows filename.")
+            raise ValueError(i18n.t("auto_rechart_model.error_default_song_name_invalid", name=default_name))
     
 
     # 检查 video_mode
@@ -152,10 +153,10 @@ class AutoRechartModel(BaseModel):
         if not self.is_standardize_enabled:
             return self
         if self.video_mode is None:
-            raise ValueError("video_mode is required when standardize is enabled.")
+            raise ValueError(i18n.t("auto_rechart_model.error_video_mode_required"))
         allowed = AC_Defs.video_mode.constraints["options"]
         if self.video_mode not in allowed:
-            raise ValueError(f"video_mode must be one of {allowed}, got {self.video_mode}")
+            raise ValueError(i18n.t("auto_rechart_model.error_video_mode_options", allowed=allowed, value=self.video_mode))
         return self
     
 
@@ -165,10 +166,10 @@ class AutoRechartModel(BaseModel):
         if not self.is_standardize_enabled:
             return self
         if self.media_type is None:
-            raise ValueError("media_type is required when standardize is enabled.")
+            raise ValueError(i18n.t("auto_rechart_model.error_media_type_required"))
         allowed = AC_Defs.media_type.constraints["options"]
         if self.media_type not in allowed:
-            raise ValueError(f"media_type must be one of {allowed}, got {self.media_type}")
+            raise ValueError(i18n.t("auto_rechart_model.error_media_type_options", allowed=allowed, value=self.media_type))
         return self
 
 
@@ -184,18 +185,18 @@ class AutoRechartModel(BaseModel):
 
         # 确保 duration > 0
         if self.duration is None or self.duration <= 0:
-            raise ValueError(f"duration must be greater than 0, got {self.duration}")
+            raise ValueError(i18n.t("auto_rechart_model.error_duration_invalid", value=self.duration))
         
         if set_end:
             self.end_sec = self.duration + self.end_sec if self.end_sec < 0 else self.end_sec
         
         # 确保 start < end < duration
         if set_start and self.start_sec >= self.duration:
-            raise ValueError("'start_sec' must be less than 'duration'.")
+            raise ValueError(i18n.t("auto_rechart_model.error_start_sec_ge_duration"))
         if set_end and self.end_sec >= self.duration:
-            raise ValueError("'end_sec' must be less than 'duration'.")
+            raise ValueError(i18n.t("auto_rechart_model.error_end_sec_ge_duration"))
         if set_start and set_end and self.start_sec >= self.end_sec:
-            raise ValueError("'start_sec' must be less than 'end_sec'.")
+            raise ValueError(i18n.t("auto_rechart_model.error_start_sec_ge_end_sec"))
 
         # 统一设置为三位小数/None
         self.start_sec = round(self.start_sec, 3) if set_start else None
@@ -222,7 +223,7 @@ class AutoRechartModel(BaseModel):
         cfg_set = self.bpm_config is not None
 
         if not bpm_set and not cfg_set:
-            raise ValueError("analyze module is enabled but neither bpm nor bpm_config was provided.")
+            raise ValueError(i18n.t("auto_rechart_model.error_bpm_source_missing"))
 
         if bpm_set:
             # 优先静态 bpm：丢弃 bpm_config
@@ -235,7 +236,7 @@ class AutoRechartModel(BaseModel):
         # 仅 bpm_config：解析配置文件，把 bpm_config 替换为 notify JSON 路径。
         res = parse_config(self.bpm_config)
         if not res.is_ok:
-            raise ValueError(f"failed to parse bpm_config: {res.error_msg}")
+            raise ValueError(i18n.t("auto_rechart_model.error_bpm_config_parse_failed", error=res.error_msg))
         self.bpm_config = res.value
         return self
 
@@ -245,10 +246,10 @@ class AutoRechartModel(BaseModel):
         if not self.is_analyze_enabled:
             return self
         if self.chart_lv is None:
-            raise ValueError("chart_lv is required when analyze is enabled.")
+            raise ValueError(i18n.t("auto_rechart_model.error_chart_lv_required"))
         allowed = AC_Defs.chart_lv.constraints["options"]
         if self.chart_lv not in allowed:
-            raise ValueError(f"chart_lv must be one of {allowed}, got {self.chart_lv}")
+            raise ValueError(i18n.t("auto_rechart_model.error_chart_lv_options", allowed=allowed, value=self.chart_lv))
         return self
 
 
@@ -257,10 +258,10 @@ class AutoRechartModel(BaseModel):
         if not self.is_analyze_enabled:
             return self
         if self.base_denominator is None:
-            raise ValueError("base_denominator is required when analyze is enabled.")
+            raise ValueError(i18n.t("auto_rechart_model.error_base_denominator_required"))
         allowed = AC_Defs.base_denominator.constraints["options"]
         if self.base_denominator not in allowed:
-            raise ValueError(f"base_denominator must be one of {allowed}, got {self.base_denominator}")
+            raise ValueError(i18n.t("auto_rechart_model.error_base_denominator_options", allowed=allowed, value=self.base_denominator))
         return self
     
 
@@ -269,10 +270,10 @@ class AutoRechartModel(BaseModel):
         if not self.is_analyze_enabled:
             return self
         if self.duration_denominator is None:
-            raise ValueError("duration_denominator is required when analyze is enabled.")
+            raise ValueError(i18n.t("auto_rechart_model.error_duration_denominator_required"))
         allowed = AC_Defs.duration_denominator.constraints["options"]
         if self.duration_denominator not in allowed:
-            raise ValueError(f"duration_denominator must be one of {allowed}, got {self.duration_denominator}")
+            raise ValueError(i18n.t("auto_rechart_model.error_duration_denominator_options", allowed=allowed, value=self.duration_denominator))
         return self
 
 
@@ -297,7 +298,7 @@ class AutoRechartModel(BaseModel):
         
         # 检查
         if folder is None:
-            raise ValueError("selected_folder is required.")
+            raise ValueError(i18n.t("auto_rechart_model.error_selected_folder_required"))
         if not folder.exists() or not folder.is_dir():
-            raise ValueError(f"selected_folder does not exist: '{folder}'")
+            raise ValueError(i18n.t("auto_rechart_model.error_selected_folder_not_exist", path=str(folder)))
         return self

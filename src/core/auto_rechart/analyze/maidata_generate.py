@@ -6,6 +6,7 @@ from fractions import Fraction
 from .shared_context import *
 from ..detect.note_definition import *
 from .maidata_parse import parse_note_info, calculate_one_bar_ms
+import i18n
 
 
 
@@ -81,7 +82,10 @@ class PassedBarTracker:
             self.current_bpm_segment_passed_bar = 0
         # 如果输入的段索引更小，说明尝试添加到之前的 BPM 段，直接报错
         elif current_bpm_segment_index < self.current_bpm_segment_index:
-            raise ValueError(f"Cannot add note {self.cur_note_track_id} to a previous BPM segment: index {current_bpm_segment_index} < {self.current_bpm_segment_index}")
+            raise ValueError(i18n.t("maidata_generate.error_previous_bpm_segment",
+                                    track_id=self.cur_note_track_id,
+                                    index=current_bpm_segment_index,
+                                    current_index=self.current_bpm_segment_index))
 
         # 将分数统一转为 lcm_denom 为分母的形式
         # 假设分母不为 0, 并且是 lcm_denom 的因数

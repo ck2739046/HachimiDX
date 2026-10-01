@@ -64,6 +64,7 @@ def _failed(result: int) -> bool:
 
 def _check_hresult(result: int, action: str) -> None:
     if _failed(result):
+        # HRESULT 属于底层 COM 诊断信息, 保持英文更易读
         raise OSError(f"{action} failed (HRESULT 0x{result & 0xFFFFFFFF:08X})")
 
 

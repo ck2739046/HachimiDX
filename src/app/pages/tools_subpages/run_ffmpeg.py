@@ -220,7 +220,7 @@ class RunFFmpegPage(BaseOutputPage):
         """
 
         if len(err_msg) > 0:
-            show_notify_dialog("app.tools_subpages.run_ffmpeg", err_msg)
+            show_notify_dialog(i18n.t("app.tools_subpages.run_ffmpeg.dialog_title"), err_msg)
 
         # reset first
         self.delete_audio_check_box.blockSignals(True)
@@ -456,7 +456,7 @@ class RunFFmpegPage(BaseOutputPage):
 
         result = M_Defs.get_audio_format_by_media_type(effective_type)
         if not result.is_ok:
-            show_notify_dialog("app.tools_subpages.run_ffmpeg", result.error_msg)
+            show_notify_dialog(i18n.t("app.tools_subpages.run_ffmpeg.dialog_title"), result.error_msg)
             self.audio_format_combo_box.blockSignals(False)
             return
         
@@ -487,7 +487,7 @@ class RunFFmpegPage(BaseOutputPage):
             audio_format = self.audio_format_combo_box.currentText()
         )
         if not result.is_ok:
-            show_notify_dialog("app.tools_subpages.run_ffmpeg", result.error_msg)
+            show_notify_dialog(i18n.t("app.tools_subpages.run_ffmpeg.dialog_title"), result.error_msg)
             self.output_full_path_display.setText("")
             return err(result.error_msg, inner = result)
         
@@ -625,7 +625,7 @@ class RunFFmpegPage(BaseOutputPage):
                 except Exception:
                     pass
                 error_msg = i18n.t("app.tools_subpages.run_ffmpeg.warning_task_submit_failed", error = reason)
-                show_notify_dialog("app.tools_subpages.run_ffmpeg", error_msg)
+                show_notify_dialog(i18n.t("app.tools_subpages.run_ffmpeg.dialog_title"), error_msg)
                 return
             
             runner_id, cmd_list = result.value
@@ -637,7 +637,7 @@ class RunFFmpegPage(BaseOutputPage):
 
 
         except Exception as e:
-            show_notify_dialog("app.tools_subpages.run_ffmpeg",
+            show_notify_dialog(i18n.t("app.tools_subpages.run_ffmpeg.dialog_title"),
                 i18n.t("app.tools_subpages.run_ffmpeg.warning_unexpected_submit_error", error=traceback.format_exc()))
         finally:
             self.submit_button.setEnabled(True)

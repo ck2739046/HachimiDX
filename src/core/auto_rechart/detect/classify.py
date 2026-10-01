@@ -10,6 +10,7 @@ from ..pipeline import Producer, Consumer, Pipeline
 from .note_definition import *
 from .track import _save_track_results, _load_track_results
 from ..tool import print_progress, release_ncnn_vulkan, SEEK_THRESHOLD
+import i18n
 
 
 class ClassificationInferenceError(RuntimeError):
@@ -42,7 +43,7 @@ def main(std_video_path: Path,
     """
 
     try:
-        print("开始分类模块...")
+        print(i18n.t("classify.notice_module_started"))
 
         # 读取追踪结果
         track_results = _load_track_results(std_video_path.parent)
@@ -52,7 +53,7 @@ def main(std_video_path: Path,
         # 构建采样计划，这样后续读取视频时，就知道当前帧要裁剪哪些图像
         sampling_plan, total_cls_quantity = _build_sampling_plan(track_results)
         if not sampling_plan:
-            print("没有需要分类的轨迹")
+            print(i18n.t("classify.notice_no_tracks"))
             return ok()
 
         imgsz = get_imgsz('cls')
@@ -70,14 +71,14 @@ def main(std_video_path: Path,
             return err("[classify] pipeline failed", inner=pipeline_r)
 
         # 最后再打印一次进度
-        print_progress('分类', len(consumer.results), total_cls_quantity, final=True)
+        print_progress(i18n.t("classify.progress_label"), len(consumer.results), total_cls_quantity, final=True)
 
         # 根据分类结果，更新track_results
         track_results = _merge_cls_into_track_results(track_results, consumer.results)
 
         # 结束
         finish_time = time.time()
-        print(f"分类模块完成, 耗时{finish_time - start_time:.1f}s                       ")
+        print(i18n.t("classify.notice_module_finished", seconds=f"{finish_time - start_time:.1f}"))
 
         # 保存到文件
         _save_track_results(track_results, std_video_path.parent, call_fn="classify")
@@ -199,7 +200,7 @@ class ClassifyConsumer(Consumer):
         if cls_results:
             self.results.extend(cls_results)
             self._counter += len(cls_results)
-            print_progress('分类', self._counter, self.total_cls_quantity)
+            print_progress(i18n.t("classify.progress_label"), self._counter, self.total_cls_quantity)
 
 
 
@@ -359,7 +360,7 @@ def _crop_single_note_image(imgsz, frame, note_geometry, crop_border):
             return cropped_image
         
     except Exception as e:
-        print(f"裁剪音符图像时出错: {e}")
+        print(i18n.t("classify.error_crop_note_image", error=e))
         return None
 
 
@@ -412,7 +413,7 @@ def _extract_note_images_in_frame(imgsz, frame, this_frame_sample_plan, frame_nu
         return cropped_images
 
     except Exception as e:
-        print(f"提取第{frame_number}帧的图像时出错: {e}")
+        print(i18n.t("classify.error_extract_frame_image", frame=frame_number, error=e))
         return None
     
 
@@ -487,7 +488,7 @@ def _classify_image_batch(consumed_batch, cls_ex_model, cls_break_model, inferen
         return final_cls_results
 
     except Exception as e:
-        raise ClassificationInferenceError("批量分类推理失败") from e
+        raise ClassificationInferenceError("batch classification inference failed") from e
 
 
 
@@ -533,7 +534,7 @@ def _merge_cls_into_track_results(track_results, cls_results_all):
         else:
             # 没有明确的多数，默认 normal
             final_note_variant = NoteVariant.NORMAL
-            print(f"警告: 轨迹 {track_id} 的采样点分类结果不一致，采用默认分类 {final_note_variant.name}")
+            print(i18n.t("classify.warning_sample_inconsistent", track_id=track_id, variant=final_note_variant.name))
 
         # 更新track_results的note_variant
         key = (track_id, note_type)
@@ -686,5 +687,5 @@ def classify_note_path(
     if len(most_common) == 1:
         return most_common[0]
     else:
-        print(f"警告: 路径分类结果不一致，采用默认分类 NORMAL")
+        print(i18n.t("classify.warning_path_inconsistent"))
         return NoteVariant.NORMAL

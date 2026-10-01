@@ -35,9 +35,12 @@ from src.core.auto_rechart.analyze.main import main as analyze_main
 from src.core.auto_rechart.tool import install_ort_cpu_thread_tuning
 from src.core.schemas.media_config import MediaType
 from src.core.schemas.op_result import print_op_result
-from src.services import PathManage
+from src.services import PathManage, I18nManage
 from src.main import VERSION
 from src.core.tools import redirect_native_stderr
+
+# worker 子进程没有经过 I18nManage.init(), 这里按父进程传入的 locale 环境变量初始化
+I18nManage.init_headless()
 
 
 

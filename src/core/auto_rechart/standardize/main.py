@@ -4,6 +4,7 @@ import time
 
 from ...schemas.op_result import OpResult, ok, err, print_op_result
 from ...schemas.media_model import MediaType
+import i18n
 
 from . import detect_circle
 from .perspective_correction import PerspectiveCorrection
@@ -105,7 +106,7 @@ def main(input_video: Path,
             except Exception as e:
                 return err(f"Failed to move output video from temp dir to main output dir.", error_raw=e)
 
-        print(f"标准化模块完成, 耗时{time.time() - start_time:.1f}s                       ")
+        print(i18n.t("standardize_main.notice_module_finished", seconds=f"{time.time() - start_time:.1f}"))
         return ok()
         
     except Exception as e:

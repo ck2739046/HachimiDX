@@ -46,6 +46,13 @@ en_US:
     notice_ignore_invalid_audio_stream: "--FFprobe_Inspect: ignore invalid audio stream (%{na_fields}=N/A):\n%{stream_info}"
     notice_ignore_invalid_audio_stream_no_duration: "--FFprobe_Inspect: ignore invalid audio stream (no duration):\n%{stream_info}"
     notice_multiple_streams_detected: "FFprobe_Inspect: multiple %{codec_type} streams detected, select index %{selected_index}"
+    notice_timestamps_finished: "Video frame timestamp analysis finished, elapsed: %{seconds}s"
+    notice_start_precise_timestamps: "Starting precise per-frame timestamp analysis..."
+    error_cfr_no_video_stream: "CFR detection failed: no video stream found"
+    error_cfr_parse_avg_frame_rate: "CFR detection failed: cannot parse avg_frame_rate=%{value}"
+    error_cfr_parse_r_frame_rate: "CFR detection failed: cannot parse r_frame_rate=%{value}"
+    error_cfr_parse_nb_frames: "CFR detection failed: cannot parse nb_frames=%{value}"
+    error_cfr_nb_frames_non_positive: "CFR detection failed: nb_frames=%{value} <= 0"
 
 
 
@@ -87,6 +94,176 @@ en_US:
       
       Would you like to visit the download page?
 
+
+  media_model:
+    error_video_extension: "Video output must use the .mp4 extension, got %{ext}"
+    error_audio_extension: "Audio output must use the %{expected} extension, got %{ext}"
+    ui_prompt_output_exists_title: "Output File Exists"
+    ui_prompt_output_exists_text: |
+      Output file already exists:
+      %{path}
+      
+      Do you want to delete it first?
+    error_output_same_as_input: "Output path cannot be the same as the input path"
+    error_delete_existing_failed: "Failed to delete the existing output file: %{error}"
+    error_output_exists_kept: "Output file already exists and was not deleted"
+    error_audio_sample_rate_options: "audio_sample_rate must be one of %{allowed}, got %{value}"
+    error_video_side_resolution_options: "video_side_resolution must be one of %{allowed}, got %{value}"
+    error_video_fps_options: "video_fps must be one of %{allowed}, got %{value}"
+    error_media_type_unknown: "media_type cannot be UNKNOWN"
+    error_start_needs_duration: "'duration' must be set when 'start' is set"
+    error_end_needs_duration: "'duration' must be set when 'end' is set"
+    error_start_pad_start_mutex: "'start' and 'pad_start' cannot both be set"
+    error_start_ge_duration: "'start' must be less than 'duration'"
+    error_end_ge_duration: "'end' must be less than 'duration'"
+    error_start_ge_end: "'start' must be less than 'end'"
+    error_audio_format_options: "audio_format must be one of %{allowed}, got %{value}"
+    error_audio_bitrate_options: "audio_bitrate must be one of %{allowed}, got %{value}"
+    error_delete_audio_video_mutex: "'delete_audio' and 'delete_video' cannot both be enabled"
+    error_read_ffmpeg_hw_encoder_failed: "Failed to read ffmpeg_hw_encoder: %{error}"
+    error_video_quality_options: "video_quality must be one of %{allowed}, got %{value}"
+    error_video_crop_params: "video_crop w/h/x/y must be all set or all unset"
+    error_video_perspective_params: "video_perspective params must be all set or all unset"
+
+  windows_filename_validation:
+    error_empty_name: "Filename cannot be empty or pure whitespace"
+    error_invalid_chars: "Filename '%{name}' cannot contain these characters: \\ / : * ? \" < > |"
+    error_reserved_name: "Filename '%{name}' cannot be a reserved system name"
+
+  build_ffmpeg_cmd:
+    error_ffmpeg_not_found: "FFmpeg executable not found at: %{path}"
+
+
+  auto_rechart_model:
+    error_at_least_one_module: "At least one of standardize, detect or analyze must be enabled"
+    error_video_not_selected: "Chart confirmation video is not selected"
+    error_video_not_exist: "Chart confirmation video does not exist: '%{path}'"
+    error_video_dir_not_accessible: "Directory of chart confirmation video is not readable or writable: '%{path}'"
+    error_song_name_invalid: "song_name '%{name}' contains invalid characters for Windows filenames"
+    error_default_song_name_invalid: "Default song name '%{name}' derived from the chart confirmation video is not a valid Windows filename"
+    error_video_mode_required: "video_mode is required when standardize is enabled"
+    error_video_mode_options: "video_mode must be one of %{allowed}, got %{value}"
+    error_media_type_required: "media_type is required when standardize is enabled"
+    error_media_type_options: "media_type must be one of %{allowed}, got %{value}"
+    error_duration_invalid: "duration must be greater than 0, got %{value}"
+    error_start_sec_ge_duration: "'start_sec' must be less than 'duration'"
+    error_end_sec_ge_duration: "'end_sec' must be less than 'duration'"
+    error_start_sec_ge_end_sec: "'start_sec' must be less than 'end_sec'"
+    error_bpm_source_missing: "The analyze module is enabled but neither bpm nor bpm_config was provided"
+    error_bpm_config_parse_failed: "Failed to parse bpm_config: %{error}"
+    error_chart_lv_required: "chart_lv is required when analyze is enabled"
+    error_chart_lv_options: "chart_lv must be one of %{allowed}, got %{value}"
+    error_base_denominator_required: "base_denominator is required when analyze is enabled"
+    error_base_denominator_options: "base_denominator must be one of %{allowed}, got %{value}"
+    error_duration_denominator_required: "duration_denominator is required when analyze is enabled"
+    error_duration_denominator_options: "duration_denominator must be one of %{allowed}, got %{value}"
+    error_selected_folder_required: "selected_folder is required"
+    error_selected_folder_not_exist: "selected_folder does not exist: '%{path}'"
+
+  settings_model:
+    error_model_backend_options: "model_backend must be one of %{allowed}"
+    error_inference_device_invalid: "Invalid inference_device: '%{value}'"
+    error_ffmpeg_hw_encoder_options: "ffmpeg_hw_encoder must be one of %{allowed}"
+    error_language_options: "language must be one of %{allowed}"
+    error_last_check_update_time_invalid: "last_check_update_time is invalid, expected yyyy-mm-dd format, got '%{value}'"
+
+  output_log:
+    error_logtxt_path_required: "logtxt_path is required when file logging is enabled"
+
+  auto_rechart_tool:
+    # 串尾 5 个空格用于覆盖上一行 (\r) 的残留, 请勿删除
+    progress_line: "%{name} progress: %{counter}/%{total} (%{percent}%)     "
+
+  detect_click_start:
+    error_audio_not_found: "Audio file not found: %{path}"
+    error_audio_load_failed: "Cannot load audio data from: %{path}"
+    error_audio_load_error: "Error loading audio file '%{path}': %{error}"
+    error_start_time_negative: "start_time_sec must be >= 0, got %{value}"
+    error_start_time_exceeds_audio: "start_time_sec (%{start_time_sec}) exceeds audio length (%{length_sec}s)"
+    error_segment_empty: "Extracted segment is empty"
+    error_audio_too_short_template: "Audio data too short for template matching"
+    error_template_empty: "Template is empty"
+    error_audio_too_short_window: "Audio data too short for sliding window matching"
+    error_audio_empty: "Audio is empty"
+
+  shared_context:
+    error_frame_index_negative: "frame index must be >= 0, got %{value}"
+    error_msec_range_invalid: "start_msec must be <= end_msec, got start_msec=%{start_msec}, end_msec=%{end_msec}"
+    error_msec_range_out_of_bounds: "msec range is out of bounds of frame timestamps: start_msec=%{start_msec}, end_msec=%{end_msec}, timestamp_range=(%{min_msec}, %{max_msec})"
+    error_frame_timestamps_load_failed: "Failed to load frame timestamps for analyze; please rerun detect/analyze with a valid video.\n%{detail}"
+    error_track_frame_exceeds: "Track frame index exceeds available frame timestamps. max_track_frame=%{max_track_frame}, timestamp_count=%{timestamp_count}"
+
+  maidata_generate:
+    error_previous_bpm_segment: "Cannot add note %{track_id} to a previous BPM segment: index %{index} < %{current_index}"
+
+  detect:
+    notice_module_finished: "Detection module finished, elapsed %{seconds}s"
+    notice_result_saved: "detection result saved to: %{path}"
+    error_read_video_width_failed: "[detect] failed to read video width: %{path}"
+    error_progress_stalled: "No progress for over %{timeout}s, the program may be stuck"
+    error_result_file_not_found: "File not found: %{path}"
+
+  detect_decode:
+    error_open_video_failed: "Failed to open video file: %{path}"
+    error_decode_stopped_early: "Video decoding stopped early at frame %{frame}; expected at least %{expected} frames"
+
+  detect_main:
+    notice_skip_detect_existing: "Skipping the detect module, using existing detection results..."
+    notice_skip_classify: "Skipping the classify module"
+    notice_skip_export_video: "Skipping the track video export module"
+    error_model_not_found: "Model not found: %{path}"
+    error_read_total_frames_failed: "Failed to read total frame count: %{detail}"
+    error_batch_invalid: "Invalid batch_detect or batch_cls (must be > 0): batch_detect=%{batch_detect}, batch_cls=%{batch_cls}"
+
+  classify:
+    notice_module_started: "Classification module started..."
+    # 串尾空格用于覆盖进度行 (\r) 残留: 进度行最长为 name+38 字符 (counter/total 各 6 位), 请勿删除
+    notice_module_finished: "Classification module finished, elapsed %{seconds}s                       "
+    notice_no_tracks: "No tracks to classify"
+    progress_label: "classify"
+    error_crop_note_image: "Failed to crop note image: %{error}"
+    error_extract_frame_image: "Failed to extract image of frame %{frame}: %{error}"
+    warning_sample_inconsistent: "Warning: inconsistent sample classification for track %{track_id}, using default %{variant}"
+    warning_path_inconsistent: "Warning: inconsistent classification result for the path, using default NORMAL"
+
+  track:
+    notice_module_started: "Tracking module started..."
+    # 串尾空格用于覆盖进度行 (\r) 残留: 进度行最长为 name+38 字符 (counter/total 各 6 位), 请勿删除
+    notice_module_finished: "Tracking module finished, elapsed %{seconds}s, average %{fps}fps       "
+    notice_reverse_tracking: "Reverse tracking: added %{count} points"
+    notice_result_saved: "%{prefix}track result saved to %{path}"
+    progress_label: "track"
+
+  export_track_video:
+    notice_module_started: "Export track video module started..."
+    # 串尾空格用于覆盖进度行 (\r) 残留: 进度行最长为 name+38 字符 (counter/total 各 6 位), 请勿删除
+    notice_export_finished: "Track video export finished, elapsed %{seconds}s, average %{fps}fps               "
+    notice_video_saved: "Track video saved to: %{path}"
+    error_ffmpeg_failed: "FFmpeg processing failed with code %{code}: %{error}"
+
+  standardize_main:
+    # 串尾空格用于覆盖进度行 (\r) 残留: 进度行最长为 name+38 字符 (counter/total 各 6 位), 请勿删除
+    notice_module_finished: "Standardization module finished, elapsed %{seconds}s                       "
+
+  model_convert_worker:
+    error_trt_export_incomplete: "TensorRT engine export is incomplete, missing: %{path}"
+    error_ncnn_output_not_dir: "NCNN output path is not a directory: %{path}"
+    error_unexpected_ncnn_path: "Unexpected NCNN export path: expected %{expected}, got %{actual}"
+    error_ncnn_export_incomplete: "NCNN export is incomplete, missing: %{path}"
+    error_onnx_output_not_file: "ONNX output path is not a file: %{path}"
+    error_unexpected_onnx_path: "Unexpected ONNX export path: expected %{expected}, got %{actual}"
+    error_onnx_export_incomplete: "ONNX export is incomplete: %{path}"
+    error_invalid_half: "Invalid half value: %{value}"
+
+  detect_inference:
+    error_batch_size_invalid: "[inferencer] batch_size must be a positive integer, got %{value}"
+    error_imgsz_mismatch: "detect/obb imgsz mismatch, they must be the same"
+
+  analyze_main:
+    notice_module_started: "Analyze module started..."
+
+  detect_circle:
+    progress_label: "initial circle detection"
 
   # ---- app ----
 
@@ -214,6 +391,7 @@ en_US:
 
       arcade_timing:
         dialog_title: "Arcade Timing"
+        notice_offset_parse_failed: "Failed to parse the offset from the worker output"
 
         ui_select_file_divider: "File Selection"
         ui_params_divider: "Parameters"
@@ -239,6 +417,7 @@ en_US:
         warning_no_audio_stream_ref: "Reference file: The selected file does not contain an audio stream. Please select a file with audio."
         warning_no_audio_stream_target: "Target file: The selected file does not contain an audio stream. Please select a file with audio."
         warning_invalid_bpm: "Invalid initial BPM value. Please input a number between 30 and 400."
+        warning_invalid_click_count: "Invalid click count. Please input an integer >= 1."
         warning_invalid_click_start_time: "Invalid start time. Please input a number >= 0."
         warning_worker_start_failed: "Failed to start worker:\n%{error}"
         warning_run_failed: "Analyze failed."
@@ -257,6 +436,7 @@ en_US:
 
       simply_align:
         dialog_title: "Simply Align"
+        notice_offset_parse_failed: "Failed to parse the offset from the worker output"
 
         ui_reference_file_help: "Audio or video file used as the alignment reference."
         ui_target_file_help: "Audio or video file to align against the reference."
@@ -296,7 +476,7 @@ en_US:
 
 
       run_ffmpeg:
-        
+        dialog_title: "Run FFmpeg"
         ui_select_file_divider: "File Selection"
         ui_params_divider: "Parameters"
         ui_export_divider: "Export"
@@ -477,6 +657,7 @@ en_US:
     # ---- auto rechart 页面 ----
 
     auto_rechart_page:
+      dialog_title: "Auto Rechart"
       ui_select_file_divider: "File Selection"
       ui_standardize_divider: "Standardize Video"
       ui_detect_divider: "Note Detection"

@@ -6,6 +6,7 @@ from .media_config import MediaConfig_Definitions as M_Defs
 from ..tools import show_confirm_dialog
 from src.services import SettingsManage
 from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
+import i18n
 
 
 
@@ -122,7 +123,7 @@ class MediaModel(BaseModel):
             return v
         allowed = M_Defs.audio_sample_rate.constraints["options"]
         if v not in allowed:
-            raise ValueError(f"audio_sample_rate must be one of {allowed}, got {v}")
+            raise ValueError(i18n.t("media_model.error_audio_sample_rate_options", allowed=allowed, value=v))
         return v
 
     @field_validator('video_side_resolution')
@@ -132,7 +133,7 @@ class MediaModel(BaseModel):
             return v
         allowed = M_Defs.video_side_resolution.constraints["options"]
         if v not in allowed:
-            raise ValueError(f"video_side_resolution must be one of {allowed}, got {v}")
+            raise ValueError(i18n.t("media_model.error_video_side_resolution_options", allowed=allowed, value=v))
         return v
 
     @field_validator('video_fps')
@@ -142,7 +143,7 @@ class MediaModel(BaseModel):
             return v
         allowed = M_Defs.video_fps.constraints["options"]
         if v not in allowed:
-            raise ValueError(f"video_fps must be one of {allowed}, got {v}")
+            raise ValueError(i18n.t("media_model.error_video_fps_options", allowed=allowed, value=v))
         return v
     
     # 检查 media_type 不是 unknown
@@ -150,7 +151,7 @@ class MediaModel(BaseModel):
     @classmethod
     def validate_media_type_not_unknown(cls, v: MediaType):
         if v == MediaType.UNKNOWN:
-            raise ValueError("media_type cannot be UNKNOWN.")
+            raise ValueError(i18n.t("media_model.error_media_type_unknown"))
         return v
 
 
@@ -177,21 +178,21 @@ class MediaModel(BaseModel):
 
         # 1. 如果 set_start / set_end，需要确保 set_duration
         if set_start and not set_duration:
-            raise ValueError("If 'start' is set, 'duration' must also be set.")
+            raise ValueError(i18n.t("media_model.error_start_needs_duration"))
         if set_end and not set_duration:
-            raise ValueError("If 'end' is set, 'duration' must also be set.")
+            raise ValueError(i18n.t("media_model.error_end_needs_duration"))
 
         # 2. set_start 和 set_pad 不能同时存在
         if set_start and set_pad:
-            raise ValueError("'start' and 'pad_start' cannot both be set.")
+            raise ValueError(i18n.t("media_model.error_start_pad_start_mutex"))
         
         # 3. 确保 start < end < duration
         if set_start and self.start >= self.duration:
-            raise ValueError("'start' must be less than 'duration'.")
+            raise ValueError(i18n.t("media_model.error_start_ge_duration"))
         if set_end and resolve_end(self) >= self.duration:
-            raise ValueError("'end' must be less than 'duration'.")
+            raise ValueError(i18n.t("media_model.error_end_ge_duration"))
         if set_start and set_end and self.start >= resolve_end(self):
-            raise ValueError("'start' must be less than 'end'.")
+            raise ValueError(i18n.t("media_model.error_start_ge_end"))
 
         # 最后更新 end 值 (如果设置了)
         if set_end:
@@ -228,13 +229,13 @@ class MediaModel(BaseModel):
             else:
                 self.audio_format = audio_format_default
         if self.audio_format not in audio_format_options:
-            raise ValueError(f"audio_format must be one of {audio_format_options}, got {self.audio_format}")
+            raise ValueError(i18n.t("media_model.error_audio_format_options", allowed=audio_format_options, value=self.audio_format))
 
         # 校验 audio_bitrate
         if not self.audio_bitrate:
             self.audio_bitrate = M_Defs.audio_bitrate.default
         if self.audio_bitrate not in M_Defs.audio_bitrate.constraints["options"]:
-            raise ValueError(f"audio_bitrate must be one of {M_Defs.audio_bitrate.constraints['options']}, got {self.audio_bitrate}")
+            raise ValueError(i18n.t("media_model.error_audio_bitrate_options", allowed=M_Defs.audio_bitrate.constraints['options'], value=self.audio_bitrate))
 
         return self
     
@@ -253,13 +254,13 @@ class MediaModel(BaseModel):
         if is_video_output:
             if ext != ".mp4":
                 raise ValueError(
-                    f"Video output must use .mp4 extension, got {ext}"
+                    i18n.t("media_model.error_video_extension", ext=ext)
                 )
         elif self.media_type == MediaType.AUDIO or self.delete_video:
             expected = f".{self.audio_format}"
             if ext != expected:
                 raise ValueError(
-                    f"Audio output must use {expected} extension, got {ext}"
+                    i18n.t("media_model.error_audio_extension", expected=expected, ext=ext)
                 )
 
         return self
@@ -269,7 +270,7 @@ class MediaModel(BaseModel):
         """delete_audio 与 delete_video 不能同时启用"""
 
         if self.delete_audio and self.delete_video:
-            raise ValueError("'delete_audio' and 'delete_video' cannot both be enabled.")
+            raise ValueError(i18n.t("media_model.error_delete_audio_video_mutex"))
 
         return self
 
@@ -288,12 +289,12 @@ class MediaModel(BaseModel):
             # 从设置读取当前编码器，获取默认值
             encoder_res = SettingsManage.get(S_Defs.ffmpeg_hw_encoder.key)
             if not encoder_res.is_ok:
-                raise ValueError(f"Failed to read ffmpeg_hw_encoder: {encoder_res.error_msg}")
+                raise ValueError(i18n.t("media_model.error_read_ffmpeg_hw_encoder_failed", error=encoder_res.error_msg))
             encoder = str(encoder_res.value).strip()
             self.video_quality = M_Defs.get_default_video_quality_by_encoder(encoder)
 
         if self.video_quality not in quality_options:
-            raise ValueError(f"video_quality must be one of {quality_options}, got {self.video_quality}")
+            raise ValueError(i18n.t("media_model.error_video_quality_options", allowed=quality_options, value=self.video_quality))
 
         return self
 
@@ -311,7 +312,7 @@ class MediaModel(BaseModel):
 
         # w/h/x/y 必须同时设置或同时不设置
         if not (all_set or all_unset):
-            raise ValueError("video_crop w/h/x/y must be all set or all unset.")
+            raise ValueError(i18n.t("media_model.error_video_crop_params"))
 
         # 此处不做进一步的检查，交给 ffmpeg 自行处理
         return self
@@ -326,21 +327,24 @@ class MediaModel(BaseModel):
 
         # 输出不能和输入相同
         if input_resolved == output_resolved:
-            raise ValueError("output_path cannot be the same as input_path.")
+            raise ValueError(i18n.t("media_model.error_output_same_as_input"))
 
         # 输出不能已存在
         if self.output_path.exists() and self.output_path.is_file():
             # 如果输出文件已存在，弹窗询问是否删除
-            if show_confirm_dialog(title="run_ffmepg", prompt_text="Output file already exists. Do you want to delete it first?"):
+            if show_confirm_dialog(
+                title=i18n.t("media_model.ui_prompt_output_exists_title"),
+                prompt_text=i18n.t("media_model.ui_prompt_output_exists_text", path=str(self.output_path)),
+            ):
                 # 用户同意删除
                 try:
                     _try_unload_majdata_video_if_matches(self.output_path)
                     self.output_path.unlink()
                 except Exception as e:
-                    raise ValueError(f"Failed to delete existing output file: {e}")
+                    raise ValueError(i18n.t("media_model.error_delete_existing_failed", error=str(e)))
             else:
                 # 用户不同意删除，直接返回
-                raise ValueError("Output file already exists and user chose not to delete it.")
+                raise ValueError(i18n.t("media_model.error_output_exists_kept"))
         
         return self
 
@@ -361,6 +365,6 @@ class MediaModel(BaseModel):
         all_unset = not any([set_tl_x, set_tl_y, set_tr_x, set_tr_y, set_bl_x, set_bl_y, set_br_x, set_br_y])
 
         if not (all_set or all_unset):
-            raise ValueError("video_perspective params must be all set or all unset.")
+            raise ValueError(i18n.t("media_model.error_video_perspective_params"))
 
         return self
