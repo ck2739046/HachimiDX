@@ -6,12 +6,18 @@ from PyQt6.QtWidgets import QLayout, QWidget
 def clear_layout(layout: QLayout) -> None:
     """
     清空布局中的所有项并销毁其 widget。
-    先对每个 widget 执行 setParent(None) 使其脱离父窗口树，再 deleteLater() 销毁。
+
+    必须先 hide() 再 setParent(None)：setParent(None) 会把控件变成"顶层窗口"，
+    而它此刻仍是可见的 —— Qt 会真的把这块控件当成一个带标题栏的窗口显示出来
+    （标题栏用 Qt 默认标题，即应用名；本项目没设过 applicationName，于是显示 "python"），
+    随后 deleteLater() 又把它销毁，用户就会看到"闪一下的空窗口"。
+    tasks page 每次刷新任务卡片都会走这里，所以点 ✕ 取消任务时最容易看到。
     """
     while layout.count():
         item = layout.takeAt(0)
         w = item.widget()
         if w is not None:
+            w.hide()
             w.setParent(None)
             w.deleteLater()
 
