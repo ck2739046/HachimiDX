@@ -133,6 +133,8 @@ class MergeChartsPage(BaseOutputPage):
         self._level_rows: dict[int, _LevelRow] = {}
         self._header_edits: dict[str, SplitDropLineEdit] = {}
         self._header_defaults: dict[str, str] = {}
+        # 导出按钮的重入保护：覆盖确认框内部是嵌套事件循环，期间按钮仍可点击
+        self._is_exporting = False
 
         self._build_input_section()
         self._build_chart_section()
@@ -497,6 +499,20 @@ class MergeChartsPage(BaseOutputPage):
         return selections
 
     def _export(self) -> None:
+        """导出入口，只负责重入保护。
+
+        覆盖确认框内部是嵌套事件循环，期间按钮仍可点击；
+        没有这层保护会叠窗，并把同一个文件写两遍。
+        """
+        if self._is_exporting:
+            return
+        self._is_exporting = True
+        try:
+            self._do_export()
+        finally:
+            self._is_exporting = False
+
+    def _do_export(self) -> None:
         directory_text = self.output_dir_display.text().strip()
         filename = self._filename_base()
         if not directory_text:

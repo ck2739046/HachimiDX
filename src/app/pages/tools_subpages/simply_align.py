@@ -162,6 +162,8 @@ class SimplyAlignPage(BaseOutputPage):
         self._active_runner_id = None
         self._active_media_runner_id = None
         self._media_output_path = None
+        # 生成视频按钮的重入保护：确认框内部是嵌套事件循环，期间按钮仍可点击
+        self._is_generating_video = False
         self._offset_action = None
         self._offset_value_sec = None
 
@@ -512,6 +514,20 @@ class SimplyAlignPage(BaseOutputPage):
 
 
     def on_generate_video_clicked(self) -> None:
+        """按钮入口，只负责重入保护。
+
+        _get_sync_output_path() 会弹确认框（内部是嵌套事件循环），期间按钮仍可点击；
+        没有这层保护就会叠窗并重复提交任务。
+        """
+        if self._is_generating_video:
+            return
+        self._is_generating_video = True
+        try:
+            self._do_generate_video_clicked()
+        finally:
+            self._is_generating_video = False
+
+    def _do_generate_video_clicked(self) -> None:
         if not self._offset_action:
             return
         # 从当前激活的 line edit 读取用户修改后的值
