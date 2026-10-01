@@ -272,6 +272,7 @@ def show_confirm_dialog(title: str, prompt_text: str) -> bool:
         if app is None:
             created_app = True
             app = QApplication([])
+            app.setApplicationName("HachimiDX")
             app.setQuitOnLastWindowClosed(True)
 
         dialog = _PopupConfirmDialog(title, prompt_text, timeout_seconds=30)
@@ -320,6 +321,7 @@ def show_notify_dialog(title: str, prompt_text: str) -> bool:
         if app is None:
             created_app = True
             app = QApplication([])
+            app.setApplicationName("HachimiDX")
             app.setQuitOnLastWindowClosed(True)
 
         dialog = _PopupConfirmDialog(

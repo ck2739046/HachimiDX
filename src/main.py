@@ -156,6 +156,7 @@ def main(is_lite: bool = False) -> int:
 
     # 创建应用
     app = QApplication(sys.argv)
+    app.setApplicationName("HachimiDX")
     app.aboutToQuit.connect(AllServices.shutdown_all)
     app._single_instance_lock = shared_memory # 保持引用
 
