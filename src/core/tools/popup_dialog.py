@@ -253,15 +253,6 @@ def show_confirm_dialog(title: str, prompt_text: str) -> bool:
 
     # One giant try/except: anything goes wrong -> default cancel.
     try:
-        if os.name == "nt":
-            try:
-                # Provide an independent taskbar icon group for this process.
-                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
-                    "hachimidx.tools.popup_dialog"
-                )
-            except Exception:
-                pass
-
         # If caller calls this from a non-main thread, Qt will warn and behavior is undefined.
         # This tool keeps it simple: non-main-thread calls fail closed (return False).
         if threading.current_thread() is not threading.main_thread():
@@ -271,6 +262,17 @@ def show_confirm_dialog(title: str, prompt_text: str) -> bool:
         created_app = False
         if app is None:
             created_app = True
+            # 仅在本模块自建 QApplication 时（worker 子进程 / 独立脚本）才设置进程级 AUMID：
+            # 这种进程只为弹窗服务，独立的任务栏身份才有意义。
+            # 宿主进程里设置它会把主窗口的任务栏身份一并改掉，故不设置。
+            if os.name == "nt":
+                try:
+                    # Provide an independent taskbar icon group for this process.
+                    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+                        "hachimidx.tools.popup_dialog"
+                    )
+                except Exception:
+                    pass
             app = QApplication([])
             app.setApplicationName("HachimiDX")
             app.setQuitOnLastWindowClosed(True)
@@ -305,14 +307,6 @@ def show_notify_dialog(title: str, prompt_text: str) -> bool:
     """
 
     try:
-        if os.name == "nt":
-            try:
-                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
-                    "hachimidx.tools.popup_dialog"
-                )
-            except Exception:
-                pass
-
         if threading.current_thread() is not threading.main_thread():
             return False
 
@@ -320,6 +314,17 @@ def show_notify_dialog(title: str, prompt_text: str) -> bool:
         created_app = False
         if app is None:
             created_app = True
+            # 仅在本模块自建 QApplication 时（worker 子进程 / 独立脚本）才设置进程级 AUMID：
+            # 这种进程只为弹窗服务，独立的任务栏身份才有意义。
+            # 宿主进程里设置它会把主窗口的任务栏身份一并改掉，故不设置。
+            if os.name == "nt":
+                try:
+                    # Provide an independent taskbar icon group for this process.
+                    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+                        "hachimidx.tools.popup_dialog"
+                    )
+                except Exception:
+                    pass
             app = QApplication([])
             app.setApplicationName("HachimiDX")
             app.setQuitOnLastWindowClosed(True)
