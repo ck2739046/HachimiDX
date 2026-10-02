@@ -1,0 +1,10 @@
+# Ruff 配置
+
+extend-exclude = [
+    "archive",
+    "python",
+    "data",
+    "install/dml_support",
+]
+
+target-version = "py311"

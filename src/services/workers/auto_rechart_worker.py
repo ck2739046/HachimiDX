@@ -25,7 +25,7 @@ if root not in sys.path:
 # 当前最新版 pytorch + pyqt6 在一起使用时有问题
 # 如果 pyqt6 比 torch 先导入，会产生 winerror1114 (dll加载失败)
 # 解决方法是先导入 torch 再导入 pyqt6
-import torch
+import torch  # noqa: F401
 
 
 
