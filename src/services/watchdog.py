@@ -1,7 +1,6 @@
 import os
 import sys
 import time
-from typing import Optional
 
 import psutil
 
@@ -29,18 +28,16 @@ def kill_process_tree(pid: int) -> None:
         pass
 
 
-
-def _find_pids_by_process_name(target: str) -> Optional[list[int]]:
+def _find_pids_by_process_name(target: str) -> list[int] | None:
     """查根据进程名查找 PID 列表"""
 
     found_pids = []
 
-    for proc in psutil.process_iter(['pid', 'name']):
-
+    for proc in psutil.process_iter(["pid", "name"]):
         try:
-            name = proc.info['name']
+            name = proc.info["name"]
             if name and name == target:
-                pid = proc.info['pid']
+                pid = proc.info["pid"]
                 found_pids.append(pid)
 
         except Exception:
@@ -49,15 +46,15 @@ def _find_pids_by_process_name(target: str) -> Optional[list[int]]:
     return found_pids if found_pids else None
 
 
-
 def _force_kill_process_by_name(target: str) -> None:
-    
+
     result = _find_pids_by_process_name(target)
     if result:
-        print(f"Found {len(result)} '{target}' process(es): {result}, will force kill...")
+        print(
+            f"Found {len(result)} '{target}' process(es): {result}, will force kill..."
+        )
         for pid in result:
             kill_process_tree(pid)
-
 
 
 def shutdown_majdata() -> None:
@@ -72,15 +69,6 @@ def shutdown_majdata() -> None:
     _force_kill_process_by_name("MajdataEdit-Neo.exe")
 
 
-
-
-
-
-
-
-
-
-
 def _parent_alive(pid: int, expected_create_time: float) -> bool:
     """检测父进程是否存活"""
     try:
@@ -90,14 +78,6 @@ def _parent_alive(pid: int, expected_create_time: float) -> bool:
         return False
 
 
-
-
-
-
-
-
-
-
 def _find_descendant_pids(root_pid: int) -> list[int]:
     """
     返回所有以 root_pid 为祖先的进程 PID
@@ -105,11 +85,11 @@ def _find_descendant_pids(root_pid: int) -> list[int]:
     """
     self_pid = os.getpid()
     pid_to_ppid: dict[int, int] = {}
-    for proc in psutil.process_iter(['pid', 'ppid']):
+    for proc in psutil.process_iter(["pid", "ppid"]):
         try:
             info = proc.info
-            pid = info['pid']
-            ppid = info['ppid']
+            pid = info["pid"]
+            ppid = info["ppid"]
             if pid is None or ppid is None:
                 continue
             pid_to_ppid[pid] = ppid
@@ -134,23 +114,17 @@ def _find_descendant_pids(root_pid: int) -> list[int]:
     return descendants
 
 
-
 def shutdown_orphaned_subprocesses(parent_pid: int) -> None:
     """强杀主进程派生的所有残留子进程"""
     pids = _find_descendant_pids(parent_pid)
     if not pids:
         return
-    print(f"[watchdog] Found {len(pids)} orphaned descendant process(es): {pids}, force killing...")
+    print(
+        f"[watchdog] Found {len(pids)} orphaned descendant process(es): {pids}, force killing..."
+    )
     for pid in pids:
         # 强杀每个进程的整棵进程树
         kill_process_tree(pid)
-
-
-
-
-
-
-
 
 
 def main() -> int:

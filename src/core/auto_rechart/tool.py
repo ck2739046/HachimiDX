@@ -1,6 +1,7 @@
-import numpy as np
 import gc
+
 import i18n
+import numpy as np
 
 from src.services import ModelInferenceManage
 
@@ -19,7 +20,6 @@ __all__ = [
 SEEK_THRESHOLD = 200
 
 
-
 def print_progress(name, counter, total, *, final: bool = False):
     """{name} 进度行: counter/total (percent%)，串尾空格用于覆盖上一行 (\r) 的残留
 
@@ -27,8 +27,13 @@ def print_progress(name, counter, total, *, final: bool = False):
     """
     progress = (counter / total) * 100 if total else 0.0
     print(
-        i18n.t("auto_rechart_tool.progress_line",
-               name=name, counter=counter, total=total, percent=f"{progress:.1f}"),
+        i18n.t(
+            "auto_rechart_tool.progress_line",
+            name=name,
+            counter=counter,
+            total=total,
+            percent=f"{progress:.1f}",
+        ),
         end="\n" if final else "\r",
         flush=True,
     )
@@ -41,11 +46,10 @@ def release_ncnn_vulkan(inference_device) -> None:
     gc.collect()
     try:
         import ncnn
+
         ncnn.destroy_gpu_instance()
     except Exception as e:
         print(f"Failed to release NCNN instance: {e}")
-
-
 
 
 # 默认线程空转(spinning)会互相抢满核 CPU
@@ -53,14 +57,23 @@ def release_ncnn_vulkan(inference_device) -> None:
 # 因为 spinning 线程池是进程级单例，事后替换无效
 _IS_ORT_CPU_THREAD_TUNED = False
 
+
 def install_ort_cpu_thread_tuning() -> None:
     """仅 ONNX 后端调用：关线程空转。"""
     global _IS_ORT_CPU_THREAD_TUNED
-    if _IS_ORT_CPU_THREAD_TUNED: return
+    if _IS_ORT_CPU_THREAD_TUNED:
+        return
     import onnxruntime as ort
+
     _original_session = ort.InferenceSession
 
-    def _tuned_session(path_or_bytes, sess_options=None, providers=None, provider_options=None, **kwargs):
+    def _tuned_session(
+        path_or_bytes,
+        sess_options=None,
+        providers=None,
+        provider_options=None,
+        **kwargs,
+    ):
         # 在调用方 options 上追加
         # 兼容 DML 修改版传入的 enable_mem_pattern/sequential
         if sess_options is None:
@@ -68,15 +81,15 @@ def install_ort_cpu_thread_tuning() -> None:
         sess_options.add_session_config_entry("session.intra_op.allow_spinning", "0")
         sess_options.add_session_config_entry("session.inter_op.allow_spinning", "0")
         return _original_session(
-            path_or_bytes, sess_options=sess_options,
-            providers=providers, provider_options=provider_options,
-            **kwargs
+            path_or_bytes,
+            sess_options=sess_options,
+            providers=providers,
+            provider_options=provider_options,
+            **kwargs,
         )
 
     ort.InferenceSession = _tuned_session
     _IS_ORT_CPU_THREAD_TUNED = True
-
-
 
 
 def calculate_oct_position(circle_center_x, circle_center_y, note_x, note_y):
@@ -106,54 +119,75 @@ def calculate_oct_position(circle_center_x, circle_center_y, note_x, note_y):
             return 7
         else:
             return 8
-            
-
-
-
-
 
 
 def calculate_all_position(touch_areas, note_x, note_y):
-    
+
     closeset_label = None
     closeset_dist = 9999
 
     for label, (cx, cy) in touch_areas.items():
-        dist = np.sqrt(((note_x - cx) ** 2 + (note_y - cy) ** 2))
+        dist = np.sqrt((note_x - cx) ** 2 + (note_y - cy) ** 2)
         if dist < closeset_dist:
             closeset_label = label
             closeset_dist = dist
-    
+
     return closeset_label
 
 
+def draw_path_on_frame(
+    screen_cx,
+    screen_cy,
+    judgeline_end,
+    judgeline_start,
+    video_path,
+    frame_num,
+    track_id,
+    note_path,
+):
 
-
-def draw_path_on_frame(screen_cx, screen_cy, judgeline_end, judgeline_start,
-                       video_path, frame_num, track_id, note_path):
-
-    cap = cv2.VideoCapture(video_path)  
+    cap = cv2.VideoCapture(video_path)
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
     ret, frame = cap.read()
     if not ret:
         print(f"draw_path_on_frame: failed to read frame {frame_num}")
         cap.release()
         return
-    
-    cv2.putText(frame, f"track_id: {track_id}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+
+    cv2.putText(
+        frame,
+        f"track_id: {track_id}",
+        (10, 30),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        1,
+        (255, 255, 255),
+        2,
+    )
     # 绘制两个圈
-    cv2.circle(frame, (round(screen_cx), round(screen_cy)), round(judgeline_end), (0, 255, 0), 2)
-    cv2.circle(frame, (round(screen_cx), round(screen_cy)), round(judgeline_start), (255, 0, 0), 2)
+    cv2.circle(
+        frame,
+        (round(screen_cx), round(screen_cy)),
+        round(judgeline_end),
+        (0, 255, 0),
+        2,
+    )
+    cv2.circle(
+        frame,
+        (round(screen_cx), round(screen_cy)),
+        round(judgeline_start),
+        (255, 0, 0),
+        2,
+    )
 
     for point in note_path:
-        frame_num = point['frame']
-        cx = point['cx']
-        cy = point['cy']
+        frame_num = point["frame"]
+        cx = point["cx"]
+        cy = point["cy"]
         cv2.circle(frame, (round(cx), round(cy)), 3, (0, 0, 255), -1)
 
     # Resize and show frame
     resized_frame = cv2.resize(frame, (900, 900), interpolation=cv2.INTER_AREA)
-    window_name = f'Tap ID: {track_id}'
+    window_name = f"Tap ID: {track_id}"
     cv2.namedWindow(window_name)
     cv2.moveWindow(window_name, 500, 80)
     cv2.imshow(window_name, resized_frame)
@@ -162,11 +196,9 @@ def draw_path_on_frame(screen_cx, screen_cy, judgeline_end, judgeline_start,
     cap.release()
 
 
-
-
-
-
-def catmull_rom_spline(points: list, num_samples: int = 4, tension: float = 1.5) -> np.ndarray:
+def catmull_rom_spline(
+    points: list, num_samples: int = 4, tension: float = 1.5
+) -> np.ndarray:
     """对控制点列表使用 Catmull-Rom 样条插值生成平滑曲线点。
 
     Args:
@@ -212,10 +244,12 @@ def catmull_rom_spline(points: list, num_samples: int = 4, tension: float = 1.5)
     c3 = s * (-t2 + t3)[:, None]
 
     # 广播聚合: (num_samples, n_seg, 2)
-    result = 0.5 * (c0[..., None] * p0[None, ...] +
-                    c1[..., None] * p1[None, ...] +
-                    c2[..., None] * p2[None, ...] +
-                    c3[..., None] * p3[None, ...])
+    result = 0.5 * (
+        c0[..., None] * p0[None, ...]
+        + c1[..., None] * p1[None, ...]
+        + c2[..., None] * p2[None, ...]
+        + c3[..., None] * p3[None, ...]
+    )
 
     # 转置为 (n_seg, num_samples, 2) → 展平 → 追加末点
     result = np.ascontiguousarray(result.transpose(1, 0, 2).reshape(-1, 2))
@@ -224,14 +258,9 @@ def catmull_rom_spline(points: list, num_samples: int = 4, tension: float = 1.5)
     return np.asarray(np.round(result), dtype=np.int32).reshape((-1, 1, 2))
 
 
-
-
-
-
 if __name__ == "__main__":
-
     import cv2
-    
+
     track_result_content = """
 7122, slide, normal, 0.9800, 731.2500, 62.8594, 908.4375, 62.8594, 908.4375, 240.1875, 731.2500, 240.1875, 819.8438, 151.5234, 177.1875, 177.3281, 0.0000
 7123, slide, normal, 0.9849, 771.7500, 95.2031, 950.0625, 95.2031, 950.0625, 273.2344, 771.7500, 273.2344, 860.9062, 184.2188, 178.3125, 178.0312, 0.0000
@@ -261,7 +290,7 @@ if __name__ == "__main__":
     for line in track_result_content.strip().splitlines():
         parts = line.split(",")
         point = {
-            'frame': int(parts[0].strip()),
+            "frame": int(parts[0].strip()),
             # 'x1': float(parts[4].strip()),
             # 'y1': float(parts[5].strip()),
             # 'x2': float(parts[6].strip()),
@@ -270,11 +299,11 @@ if __name__ == "__main__":
             # 'y3': float(parts[9].strip()),
             # 'x4': float(parts[10].strip()),
             # 'y4': float(parts[11].strip()),
-            'cx': float(parts[12].strip()),
-            'cy': float(parts[13].strip()),
+            "cx": float(parts[12].strip()),
+            "cy": float(parts[13].strip()),
         }
         note_path.append(point)
-    
+
     screen_cx, screen_cy = 540, 540
     judgeline_end = 480
     judgeline_start = 120
@@ -282,5 +311,13 @@ if __name__ == "__main__":
     frame_num = 7176
     track_id = 262
 
-    draw_path_on_frame(screen_cx, screen_cy, judgeline_end, judgeline_start,
-                       video_path, frame_num, track_id, note_path)
+    draw_path_on_frame(
+        screen_cx,
+        screen_cy,
+        judgeline_end,
+        judgeline_start,
+        video_path,
+        frame_num,
+        track_id,
+        note_path,
+    )

@@ -1,24 +1,26 @@
 from collections import defaultdict
 from pathlib import Path
+
 import numpy as np
 
 from ...schemas.op_result import OpResult, err, ok
+from .preprocess_touch_hold_inference import (
+    calc_touch_hold_crop_size,
+    run_touch_hold_inference,
+)
 from .shared_context import (
     SharedContext,
-    create_shared_context,
-    get_a_zone_endpoint,
-    get_max_track_id,
-    get_touch_areas,
 )
-from .preprocess_touch_hold_inference import run_touch_hold_inference, calc_touch_hold_crop_size
 
 
-def preprocess_touch_hold_data(shared_context: SharedContext,
-                               inference_device,
-                               batch_touch_hold: int,
-                               touch_hold_model_path: Path,
-                               half: bool = False) -> OpResult[dict]:
-    '''
+def preprocess_touch_hold_data(
+    shared_context: SharedContext,
+    inference_device,
+    batch_touch_hold: int,
+    touch_hold_model_path: Path,
+    half: bool = False,
+) -> OpResult[dict]:
+    """
     返回格式:
     dict{
         key: (track_id, note_type, note_variant, note_position),
@@ -32,13 +34,16 @@ def preprocess_touch_hold_data(shared_context: SharedContext,
             ...
         ]
     }
-    '''
+    """
 
     touch_hold_data = {}
 
     # 1: YOLO 推理（生产者-消费者流水线，轻量解析）
     inference_r = run_touch_hold_inference(
-        shared_context, inference_device, batch_touch_hold, touch_hold_model_path,
+        shared_context,
+        inference_device,
+        batch_touch_hold,
+        touch_hold_model_path,
         half=half,
     )
     if not inference_r.is_ok:
@@ -59,20 +64,26 @@ def preprocess_touch_hold_data(shared_context: SharedContext,
 
         # 检查轨迹存在
         if not valid_track_path:
-            print(f"preprocess_touch_hold_data: no valid_track_path for track_id {track_id}")
+            print(
+                f"preprocess_touch_hold_data: no valid_track_path for track_id {track_id}"
+            )
             continue
-        
+
         # 检验长度
         if len(valid_track_path) < 4:
-            print(f"preprocess_touch_hold_data: path too short for track_id {track_id}, length: {len(valid_track_path)}")
+            print(
+                f"preprocess_touch_hold_data: path too short for track_id {track_id}, length: {len(valid_track_path)}"
+            )
             continue
 
         # 检验方位一致
         positions = [x[1] for x in valid_track_path]
         if len(set(positions)) != 1:
-            print(f"preprocess_touch_hold_data: positions not consistent for track_id {track_id}")
+            print(
+                f"preprocess_touch_hold_data: positions not consistent for track_id {track_id}"
+            )
             continue
-        
+
         # 按frame排序
         valid_track_path.sort(key=lambda x: x[0])
 
@@ -80,11 +91,7 @@ def preprocess_touch_hold_data(shared_context: SharedContext,
         key = (track_id, meta["note_type"], meta["note_variant"], positions[0])
         path = []
         for frame_num, position, dist, percent_of_hold in valid_track_path:
-            path.append({
-                'frame': frame_num,
-                'dist': dist,
-                'percent': percent_of_hold
-            })
+            path.append({"frame": frame_num, "dist": dist, "percent": percent_of_hold})
         touch_hold_data[key] = path
 
     if not touch_hold_data:
@@ -92,16 +99,6 @@ def preprocess_touch_hold_data(shared_context: SharedContext,
         touch_hold_data = {}
 
     return ok(touch_hold_data)
-
-
-
-
-
-
-
-
-
-
 
 
 # dist/percent 解析
@@ -117,7 +114,9 @@ def _resolve_dist_percent(light_results, shared_context: SharedContext):
     valid_percent_end = 1 - percent_end_tolerance
     valid_percent_start = percent_start_tolerance
 
-    crop_size = calc_touch_hold_crop_size(shared_context.std_video_size, shared_context.is_big_touch)
+    crop_size = calc_touch_hold_crop_size(
+        shared_context.std_video_size, shared_context.is_big_touch
+    )
     observations_by_track = defaultdict(list)
 
     for light in light_results:
@@ -141,12 +140,17 @@ def _resolve_dist_percent(light_results, shared_context: SharedContext):
                 )
                 if filtered_percent == -1:
                     continue
-                if filtered_percent < valid_percent_start or filtered_percent > valid_percent_end:
+                if (
+                    filtered_percent < valid_percent_start
+                    or filtered_percent > valid_percent_end
+                ):
                     continue
                 valid_percents.append(filtered_percent)
 
             if valid_percents:
-                percent_of_hold = min(valid_percents) # 如果有多个合法结果，取最小的，一般不会出现
+                percent_of_hold = min(
+                    valid_percents
+                )  # 如果有多个合法结果，取最小的，一般不会出现
 
         # 两者都无效则丢弃
         if dist == -1 and percent_of_hold == -1:
@@ -159,18 +163,9 @@ def _resolve_dist_percent(light_results, shared_context: SharedContext):
     return observations_by_track
 
 
-
-
-
-
-
-
-
-
-
-
-
-def _convert_touch_box_to_dist_to_center(touch_w: float, touch_h: float, is_big_touch: bool) -> float:
+def _convert_touch_box_to_dist_to_center(
+    touch_w: float, touch_h: float, is_big_touch: bool
+) -> float:
     # label_notes.py 实现:
     # size = dist_to_center + 68
     # touch_box_side = 2 * size
@@ -183,9 +178,6 @@ def _convert_touch_box_to_dist_to_center(touch_w: float, touch_h: float, is_big_
     if np.isfinite(dist_to_center):
         return float(dist_to_center)
     return -1
-
-
-
 
 
 def _angle_to_progress(px: float, py: float, cx: float, cy: float) -> float:
@@ -203,9 +195,9 @@ def _angle_to_progress(px: float, py: float, cx: float, cy: float) -> float:
     return -1
 
 
-
-
-def _progress_point_to_percent_with_dist_filter(px: float, py: float, crop_w: int, crop_h: int) -> float:
+def _progress_point_to_percent_with_dist_filter(
+    px: float, py: float, crop_w: int, crop_h: int
+) -> float:
     """
     先转为角度，再计算该角度的理论 dist_to_center
     与实际结果比较，如果小于误差才视为合法
@@ -223,7 +215,9 @@ def _progress_point_to_percent_with_dist_filter(px: float, py: float, crop_w: in
 
     angle = np.arctan2(dy, dx)
     crop_size = min(float(crop_w), float(crop_h))
-    theoretical_dist_to_center = _calc_touch_hold_progress_theoretical_dist(angle, crop_size)
+    theoretical_dist_to_center = _calc_touch_hold_progress_theoretical_dist(
+        angle, crop_size
+    )
     if theoretical_dist_to_center == -1:
         return -1
 
@@ -232,8 +226,6 @@ def _progress_point_to_percent_with_dist_filter(px: float, py: float, crop_w: in
         return -1
 
     return _angle_to_progress(px, py, cx, cy)
-
-
 
 
 def _calc_touch_hold_progress_theoretical_dist(angle: float, crop_size: float) -> float:

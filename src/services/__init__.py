@@ -6,35 +6,29 @@ from importlib import import_module
 
 _LAZY_MAP: dict[str, str] = {
     # 核心管理
-    "PathManage":       ".path_manage",
-    "ModelPaths":       ".path_manage",
-    "ResolvedModels":   ".path_manage",
-    "SettingsManage":   ".settings_manage",
+    "PathManage": ".path_manage",
+    "ModelPaths": ".path_manage",
+    "ResolvedModels": ".path_manage",
+    "SettingsManage": ".settings_manage",
     "ModelInferenceManage": ".model_inference_manage",
     "ModelInferenceCheckResult": ".model_inference_manage",
-    "I18nManage":       ".i18n_manage",
-
+    "I18nManage": ".i18n_manage",
     # majdata
-    "MajdataSession":   ".majdata_session",
-    "stop_majdata":     ".majdata_session",
-    "VideoSyncServer":  ".majdata_sync_server",
+    "MajdataSession": ".majdata_session",
+    "stop_majdata": ".majdata_session",
+    "VideoSyncServer": ".majdata_sync_server",
     "MajdataCommandClient": ".majdata_command_client",
-
     # 聚合入口
-    "AllServices":      ".all_services",
-
+    "AllServices": ".all_services",
     # 调度器数据模型
-    "TaskInfo":         ".task_scheduler",
-    "TaskStatus":       ".task_scheduler",
-    "TaskType":         ".task_scheduler",
-
+    "TaskInfo": ".task_scheduler",
+    "TaskStatus": ".task_scheduler",
+    "TaskType": ".task_scheduler",
     # 进程树清理
     "kill_process_tree": ".watchdog",
-
     # pipeline
     "AutoRechartPipeline": ".pipeline.auto_rechart_pipeline",
-    "MediaPipeline":       ".pipeline.media_pipeline",
-
+    "MediaPipeline": ".pipeline.media_pipeline",
     # 更新检查
     "check_update": ".update_checker",
 }
@@ -42,8 +36,6 @@ _LAZY_MAP: dict[str, str] = {
 
 # 子模块命名空间（用于区分同名函数，如 cancel / get_signals）
 _SUBMODULE_NAMES = ("process_manager_api", "task_scheduler_api")
-
-
 
 
 def __getattr__(name: str):

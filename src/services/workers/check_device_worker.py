@@ -1,12 +1,15 @@
-import sys
-import json
-from pathlib import Path
 import io
-
+import json
+import sys
+from pathlib import Path
 
 # 解决 Windows 控制台 Unicode 编码问题
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', write_through=True)
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace', write_through=True)
+sys.stdout = io.TextIOWrapper(
+    sys.stdout.buffer, encoding="utf-8", errors="replace", write_through=True
+)
+sys.stderr = io.TextIOWrapper(
+    sys.stderr.buffer, encoding="utf-8", errors="replace", write_through=True
+)
 
 
 if len(sys.argv) <= 1:
@@ -20,19 +23,18 @@ if root not in sys.path:
     sys.path.insert(0, root)
 
 
-from src.core.tools import redirect_native_stderr
 from src.core.schemas.model_inference_config import INFERENCE_DEVICE_RESULT_PREFIX
+from src.core.tools import redirect_native_stderr
 from src.services import I18nManage
 
 # worker 子进程没有经过 I18nManage.init(), 这里按父进程传入的 locale 环境变量初始化
 I18nManage.init_headless()
 
+from src.core.check_device.check_ncnn import check as check_ncnn_vulkan
 from src.core.check_device.check_onnx_cpu import check as check_onnx_cpu
 from src.core.check_device.check_onnx_cuda import check as check_onnx_cuda
 from src.core.check_device.check_onnx_dml import check as check_onnx_dml
-from src.core.check_device.check_ncnn import check as check_ncnn_vulkan
 from src.core.check_device.check_trt import check as check_tensorrt
-
 
 
 def main(runtime: str) -> bool:
@@ -61,22 +63,28 @@ def main(runtime: str) -> bool:
     successful_devices = [device for device in devices if device.error is None]
     if not successful_devices:
         return False
-    print(INFERENCE_DEVICE_RESULT_PREFIX + json.dumps({
-        "devices": [
+    print(
+        INFERENCE_DEVICE_RESULT_PREFIX
+        + json.dumps(
             {
-                "device_id": device.device_id,
-                "name": device.name,
-                "half": device.half,
-            }
-            for device in successful_devices
-        ],
-    }, ensure_ascii=False, separators=(",", ":")))
+                "devices": [
+                    {
+                        "device_id": device.device_id,
+                        "name": device.name,
+                        "half": device.half,
+                    }
+                    for device in successful_devices
+                ],
+            },
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+    )
 
     return True
 
 
 if __name__ == "__main__":
-
     # 探测 ONNX 设备时会真实创建 session, ORT 原生日志走 stderr。
     # 转发到 stdout 并加前缀, 免得原生日志的 \r\n 行尾被日志组件当成进度行。
     native_stderr = redirect_native_stderr("check_device")

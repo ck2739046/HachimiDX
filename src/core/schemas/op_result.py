@@ -1,13 +1,12 @@
 import inspect
 import sys
 import traceback
-from pathlib import Path
 from dataclasses import dataclass
-from typing import Any, Optional, TypeVar, Generic
+from typing import Any, Generic, Optional, TypeVar
 
 from src.core.tools import rewrite_native_error_line
 
-T = TypeVar('T') # 带泛型是为了让 data 有类型提示
+T = TypeVar("T")  # 带泛型是为了让 data 有类型提示
 
 
 @dataclass(slots=True)
@@ -29,14 +28,13 @@ class OpResult(Generic[T]):
     is_ok: bool
     source: str = ""
     # 成功
-    value: Optional[T] = None
+    value: T | None = None
     # 错误
     error_msg: str = ""
     error_raw: Any = None
-    inner: Optional['OpResult[Any]'] = None
+    inner: Optional["OpResult[Any]"] = None
 
 
-    
 def _get_caller_context() -> str:
     """
     返回str 文件名: 函数名
@@ -51,7 +49,6 @@ def _get_caller_context() -> str:
         return "unknown:unknown"
 
 
-
 def _format_traceback(exc_type, exc_value, exc_tb) -> str:
     """
     格式化 traceback
@@ -59,9 +56,7 @@ def _format_traceback(exc_type, exc_value, exc_tb) -> str:
     onnxruntime 的本地化错误会被 pybind11 按 utf-8 强解失败, 只剩一个不含原因的解码
     错误; 真实字节在异常对象里, 交给 rewrite_native_error_line 还原并替换那一行。
     """
-    text = "".join(
-        traceback.format_exception(exc_type, exc_value, exc_tb)
-    ).rstrip()
+    text = "".join(traceback.format_exception(exc_type, exc_value, exc_tb)).rstrip()
     return rewrite_native_error_line(text, exc_value)
 
 
@@ -70,9 +65,7 @@ def _normalize_error_raw(error_raw: Any) -> Any:
     将 exception traceback 转为字符串
     """
     if isinstance(error_raw, BaseException):
-        return _format_traceback(
-            type(error_raw), error_raw, error_raw.__traceback__
-        )
+        return _format_traceback(type(error_raw), error_raw, error_raw.__traceback__)
 
     if error_raw is None:
         exc_type, exc_value, exc_tb = sys.exc_info()
@@ -82,8 +75,7 @@ def _normalize_error_raw(error_raw: Any) -> Any:
     return error_raw
 
 
-
-def ok(value: Optional[T] = None) -> OpResult[T]:
+def ok(value: T | None = None) -> OpResult[T]:
     """
     创建一个表示成功的 Result 对象。
 
@@ -93,17 +85,12 @@ def ok(value: Optional[T] = None) -> OpResult[T]:
     Returns:
         OpResult[T]: 表示成功的 Result 对象
     """
-    return OpResult(
-        is_ok=True, 
-        source=_get_caller_context(),
-        value=value
-    )
+    return OpResult(is_ok=True, source=_get_caller_context(), value=value)
 
 
-
-def err(error_msg: str = "", 
-        error_raw: Any = None, 
-        inner: Optional[OpResult[Any]] = None) -> OpResult[Any]:
+def err(
+    error_msg: str = "", error_raw: Any = None, inner: OpResult[Any] | None = None
+) -> OpResult[Any]:
     """
     创建一个表示失败的 Result 对象。
 
@@ -120,9 +107,8 @@ def err(error_msg: str = "",
         source=_get_caller_context(),
         error_msg=error_msg,
         error_raw=_normalize_error_raw(error_raw),
-        inner=inner
+        inner=inner,
     )
-
 
 
 def print_op_result(result: OpResult[Any], only_parse_last: bool = False) -> str:
@@ -137,36 +123,35 @@ def print_op_result(result: OpResult[Any], only_parse_last: bool = False) -> str
     Returns:
         str: OpResult 的详细字符串表示
     """
-    
+
     def _build_recursive(res: OpResult[Any], level: int) -> str:
         # 定义缩进，每一层增加 2 个空格
         indent = " " * 2 * level
-        
+
         # 构建字符串
         lines = []
-        
+
         # 视觉分割线，显示层级和简要状态
         status_icon = "✓" if res.is_ok else "✗"
         lines.append(f"{indent}{status_icon} [OpResult Level {level}]")
-        
+
         # 添加基础属性
         lines.append(f"{indent}    - source   : {res.source}")
         lines.append(f"{indent}    - is_ok    : {res.is_ok}")
-        
+
         # 添加所有参数
         lines.append(f"{indent}    - value    : {res.value}")
         lines.append(f"{indent}    - error_msg: {res.error_msg}")
         lines.append(f"{indent}    - error_raw: {res.error_raw}")
-        
+
         # 处理嵌套逻辑
         if res.inner:
             lines.append(f"{indent}    - inner    : (Nested below)")
             lines.append(_build_recursive(res.inner, level + 1))
         else:
             lines.append(f"{indent}    - inner    : None")
-            
+
         return "\n".join(lines)
-    
 
     def _find_deepest(res: OpResult[Any]) -> OpResult[Any]:
         """找到最内层的 OpResult"""
@@ -174,13 +159,11 @@ def print_op_result(result: OpResult[Any], only_parse_last: bool = False) -> str
         while current.inner:
             current = current.inner
         return current
-            
 
     # 如果 only_parse_last 为 True，只解析最内层的 OpResult
     if only_parse_last:
         deepest = _find_deepest(result)
         return _build_recursive(deepest, 0)
-    
-    
+
     # 开始构建字符串，初始层级为 0
     return _build_recursive(result, 0)

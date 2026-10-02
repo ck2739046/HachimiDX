@@ -1,41 +1,34 @@
-import os
-import cv2
-import time
-import math
-import numpy as np
-from collections import defaultdict, deque
-import subprocess
 import atexit
+import math
+import os
+import subprocess
+import time
+from collections import defaultdict, deque
 from dataclasses import dataclass
-from typing import Optional
 from pathlib import Path
 
-from ...schemas.op_result import OpResult, ok, err
-from ..pipeline import Producer, Consumer, Pipeline
-from .note_definition import (
-    NoteType,
-    NoteVariant,
-    Note_Geometry,
-    get_imgsz,
-    is_obb,
-    map_model_class_to_note_type,
-    map_note_type_to_class_id,
-    need_cls,
-)
-from .track import _load_track_results
-from ..tool import catmull_rom_spline, print_progress
-from .custom_oc_sort.oc_sort import _KalmanBoxTracker
+import cv2
 import i18n
+import numpy as np
 
 from src.services import PathManage
 
-
-
+from ...schemas.op_result import OpResult, err, ok
+from ..pipeline import Consumer, Pipeline, Producer
+from ..tool import catmull_rom_spline, print_progress
+from .custom_oc_sort.oc_sort import _KalmanBoxTracker
+from .note_definition import (
+    Note_Geometry,
+    NoteType,
+    is_obb,
+    map_note_type_to_class_id,
+)
+from .track import _load_track_results
 
 _COLOR_PALETTE = [
-    (0, 0, 190),    # RED
-    (190, 0, 0),    # BLUE
-    (0, 170, 0),    # GREEN
+    (0, 0, 190),  # RED
+    (190, 0, 0),  # BLUE
+    (0, 170, 0),  # GREEN
     (0, 100, 200),  # ORANGE
     (200, 0, 150),  # PURPLE
     (180, 130, 0),  # TEAL
@@ -76,10 +69,6 @@ def _color_for_id(track_id: int) -> tuple:
     return _COLOR_PALETTE[track_id % len(_COLOR_PALETTE)]
 
 
-
-
-
-
 class ExportProducer(Producer):
     """生产者: 视频解码"""
 
@@ -109,18 +98,23 @@ class ExportProducer(Producer):
                 return
 
 
-
-
-
-
-
 class ExportConsumer(Consumer):
     """消费者: 绘制轨迹/音符框 + 批量写 ffmpeg"""
 
-    def __init__(self, ffmpeg_cmd, video_width, video_height, frame_size,
-                 total_frames, fps_for_calc, timeout_frames,
-                 note_manifest, center_manifest, kalman_predictions,
-                 final_track_video_path):
+    def __init__(
+        self,
+        ffmpeg_cmd,
+        video_width,
+        video_height,
+        frame_size,
+        total_frames,
+        fps_for_calc,
+        timeout_frames,
+        note_manifest,
+        center_manifest,
+        kalman_predictions,
+        final_track_video_path,
+    ):
         self.ffmpeg_cmd = ffmpeg_cmd
         self.video_width = video_width
         self.video_height = video_height
@@ -157,7 +151,6 @@ class ExportConsumer(Consumer):
     def processed_frames(self) -> int:
         return self._frame_number
 
-
     def on_start(self, ctx):
         print("Running FFmpeg command:", " ".join(self.ffmpeg_cmd))
         self.ffmpeg_process = subprocess.Popen(
@@ -178,17 +171,16 @@ class ExportConsumer(Consumer):
 
         self.start_time = time.time()
 
-
     def consume(self, frame, stop, ctx):
         frame_number = self._frame_number
         self._frame_number += 1
 
-        if not frame.flags['C_CONTIGUOUS']:
+        if not frame.flags["C_CONTIGUOUS"]:
             frame = np.ascontiguousarray(frame)
 
         # 追加本帧中心点 + 标记活跃
         active_now: set = set()
-        for (tid, is_slide, cx, cy) in self.center_manifest[frame_number]:
+        for tid, is_slide, cx, cy in self.center_manifest[frame_number]:
             b = self.builders.get(tid)
             if b is None:
                 b = _TrailBuilder(is_slide)
@@ -198,9 +190,12 @@ class ExportConsumer(Consumer):
             active_now.add(tid)
 
         # 清理过期轨迹 (连续缺席 > timeout_frames 轨迹随之消失)
-        evict = [tid for tid in self.builders
-                 if tid not in active_now
-                 and (frame_number - self.last_seen[tid]) > self.timeout_frames]
+        evict = [
+            tid
+            for tid in self.builders
+            if tid not in active_now
+            and (frame_number - self.last_seen[tid]) > self.timeout_frames
+        ]
         for tid in evict:
             del self.builders[tid]
             del self.last_seen[tid]
@@ -222,36 +217,44 @@ class ExportConsumer(Consumer):
                 cv2.rectangle(frame, (r[0], r[1]), (r[2], r[3]), nd.color, _BOX_THICK)
             bg = nd.label_bg
             cv2.rectangle(frame, bg[0], bg[1], nd.color, -1)
-            cv2.putText(frame, nd.label, nd.label_org, _LABEL_FONT,
-                        _LABEL_SCALE, _LABEL_COLOR, _LABEL_THICK)
+            cv2.putText(
+                frame,
+                nd.label,
+                nd.label_org,
+                _LABEL_FONT,
+                _LABEL_SCALE,
+                _LABEL_COLOR,
+                _LABEL_THICK,
+            )
 
         # 绘制 Kalman 预测框
         if _DRAW_KALMAN_PREDICTION:
-            _draw_kalman_predictions(frame, self.kalman_predictions, frame_number, self._label_size_cache)
+            _draw_kalman_predictions(
+                frame, self.kalman_predictions, frame_number, self._label_size_cache
+            )
 
         # 写入批量缓冲 (memoryview slice 赋值, 零拷贝 memcpy)
-        self.batch_mv[self.off:self.off + self.frame_size] = frame.reshape(-1)
+        self.batch_mv[self.off : self.off + self.frame_size] = frame.reshape(-1)
         self.off += self.frame_size
         self.count_in_batch += 1
 
         if self.count_in_batch == _BATCH_FRAMES:
             # 将这一批缓冲写入 FFmpeg stdin
-            self.stdin.write(self.batch_mv[:self.off])
+            self.stdin.write(self.batch_mv[: self.off])
             # 打印进度
-            print_progress("export", frame_number+1, self.total_frames)
+            print_progress("export", frame_number + 1, self.total_frames)
             self.off = 0
             self.count_in_batch = 0
 
-
     def on_cleanup(self, ctx, error):
         """ffmpeg 生命周期收尾: 正常路径 flush + wait + 检查; 异常路径 kill"""
-        is_normal = (error is None)
+        is_normal = error is None
 
         if is_normal:
             # 正常结束: flush 残余批次
             try:
                 if self.count_in_batch > 0 and self.stdin is not None:
-                    self.stdin.write(self.batch_mv[:self.off])
+                    self.stdin.write(self.batch_mv[: self.off])
             except Exception:
                 pass
 
@@ -284,16 +287,24 @@ class ExportConsumer(Consumer):
 
             if self.ffmpeg_process.stderr is not None:
                 try:
-                    ffmpeg_stderr = self.ffmpeg_process.stderr.read().decode('utf-8', errors='ignore').strip()
+                    ffmpeg_stderr = (
+                        self.ffmpeg_process.stderr.read()
+                        .decode("utf-8", errors="ignore")
+                        .strip()
+                    )
                     self.ffmpeg_process.stderr.close()
                 except Exception:
                     pass
 
         # 正常路径下 ffmpeg 失败要抛出 (异常路径不再追加错误)
         if is_normal and ffmpeg_return_code is not None and ffmpeg_return_code != 0:
-            raise Exception(i18n.t("export_track_video.error_ffmpeg_failed",
-                                   code=ffmpeg_return_code, error=ffmpeg_stderr))
-
+            raise Exception(
+                i18n.t(
+                    "export_track_video.error_ffmpeg_failed",
+                    code=ffmpeg_return_code,
+                    error=ffmpeg_stderr,
+                )
+            )
 
 
 def _terminate_ffmpeg_on_exit(proc: "subprocess.Popen") -> None:
@@ -309,18 +320,12 @@ def _terminate_ffmpeg_on_exit(proc: "subprocess.Popen") -> None:
         pass
 
 
-
-
-
-
-
-
 # 单段 Catmull-Rom：增量构建器的基础算子
 # 给定一段的 4 个控制点 P0..P3
 # 返回该段 t∈[0,1) 的 num_samples 个采样点 (num_samples,2) int32
-def _catmull_segment(p0, p1, p2, p3,
-                     num_samples: int = _SPLINE_SAMPLES,
-                     s: float = _SPLINE_TENSION) -> np.ndarray:
+def _catmull_segment(
+    p0, p1, p2, p3, num_samples: int = _SPLINE_SAMPLES, s: float = _SPLINE_TENSION
+) -> np.ndarray:
     t = np.arange(num_samples, dtype=np.float32) / np.float32(num_samples)
     t2 = t * t
     t3 = t2 * t
@@ -332,23 +337,33 @@ def _catmull_segment(p0, p1, p2, p3,
     y = 0.5 * (c0 * p0[1] + c1 * p1[1] + c2 * p2[1] + c3 * p3[1])
     return np.stack([np.round(x), np.round(y)], axis=1).astype(np.int32)
 
+
 # 增量轨迹构建器
 #   核心：Catmull-Rom 第 i 段依赖控制点 i-1,i,i+1,i+2。
 #   新增一个点时，只有 “上一段（原本 p3 被钳位，现可用真点 finalize）”
 #   与 “新增的末段” 两段需要重算，其余段已定型存入 frozen。
 class _TrailBuilder:
-    __slots__ = ("is_slide", "pts", "frozen", "pending", "last_pt",
-                 "n", "is_linear", "start_pt", "_overflow")
+    __slots__ = (
+        "_overflow",
+        "frozen",
+        "is_linear",
+        "is_slide",
+        "last_pt",
+        "n",
+        "pending",
+        "pts",
+        "start_pt",
+    )
 
     def __init__(self, is_slide: bool):
         self.is_slide = is_slide
         self.pts: deque = deque(maxlen=_MAX_TRACK_HISTORY_LEN)
         self.frozen: np.ndarray = _EMPTY_POLY.reshape(-1, 2)  # 已定型段采样 (M,2)
-        self.pending: Optional[np.ndarray] = None             # 末段(临时)采样 (k,2)
-        self.last_pt: Optional[np.ndarray] = None             # 末控制点 (1,2)
+        self.pending: np.ndarray | None = None  # 末段(临时)采样 (k,2)
+        self.last_pt: np.ndarray | None = None  # 末控制点 (1,2)
         self.n = 0
         self.is_linear = False
-        self.start_pt: Optional[tuple] = None
+        self.start_pt: tuple | None = None
         # 轨迹超过 maxlen 后 deque 前端裁剪，索引对应关系被破坏，
         # 退化为每帧全量重算
         self._overflow = False
@@ -384,7 +399,9 @@ class _TrailBuilder:
             # 2 点：线性插值（与 catmull_rom_spline 的 n==2 分支一致）
             a = np.asarray(pts[0], dtype=np.float32)
             b = np.asarray(pts[1], dtype=np.float32)
-            t = np.linspace(0.0, 1.0, _SPLINE_SAMPLES + 1, endpoint=True, dtype=np.float32)
+            t = np.linspace(
+                0.0, 1.0, _SPLINE_SAMPLES + 1, endpoint=True, dtype=np.float32
+            )
             interp = a + (b - a) * t[:, None]
             self.pending = np.asarray(np.round(interp), dtype=np.int32)
             self.frozen = _EMPTY_POLY.reshape(-1, 2)
@@ -405,7 +422,7 @@ class _TrailBuilder:
         self.frozen = np.concatenate([self.frozen, finalized], axis=0)
         self.pending = _catmull_segment(pts[n - 3], pts[n - 2], pts[n - 1], pts[n - 1])
 
-    def current_polyline(self) -> Optional[np.ndarray]:
+    def current_polyline(self) -> np.ndarray | None:
         """返回当前完整 polyline (N,1,2) int32；不足 2 点返回 None。"""
         if self.n < 2:
             return None
@@ -419,40 +436,38 @@ class _TrailBuilder:
         return arr.reshape(-1, 1, 2)
 
 
-
-
-
-
-
-
 # 预计算的绘制记录（主循环只读，零计算）
 @dataclass(slots=True)
 class _NoteDraw:
     color: tuple
     is_obb: bool
-    obb_pts: Optional[np.ndarray]   # (4,1,2) int32
-    rect: Optional[tuple]           # (x1,y1,x2,y2)
+    obb_pts: np.ndarray | None  # (4,1,2) int32
+    rect: tuple | None  # (x1,y1,x2,y2)
     label: str
-    label_org: tuple                # putText 起点
-    label_bg: tuple                 # ((x1,y1),(x2,y2))
+    label_org: tuple  # putText 起点
+    label_bg: tuple  # ((x1,y1),(x2,y2))
 
 
-def _build_note_draw(rep_id: int, note_type: "NoteType", note: "Note_Geometry",
-                     display_id: str) -> _NoteDraw:
+def _build_note_draw(
+    rep_id: int, note_type: "NoteType", note: "Note_Geometry", display_id: str
+) -> _NoteDraw:
     """预计算一个音符的绘制数据: 颜色，标签，矩形坐标等"""
     color = _color_for_id(rep_id)
     is_obb_note = is_obb(note_type)  # NoteType.HOLD
-    label = f'{note_type.name}.{note.note_variant.name} ID:{display_id}'
+    label = f"{note_type.name}.{note.note_variant.name} ID:{display_id}"
     label_size = cv2.getTextSize(label, _LABEL_FONT, _LABEL_SCALE, _LABEL_THICK)[0]
     lw, lh = label_size[0], label_size[1]
 
     if is_obb_note:
-        obb_pts = np.array([
-            [note.x1, note.y1],
-            [note.x2, note.y2],
-            [note.x3, note.y3],
-            [note.x4, note.y4],
-        ], dtype=np.int32).reshape(-1, 1, 2)
+        obb_pts = np.array(
+            [
+                [note.x1, note.y1],
+                [note.x2, note.y2],
+                [note.x3, note.y3],
+                [note.x4, note.y4],
+            ],
+            dtype=np.int32,
+        ).reshape(-1, 1, 2)
         ip = [
             (int(note.x1), int(note.y1)),
             (int(note.x2), int(note.y2)),
@@ -460,22 +475,40 @@ def _build_note_draw(rep_id: int, note_type: "NoteType", note: "Note_Geometry",
             (int(note.x4), int(note.y4)),
         ]
         lx, ly = min(ip, key=lambda p: (p[1], p[0]))  # 最上，并列 x 最小
-        return _NoteDraw(color, True, obb_pts, None, label, (lx, ly - 5),
-                         ((lx, ly - lh - 10), (lx + lw, ly)))
+        return _NoteDraw(
+            color,
+            True,
+            obb_pts,
+            None,
+            label,
+            (lx, ly - 5),
+            ((lx, ly - lh - 10), (lx + lw, ly)),
+        )
     else:
         x1, y1 = int(note.x1), int(note.y1)
         x2, y2 = int(note.x3), int(note.y3)
-        return _NoteDraw(color, False, None, (x1, y1, x2, y2), label, (x1, y1 - 5),
-                         ((x1, y1 - lh - 10), (x1 + lw, y1)))
+        return _NoteDraw(
+            color,
+            False,
+            None,
+            (x1, y1, x2, y2),
+            label,
+            (x1, y1 - 5),
+            ((x1, y1 - lh - 10), (x1 + lw, y1)),
+        )
 
 
 def _compute_center(note: "Note_Geometry", is_obb_note: bool) -> tuple:
     if is_obb_note:
-        return (int(round((note.x1 + note.x2 + note.x3 + note.x4) / 4.0)),
-                int(round((note.y1 + note.y2 + note.y3 + note.y4) / 4.0)))
+        return (
+            int(round((note.x1 + note.x2 + note.x3 + note.x4) / 4.0)),
+            int(round((note.y1 + note.y2 + note.y3 + note.y4) / 4.0)),
+        )
     else:
-        return (int(round((note.x1 + note.x3) / 2.0)),
-                int(round((note.y1 + note.y3) / 2.0)))
+        return (
+            int(round((note.x1 + note.x3) / 2.0)),
+            int(round((note.y1 + note.y3) / 2.0)),
+        )
 
 
 def _dedup_slide_notes(current_tracks: list) -> list:
@@ -495,13 +528,17 @@ def _dedup_slide_notes(current_tracks: list) -> list:
     """
     slide_groups: dict = {}
     other: list = []
-    for (track_id, note_type, note) in current_tracks:
+    for track_id, note_type, note in current_tracks:
         if note_type == NoteType.SLIDE:
             key = (
-                round(note.x1, _BOX_KEY_PRECISION), round(note.y1, _BOX_KEY_PRECISION),
-                round(note.x2, _BOX_KEY_PRECISION), round(note.y2, _BOX_KEY_PRECISION),
-                round(note.x3, _BOX_KEY_PRECISION), round(note.y3, _BOX_KEY_PRECISION),
-                round(note.x4, _BOX_KEY_PRECISION), round(note.y4, _BOX_KEY_PRECISION),
+                round(note.x1, _BOX_KEY_PRECISION),
+                round(note.y1, _BOX_KEY_PRECISION),
+                round(note.x2, _BOX_KEY_PRECISION),
+                round(note.y2, _BOX_KEY_PRECISION),
+                round(note.x3, _BOX_KEY_PRECISION),
+                round(note.y3, _BOX_KEY_PRECISION),
+                round(note.x4, _BOX_KEY_PRECISION),
+                round(note.y4, _BOX_KEY_PRECISION),
             )
             slide_groups.setdefault(key, []).append((track_id, note_type, note))
         else:
@@ -513,9 +550,9 @@ def _dedup_slide_notes(current_tracks: list) -> list:
         rep_type = group[0][1]
         rep_note = group[0][2]
         ids = [g[0] for g in group]
-        display_id = '/'.join(str(i) for i in ids)
+        display_id = "/".join(str(i) for i in ids)
         dedup.append((rep_id, rep_type, rep_note, ids, display_id))
-    for (track_id, note_type, note) in other:
+    for track_id, note_type, note in other:
         dedup.append((track_id, note_type, note, [track_id], str(track_id)))
     return dedup
 
@@ -558,24 +595,15 @@ def _build_manifests(track_results: dict, total_frames: int) -> tuple:
 
         # 中心点数据（轻量，喂给主循环的轨迹构建器）
         centers: list = []
-        for (_rep_id, note_type, note, ids, _display_id) in dedup:
+        for _rep_id, note_type, note, ids, _display_id in dedup:
             is_obb_note = is_obb(note_type)
             cx, cy = _compute_center(note, is_obb_note)
-            is_slide = (note_type == NoteType.SLIDE)
+            is_slide = note_type == NoteType.SLIDE
             for tid in ids:
                 centers.append((tid, is_slide, cx, cy))
         center_manifest[frame_number] = centers
 
     return note_manifest, center_manifest
-
-
-
-
-
-
-
-
-
 
 
 # 主入口
@@ -611,7 +639,7 @@ def main(std_video_path: Path, total_frames: int) -> OpResult[Path]:
         # 输出视频设置
         output_dir = std_video_path.parent
         video_name = output_dir.name
-        final_track_video_path = os.path.join(output_dir, f'{video_name}_tracked.mp4')
+        final_track_video_path = os.path.join(output_dir, f"{video_name}_tracked.mp4")
         if os.path.exists(final_track_video_path):
             os.remove(final_track_video_path)
 
@@ -620,19 +648,39 @@ def main(std_video_path: Path, total_frames: int) -> OpResult[Path]:
         frame_size = video_width * video_height * 3
         ffmpeg_cmd = [
             ffmpeg_exe,
-            '-y', '-hide_banner', '-loglevel', 'error',
-            '-f', 'rawvideo',
-            '-pix_fmt', 'bgr24',
-            '-s', f'{video_width}x{video_height}',
-            '-r', str(fps_for_calc),
-            '-i', '-',
-            '-i', str(std_video_path),
-            '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23',
-            '-pix_fmt', 'yuv420p',
-            '-c:a', 'aac', '-b:a', '192k',
-            '-map', '0:v:0',
-            '-map', '1:a:0?',
-            '-shortest',
+            "-y",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "bgr24",
+            "-s",
+            f"{video_width}x{video_height}",
+            "-r",
+            str(fps_for_calc),
+            "-i",
+            "-",
+            "-i",
+            str(std_video_path),
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "23",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+            "-map",
+            "0:v:0",
+            "-map",
+            "1:a:0?",
+            "-shortest",
             final_track_video_path,
         ]
 
@@ -652,27 +700,35 @@ def main(std_video_path: Path, total_frames: int) -> OpResult[Path]:
             kalman_predictions=kalman_predictions,
             final_track_video_path=final_track_video_path,
         )
-        pipeline_r = Pipeline(
-            producer, consumer, queue_size=_BATCH_FRAMES * 2
-        ).run()
+        pipeline_r = Pipeline(producer, consumer, queue_size=_BATCH_FRAMES * 2).run()
         if not pipeline_r.is_ok:
             return err("[export_track_video] pipeline failed", inner=pipeline_r)
 
         # 最后再打印一次进度
-        print_progress('export', consumer.processed_frames, total_frames, final=True)
+        print_progress("export", consumer.processed_frames, total_frames, final=True)
 
         # 正常结束: 打印耗时
-        average_fps = total_frames / consumer.elapsed_time if consumer.elapsed_time > 0 else 0
-        print(i18n.t("export_track_video.notice_export_finished",
-                     seconds=f"{consumer.elapsed_time:.1f}", fps=f"{average_fps:.2f}"))
-        print(i18n.t("export_track_video.notice_video_saved", path=str(final_track_video_path)))
+        average_fps = (
+            total_frames / consumer.elapsed_time if consumer.elapsed_time > 0 else 0
+        )
+        print(
+            i18n.t(
+                "export_track_video.notice_export_finished",
+                seconds=f"{consumer.elapsed_time:.1f}",
+                fps=f"{average_fps:.2f}",
+            )
+        )
+        print(
+            i18n.t(
+                "export_track_video.notice_video_saved",
+                path=str(final_track_video_path),
+            )
+        )
 
         return ok(Path(final_track_video_path))
 
     except Exception as e:
         return err("Unexcepted error in auto_rechart > detect > export_track_video", e)
-
-
 
 
 # Kalman 预测
@@ -690,62 +746,93 @@ def _compute_kalman_predictions(track_results) -> dict[int, list[dict]]:
         last_f = geo_list_sorted[-1].frame
         note_variant = geo_list_sorted[0].note_variant
         first_geo = geo_list_sorted[0]
-        init_bbox = np.array([
-            first_geo.x1, first_geo.y1,
-            first_geo.x3, first_geo.y3,
-            first_geo.conf,
-            float(map_note_type_to_class_id(note_type)),
-            0.0,
-        ], dtype=np.float32)
+        init_bbox = np.array(
+            [
+                first_geo.x1,
+                first_geo.y1,
+                first_geo.x3,
+                first_geo.y3,
+                first_geo.conf,
+                float(map_note_type_to_class_id(note_type)),
+                0.0,
+            ],
+            dtype=np.float32,
+        )
         tracker = _KalmanBoxTracker(init_bbox)
         # 首帧：predict 后写入预测结果，若有检测框则 update
         pred = tracker.predict()[0]
-        kalman_predictions[first_f].append({
-            'track_id': track_id,
-            'note_variant': note_variant,
-            'x1': float(pred[0]), 'y1': float(pred[1]),
-            'x2': float(pred[2]), 'y2': float(pred[3]),
-        })
+        kalman_predictions[first_f].append(
+            {
+                "track_id": track_id,
+                "note_variant": note_variant,
+                "x1": float(pred[0]),
+                "y1": float(pred[1]),
+                "x2": float(pred[2]),
+                "y2": float(pred[3]),
+            }
+        )
         tracker.update(init_bbox)
         for f in range(first_f + 1, last_f + 1):
             pred = tracker.predict()[0]
-            kalman_predictions[f].append({
-                'track_id': track_id,
-                'note_variant': note_variant,
-                'x1': float(pred[0]), 'y1': float(pred[1]),
-                'x2': float(pred[2]), 'y2': float(pred[3]),
-            })
+            kalman_predictions[f].append(
+                {
+                    "track_id": track_id,
+                    "note_variant": note_variant,
+                    "x1": float(pred[0]),
+                    "y1": float(pred[1]),
+                    "x2": float(pred[2]),
+                    "y2": float(pred[3]),
+                }
+            )
             geo = frame_to_geo.get(f)
             if geo is not None:
-                obs = np.array([
-                    geo.x1, geo.y1,
-                    geo.x3, geo.y3,
-                    geo.conf,
-                    float(map_note_type_to_class_id(note_type)),
-                    0.0,
-                ], dtype=np.float32)
+                obs = np.array(
+                    [
+                        geo.x1,
+                        geo.y1,
+                        geo.x3,
+                        geo.y3,
+                        geo.conf,
+                        float(map_note_type_to_class_id(note_type)),
+                        0.0,
+                    ],
+                    dtype=np.float32,
+                )
                 tracker.update(obs)
             else:
                 tracker.update(None)
     return kalman_predictions
 
 
-
 def _draw_kalman_predictions(frame, kalman_predictions, frame_number, label_size_cache):
     """在当前帧上绘制 Kalman 预测框（灰色，仅 SLIDE）"""
     kalman_grey = (160, 160, 160)
     for kp in kalman_predictions.get(frame_number, []):
-        if math.isnan(kp['x1']) or math.isnan(kp['y1']):
+        if math.isnan(kp["x1"]) or math.isnan(kp["y1"]):
             continue
-        kp_x1, kp_y1 = int(kp['x1']), int(kp['y1'])
-        kp_x2, kp_y2 = int(kp['x2']), int(kp['y2'])
+        kp_x1, kp_y1 = int(kp["x1"]), int(kp["y1"])
+        kp_x2, kp_y2 = int(kp["x2"]), int(kp["y2"])
         cv2.rectangle(frame, (kp_x1, kp_y1), (kp_x2, kp_y2), kalman_grey, 1)
-        kp_label = f'{NoteType.SLIDE.name}.{kp["note_variant"].name} ID:{kp["track_id"]}'
+        kp_label = (
+            f"{NoteType.SLIDE.name}.{kp['note_variant'].name} ID:{kp['track_id']}"
+        )
         kp_label_size = label_size_cache.get(kp_label)
         if kp_label_size is None:
             kp_label_size = cv2.getTextSize(kp_label, _LABEL_FONT, _LABEL_SCALE, 1)[0]
             label_size_cache[kp_label] = kp_label_size
-        cv2.rectangle(frame, (kp_x1, kp_y1 - kp_label_size[1] - 10),
-                      (kp_x1 + kp_label_size[0], kp_y1), kalman_grey, -1)
-        cv2.putText(frame, kp_label, (kp_x1, kp_y1 - 5),
-                    _LABEL_FONT, _LABEL_SCALE, _LABEL_COLOR, 1)
+        cv2.rectangle(
+            frame,
+            (kp_x1, kp_y1 - kp_label_size[1] - 10),
+            (kp_x1 + kp_label_size[0], kp_y1),
+            kalman_grey,
+            -1,
+        )
+        cv2.putText(
+            frame,
+            kp_label,
+            (kp_x1, kp_y1 - 5),
+            _LABEL_FONT,
+            _LABEL_SCALE,
+            _LABEL_COLOR,
+            1,
+        )

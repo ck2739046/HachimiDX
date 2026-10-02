@@ -1,10 +1,9 @@
 import cv2
+import i18n
 import torch
 import torch.utils.data
 
-from ...schemas.op_result import OpResult, ok, err
-import i18n
-
+from ...schemas.op_result import OpResult, err, ok
 
 
 class Decoder:
@@ -18,8 +17,9 @@ class Decoder:
 
     _TIMEOUT = 60.0  # timeout for collecting a batch from workers
 
-    def __init__(self, std_video_path: str, imgsz: int, batch_size: int,
-                 total_frames: int):
+    def __init__(
+        self, std_video_path: str, imgsz: int, batch_size: int, total_frames: int
+    ):
 
         dataset = _VideoFrameDataset(std_video_path, imgsz, total_frames)
 
@@ -34,15 +34,13 @@ class Decoder:
 
         self._iter = iter(self._loader)  # 预热: 尽早启动 worker
 
-        self._eof = False                # 正常解码完毕后为 True
-        self._failed = False             # 报错时为 True
-        self._force_closed = False       # 仅在用户主动关闭解码器时为 True
-
-
+        self._eof = False  # 正常解码完毕后为 True
+        self._failed = False  # 报错时为 True
+        self._force_closed = False  # 仅在用户主动关闭解码器时为 True
 
     def get_next_batch(self) -> OpResult:
         """取下一个 batch, 返回 OpResult"""
-        
+
         if self._force_closed:
             return err("[decoder] get_next_batch: decoder already force closed.")
         if self._failed:
@@ -64,8 +62,6 @@ class Decoder:
 
         return ok(value=batch)  # 成功拿到 batch
 
-
-
     def close(self):
         if self._force_closed:
             return
@@ -76,10 +72,8 @@ class Decoder:
         self._iter = None
 
 
-
 def _to_list(batch):
     return list(batch)
-
 
 
 def _shutdown_loader(loader, iterator=None):
@@ -97,9 +91,7 @@ def _shutdown_loader(loader, iterator=None):
         print(f"[decoder] _shutdown_loader failed: {e}")
 
 
-
 class _VideoFrameDataset(torch.utils.data.IterableDataset):
-
     def __init__(self, std_video_path: str, imgsz: int, total_frames: int):
         super().__init__()
         self._std_video_path = std_video_path
@@ -109,7 +101,12 @@ class _VideoFrameDataset(torch.utils.data.IterableDataset):
     def __iter__(self):
         cap = cv2.VideoCapture(self._std_video_path)
         if not cap.isOpened():
-            raise RuntimeError(i18n.t("detect_decode.error_open_video_failed", path=str(self._std_video_path)))
+            raise RuntimeError(
+                i18n.t(
+                    "detect_decode.error_open_video_failed",
+                    path=str(self._std_video_path),
+                )
+            )
         try:
             frame_idx = 0
             while True:
@@ -119,8 +116,11 @@ class _VideoFrameDataset(torch.utils.data.IterableDataset):
                     if frame_idx >= self._total_frames * 0.98:
                         break  # 接近预期总帧数，视为正常 EOF
                     raise RuntimeError(
-                        i18n.t("detect_decode.error_decode_stopped_early",
-                               frame=frame_idx, expected=f"{self._total_frames * 0.98:.2f}")
+                        i18n.t(
+                            "detect_decode.error_decode_stopped_early",
+                            frame=frame_idx,
+                            expected=f"{self._total_frames * 0.98:.2f}",
+                        )
                     )
 
                 # 此处提前 resize 好可以避免在推理内部 resize 从而加快推理速度

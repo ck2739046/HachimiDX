@@ -1,19 +1,16 @@
-import sys
 from pathlib import Path
+
 import cv2
 
 from src.services import ModelInferenceManage, PathManage, SettingsManage
 
-from .schemas.auto_rechart_model import AutoRechartModel
-from .schemas.auto_rechart_config import AutoRechartConfig_Definitions as AC_Defs
+from .build_worker_cmd import build_cmd_head_python_exe
 from .schemas.auto_rechart_config import AutoRechartConfig_Definition
-from .schemas.op_result import OpResult, ok, err
+from .schemas.auto_rechart_config import AutoRechartConfig_Definitions as AC_Defs
+from .schemas.auto_rechart_model import AutoRechartModel
+from .schemas.op_result import OpResult, err, ok
 from .schemas.settings_config import SettingsConfig_Definitions as SC_Defs
 from .tools import FFprobeInspect, show_confirm_dialog
-from .build_worker_cmd import build_cmd_head_python_exe
-
-
-
 
 
 def _try_unload_majdata_video_if_matches(target_path: Path) -> None:
@@ -52,7 +49,6 @@ def build_auto_rechart_cmd(data: AutoRechartModel) -> OpResult[list[str]]:
         else:
             is_enable_standardize = False
 
-
         # add common args
         cmd.append(f"--{AC_Defs.is_standardize_enabled.key}")
         cmd.append("true" if is_enable_standardize else "false")  # 此处不用 data 值判断
@@ -60,7 +56,6 @@ def build_auto_rechart_cmd(data: AutoRechartModel) -> OpResult[list[str]]:
         cmd.append("true" if data.is_detect_enabled else "false")
         cmd.append(f"--{AC_Defs.is_analyze_enabled.key}")
         cmd.append("true" if data.is_analyze_enabled else "false")
-        
 
         # add standardize args
         if is_enable_standardize:
@@ -69,27 +64,25 @@ def build_auto_rechart_cmd(data: AutoRechartModel) -> OpResult[list[str]]:
             cmd.append(f"--{AC_Defs.standardize_temp_output_path.key}")
             cmd.append(str(temp_output.resolve()))
 
-        
         # add std_video_path args
         if std_video_path is None:
             filename = f"{data.selected_folder.name}_std.mp4"
             std_video_path = data.selected_folder / filename
             if not _is_video_already_standardized(std_video_path, data):
-                return err(f"Selected folder doesn't contain a valid standardized video, expect: {std_video_path}")
+                return err(
+                    f"Selected folder doesn't contain a valid standardized video, expect: {std_video_path}"
+                )
 
         cmd.append(f"--{AC_Defs.std_video_path.key}")
         cmd.append(str(std_video_path.resolve()))
 
-        
         # add detect args
         if data.is_detect_enabled:
             cmd.extend(_parse_fields(data, "detect"))
 
-
         # add analyze args
         if data.is_analyze_enabled:
             cmd.extend(_parse_fields(data, "analyze"))
-
 
         # add detect/analyze shared args
         if data.is_detect_enabled or data.is_analyze_enabled:
@@ -98,14 +91,10 @@ def build_auto_rechart_cmd(data: AutoRechartModel) -> OpResult[list[str]]:
                 return err("Failed to build inference args", inner=res)
             cmd.extend(res.value)
 
-
         return ok(cmd)
-    
+
     except Exception as e:
         return err("Unexpected error in build_auto_rechart_cmd", e)
-
-
-
 
 
 def _parse_fields(data: AutoRechartModel, group: str) -> list[str]:
@@ -124,7 +113,7 @@ def _parse_fields(data: AutoRechartModel, group: str) -> list[str]:
         value = getattr(data, definition.key)
         if value is None:
             continue
-        
+
         arg_key = f"--{definition.key}"
         if definition.type == "bool":
             arg_value = "true" if value else "false"
@@ -132,23 +121,16 @@ def _parse_fields(data: AutoRechartModel, group: str) -> list[str]:
             arg_value = value.value
         else:
             arg_value = str(value)
-        
+
         args.append(arg_key)
         args.append(arg_value)
 
     return args
 
 
-
-
-
-
-
-
-
-
-def _build_standardize_output_path(data: AutoRechartModel) -> OpResult[tuple[bool, list]]:
-
+def _build_standardize_output_path(
+    data: AutoRechartModel,
+) -> OpResult[tuple[bool, list]]:
     """构建并检查标准化模块的输出路径参数，返回 OpResult: (是否启用标准化模块, temp_output, final_output)"""
 
     try:
@@ -160,7 +142,10 @@ def _build_standardize_output_path(data: AutoRechartModel) -> OpResult[tuple[boo
             try:
                 standardize_temp_output_path.unlink()
             except Exception as e:
-                return err(f"Failed to delete existing temp standardized video: {standardize_temp_output_path}", e)
+                return err(
+                    f"Failed to delete existing temp standardized video: {standardize_temp_output_path}",
+                    e,
+                )
 
         # 构建 standardize_final_output_path
         output_dir = data.standardize_input_video_path.parent
@@ -168,15 +153,17 @@ def _build_standardize_output_path(data: AutoRechartModel) -> OpResult[tuple[boo
 
         if _use_existing_standardized_video(standardize_final_output_path, data):
             # 如果使用已有视频，禁用标准化模块
-            return ok((False, standardize_temp_output_path, standardize_final_output_path))
+            return ok(
+                (False, standardize_temp_output_path, standardize_final_output_path)
+            )
         else:
             # 如果不用已有视频，启用标准化模块
-            return ok((True, standardize_temp_output_path, standardize_final_output_path))
-    
+            return ok(
+                (True, standardize_temp_output_path, standardize_final_output_path)
+            )
+
     except Exception as e:
         return err("Unexpected error in _build_standardize_output_path", e)
-
-
 
 
 def _use_existing_standardized_video(file_path, data) -> bool:
@@ -190,7 +177,7 @@ def _use_existing_standardized_video(file_path, data) -> bool:
                 f"Standardized video already exists:\n\n{file_path}\n\n"
                 f"Confirm: Delete it and generate a new one.\n"
                 f"Cancel: Disable the standardize module and use the existing standardized video directly."
-            )
+            ),
         )
         if is_delete:
             # 用户选择删除文件
@@ -204,10 +191,10 @@ def _use_existing_standardized_video(file_path, data) -> bool:
         else:
             # 用户选择不删除
             print("Standardized module will be disabled.")
-            print(f'Using existing standardized video: {file_path}')
+            print(f"Using existing standardized video: {file_path}")
             # 视为使用已有文件
             return True
-    
+
     # 视为不使用已有文件
     if file_path.exists() and file_path.is_file():
         try:
@@ -216,13 +203,12 @@ def _use_existing_standardized_video(file_path, data) -> bool:
             print(f'Failed to delete "{file_path}": {e}')
 
     return False
-    
-
 
 
 def _is_video_already_standardized(video_path: Path, data: AutoRechartModel) -> bool:
 
-    if not video_path.exists() or not video_path.is_file(): return False
+    if not video_path.exists() or not video_path.is_file():
+        return False
 
     # 获取视频数据
     try:
@@ -236,15 +222,17 @@ def _is_video_already_standardized(video_path: Path, data: AutoRechartModel) -> 
 
     # 检查分辨率
     if video_width != data.target_res or video_height != data.target_res:
-        print(f'video resolution mismatch, expect {data.target_res}x{data.target_res}, got {video_width}x{video_height}.')
+        print(
+            f"video resolution mismatch, expect {data.target_res}x{data.target_res}, got {video_width}x{video_height}."
+        )
         return False
 
     # 计算时长
     set_duration = data.duration is not None and data.duration != 0
     if not set_duration:
-        return True # 如果没有设置时长，就不检查时长
-    
-    set_start = data.start_sec is not None and data.start_sec !=  0
+        return True  # 如果没有设置时长，就不检查时长
+
+    set_start = data.start_sec is not None and data.start_sec != 0
     set_end = data.end_sec is not None and data.end_sec != 0
     if set_start and set_end:
         expect_duration = data.end_sec - data.start_sec
@@ -272,12 +260,12 @@ def _is_video_already_standardized(video_path: Path, data: AutoRechartModel) -> 
 
     # 允许时长相差半秒
     if abs(video_duration - expect_duration) > 0.5:
-        print(f'video duration mismatch, expect {expect_duration}s, got {video_duration}s.')
+        print(
+            f"video duration mismatch, expect {expect_duration}s, got {video_duration}s."
+        )
         return False
 
     return True
-
-
 
 
 def _build_inference_args() -> OpResult[list[str]]:
@@ -319,7 +307,10 @@ def _build_inference_args() -> OpResult[list[str]]:
         device_half=inference_device_half,
     )
     if not model_result.is_ok:
-        return err(f"Failed to validate models for backend: {model_backend}", inner=model_result)
+        return err(
+            f"Failed to validate models for backend: {model_backend}",
+            inner=model_result,
+        )
     if not model_result.value.is_usable:
         return err(
             f"Models are not usable for backend '{model_backend}': "

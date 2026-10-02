@@ -1,41 +1,38 @@
-from ultralytics import YOLO
-import cv2
-import time
 import math
+import time
 from collections import defaultdict
 from pathlib import Path
 
-from ...schemas.op_result import OpResult, ok, err
-from ..pipeline import Producer, Consumer, Pipeline
+import cv2
+import i18n
+from ultralytics import YOLO
+
+from ...schemas.op_result import OpResult, err, ok
+from ..pipeline import Consumer, Pipeline, Producer
+from ..tool import SEEK_THRESHOLD, print_progress, release_ncnn_vulkan
 from .note_definition import (
+    Note_Geometry,
     NoteType,
     NoteVariant,
-    Note_Geometry,
     get_imgsz,
     is_obb,
-    map_model_class_to_note_type,
-    map_note_type_to_class_id,
     need_cls,
 )
-from .track import _save_track_results, _load_track_results
-from ..tool import print_progress, release_ncnn_vulkan, SEEK_THRESHOLD
-import i18n
+from .track import _load_track_results, _save_track_results
 
 
 class ClassificationInferenceError(RuntimeError):
     pass
 
 
-
-
-def main(std_video_path: Path,
-         batch_cls: int,
-         inference_device: str,
-         cls_ex_model_path: str,
-         cls_break_model_path: str,
-         half: bool = False,
-        ) -> OpResult[None]:
-    
+def main(
+    std_video_path: Path,
+    batch_cls: int,
+    inference_device: str,
+    cls_ex_model_path: str,
+    cls_break_model_path: str,
+    half: bool = False,
+) -> OpResult[None]:
     """
     主入口
 
@@ -65,14 +62,15 @@ def main(std_video_path: Path,
             print(i18n.t("classify.notice_no_tracks"))
             return ok()
 
-        imgsz = get_imgsz('cls')
+        imgsz = get_imgsz("cls")
 
-        producer = ClassifyProducer(
-            std_video_path, sampling_plan, imgsz, batch_cls
-        )
+        producer = ClassifyProducer(std_video_path, sampling_plan, imgsz, batch_cls)
         consumer = ClassifyConsumer(
-            cls_ex_model_path, cls_break_model_path,
-            inference_device, imgsz, total_cls_quantity,
+            cls_ex_model_path,
+            cls_break_model_path,
+            inference_device,
+            imgsz,
+            total_cls_quantity,
             half=half,
         )
         pipeline_r = Pipeline(producer, consumer, queue_size=2).run()
@@ -80,14 +78,24 @@ def main(std_video_path: Path,
             return err("[classify] pipeline failed", inner=pipeline_r)
 
         # 最后再打印一次进度
-        print_progress(i18n.t("classify.progress_label"), len(consumer.results), total_cls_quantity, final=True)
+        print_progress(
+            i18n.t("classify.progress_label"),
+            len(consumer.results),
+            total_cls_quantity,
+            final=True,
+        )
 
         # 根据分类结果，更新track_results
         track_results = _merge_cls_into_track_results(track_results, consumer.results)
 
         # 结束
         finish_time = time.time()
-        print(i18n.t("classify.notice_module_finished", seconds=f"{finish_time - start_time:.1f}"))
+        print(
+            i18n.t(
+                "classify.notice_module_finished",
+                seconds=f"{finish_time - start_time:.1f}",
+            )
+        )
 
         # 保存到文件
         _save_track_results(track_results, std_video_path.parent, call_fn="classify")
@@ -95,12 +103,6 @@ def main(std_video_path: Path,
 
     except Exception as e:
         return err("Unexcepted error in auto_rechart > detect > classify", e)
-    
-
-
-
-
-
 
 
 class ClassifyProducer(Producer):
@@ -134,7 +136,6 @@ class ClassifyProducer(Producer):
         last_frame_number = -1
 
         for frame_number in sorted_frames_in_sampling_plan:
-
             # 1. 解码视频
             gap = frame_number - last_frame_number
             # seek 优化: 小跳用 grab() 推进指针不解码, 大跳用 set()
@@ -147,13 +148,18 @@ class ClassifyProducer(Producer):
                 cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
 
             ret, frame = cap.read()
-            if not ret: continue
+            if not ret:
+                continue
             last_frame_number = frame_number
 
             # 2. 裁剪样本图像
             this_frame_sample_plan = self.sampling_plan[frame_number]
             cropped_images = _extract_note_images_in_frame(
-                self.imgsz, frame, this_frame_sample_plan, frame_number, self.crop_border,
+                self.imgsz,
+                frame,
+                this_frame_sample_plan,
+                frame_number,
+                self.crop_border,
             )
             if cropped_images is None:
                 continue
@@ -161,9 +167,9 @@ class ClassifyProducer(Producer):
 
             # 3. 凑满 batch 入队
             while len(buffer) >= self.batch_cls:
-                if not self._put_or_stop(q, buffer[:self.batch_cls], stop):
+                if not self._put_or_stop(q, buffer[: self.batch_cls], stop):
                     return
-                buffer = buffer[self.batch_cls:]
+                buffer = buffer[self.batch_cls :]
 
         # 发送剩余 buffer
         if buffer:
@@ -171,16 +177,18 @@ class ClassifyProducer(Producer):
                 return
 
 
-
-
-
-
-
 class ClassifyConsumer(Consumer):
     """消费者: 取 batch 调 yolo cls 推理, 结果收集到 self.results"""
 
-    def __init__(self, cls_ex_model_path, cls_break_model_path,
-                 inference_device, imgsz, total_cls_quantity, half=False):
+    def __init__(
+        self,
+        cls_ex_model_path,
+        cls_break_model_path,
+        inference_device,
+        imgsz,
+        total_cls_quantity,
+        half=False,
+    ):
         self.cls_ex_model_path = cls_ex_model_path
         self.cls_break_model_path = cls_break_model_path
         self.inference_device = inference_device
@@ -203,19 +211,21 @@ class ClassifyConsumer(Consumer):
 
     def consume(self, batch, stop, ctx):
         cls_results = _classify_image_batch(
-            batch, self.cls_ex_model, self.cls_break_model,
-            self.inference_device, self.imgsz, self.half,
+            batch,
+            self.cls_ex_model,
+            self.cls_break_model,
+            self.inference_device,
+            self.imgsz,
+            self.half,
         )
         if cls_results:
             self.results.extend(cls_results)
             self._counter += len(cls_results)
-            print_progress(i18n.t("classify.progress_label"), self._counter, self.total_cls_quantity)
-
-
-
-
-
-
+            print_progress(
+                i18n.t("classify.progress_label"),
+                self._counter,
+                self.total_cls_quantity,
+            )
 
 
 def _build_sampling_plan(track_results):
@@ -226,14 +236,16 @@ def _build_sampling_plan(track_results):
 
     sampling_plan = defaultdict(list)
     counter = 0
-    
+
     for key, value in track_results.items():
         track_id, note_type = key
         note_geometry_list = value
-        
+
         # 跳过不需要分类的音符
-        if len(note_geometry_list) <= 0: continue
-        if not need_cls(note_type): continue
+        if len(note_geometry_list) <= 0:
+            continue
+        if not need_cls(note_type):
+            continue
 
         # 从一个音符的轨迹中选取采样点
         path_length = len(note_geometry_list)
@@ -252,38 +264,43 @@ def _build_sampling_plan(track_results):
             note = note_geometry_list[sample_idx]
             frame_number = note.frame
             # 写入采样计划
-            sampling_plan[frame_number].append({
-                'track_id': track_id,
-                'sample_position': sample_position,
-                'note_geometry': note,
-            })
+            sampling_plan[frame_number].append(
+                {
+                    "track_id": track_id,
+                    "sample_position": sample_position,
+                    "note_geometry": note,
+                }
+            )
             counter += 1
-    
+
     return sampling_plan, counter
 
 
-
 def _crop_single_note_image(imgsz, frame, note_geometry, crop_border):
-    
     """
     从视频帧中裁剪单个音符图像。
-    
+
     输入:
         imgsz: 目标图像尺寸
         frame: 视频帧 (numpy array)
         note_geometry: Note_Geometry 对象
         crop_border: 裁剪边界扩展像素数
-    
+
     返回:
         cropped_image: 裁剪并resize后的图像 (numpy array)
         或 None (裁剪失败)
     """
-    
+
     try:
         if not is_obb(note_geometry.note_type):
             # 对于普通矩形框，裁剪范围就是(x1, y1, x3, y3)
-            x1, y1, x2, y2 = note_geometry.x1, note_geometry.y1, note_geometry.x3, note_geometry.y3
-            
+            x1, y1, x2, y2 = (
+                note_geometry.x1,
+                note_geometry.y1,
+                note_geometry.x3,
+                note_geometry.y3,
+            )
+
             # 稍微扩展一圈
             x1 -= crop_border
             y1 -= crop_border
@@ -298,12 +315,12 @@ def _crop_single_note_image(imgsz, frame, note_geometry, crop_border):
             y2 = min(frame.shape[0], y2)
             if x1 >= x2 or y1 >= y2:
                 return None
-            
+
             # 裁剪并resize
             cropped_image = frame[y1:y2, x1:x2]
             cropped_image = cv2.resize(cropped_image, (imgsz, imgsz))
             return cropped_image
-        
+
         else:
             # OBB: 精确裁剪后再旋转（避免对全帧 warpAffine）
             r = note_geometry.r
@@ -341,7 +358,9 @@ def _crop_single_note_image(imgsz, frame, note_geometry, crop_border):
             # 5. 对 ROI 做逆旋转，使得 OBB 变为水平矩形
             angle_deg = r * 180 / math.pi
             rotation_matrix = cv2.getRotationMatrix2D((roi_cx, roi_cy), angle_deg, 1.0)
-            target_frame = cv2.warpAffine(roi, rotation_matrix, (roi.shape[1], roi.shape[0]))
+            target_frame = cv2.warpAffine(
+                roi, rotation_matrix, (roi.shape[1], roi.shape[0])
+            )
 
             # 6. 从 warp 后的 ROI 中提取有效内容区域
             content_x1 = max(0, roi_cx - w / 2)
@@ -349,12 +368,14 @@ def _crop_single_note_image(imgsz, frame, note_geometry, crop_border):
             content_x2 = min(target_frame.shape[1], roi_cx + w / 2)
             content_y2 = min(target_frame.shape[0], roi_cy + h / 2)
 
-            content_x1 = int(content_x1); content_y1 = int(content_y1)
-            content_x2 = int(content_x2); content_y2 = int(content_y2)
+            content_x1 = int(content_x1)
+            content_y1 = int(content_y1)
+            content_x2 = int(content_x2)
+            content_y2 = int(content_y2)
 
             if content_x1 >= content_x2 or content_y1 >= content_y2:
                 return None
-            
+
             # 7. 裁剪并resize
             cropped_image = target_frame[content_y1:content_y2, content_x1:content_x2]
             cropped_image = cv2.resize(cropped_image, (imgsz, imgsz))
@@ -367,7 +388,7 @@ def _crop_single_note_image(imgsz, frame, note_geometry, crop_border):
             # _save_obb_debug_image(cropped_image) # debug
 
             return cropped_image
-        
+
     except Exception as e:
         print(i18n.t("classify.error_crop_note_image", error=e))
         return None
@@ -375,6 +396,7 @@ def _crop_single_note_image(imgsz, frame, note_geometry, crop_border):
 
 _obb_debug_counter = 0
 _obb_debug_folder_name = time.strftime("%Y%m%d_%H%M%S")
+
 
 def _save_obb_debug_image(image):
     """DEBUG: 将 OBB 裁剪结果保存到硬盘"""
@@ -389,33 +411,32 @@ def _save_obb_debug_image(image):
         pass  # 静默失败，不影响主流程
 
 
-
-def _extract_note_images_in_frame(imgsz, frame, this_frame_sample_plan, frame_number, crop_border):
-    
+def _extract_note_images_in_frame(
+    imgsz, frame, this_frame_sample_plan, frame_number, crop_border
+):
     """
     根据 sample_plan 裁剪出一帧内的所有音符的图像
     返回 list of dict: frame, track_id, sample_position, note_type, cropped_image
     """
-    
+
     try:
         cropped_images = []
 
         for sample_data in this_frame_sample_plan:
-
-            track_id = sample_data['track_id']
-            sample_position = sample_data['sample_position']
-            note = sample_data['note_geometry']
+            track_id = sample_data["track_id"]
+            sample_position = sample_data["sample_position"]
+            note = sample_data["note_geometry"]
 
             cropped_image = _crop_single_note_image(imgsz, frame, note, crop_border)
             if cropped_image is None:
                 continue
 
             cropped_data = {
-                'frame': frame_number,
-                'track_id': track_id,
-                'sample_position': sample_position,
-                'note_type': note.note_type,
-                'cropped_image': cropped_image
+                "frame": frame_number,
+                "track_id": track_id,
+                "sample_position": sample_position,
+                "note_type": note.note_type,
+                "cropped_image": cropped_image,
             }
             cropped_images.append(cropped_data)
 
@@ -424,11 +445,11 @@ def _extract_note_images_in_frame(imgsz, frame, this_frame_sample_plan, frame_nu
     except Exception as e:
         print(i18n.t("classify.error_extract_frame_image", frame=frame_number, error=e))
         return None
-    
 
 
-def _classify_image_batch(consumed_batch, cls_ex_model, cls_break_model, inference_device, imgsz, half=False):
-
+def _classify_image_batch(
+    consumed_batch, cls_ex_model, cls_break_model, inference_device, imgsz, half=False
+):
     """
     调用yolo分类模型，推理传入的音符图片
     返回 list of dict: track_id, is_ex, is_break, frame, sample_position, note_type
@@ -436,13 +457,21 @@ def _classify_image_batch(consumed_batch, cls_ex_model, cls_break_model, inferen
 
     try:
         # extract images and info
-        images = [item['cropped_image'] for item in consumed_batch]
-        images_info = [(item['frame'], item['track_id'], item['sample_position'], item['note_type']) for item in consumed_batch]
+        images = [item["cropped_image"] for item in consumed_batch]
+        images_info = [
+            (
+                item["frame"],
+                item["track_id"],
+                item["sample_position"],
+                item["note_type"],
+            )
+            for item in consumed_batch
+        ]
 
         # 模型推理
         batch_size = len(images)
         ex_results = cls_ex_model.predict(
-            task='classify',
+            task="classify",
             source=images,
             conf=0.5,
             verbose=False,
@@ -452,7 +481,7 @@ def _classify_image_batch(consumed_batch, cls_ex_model, cls_break_model, inferen
             batch=batch_size,
         )
         break_results = cls_break_model.predict(
-            task='classify',
+            task="classify",
             source=images,
             conf=0.5,
             verbose=False,
@@ -466,39 +495,42 @@ def _classify_image_batch(consumed_batch, cls_ex_model, cls_break_model, inferen
         ex_flags = []
         for res in ex_results:
             is_ex = False
-            if hasattr(res, 'probs') and res.probs is not None:
+            if hasattr(res, "probs") and res.probs is not None:
                 ex_probs = res.probs.data.cpu().numpy()
-                if len(ex_probs) >= 2: # 第一个是"no"，第二个是"yes"
+                if len(ex_probs) >= 2:  # 第一个是"no"，第二个是"yes"
                     is_ex = ex_probs[1] > ex_probs[0]
             ex_flags.append(bool(is_ex))
 
         break_flags = []
         for res in break_results:
             is_break = False
-            if hasattr(res, 'probs') and res.probs is not None:
+            if hasattr(res, "probs") and res.probs is not None:
                 break_probs = res.probs.data.cpu().numpy()
-                if len(break_probs) >= 2: # 第一个是"no"，第二个是"yes"
+                if len(break_probs) >= 2:  # 第一个是"no"，第二个是"yes"
                     is_break = break_probs[1] > break_probs[0]
             break_flags.append(bool(is_break))
 
         # reformat results
         final_cls_results = []
-        for i, (frame_number, track_id, sample_position, note_type) in enumerate(images_info):
+        for i, (frame_number, track_id, sample_position, note_type) in enumerate(
+            images_info
+        ):
             data = {
-                'track_id': track_id,
-                'is_ex': ex_flags[i],
-                'is_break': break_flags[i],
-                'frame': frame_number,
-                'sample_position': sample_position,
-                'note_type': note_type
+                "track_id": track_id,
+                "is_ex": ex_flags[i],
+                "is_break": break_flags[i],
+                "frame": frame_number,
+                "sample_position": sample_position,
+                "note_type": note_type,
             }
             final_cls_results.append(data)
 
         return final_cls_results
 
     except Exception as e:
-        raise ClassificationInferenceError("batch classification inference failed") from e
-
+        raise ClassificationInferenceError(
+            "batch classification inference failed"
+        ) from e
 
 
 def _merge_cls_into_track_results(track_results, cls_results_all):
@@ -506,11 +538,11 @@ def _merge_cls_into_track_results(track_results, cls_results_all):
     # 根据分类结果 is_ex, is_break 计算 note_variant，按 track_id 分组
     note_variant_by_track = defaultdict(list)
     for cls_result in cls_results_all:
-        track_id = cls_result['track_id']
-        is_ex = cls_result['is_ex']
-        is_break = cls_result['is_break']
-        note_type = cls_result['note_type']
-        
+        track_id = cls_result["track_id"]
+        is_ex = cls_result["is_ex"]
+        is_break = cls_result["is_break"]
+        note_type = cls_result["note_type"]
+
         if is_break and is_ex:
             note_variant = NoteVariant.BREAK_EX
         elif is_ex and not is_break:
@@ -519,31 +551,37 @@ def _merge_cls_into_track_results(track_results, cls_results_all):
             note_variant = NoteVariant.BREAK
         else:
             note_variant = NoteVariant.NORMAL
-        
+
         note_variant_by_track[track_id].append((note_variant, note_type))
-    
+
     # 每个音符有多个候选点和分类结果，采用最多的类别作为最终结果
     for track_id, value in note_variant_by_track.items():
         note_variants = [v[0] for v in value]
-        note_type = value[0][1] # 同一轨迹的note_type是一样的，取第一个就行了
+        note_type = value[0][1]  # 同一轨迹的note_type是一样的，取第一个就行了
         if len(note_variants) == 0:
             continue
-        
+
         # 统计每个note_variant的出现次数
         counts = {}
         for note_variant in note_variants:
             counts[note_variant] = counts.get(note_variant, 0) + 1
-        
+
         max_count = max(counts.values())
         most_common = [k for k, v in counts.items() if v == max_count]
-        
+
         if len(most_common) == 1:
             # 有明确的一个最多数
             final_note_variant = most_common[0]
         else:
             # 没有明确的多数，默认 normal
             final_note_variant = NoteVariant.NORMAL
-            print(i18n.t("classify.warning_sample_inconsistent", track_id=track_id, variant=final_note_variant.name))
+            print(
+                i18n.t(
+                    "classify.warning_sample_inconsistent",
+                    track_id=track_id,
+                    variant=final_note_variant.name,
+                )
+            )
 
         # 更新track_results的note_variant
         key = (track_id, note_type)
@@ -556,14 +594,14 @@ def _merge_cls_into_track_results(track_results, cls_results_all):
     return track_results
 
 
-
-
- # 此函数仅供外部调用
+# 此函数仅供外部调用
 def classify_note_path(
     path_to_classify: list[Note_Geometry],
     std_video_path: Path,
-    cls_ex_model, cls_break_model,
-    inference_device: str, batch_cls: int,
+    cls_ex_model,
+    cls_break_model,
+    inference_device: str,
+    batch_cls: int,
     half: bool = False,
 ) -> NoteVariant | None:
     """
@@ -583,7 +621,7 @@ def classify_note_path(
     if not path_to_classify:
         return None
 
-    imgsz = get_imgsz('cls')
+    imgsz = get_imgsz("cls")
 
     # 构建采样计划
     sampling_plan = defaultdict(list)
@@ -594,10 +632,12 @@ def classify_note_path(
         if sample_idx >= path_length:
             continue
         note = path_to_classify[sample_idx]
-        sampling_plan[note.frame].append({
-            'sample_position': sample_position,
-            'note_geometry': note,
-        })
+        sampling_plan[note.frame].append(
+            {
+                "sample_position": sample_position,
+                "note_geometry": note,
+            }
+        )
 
     if not sampling_plan:
         return None
@@ -613,7 +653,6 @@ def classify_note_path(
     sorted_frames = sorted(sampling_plan.keys())
 
     for frame_number in sorted_frames:
-
         # 速度优化
         # cap.read() 读取下一帧 比 cap.set() 跳转到指定帧 更快
         # 如果目标帧和当前帧差距不大, 循环推进到目标帧以减少 seek 调用
@@ -628,31 +667,39 @@ def classify_note_path(
         # 如果目标帧较远，使用 seek 跳转
         else:
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
-        
+
         # 读取当前帧
         ret, frame = cap.read()
-        if not ret: continue
+        if not ret:
+            continue
         last_frame_number = frame_number
 
         # 根据采样计划裁剪图像并写入 batch
         for sample_data in sampling_plan[frame_number]:
-            note = sample_data['note_geometry']
+            note = sample_data["note_geometry"]
             cropped = _crop_single_note_image(imgsz, frame, note, crop_border)
             if cropped is None:
                 continue
-            images_batch_buffer.append({
-                'track_id': 0,
-                'frame': frame_number,
-                'sample_position': sample_data['sample_position'],
-                'note_type': note.note_type,
-                'cropped_image': cropped,
-            })
+            images_batch_buffer.append(
+                {
+                    "track_id": 0,
+                    "frame": frame_number,
+                    "sample_position": sample_data["sample_position"],
+                    "note_type": note.note_type,
+                    "cropped_image": cropped,
+                }
+            )
 
             while len(images_batch_buffer) >= batch_cls:
                 consumed = images_batch_buffer[:batch_cls]
                 images_batch_buffer = images_batch_buffer[batch_cls:]
                 batch_results = _classify_image_batch(
-                    consumed, cls_ex_model, cls_break_model, inference_device, imgsz, half
+                    consumed,
+                    cls_ex_model,
+                    cls_break_model,
+                    inference_device,
+                    imgsz,
+                    half,
                 )
                 if batch_results:
                     cls_results_all.extend(batch_results)
@@ -660,7 +707,12 @@ def classify_note_path(
     # 处理剩余 buffer
     if images_batch_buffer:
         batch_results = _classify_image_batch(
-            images_batch_buffer, cls_ex_model, cls_break_model, inference_device, imgsz, half
+            images_batch_buffer,
+            cls_ex_model,
+            cls_break_model,
+            inference_device,
+            imgsz,
+            half,
         )
         if batch_results:
             cls_results_all.extend(batch_results)
@@ -673,8 +725,8 @@ def classify_note_path(
     # 投票决定 variant
     variant_counts = defaultdict(int)
     for result in cls_results_all:
-        is_ex = result['is_ex']
-        is_break = result['is_break']
+        is_ex = result["is_ex"]
+        is_break = result["is_break"]
 
         if is_break and is_ex:
             variant = NoteVariant.BREAK_EX

@@ -1,13 +1,8 @@
 import cv2
 import numpy as np
-from typing import Dict
-
-
 
 
 class TransformMixin:
-
-
     def _build_default_quad(self, frame_w: int, frame_h: int) -> np.ndarray:
         """生成默认透视四点: 位于画面中心、约占画面 20% 的矩形"""
         cx = frame_w / 2.0
@@ -24,18 +19,18 @@ class TransformMixin:
             dtype=np.float32,
         )
 
-
-
-
-    def _frame_to_panel(self, frame_point: np.ndarray, meta: Dict[str, float]) -> np.ndarray:
+    def _frame_to_panel(
+        self, frame_point: np.ndarray, meta: dict[str, float]
+    ) -> np.ndarray:
         """把帧坐标点换算为面板坐标 (乘 zoom 再加左上角偏移)"""
         zoom = meta["zoom_percent"] / 100.0
         panel_x = frame_point[0] * zoom + meta["top_left_x"]
         panel_y = frame_point[1] * zoom + meta["top_left_y"]
         return np.array([panel_x, panel_y], dtype=np.float32)
 
-
-    def _panel_to_frame(self, panel_x: float, panel_y: float, meta: Dict[str, float]) -> np.ndarray:
+    def _panel_to_frame(
+        self, panel_x: float, panel_y: float, meta: dict[str, float]
+    ) -> np.ndarray:
         """把面板坐标换算为帧坐标 (减左上角偏移再除 zoom, clip 到帧范围内)"""
         zoom = max(1e-6, meta["zoom_percent"] / 100.0)
         frame_x = (panel_x - meta["top_left_x"]) / zoom
@@ -44,9 +39,6 @@ class TransformMixin:
         frame_x = float(np.clip(frame_x, 0.0, max(0.0, self.frame_width - 1.0)))
         frame_y = float(np.clip(frame_y, 0.0, max(0.0, self.frame_height - 1.0)))
         return np.array([frame_x, frame_y], dtype=np.float32)
-
-
-
 
     def _build_target_quad(self, src_quad: np.ndarray) -> np.ndarray:
         """
@@ -76,7 +68,6 @@ class TransformMixin:
             dtype=np.float32,
         )
 
-
     def _apply_output_brightness(self, frame: np.ndarray) -> np.ndarray:
         """实现帧画面的亮度调整"""
         brightness = self.output_brightness_percent / 100.0
@@ -86,7 +77,6 @@ class TransformMixin:
         adjusted = frame.astype(np.float32) + brightness * 255.0
         adjusted = np.clip(adjusted, 0, 255)
         return adjusted.astype(np.uint8)
-
 
     def _compute_output_panel_matrix(self) -> np.ndarray:
         """
@@ -118,21 +108,21 @@ class TransformMixin:
         # S: stretch 拉伸
         sx = self.output_stretch_x_percent / 100.0
         sy = self.output_stretch_y_percent / 100.0
-        s = np.array([[sx, 0.0, 0.0],
-                      [0.0, sy, 0.0],
-                      [0.0, 0.0, 1.0]], dtype=np.float32)
+        s = np.array(
+            [[sx, 0.0, 0.0], [0.0, sy, 0.0], [0.0, 0.0, 1.0]], dtype=np.float32
+        )
 
         # T: 先 zoom 缩放, 再应用面板左上角偏移
         z = self.output_zoom_percent / 100.0
         scaled_w = fw * sx * z
         scaled_h = fh * sy * z
-        tlx = (self.FRAME_PREVIEW_SIZE - scaled_w) * 0.5 \
-            + (self.output_offset_x_px + self.output_fine_offset_x_px)
-        tly = (self.FRAME_PREVIEW_SIZE - scaled_h) * 0.5 \
-            + (self.output_offset_y_px + self.output_fine_offset_y_px)
-        t = np.array([[z, 0.0, tlx],
-                      [0.0, z, tly],
-                      [0.0, 0.0, 1.0]], dtype=np.float32)
+        tlx = (self.FRAME_PREVIEW_SIZE - scaled_w) * 0.5 + (
+            self.output_offset_x_px + self.output_fine_offset_x_px
+        )
+        tly = (self.FRAME_PREVIEW_SIZE - scaled_h) * 0.5 + (
+            self.output_offset_y_px + self.output_fine_offset_y_px
+        )
+        t = np.array([[z, 0.0, tlx], [0.0, z, tly], [0.0, 0.0, 1.0]], dtype=np.float32)
 
         ui_scale = np.array(
             [
@@ -143,8 +133,6 @@ class TransformMixin:
             dtype=np.float32,
         )
         return (ui_scale @ t @ s @ m_warp).astype(np.float32)
-
-
 
     def _render_output_panel(self, raw_frame: np.ndarray) -> np.ndarray:
         """透视 → 拉伸 → 缩放 → 位移 → 亮度"""

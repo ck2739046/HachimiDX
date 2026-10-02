@@ -1,14 +1,15 @@
 import os
-import librosa
-import numpy as np
 import warnings
 from contextlib import contextmanager
 
+import i18n
+import librosa
+import numpy as np
 from audioread.exceptions import NoBackendError
 
 from src.services import PathManage
-from ..schemas.op_result import OpResult, ok, err
-import i18n
+
+from ..schemas.op_result import OpResult, err, ok
 
 MATCH_DURATION_SEC = 10
 
@@ -22,10 +23,10 @@ def suppress_audio_warnings():
     # 抑制 librosa FutureWarning
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=FutureWarning, module="librosa")
-        warnings.filterwarnings("ignore", message='PySoundFile failed. Trying audioread instead.')
+        warnings.filterwarnings(
+            "ignore", message="PySoundFile failed. Trying audioread instead."
+        )
         yield
-
-
 
 
 def main(file_path, bpm, click_times, start_time_sec) -> OpResult[dict]:
@@ -41,7 +42,7 @@ def main(file_path, bpm, click_times, start_time_sec) -> OpResult[dict]:
 
     返回:
         OpResult[dict]:
-            - match_time: 匹配时间 (ms) 
+            - match_time: 匹配时间 (ms)
             - generated_click_template_audio: 生成的启动拍音频 (44100Hz)
             - graph_range_start: 波形图显示的起始时间 (ms)
             - graph_range_end: 波形图显示的结束时间 (ms)
@@ -58,18 +59,24 @@ def main(file_path, bpm, click_times, start_time_sec) -> OpResult[dict]:
         audio_data, audio_sr = _load_audio_file(file_path)
 
         # 仅保留从起始时间开始的 10 秒音频用于匹配
-        audio_data = _extract_segment(audio_data, audio_sr, start_time_sec, MATCH_DURATION_SEC)
+        audio_data = _extract_segment(
+            audio_data, audio_sr, start_time_sec, MATCH_DURATION_SEC
+        )
 
         # Generate multi-beat template
         full_template = generate_template(bpm, click_times, template_data, template_sr)
-        
+
         # Resample both to 44100 Hz
-        target_sr = 44100 
+        target_sr = 44100
         if template_sr != target_sr:
-            full_template = librosa.resample(full_template, orig_sr=template_sr, target_sr=target_sr)
+            full_template = librosa.resample(
+                full_template, orig_sr=template_sr, target_sr=target_sr
+            )
         if audio_sr != target_sr:
-            audio_data = librosa.resample(audio_data, orig_sr=audio_sr, target_sr=target_sr)
-        
+            audio_data = librosa.resample(
+                audio_data, orig_sr=audio_sr, target_sr=target_sr
+            )
+
         # Calculate offset using structured sliding-window + local refinement
         segment_match_time_ms = template_match(audio_data, full_template, target_sr)
         # 转换为相对于原始音频起点的时间轴
@@ -81,21 +88,21 @@ def main(file_path, bpm, click_times, start_time_sec) -> OpResult[dict]:
         graph_range_start = match_time_ms - interval_ms
         # 12+1 拍
         graph_range_end = match_time_ms + interval_ms * (click_times + 13)
-        graph_range_start = max(0, graph_range_start) # 不允许负数
-        graph_range_end = max(graph_range_end, graph_range_start + 2000) # 至少显示2秒
+        graph_range_start = max(0, graph_range_start)  # 不允许负数
+        graph_range_end = max(graph_range_end, graph_range_start + 2000)  # 至少显示2秒
 
         # 返回匹配时间，以及生成的模板音频用于可视化
-        return ok({
-            'match_time': match_time_ms,
-            'generated_click_template_audio': full_template,
-            'graph_range_start': graph_range_start,
-            'graph_range_end': graph_range_end
-        })    
-    
+        return ok(
+            {
+                "match_time": match_time_ms,
+                "generated_click_template_audio": full_template,
+                "graph_range_start": graph_range_start,
+                "graph_range_end": graph_range_end,
+            }
+        )
+
     except Exception as e:
         return err("Error in detect_click_start.main()", error_raw=e)
-
-
 
 
 def _load_audio_file(path):
@@ -104,18 +111,22 @@ def _load_audio_file(path):
     """
     try:
         if not os.path.exists(path):
-            raise FileNotFoundError(i18n.t("detect_click_start.error_audio_not_found", path=str(path)))
+            raise FileNotFoundError(
+                i18n.t("detect_click_start.error_audio_not_found", path=str(path))
+            )
         with suppress_audio_warnings():
             data, sr = librosa.load(path, sr=None, mono=True)
             if data is None or len(data) == 0:
-                raise ValueError(i18n.t("detect_click_start.error_audio_load_failed", path=str(path)))
+                raise ValueError(
+                    i18n.t("detect_click_start.error_audio_load_failed", path=str(path))
+                )
             return data, sr
     except NoBackendError:
-        raise NoBackendError(f"NoBackendError: {str(path)}")
+        raise NoBackendError(f"NoBackendError: {path!s}")
     except Exception as e:
-        raise Exception(i18n.t("detect_click_start.error_audio_load_error", path=str(path), error=e))
-
-
+        raise Exception(
+            i18n.t("detect_click_start.error_audio_load_error", path=str(path), error=e)
+        )
 
 
 def _extract_segment(audio_data, sr, start_time_sec, duration_sec):
@@ -125,7 +136,9 @@ def _extract_segment(audio_data, sr, start_time_sec, duration_sec):
 
     start_time_sec = float(start_time_sec)
     if start_time_sec < 0:
-        raise ValueError(i18n.t("detect_click_start.error_start_time_negative", value=start_time_sec))
+        raise ValueError(
+            i18n.t("detect_click_start.error_start_time_negative", value=start_time_sec)
+        )
 
     start_sample = int(round(start_time_sec * sr))
     duration_samples = int(round(float(duration_sec) * sr))
@@ -133,17 +146,18 @@ def _extract_segment(audio_data, sr, start_time_sec, duration_sec):
 
     if start_sample >= len(audio_data):
         raise ValueError(
-            i18n.t("detect_click_start.error_start_time_exceeds_audio",
-                   start_time_sec=start_time_sec, length_sec=f"{len(audio_data) / sr:.2f}")
+            i18n.t(
+                "detect_click_start.error_start_time_exceeds_audio",
+                start_time_sec=start_time_sec,
+                length_sec=f"{len(audio_data) / sr:.2f}",
+            )
         )
 
-    segment = audio_data[start_sample:min(end_sample, len(audio_data))]
+    segment = audio_data[start_sample : min(end_sample, len(audio_data))]
     if segment is None or len(segment) == 0:
         raise ValueError(i18n.t("detect_click_start.error_segment_empty"))
 
     return segment
-
-
 
 
 def generate_template(bpm, click_times, template_data, template_sr):
@@ -190,8 +204,6 @@ def generate_template(bpm, click_times, template_data, template_sr):
     return full_template
 
 
-
-
 def template_match(y_target, y_template, sr):
     """
     双阶段音频对齐流程
@@ -214,8 +226,6 @@ def template_match(y_target, y_template, sr):
     print(f"  -> Offset: {offset_ms / 1000:.3f} sec")
 
     return offset_ms
-
-
 
 
 def match_sliding_window(target_env, template_env, sr, step_ms):
@@ -241,7 +251,7 @@ def match_sliding_window(target_env, template_env, sr, step_ms):
     best_start = 0
 
     for start in range(0, max_start + 1, step_samples):
-        seg = target_env[start:start + template_len]
+        seg = target_env[start : start + template_len]
         seg_norm = normalize_vector(seg)
         score = float(np.dot(seg_norm, template_norm))
 
@@ -250,8 +260,6 @@ def match_sliding_window(target_env, template_env, sr, step_ms):
             best_start = start
 
     return best_start * 1000.0 / sr
-
-
 
 
 def compute_energy_envelope(y, sr, smooth_ms=8.0):
@@ -265,10 +273,8 @@ def compute_energy_envelope(y, sr, smooth_ms=8.0):
     kernel = np.ones(win_len, dtype=np.float64) / float(win_len)
 
     energy = np.asarray(y, dtype=np.float64) ** 2
-    env = np.convolve(energy, kernel, mode='same')
+    env = np.convolve(energy, kernel, mode="same")
     return env.astype(np.float64, copy=False)
-
-
 
 
 def normalize_vector(x):

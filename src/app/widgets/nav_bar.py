@@ -1,6 +1,8 @@
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QButtonGroup
-from PyQt6.QtCore import Qt, pyqtSignal, QEvent
+from PyQt6.QtCore import QEvent, Qt, pyqtSignal
+from PyQt6.QtWidgets import QButtonGroup, QHBoxLayout, QPushButton, QWidget
+
 from ..ui_style import UI_Style
+
 # from .popup_tooltip import install_tooltip  # tooltip 已关闭
 
 
@@ -8,18 +10,21 @@ class SegmentedNavBar(QWidget):
     """
     通用分段导航栏
     """
+
     currentChanged = pyqtSignal(int)
 
-    def __init__(self, items: list[str],
-                 height: int,
-                 parent=None,
-                 tooltip_texts: list[str] | None = None):
+    def __init__(
+        self,
+        items: list[str],
+        height: int,
+        parent=None,
+        tooltip_texts: list[str] | None = None,
+    ):
         super().__init__(parent)
         self.items = items
         self.height = height
         self.tooltip_texts = tooltip_texts or []
         self.setup_ui()
-
 
     def setup_ui(self):
         layout = QHBoxLayout(self)
@@ -40,28 +45,28 @@ class SegmentedNavBar(QWidget):
             btn.installEventFilter(self)
             # 导航栏按钮特殊处理：有意保持箭头光标，不跟随其他按钮变成手型
             btn.setCursor(Qt.CursorShape.ArrowCursor)
-            
+
             # 设置样式
             btn.setStyleSheet(f"""
                 QPushButton {{
-                    background-color: {UI_Style.COLORS['surface']};
-                    color: {UI_Style.COLORS['text_secondary']};
+                    background-color: {UI_Style.COLORS["surface"]};
+                    color: {UI_Style.COLORS["text_secondary"]};
                     border: none;
                     font-size: 14px;
                     font-weight: bold;
                 }}
                 QPushButton[hovered="true"] {{
-                    background-color: {UI_Style.COLORS['surface_hover']};
+                    background-color: {UI_Style.COLORS["surface_hover"]};
                 }}
                 QPushButton:checked {{
-                    background-color: {UI_Style.COLORS['accent']};
-                    color: {UI_Style.COLORS['text_primary']};
+                    background-color: {UI_Style.COLORS["accent"]};
+                    color: {UI_Style.COLORS["text_primary"]};
                     border: none;
                     font-size: 14px;
                     font-weight: bold;
                 }}
                 QPushButton:checked[hovered="true"] {{
-                    background-color: {UI_Style.COLORS['accent_hover']};
+                    background-color: {UI_Style.COLORS["accent_hover"]};
                 }}
             """)
 
@@ -76,13 +81,11 @@ class SegmentedNavBar(QWidget):
         if self.button_group.buttons():
             self.button_group.buttons()[0].setChecked(True)
 
-
     def setCurrentIndex(self, index: int) -> None:
         """编程方式切换选中项，触发 currentChanged 信号"""
         buttons = self.button_group.buttons()
         if 0 <= index < len(buttons):
             buttons[index].click()
-
 
     # ── 集中管理 hover 状态 ────────────────────────────────
     def eventFilter(self, watched, event):

@@ -5,7 +5,6 @@ import os
 import uuid
 from ctypes import wintypes
 
-
 if os.name != "nt":
     raise OSError("Windows common file dialogs are only available on Windows")
 
@@ -19,7 +18,7 @@ class _GUID(ctypes.Structure):
     ]
 
     @classmethod
-    def from_string(cls, value: str) -> "_GUID":
+    def from_string(cls, value: str) -> _GUID:
         return cls.from_buffer_copy(uuid.UUID(value).bytes_le)
 
 
@@ -69,7 +68,9 @@ def _check_hresult(result: int, action: str) -> None:
 
 
 def _method(interface: ctypes.c_void_p, index: int, restype, *argtypes):
-    vtable = ctypes.cast(interface, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))).contents
+    vtable = ctypes.cast(
+        interface, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))
+    ).contents
     prototype = ctypes.WINFUNCTYPE(restype, ctypes.c_void_p, *argtypes)
     return prototype(vtable[index])
 
@@ -211,7 +212,9 @@ def select_windows_files(
     )
 
 
-def select_windows_folders(owner_hwnd: int, title: str, *, multiple: bool = True) -> list[str]:
+def select_windows_folders(
+    owner_hwnd: int, title: str, *, multiple: bool = True
+) -> list[str]:
     return open_windows_path_dialog(
         owner_hwnd,
         title,

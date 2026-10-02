@@ -1,9 +1,9 @@
-import sys
-from pathlib import Path
+import os
 import re
 import shutil
 import subprocess
-import os
+import sys
+from pathlib import Path
 
 root = Path(__file__).parents[3].resolve()
 if root not in sys.path:
@@ -11,9 +11,7 @@ if root not in sys.path:
 
 from src.services import PathManage
 
-
 FOR_RELEASE_ONLY_DIR = PathManage.RESOURCES_DIR / "for_release_only"
-
 
 
 def main():
@@ -25,17 +23,14 @@ def main():
     print("\nAll release builds completed.\n")
 
 
-
-
-
 # 每次运行会构建出这两个版本
 VARIANTS = (
-    {"dir_name": "HachimiDX",
-     "LAUNCHER_exe_name": "HachimiDX.exe",
-     "is_lite": False},
-    {"dir_name": "HachimiDX-Lite",
-     "LAUNCHER_exe_name": "HachimiDX-Lite.exe",
-     "is_lite": True},
+    {"dir_name": "HachimiDX", "LAUNCHER_exe_name": "HachimiDX.exe", "is_lite": False},
+    {
+        "dir_name": "HachimiDX-Lite",
+        "LAUNCHER_exe_name": "HachimiDX-Lite.exe",
+        "is_lite": True,
+    },
 )
 
 # 由 set_variant() 设置
@@ -43,13 +38,12 @@ RELEASE_DIR = None
 IS_LITE = None
 LAUNCHER_EXE_NAME = None
 
+
 def set_variant(variant: dict) -> None:
     global RELEASE_DIR, IS_LITE, LAUNCHER_EXE_NAME
     RELEASE_DIR = PathManage.ROOT_DIR / variant["dir_name"]
     IS_LITE = variant["is_lite"]
     LAUNCHER_EXE_NAME = variant["LAUNCHER_exe_name"]
-
-
 
 
 def build_release() -> None:
@@ -62,7 +56,8 @@ def build_release() -> None:
 
     # 将 src 目录下所有 .py 文件复制到 release 目录
     for src_file in (PathManage.ROOT_DIR / "src").rglob("*.py"):
-        if "for_release_only" in src_file.parts: continue # 过滤
+        if "for_release_only" in src_file.parts:
+            continue  # 过滤
         relative_path = src_file.relative_to(PathManage.ROOT_DIR)
         dest_file = RELEASE_DIR / relative_path
         dest_file.parent.mkdir(parents=True, exist_ok=True)
@@ -71,8 +66,6 @@ def build_release() -> None:
     copy_app_resources()
     copy_root()
     print(f"\n{RELEASE_DIR.name} build completed.")
-
-
 
 
 def copy_app_resources():
@@ -96,12 +89,12 @@ def copy_app_resources():
     else:
         models_dir = FOR_RELEASE_ONLY_DIR / "models"
         for model_zip in models_dir.glob("*.zip"):
-            extract_with_bandizip(model_zip, models_target_dir, mode='file')
+            extract_with_bandizip(model_zip, models_target_dir, mode="file")
 
     # 解压 python 到目录
     python_path = FOR_RELEASE_ONLY_DIR / "python_portable" / "python.zip"
     python_target_path = RELEASE_DIR / "python"
-    extract_with_bandizip(python_path, python_target_path, mode='dir')
+    extract_with_bandizip(python_path, python_target_path, mode="dir")
     # 复制 sitecustomize.py 到 python 目录
     sitecustomize_path = FOR_RELEASE_ONLY_DIR / "python_portable" / "sitecustomize.py"
     copy_to_release(sitecustomize_path, python_target_path / "sitecustomize.py")
@@ -123,7 +116,7 @@ def copy_app_resources():
     # 解压 ffmpeg 到目录
     ffmpeg_path = FOR_RELEASE_ONLY_DIR / "ffmpeg-8.0.1-essentials_build.7z"
     ffmpeg_target_path = RELEASE_DIR / "src" / "resources" / "ffmpeg"
-    extract_with_bandizip(ffmpeg_path, ffmpeg_target_path, mode='dir')
+    extract_with_bandizip(ffmpeg_path, ffmpeg_target_path, mode="dir")
 
     # 复制 majdata
     majdata_dir = FOR_RELEASE_ONLY_DIR / "majdatax"
@@ -140,10 +133,8 @@ def copy_app_resources():
     copy_to_release(launcher, RELEASE_DIR / LAUNCHER_EXE_NAME)
 
 
-
-
 def copy_root():
-    
+
     # /install
     copy_to_release(PathManage.ROOT_DIR / "install")
 
@@ -162,14 +153,13 @@ def copy_root():
     copy_readme()
 
 
-
-
 # readme 在 release 里位于 src/resources/doc/
 # 链接里的 `src/resources/` 前缀要改成相对 doc 的 `../`
 README_LINK_PATTERNS = (
     (r"(?<=\]\()src/resources/", "../"),
     (r'(?<=src=")src/resources/', "../"),
 )
+
 
 def copy_readme():
     doc_dir = RELEASE_DIR / "src" / "resources" / "doc"
@@ -181,14 +171,17 @@ def copy_readme():
         (doc_dir / file_name).write_text(text, encoding="utf-8", newline="")
 
 
-
-
-
 def extract_with_bandizip(archive_path: Path, extract_path: Path, mode: str):
     # Bandizip 智能解压到此处
-    if mode == 'dir':
+    if mode == "dir":
         # 因为会在目标文件夹内新建一个压缩包同名文件夹，所以解压地址要使用 extract_path.parent
-        cmd = ["bandizip", "bx", f"-o:{extract_path.parent}", "-target:auto", str(archive_path)]
+        cmd = [
+            "bandizip",
+            "bx",
+            f"-o:{extract_path.parent}",
+            "-target:auto",
+            str(archive_path),
+        ]
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             raise RuntimeError(f"Bandizip 解压失败: {result.stderr}")
@@ -198,7 +191,7 @@ def extract_with_bandizip(archive_path: Path, extract_path: Path, mode: str):
         if real_extracted_dir.is_dir():
             if real_extracted_dir.resolve() != extract_path.resolve():
                 os.rename(real_extracted_dir, extract_path)
-    elif mode == 'file':
+    elif mode == "file":
         # 解压到目标路径时不创建压缩包同名文件夹
         cmd = ["bandizip", "x", f"-o:{extract_path}", str(archive_path)]
         result = subprocess.run(cmd, capture_output=True, text=True)
@@ -206,8 +199,6 @@ def extract_with_bandizip(archive_path: Path, extract_path: Path, mode: str):
             raise RuntimeError(f"Bandizip 解压失败: {result.stderr}")
     else:
         print(f"extract_with_bandizip: Invalid mode: {mode}")
-
-
 
 
 def copy_to_release(input_path: Path, target_path: Path = None):
@@ -228,7 +219,7 @@ def copy_to_release(input_path: Path, target_path: Path = None):
         dest_dir.mkdir(parents=True, exist_ok=True)
         # 复制
         shutil.copytree(str(input_path), str(dest_dir), dirs_exist_ok=True)
-    
+
     elif input_path.is_file():
         if target_path is None:
             # 用 root 下的相对路径构建目标路径
@@ -245,8 +236,6 @@ def copy_to_release(input_path: Path, target_path: Path = None):
         print(f"copy_to_release: Warning: {input_path} is not a file or dir, skipping.")
 
 
-
-
 def upgrade_pip(python_exe: Path):
     # 与 install/script/main.py 的 PYPI_MIRRORS 保持一致, 前者失败时回退到下一个
     PIP_MIRRORS = (
@@ -259,14 +248,23 @@ def upgrade_pip(python_exe: Path):
     for name, index in PIP_MIRRORS:
         print(f"update pip & wheel (mirror: {name})")
         result = subprocess.run(
-            [str(python_exe), "-m", "pip", "install", "--upgrade", "pip", "wheel",
-             "--no-warn-script-location", "-i", index])
+            [
+                str(python_exe),
+                "-m",
+                "pip",
+                "install",
+                "--upgrade",
+                "pip",
+                "wheel",
+                "--no-warn-script-location",
+                "-i",
+                index,
+            ]
+        )
         if result.returncode == 0:
             return
         print(f"mirror「{name}」installation failed, switching to the next mirror...")
     raise RuntimeError("All pypi mirrors failed to update pip & wheel")
-
-
 
 
 if __name__ == "__main__":

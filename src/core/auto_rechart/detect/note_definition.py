@@ -30,7 +30,6 @@ class NoteType(Enum):
 
 @dataclass(slots=True)
 class Note_Geometry:
-
     frame: int
     note_type: NoteType
     note_variant: NoteVariant
@@ -53,13 +52,18 @@ class Note_Geometry:
 
 
 def map_model_class_to_note_type(model_type, index) -> NoteType:
-    if model_type == 'obb':
-        if index == 0: return NoteType.HOLD
-    else: # detect
-        if index == 0: return NoteType.TAP
-        if index == 1: return NoteType.SLIDE
-        if index == 2: return NoteType.TOUCH
-        if index == 3: return NoteType.TOUCH_HOLD
+    if model_type == "obb":
+        if index == 0:
+            return NoteType.HOLD
+    else:  # detect
+        if index == 0:
+            return NoteType.TAP
+        if index == 1:
+            return NoteType.SLIDE
+        if index == 2:
+            return NoteType.TOUCH
+        if index == 3:
+            return NoteType.TOUCH_HOLD
 
 
 def map_note_type_to_class_id(note_type: NoteType) -> int:
@@ -73,7 +77,7 @@ def map_note_type_to_class_id(note_type: NoteType) -> int:
         return 3
     if note_type == NoteType.TOUCH_HOLD:
         return 4
-    return 0 # 不应该发生
+    return 0  # 不应该发生
 
 
 def is_obb(note_type: NoteType) -> bool:
@@ -82,10 +86,10 @@ def is_obb(note_type: NoteType) -> bool:
 
 def need_cls(note_type: NoteType) -> bool:
     return note_type in [NoteType.TAP, NoteType.SLIDE, NoteType.HOLD]
-    
+
 
 def get_imgsz(model_name: str) -> int:
-    if model_name in ('detect', 'obb'):
+    if model_name in ("detect", "obb"):
         return 960
     elif "touch_hold" in model_name:
         return 224

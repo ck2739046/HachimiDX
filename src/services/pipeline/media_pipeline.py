@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import subprocess
-from typing import Any, Optional
+from typing import Any
 
-from src.core.schemas.op_result import OpResult, ok, err
-from src.core.tools import validate_pydantic
-from src.core.schemas.media_model import MediaModel
 from src.core.build_ffmpeg_cmd import build_ffmpeg_cmd
+from src.core.schemas.media_model import MediaModel
+from src.core.schemas.op_result import OpResult, err, ok
+from src.core.tools import validate_pydantic
 
-from ..task_scheduler import TaskType
 from .. import task_scheduler_api
+from ..task_scheduler import TaskType
 
 
 class MediaPipeline:
@@ -29,14 +29,13 @@ class MediaPipeline:
         try:
             task_scheduler_api.register(
                 TaskType.MEDIA,
-                concurrency = 1,
+                concurrency=1,
             )
             cls._is_registered = True
             return ok()
-        
-        except Exception as e:
-            return err("Failed to initialize MediaPipeline", error_raw = e)
 
+        except Exception as e:
+            return err("Failed to initialize MediaPipeline", error_raw=e)
 
     # -------------------
     # Core building blocks
@@ -52,7 +51,6 @@ class MediaPipeline:
             return err("Validated model has unexpected type", error_raw=type(model))
         return ok(model)
 
-
     @staticmethod
     def build_cmd(config: Any) -> OpResult[list[str]]:
         """TaskScheduler build_cmd_fn"""
@@ -60,13 +58,14 @@ class MediaPipeline:
             return err("MEDIA task config must be MediaModel", error_raw=type(config))
         return build_ffmpeg_cmd(config)
 
-
     # -------------------
     # Public APIs
     # -------------------
 
     @classmethod
-    def submit_task(cls, raw_data: dict[str, Any], task_name: str = "") -> OpResult[tuple[str, list[str]]]:
+    def submit_task(
+        cls, raw_data: dict[str, Any], task_name: str = ""
+    ) -> OpResult[tuple[str, list[str]]]:
         """
         API (scheduler-run): validate -> build cmd -> submit_task to TaskScheduler.
 
@@ -95,7 +94,6 @@ class MediaPipeline:
 
         return ok((rid_res.value, cmd_res.value))
 
-
     @classmethod
     def run_now(cls, raw_data: dict[str, Any]) -> OpResult[list[str]]:
         """
@@ -118,10 +116,7 @@ class MediaPipeline:
 
         try:
             result = subprocess.run(
-                cmd,
-                capture_output=False,
-                text=True,
-                encoding='utf-8'
+                cmd, capture_output=False, text=True, encoding="utf-8"
             )
         except Exception as e:
             return err("Failed to run ffmpeg process", error_raw=e)

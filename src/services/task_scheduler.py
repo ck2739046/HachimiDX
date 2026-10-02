@@ -1,14 +1,14 @@
+from collections import deque
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
-
-from collections import deque
+from typing import Optional
 
 from PyQt6.QtCore import QObject, pyqtSignal
 
-from src.core.schemas.op_result import OpResult, ok, err
+from src.core.schemas.op_result import OpResult, err, ok
 from src.core.tools import generate_uid
+
 from . import process_manager_api
 
 
@@ -29,10 +29,10 @@ class TaskInfo:
     runner_id: str
     task_type: TaskType
     task_name: str = ""
-    accepted_at: Optional[datetime] = None
+    accepted_at: datetime | None = None
     status: TaskStatus = TaskStatus.PENDING
-    cmd: Optional[list[str]] = None
-    error_msg: Optional[str] = None
+    cmd: list[str] | None = None
+    error_msg: str | None = None
 
 
 class TaskSchedulerSignals(QObject):
@@ -61,7 +61,7 @@ class TaskScheduler(QObject):
             cls._instance = cls()
         return cls._instance
 
-    def __init__(self, parent: Optional[QObject] = None) -> None:
+    def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self.signals = TaskSchedulerSignals()
         self._registry: dict[TaskType, _RegisteredType] = {}
@@ -69,15 +69,14 @@ class TaskScheduler(QObject):
         self._pending: dict[TaskType, deque[str]] = {}
         self._running: dict[TaskType, set[str]] = {}
         self._done: dict[TaskType, deque[str]] = {}
-        self._done_keep_limit: int = 60 # 最多保留最近60个已完成任务
+        self._done_keep_limit: int = 60  # 最多保留最近60个已完成任务
 
         try:
-            process_manager_api.get_signals().runner_ended.connect(self._on_runner_ended)
+            process_manager_api.get_signals().runner_ended.connect(
+                self._on_runner_ended
+            )
         except Exception:
             pass
-
-
-
 
     # -------------------
     # Registration
@@ -90,19 +89,13 @@ class TaskScheduler(QObject):
         self._running.setdefault(task_type, set())
         self._done.setdefault(task_type, deque())
 
-
-
-
-
     # -------------------
     # Public API
     # -------------------
 
-    def submit_task(self,
-                    task_type: TaskType,
-                    *,
-                    cmd: list[str],
-                    task_name: str = "") -> OpResult[str]:
+    def submit_task(
+        self, task_type: TaskType, *, cmd: list[str], task_name: str = ""
+    ) -> OpResult[str]:
 
         if task_type not in self._registry:
             return err(f"Task type not registered: {task_type}")
@@ -113,7 +106,7 @@ class TaskScheduler(QObject):
             if rid not in self._tasks:
                 break
         else:
-            return err(f"Failed to generate unique runner_id.")
+            return err("Failed to generate unique runner_id.")
 
         info = TaskInfo(
             runner_id=rid,
@@ -130,9 +123,6 @@ class TaskScheduler(QObject):
         self._dispatch(task_type)
 
         return ok(rid)
-
-
-
 
     def cancel(self, runner_id: str) -> OpResult[None]:
 
@@ -171,8 +161,6 @@ class TaskScheduler(QObject):
 
         return ok()
 
-
-
     # -------------------
     # Dispatch
     # -------------------
@@ -208,12 +196,6 @@ class TaskScheduler(QObject):
             running_set.add(rid)
             self._emit_snapshot()
 
-
-
-
-
-
-
     # -------------------
     # Process callbacks
     # -------------------
@@ -228,8 +210,8 @@ class TaskScheduler(QObject):
         # finalize status
         cancelled = False
         crashed = False
-        exit_code: Optional[int] = None
-        error_msg: Optional[str] = None
+        exit_code: int | None = None
+        error_msg: str | None = None
 
         # Best-effort inspect ProcessManager.RunnerEnded
         try:
@@ -261,12 +243,6 @@ class TaskScheduler(QObject):
         self._emit_snapshot()
         self._dispatch(task.task_type)
 
-
-
-
-
-
-
     def _mark_done(self, task_type: TaskType, runner_id: str) -> None:
         dq = self._done.setdefault(task_type, deque())
         if dq and dq[-1] == runner_id:
@@ -281,11 +257,6 @@ class TaskScheduler(QObject):
             old_id = dq.popleft()
             # Purge old completed task to avoid unbounded memory growth.
             self._purge_task(old_id)
-
-
-
-
-
 
     def _purge_task(self, runner_id: str) -> None:
         """Remove a task from all scheduler registries.
@@ -310,11 +281,6 @@ class TaskScheduler(QObject):
                 self._pending[ttype] = deque(x for x in pending if x != rid)
         except Exception:
             pass
-
-
-
-
-
 
     # -------------------
     # Snapshot

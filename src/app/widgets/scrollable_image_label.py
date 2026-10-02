@@ -9,19 +9,18 @@ from PyQt6.QtWidgets import (
 
 from ..ui_style import UI_Style
 
-
 _SCROLLBAR_STYLE = f"""
     QScrollBar:horizontal {{
-        background-color: {UI_Style.COLORS['bg']};
+        background-color: {UI_Style.COLORS["bg"]};
         height: 11px;
         margin-top: 4px;
         border: none;
     }}
     QScrollBar::handle:horizontal {{
-        background-color: {UI_Style.COLORS['light_grey']};
+        background-color: {UI_Style.COLORS["light_grey"]};
     }}
     QScrollBar::handle:horizontal:hover {{
-        background-color: {UI_Style.COLORS['accent']};
+        background-color: {UI_Style.COLORS["accent"]};
     }}
     QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
         width: 0px;
@@ -71,10 +70,6 @@ class _DragLabel(QLabel):
             event.accept()
         else:
             super().mouseReleaseEvent(event)
-
-
-
-
 
 
 class ScrollableImageLabel(QWidget):

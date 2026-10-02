@@ -2,93 +2,59 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional
 
 try:
     import win32gui
 except ImportError:
     from win32 import win32gui
 
+import i18n
 from PyQt6.QtCore import QUrl, pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QWindow
 from PyQt6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 
-from src.services import stop_majdata, MajdataCommandClient
+from src.services import MajdataCommandClient, stop_majdata
+
 from ..ui_style import UI_Style
 from ..widgets import (
-    MediaInputProbeWidget,
-    OutputLogWidget,
-    OverlayWidget,
-    PointerCursorButton,
-    RangeVisualizer,
-    ScrollableImageLabel,
-    SegmentedNavBar,
-    SplitDropButton,
-    SplitDropLineEdit,
-    SquareWidget,
-    StatedButton,
-    StyledCheckBox,
-    StyledComboBox,
-    StyledLineEdit,
-    ToolTipComboBox,
-    create_button,
     create_check_box,
-    create_clickable_label,
     create_combo_box,
     create_directory_selection_row,
-    create_divider,
-    create_file_selection_row,
-    create_floating_notification,
-    create_help_icon,
     create_label,
-    create_line_edit,
-    create_path_display,
-    create_slider,
     create_split_drop_button,
-    create_split_drop_line_edit,
-    create_stated_button,
-    create_vertical_divider,
     widget_utils,
 )
-import i18n
-from src.core.tools import show_notify_dialog
 
-
-_MAJDATA_PAGE_INSTANCE: Optional["MajdataPage"] = None
-
+_MAJDATA_PAGE_INSTANCE: MajdataPage | None = None
 
 
 class MajdataPage(QWidget):
-
     # 请求重启 Maj（关闭后重新启动），由 MainWindow 连接到 MajdataSession.restart
     restart_requested = pyqtSignal()
 
-    def __init__(self, media_player=None, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, media_player=None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
         global _MAJDATA_PAGE_INSTANCE
         _MAJDATA_PAGE_INSTANCE = self
 
-        self._media_player = media_player # QMediaPlayer 实例，用于控制视频播放
-        self._majdataedit_placeholder: Optional[QWidget] = None
+        self._media_player = media_player  # QMediaPlayer 实例，用于控制视频播放
+        self._majdataedit_placeholder: QWidget | None = None
 
         self._select_song_button = None
-        self._selected_song_path: Optional[Path] = None
+        self._selected_song_path: Path | None = None
         self._maidata_combo = None
         self._track_combo = None
         self._video_combo = None
         self._play_video_checkbox = None
 
         # 存储 MajdataEdit 窗口句柄引用
-        self._edit_hwnd: Optional[int] = None
+        self._edit_hwnd: int | None = None
 
         self._setup_ui()
 
-
-
-
     def _setup_ui(self) -> None:
-    
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -99,13 +65,13 @@ class MajdataPage(QWidget):
 
         # MajdataEdit Embed area
         self._majdataedit_placeholder = QWidget()
-        self._majdataedit_placeholder.setStyleSheet(f"background-color: {UI_Style.COLORS['grey']};")
+        self._majdataedit_placeholder.setStyleSheet(
+            f"background-color: {UI_Style.COLORS['grey']};"
+        )
         embed_layout = QVBoxLayout(self._majdataedit_placeholder)
         embed_layout.setContentsMargins(0, 0, 0, 0)
         embed_layout.setSpacing(0)
         layout.addWidget(self._majdataedit_placeholder, 1)
-
-
 
     def set_edit_hwnd(self, hwnd: int) -> None:
         """Embed MajdataEdit by hwnd."""
@@ -115,37 +81,35 @@ class MajdataPage(QWidget):
 
         self._edit_hwnd = hwnd
         win = QWindow.fromWinId(hwnd)
-        container = QWidget.createWindowContainer(win, self) # parent = self
+        container = QWidget.createWindowContainer(win, self)  # parent = self
         self._majdataedit_placeholder.layout().addWidget(container, 1)
-
-
 
     def _setup_control_bar(self) -> QWidget:
 
         bar = QWidget()
         bar.setFixedHeight(50)
-        bar.setStyleSheet(f"background-color: #3A3A3A;")
+        bar.setStyleSheet("background-color: #3A3A3A;")
         layout = QHBoxLayout(bar)
         layout.setContentsMargins(10, 0, 10, 0)
         layout.setSpacing(10)
 
         # Directory selection button (only button, no path display)
         self._select_song_button, _, _song_button_help = create_directory_selection_row(
-            button_text = i18n.t("app.majdata_page.ui_select_song_button"),
+            button_text=i18n.t("app.majdata_page.ui_select_song_button"),
             help_text=i18n.t("app.majdata_page.ui_song_help"),
             button_length=100,
-            on_button_clicked_handler=self._on_song_directory_selected
+            on_button_clicked_handler=self._on_song_directory_selected,
         )
         layout.addWidget(self._select_song_button)
         layout.addWidget(_song_button_help)
         # Maidata choose (stretch 14)
-        self._maidata_combo = create_combo_box(show_tooltip = True)
+        self._maidata_combo = create_combo_box(show_tooltip=True)
         layout.addWidget(self._maidata_combo, 14)
         # Track choose (stretch 20)
-        self._track_combo = create_combo_box(show_tooltip = True)
+        self._track_combo = create_combo_box(show_tooltip=True)
         layout.addWidget(self._track_combo, 20)
         # Video choose (stretch 20)
-        self._video_combo = create_combo_box(show_tooltip = True)
+        self._video_combo = create_combo_box(show_tooltip=True)
         layout.addWidget(self._video_combo, 20)
         # Label + CheckBox: play video in MajdataView
         view_group = QWidget()
@@ -160,7 +124,10 @@ class MajdataPage(QWidget):
         # Load button
         load_btn = create_split_drop_button(
             i18n.t("app.majdata_page.ui_load_button"),
-            [i18n.t("app.majdata_page.ui_reset_maj"), i18n.t("app.majdata_page.ui_restart_maj")],
+            [
+                i18n.t("app.majdata_page.ui_reset_maj"),
+                i18n.t("app.majdata_page.ui_restart_maj"),
+            ],
             width=70,
             show_tooltip=True,
             item_tooltips=[
@@ -176,25 +143,17 @@ class MajdataPage(QWidget):
 
         return bar
 
-
     def showEvent(self, event) -> None:
         """页面显示时启用 MajdataEdit 窗口输入."""
         super().showEvent(event)
         if self._edit_hwnd:
             win32gui.EnableWindow(self._edit_hwnd, True)
 
-
     def hideEvent(self, event) -> None:
         """页面隐藏时禁用 MajdataEdit 窗口输入，防止拦截其他页面的键盘输入."""
         super().hideEvent(event)
         if self._edit_hwnd:
             win32gui.EnableWindow(self._edit_hwnd, False)
-
-
-
-
-
-
 
     def _on_song_directory_selected(self, song_dir_path: str) -> None:
         """Scan and update maidata, track, video comboboxes when song directory is selected."""
@@ -212,9 +171,17 @@ class MajdataPage(QWidget):
         self._video_combo.clear()
 
         # scan txt and add to maidata_combo
-        txt_files = [f for f in os.listdir(song_path)
-                     if f.lower().endswith(".txt")
-                     and f.lower() not in ("track_result.txt", "detect_result.txt", "note_preprocess_result.txt")]
+        txt_files = [
+            f
+            for f in os.listdir(song_path)
+            if f.lower().endswith(".txt")
+            and f.lower()
+            not in (
+                "track_result.txt",
+                "detect_result.txt",
+                "note_preprocess_result.txt",
+            )
+        ]
         if txt_files:
             txt_files = sorted(txt_files)
         self._maidata_combo.addItems(txt_files)
@@ -227,8 +194,9 @@ class MajdataPage(QWidget):
             self._maidata_combo.setCurrentIndex(0)
 
         # scan mp3/ogg and add to track_combo
-        audio_files = [f for f in os.listdir(song_path)
-                       if f.lower().endswith((".mp3", ".ogg"))]
+        audio_files = [
+            f for f in os.listdir(song_path) if f.lower().endswith((".mp3", ".ogg"))
+        ]
         if audio_files:
             audio_files = sorted(audio_files)
             self._track_combo.addItems(audio_files)
@@ -242,8 +210,7 @@ class MajdataPage(QWidget):
                 self._track_combo.setCurrentIndex(0)
 
         # scan mp4 and add to video_combo
-        video_files = [f for f in os.listdir(song_path)
-                       if f.lower().endswith(".mp4")]
+        video_files = [f for f in os.listdir(song_path) if f.lower().endswith(".mp4")]
         if video_files:
             video_files = sorted(video_files)
             self._video_combo.addItems(video_files)
@@ -255,15 +222,13 @@ class MajdataPage(QWidget):
             else:
                 self._video_combo.setCurrentIndex(0)
 
-
-
     @pyqtSlot()
     def on_load_clicked(self) -> None:
 
         # Check if song directory is selected
         if self._selected_song_path is None:
             return
-        
+
         selected_maidata = self._maidata_combo.currentText()
         selected_track = self._track_combo.currentText()
         selected_video = self._video_combo.currentText()
@@ -284,7 +249,7 @@ class MajdataPage(QWidget):
             selected_track,
             selected_video if majdataview_has_video else None,
         )
-        
+
         # Load video to media player (if applicable)
         # 发送 load 指令后再加载视频到本地播放器
         if not selected_video:
@@ -295,15 +260,12 @@ class MajdataPage(QWidget):
             self._media_player.setSource(QUrl.fromLocalFile(str(video_path)))
             self._media_player.pause()
 
-
     @pyqtSlot(int, str)
     def _on_load_menu_triggered(self, row: int, text: str) -> None:
         if row == 0:
             self.reset_majdataview()
         elif row == 1:
             self.restart_requested.emit()
-
-
 
     def reset_majdataview(self) -> None:
 
@@ -321,15 +283,10 @@ class MajdataPage(QWidget):
         # 4. Reset selected song path
         self._selected_song_path = None
 
-        return
-
-
     def unload_video(self) -> None:
         if self._media_player is not None:
             self._media_player.stop()
             self._media_player.setSource(QUrl())
-
-
 
     @classmethod
     def try_unload_video_if_matches(cls, target_path: Path) -> None:
@@ -337,13 +294,17 @@ class MajdataPage(QWidget):
 
         try:
             majdata_page = _MAJDATA_PAGE_INSTANCE
-            if majdata_page is None: return
-            if majdata_page._media_player is None: return
+            if majdata_page is None:
+                return
+            if majdata_page._media_player is None:
+                return
             # 获取当前已加载的视频路径
             source = majdata_page._media_player.source()
-            if source.isEmpty(): return
+            if source.isEmpty():
+                return
             loaded_file = source.toLocalFile()
-            if not loaded_file: return
+            if not loaded_file:
+                return
             # 如果与传入的视频相同，则卸载视频
             norm_loaded = os.path.normpath(os.path.abspath(loaded_file)).lower()
             norm_target = os.path.normpath(os.path.abspath(str(target_path))).lower()

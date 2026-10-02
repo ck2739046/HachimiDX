@@ -1,35 +1,41 @@
-from ultralytics import YOLO
 import sys
 import time
 from queue import Full
 
-from ...schemas.op_result import OpResult, ok, err
-from .note_definition import (
-    NoteType,
-    NoteVariant,
-    Note_Geometry,
-    get_imgsz,
-    is_obb,
-    map_model_class_to_note_type,
-    map_note_type_to_class_id,
-    need_cls,
+from ultralytics import YOLO
+
+from src.core.tools import (
+    describe_exception,
+    find_native_message,
+    redirect_native_stderr,
 )
-from ..tool import release_ncnn_vulkan, install_ort_cpu_thread_tuning
-from src.core.tools import describe_exception, find_native_message, redirect_native_stderr
 
-
+from ...schemas.op_result import err, ok
+from ..tool import install_ort_cpu_thread_tuning, release_ncnn_vulkan
+from .note_definition import (
+    Note_Geometry,
+    NoteVariant,
+    get_imgsz,
+    map_model_class_to_note_type,
+)
 
 _PUT_TO_OUTPUT_QUEUE_TIMEOUT = 0.1
 _OUTPUT_QUEUE_STALL_TIMEOUT = 60.0
 
 
-
-
-def inference_worker_main(model_path, task_name, inference_device,
-                          coord_scale,
-                          half, model_backend,
-                          input_queue, output_queue, control_queue,
-                          progress_ref, stop_event):
+def inference_worker_main(
+    model_path,
+    task_name,
+    inference_device,
+    coord_scale,
+    half,
+    model_backend,
+    input_queue,
+    output_queue,
+    control_queue,
+    progress_ref,
+    stop_event,
+):
     """
     模型推理 worker 主函数 (detect/obb 共用)
 
@@ -63,7 +69,8 @@ def inference_worker_main(model_path, task_name, inference_device,
             if stop_event is not None and stop_event.is_set():
                 break
             batch = input_queue.get()
-            if batch is None: break  # batch=None 表示 EOF
+            if batch is None:
+                break  # batch=None 表示 EOF
 
             # batch = List[(frame_idx, frame)]
             frame_indexes = [idx for idx, _ in batch]
@@ -118,11 +125,14 @@ def inference_worker_main(model_path, task_name, inference_device,
 
     except BaseException as e:  # 使用 base exception 捕获所有异常
         try:
-            error_msg = f"{task_name} model inferencer failed to process frame {last_frame_idx}"
+            error_msg = (
+                f"{task_name} model inferencer failed to process frame {last_frame_idx}"
+            )
             # 原生日志的本地化消息只取结论一行; 非原生异常仍带栈
             control_queue.put(
-                err(error_msg,
-                    error_raw=find_native_message(e) or describe_exception(e))
+                err(
+                    error_msg, error_raw=find_native_message(e) or describe_exception(e)
+                )
             )
         except Exception:
             pass
@@ -139,19 +149,17 @@ def inference_worker_main(model_path, task_name, inference_device,
         release_ncnn_vulkan(inference_device)
 
 
-
 def _parse_detections_to_note_geometrys(result, frame_number, model_name, coord_scale):
-    
-    if model_name == 'detect':
 
+    if model_name == "detect":
         # 转换detect模型结果
         if result.boxes is None or len(result.boxes) == 0:
             return []
         # 转换为numpy批量获取数据
         boxes = result.boxes.cpu().numpy()
-        xyxy = boxes.xyxy    # shape: (N, 4)
-        xywh = boxes.xywh    # shape: (N, 4)
-        conf = boxes.conf    # shape: (N, 1)
+        xyxy = boxes.xyxy  # shape: (N, 4)
+        xywh = boxes.xywh  # shape: (N, 4)
+        conf = boxes.conf  # shape: (N, 1)
         raw_cls = boxes.cls  # shape: (N, 1)
 
         # 坐标从 decode_imgsz 空间还原到 _STD_VIDEO_SIZE 空间
@@ -163,7 +171,7 @@ def _parse_detections_to_note_geometrys(result, frame_number, model_name, coord_
             Note_Geometry(
                 frame=frame_number,
                 note_type=map_model_class_to_note_type(model_name, int(raw_cls[i])),
-                note_variant=NoteVariant.NORMAL, # 默认 normal
+                note_variant=NoteVariant.NORMAL,  # 默认 normal
                 conf=float(conf[i]),
                 x1=float(xyxy[i, 0]),  # 左上角x
                 y1=float(xyxy[i, 1]),  # 左上角y
@@ -177,23 +185,22 @@ def _parse_detections_to_note_geometrys(result, frame_number, model_name, coord_
                 cy=float(xywh[i, 1]),
                 w=float(xywh[i, 2]),
                 h=float(xywh[i, 3]),
-                r=0.0
+                r=0.0,
             )
             for i in range(len(boxes))
         ]
         return note_geometry_list
-    
-    else:
 
+    else:
         # 转换obb模型结果
         if result.obb is None or len(result.obb) == 0:
-            return [] 
+            return []
         # 转换为numpy批量获取数据
         obb = result.obb.cpu().numpy()
         xyxyxyxy = obb.xyxyxyxy  # (N, 4, 2) -> N个框，每个框4个点，每个点(x,y)
-        xywhr = obb.xywhr        # (N, 5)    -> N个框，每个框(x_center, y_center, w, h, r)
-        conf = obb.conf          # (N, 1)
-        raw_cls = obb.cls        # (N, 1)
+        xywhr = obb.xywhr  # (N, 5)    -> N个框，每个框(x_center, y_center, w, h, r)
+        conf = obb.conf  # (N, 1)
+        raw_cls = obb.cls  # (N, 1)
 
         # 坐标从 decode_imgsz 空间还原到 _STD_VIDEO_SIZE 空间
         xyxyxyxy = xyxyxyxy * coord_scale
@@ -204,7 +211,7 @@ def _parse_detections_to_note_geometrys(result, frame_number, model_name, coord_
             Note_Geometry(
                 frame=frame_number,
                 note_type=map_model_class_to_note_type(model_name, int(raw_cls[i])),
-                note_variant=NoteVariant.NORMAL, # 默认 normal
+                note_variant=NoteVariant.NORMAL,  # 默认 normal
                 conf=float(conf[i]),
                 x1=float(xyxyxyxy[i, 0, 0]),  # 第1个点的x坐标
                 y1=float(xyxyxyxy[i, 0, 1]),  # 第1个点的y坐标
@@ -218,7 +225,7 @@ def _parse_detections_to_note_geometrys(result, frame_number, model_name, coord_
                 cy=float(xywhr[i, 1]),
                 w=float(xywhr[i, 2]),
                 h=float(xywhr[i, 3]),
-                r=float(xywhr[i, 4]),         # rotation
+                r=float(xywhr[i, 4]),  # rotation
             )
             for i in range(len(obb))
         ]

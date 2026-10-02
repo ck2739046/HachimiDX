@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
-from typing import Callable, Iterable, Sequence
 
 from .parse import HEADER_KEYS, ChartBlock, ParsedChartFile
 
@@ -31,9 +31,7 @@ def aggregate_candidates(
             charts_by_level.setdefault(chart.level, []).append(chart)
 
     return CandidateCollection(
-        header_candidates={
-            key: tuple(values) for key, values in header_values.items()
-        },
+        header_candidates={key: tuple(values) for key, values in header_values.items()},
         charts_by_level={
             level: tuple(charts) for level, charts in charts_by_level.items()
         },
@@ -72,8 +70,4 @@ _DEFAULT_PICKERS: dict[str, Callable[[tuple[str, ...]], str]] = {
 
 def select_header_default(key: str, values: tuple[str, ...]) -> str:
     picker = _DEFAULT_PICKERS.get(key)
-    return (
-        picker(values)
-        if picker is not None
-        else (values[0] if values else "")
-    )
+    return picker(values) if picker is not None else (values[0] if values else "")

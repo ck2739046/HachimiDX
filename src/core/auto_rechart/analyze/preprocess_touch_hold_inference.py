@@ -8,21 +8,25 @@ Touch-Hold YOLO 推理模块（生产者-消费者流水线）
 - 返回 list[LightResult] 供 preprocess_touch_hold.py 做 dist/percent 解析
 """
 
+import time
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-import time
 
 import cv2
 import numpy as np
 from ultralytics import YOLO
 
 from ...schemas.op_result import OpResult, err, ok
-from ..pipeline import Producer, Consumer, Pipeline
 from ..detect.note_definition import NoteType, get_imgsz
-from ..tool import calculate_all_position, print_progress, release_ncnn_vulkan, SEEK_THRESHOLD
+from ..pipeline import Consumer, Pipeline, Producer
+from ..tool import (
+    SEEK_THRESHOLD,
+    calculate_all_position,
+    print_progress,
+    release_ncnn_vulkan,
+)
 from .shared_context import SharedContext
-
 
 TOUCH_HOLD_CLASS_TOUCH = 0
 TOUCH_HOLD_CLASS_PROGRESS = 1
@@ -35,6 +39,7 @@ class TouchHoldInferenceError(RuntimeError):
 @dataclass(slots=True)
 class LightResult:
     """YOLO 推理后的轻量化结果，供后续 dist/percent 解析使用"""
+
     track_id: int
     frame: int
     position: str
@@ -46,15 +51,13 @@ class LightResult:
     progress_points: list[tuple[float, float]]
 
 
-
-
-
-def run_touch_hold_inference(shared_context: SharedContext,
-                             inference_device,
-                             batch_touch_hold: int,
-                             touch_hold_model_path: Path,
-                             half: bool = False,
-                            ) -> OpResult[tuple[list[LightResult], dict]]:
+def run_touch_hold_inference(
+    shared_context: SharedContext,
+    inference_device,
+    batch_touch_hold: int,
+    touch_hold_model_path: Path,
+    half: bool = False,
+) -> OpResult[tuple[list[LightResult], dict]]:
     """
     主入口: Touch-Hold YOLO 推理
 
@@ -68,18 +71,25 @@ def run_touch_hold_inference(shared_context: SharedContext,
         print("run_touch_hold_inference: no touch hold data")
         return ok(([], {}))
 
-    crop_size = calc_touch_hold_crop_size(shared_context.std_video_size, shared_context.is_big_touch)
+    crop_size = calc_touch_hold_crop_size(
+        shared_context.std_video_size, shared_context.is_big_touch
+    )
     total_samples = sum(len(v) for v in frame_plan.values())
 
     start_time = time.time()
 
     # 生产者（视频解码 + 裁剪图像）
     producer = TouchHoldProducer(
-        str(shared_context.std_video_path), frame_plan, crop_size, batch_touch_hold,
+        str(shared_context.std_video_path),
+        frame_plan,
+        crop_size,
+        batch_touch_hold,
     )
     # 消费者（YOLO 推理 + 轻量解析）
     consumer = TouchHoldConsumer(
-        str(touch_hold_model_path), inference_device, total_samples,
+        str(touch_hold_model_path),
+        inference_device,
+        total_samples,
         half=half,
     )
     # queue_size=2
@@ -88,14 +98,10 @@ def run_touch_hold_inference(shared_context: SharedContext,
         return err("[touch_hold_inference] pipeline failed", inner=pipeline_r)
 
     elapsed = time.time() - start_time
-    print(f"touch-hold inference complete, processed {consumer.processed_samples}/{total_samples} samples, cost {elapsed:.1f}s.")
+    print(
+        f"touch-hold inference complete, processed {consumer.processed_samples}/{total_samples} samples, cost {elapsed:.1f}s."
+    )
     return ok((consumer.light_results, track_meta))
-
-
-
-
-
-
 
 
 class TouchHoldProducer(Producer):
@@ -127,7 +133,6 @@ class TouchHoldProducer(Producer):
         last_frame_number = -1
 
         for frame_number in sorted_frames:
-            
             # 1. 解码视频
             gap = frame_number - last_frame_number
             # seek 优化: 小跳用 grab() 推进指针不解码, 大跳用 set()
@@ -140,7 +145,8 @@ class TouchHoldProducer(Producer):
                 cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
 
             ret, frame = cap.read()
-            if not ret: continue
+            if not ret:
+                continue
             last_frame_number = frame_number
 
             # 2. 裁剪样本图像
@@ -152,27 +158,27 @@ class TouchHoldProducer(Producer):
                     self.crop_size,
                     self.crop_size,
                 )
-                buffer.append({
-                    "track_id": sample["track_id"],
-                    "frame": frame_number,
-                    "position": sample["position"],
-                    "cropped_image": cropped,
-                })
+                buffer.append(
+                    {
+                        "track_id": sample["track_id"],
+                        "frame": frame_number,
+                        "position": sample["position"],
+                        "cropped_image": cropped,
+                    }
+                )
 
             # 3. 凑满 batch 入队
             while len(buffer) >= self.touch_hold_batch_number:
-                if not self._put_or_stop(q, buffer[:self.touch_hold_batch_number], stop):
+                if not self._put_or_stop(
+                    q, buffer[: self.touch_hold_batch_number], stop
+                ):
                     return
-                buffer = buffer[self.touch_hold_batch_number:]
+                buffer = buffer[self.touch_hold_batch_number :]
 
         # 发送剩余 buffer
         if buffer:
             if not self._put_or_stop(q, buffer, stop):
                 return
-
-
-
-
 
 
 class TouchHoldConsumer(Consumer):
@@ -229,15 +235,9 @@ class TouchHoldConsumer(Consumer):
         # 每处理完一批, 打印进度
         if self._processed_samples - self._last_printed_samples >= len(batch):
             self._last_printed_samples = self._processed_samples
-            print_progress('touch_hold_inference', self._processed_samples, self.total_samples)
-
-
-
-
-
-
-
-
+            print_progress(
+                "touch_hold_inference", self._processed_samples, self.total_samples
+            )
 
 
 def _extract_light_result(yolo_result, sample_meta: dict) -> LightResult:
@@ -294,11 +294,6 @@ def _extract_light_result(yolo_result, sample_meta: dict) -> LightResult:
     )
 
 
-
-
-
-
-
 def _build_touch_hold_sampling_plan(shared_context: SharedContext):
     frame_plan = defaultdict(list)
     track_meta = {}
@@ -319,26 +314,23 @@ def _build_touch_hold_sampling_plan(shared_context: SharedContext):
 
         for note in note_geometry_list:
             frame_num = int(note.frame)
-            position = calculate_all_position(shared_context.touch_areas, note.cx, note.cy)
-            frame_plan[frame_num].append({
-                "track_id": track_id,
-                "cx": float(note.cx),
-                "cy": float(note.cy),
-                "position": position,
-            })
+            position = calculate_all_position(
+                shared_context.touch_areas, note.cx, note.cy
+            )
+            frame_plan[frame_num].append(
+                {
+                    "track_id": track_id,
+                    "cx": float(note.cx),
+                    "cy": float(note.cy),
+                    "position": position,
+                }
+            )
 
     return frame_plan, track_meta
 
 
-
-
-
-
-
-
-
 def calc_touch_hold_crop_size(std_video_size: int, is_big_touch: bool) -> int:
-    crop_size = std_video_size * 210 / 1080   # 与 label_notes.py 一致
+    crop_size = std_video_size * 210 / 1080  # 与 label_notes.py 一致
     if is_big_touch:
         crop_size *= 1.3
     return max(1, int(round(crop_size)))

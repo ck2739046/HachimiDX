@@ -1,58 +1,32 @@
 from __future__ import annotations
 
 import json
-from PyQt6.QtWidgets import QVBoxLayout
+
+import i18n
 from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtWidgets import QVBoxLayout
 
-from ..base_output_page import BaseOutputPage
-from ...widgets import (
-    MediaInputProbeWidget,
-    OutputLogWidget,
-    OverlayWidget,
-    PointerCursorButton,
-    RangeVisualizer,
-    ScrollableImageLabel,
-    SegmentedNavBar,
-    SplitDropButton,
-    SplitDropLineEdit,
-    SquareWidget,
-    StatedButton,
-    StyledCheckBox,
-    StyledComboBox,
-    StyledLineEdit,
-    ToolTipComboBox,
-    create_button,
-    create_check_box,
-    create_clickable_label,
-    create_combo_box,
-    create_directory_selection_row,
-    create_divider,
-    create_file_selection_row,
-    create_floating_notification,
-    create_help_icon,
-    create_label,
-    create_line_edit,
-    create_path_display,
-    create_slider,
-    create_split_drop_button,
-    create_split_drop_line_edit,
-    create_stated_button,
-    create_vertical_divider,
-    widget_utils,
-)
-
-from src.services import PathManage, process_manager_api
-from src.core.schemas.op_result import print_op_result
-from src.core.tools import show_notify_dialog
 from src.core.build_bpm_measurer_cmd import build_launch_cmd
 from src.core.measure_bpm.edit_config import export_aligned_config
 from src.core.measure_bpm.parse_config import generate_notify_path
+from src.core.schemas.op_result import print_op_result
+from src.core.tools import show_notify_dialog
+from src.services import PathManage, process_manager_api
 
-import i18n
-
-
+from ...widgets import (
+    create_check_box,
+    create_divider,
+    create_file_selection_row,
+    create_help_icon,
+    create_label,
+    create_line_edit,
+    create_stated_button,
+)
+from ..base_output_page import BaseOutputPage
 
 I18N_Prefix = "app.tools_subpages.measure_bpm"
+
+
 def _t(key: str, **kwargs) -> str:
     return i18n.t(f"{I18N_Prefix}.{key}", **kwargs)
 
@@ -67,7 +41,6 @@ class MeasureBpmPage(BaseOutputPage):
 
     # (bpm_config_path) — 发送到 Auto Rechart 页
     request_send_to_auto_rechart = pyqtSignal(str)
-
 
     def setup_content(self) -> None:
         self.content_layout = QVBoxLayout(self.content_area)
@@ -103,51 +76,60 @@ class MeasureBpmPage(BaseOutputPage):
         self.content_layout.addStretch()
 
         # 进程信号
-        process_manager_api.get_signals().runner_output.connect(self.output_widget.handle_process_output)
-        process_manager_api.get_signals().runner_ended.connect(self.output_widget.handle_process_ended)
+        process_manager_api.get_signals().runner_output.connect(
+            self.output_widget.handle_process_output
+        )
+        process_manager_api.get_signals().runner_ended.connect(
+            self.output_widget.handle_process_ended
+        )
         process_manager_api.get_signals().runner_ended.connect(self._on_runner_ended)
 
-        self._toggle_block2(False) # block2 默认隐藏，需满足条件才显示
+        self._toggle_block2(False)  # block2 默认隐藏，需满足条件才显示
         self._on_enable_bpm_changed()
-
-
-
-
-
-
 
     def _build_block1(self) -> None:
         self.content_layout.addWidget(create_divider(_t("ui_block1_divider")))
 
         # row1: 是否启用测量工具
-        self.enable_bpm_measurer_label = create_label(_t("ui_enable_bpm_measurer_label"))
+        self.enable_bpm_measurer_label = create_label(
+            _t("ui_enable_bpm_measurer_label")
+        )
         self.enable_bpm_measurer_check_box = create_check_box(default_checked=True)
-        self.open_bpm_measurer_button = create_stated_button(_t("ui_open_bpm_measurer_button"))
+        self.open_bpm_measurer_button = create_stated_button(
+            _t("ui_open_bpm_measurer_button")
+        )
         self.manual_mode_hint_label = create_label(_t("ui_manual_mode_hint"))
-        self.create_row(self.enable_bpm_measurer_label,
-                        self.enable_bpm_measurer_check_box,
-                        self.manual_mode_hint_label,
-                        add_stretch=True)
+        self.create_row(
+            self.enable_bpm_measurer_label,
+            self.enable_bpm_measurer_check_box,
+            self.manual_mode_hint_label,
+            add_stretch=True,
+        )
 
         # row2: 启动按钮 + 选择 bpm config
-        (self.config_select_button,
-         self.config_path_display,
-         self.config_help
-        ) = create_file_selection_row(
-            button_text=_t("ui_select_config_button"),
-            help_text=_t("ui_select_config_help"),
-            button_length=130,
-            name_filter=f"bpm config (*.txt)",
+        (self.config_select_button, self.config_path_display, self.config_help) = (
+            create_file_selection_row(
+                button_text=_t("ui_select_config_button"),
+                help_text=_t("ui_select_config_help"),
+                button_length=130,
+                name_filter="bpm config (*.txt)",
+            )
         )
-        self.create_row(self.open_bpm_measurer_button,
-                        self.config_select_button, self.config_help,
-                        self.config_path_display)
+        self.create_row(
+            self.open_bpm_measurer_button,
+            self.config_select_button,
+            self.config_help,
+            self.config_path_display,
+        )
 
         # connect
-        self.enable_bpm_measurer_check_box.stateChanged.connect(self._on_enable_bpm_changed)
-        self.open_bpm_measurer_button.clicked.connect(self._on_open_bpm_measurer_clicked)
+        self.enable_bpm_measurer_check_box.stateChanged.connect(
+            self._on_enable_bpm_changed
+        )
+        self.open_bpm_measurer_button.clicked.connect(
+            self._on_open_bpm_measurer_clicked
+        )
         self.config_path_display.textChanged.connect(self._on_block1_input_changed)
-
 
     def _on_enable_bpm_changed(self) -> None:
         # 测量工具模式（勾选）
@@ -159,10 +141,10 @@ class MeasureBpmPage(BaseOutputPage):
         self.config_select_button.setVisible(not is_checked)
         self.config_help.setVisible(not is_checked)
 
-
     def _on_open_bpm_measurer_clicked(self) -> None:
         # 防止重复启动
-        if self._bpm_measurer_runner_id: return
+        if self._bpm_measurer_runner_id:
+            return
         self.enable_bpm_measurer_check_box.setEnabled(False)
         self.open_bpm_measurer_button.setEnabled(False)
         # 构建 notify path
@@ -177,9 +159,10 @@ class MeasureBpmPage(BaseOutputPage):
         self.output_widget.append_text(_t("notice_bpm_measurer_start"))
         result = process_manager_api.start(cmd)
         if not result.is_ok:
-            show_notify_dialog(_t("dialog_title"),
-                               _t("warning_bpm_measurer_start_failed",
-                                  error=print_op_result(result)))
+            show_notify_dialog(
+                _t("dialog_title"),
+                _t("warning_bpm_measurer_start_failed", error=print_op_result(result)),
+            )
             # 失败后恢复按钮
             self.enable_bpm_measurer_check_box.setEnabled(True)
             self.open_bpm_measurer_button.setEnabled(True)
@@ -189,21 +172,11 @@ class MeasureBpmPage(BaseOutputPage):
         # 清空旧的 config 路径
         self.config_path_display.setText("")
 
-
     def _on_block1_input_changed(self) -> None:
         if self.config_path_display.text().strip():
             self._toggle_block2(True)
             return
         self._toggle_block2(False)
-
-
-
-
-
-
-
-
-
 
     # Block 2
     def _build_block2(self) -> None:
@@ -213,31 +186,42 @@ class MeasureBpmPage(BaseOutputPage):
         # row1: first note 时间 + beat_index 输入
         first_note_time_label = create_label(_t("ui_first_note_time_label"))
         first_note_time_help = create_help_icon(_t("ui_first_note_time_help"))
-        self.first_note_time_line_edit = create_line_edit(
-            length=120, validator='float')
+        self.first_note_time_line_edit = create_line_edit(length=120, validator="float")
 
         beat_index_label = create_label(_t("ui_beat_index_label"))
         beat_index_help = create_help_icon(_t("ui_beat_index_help"))
-        self.beat_index_line_edit = create_line_edit(
-            length=100, validator='float')
+        self.beat_index_line_edit = create_line_edit(length=100, validator="float")
 
         self.block2_row1 = self.create_row(
-            first_note_time_label, self.first_note_time_line_edit, first_note_time_help,
-            beat_index_label, self.beat_index_line_edit, beat_index_help,
-            add_stretch=True)
+            first_note_time_label,
+            self.first_note_time_line_edit,
+            first_note_time_help,
+            beat_index_label,
+            self.beat_index_line_edit,
+            beat_index_help,
+            add_stretch=True,
+        )
 
         # row2: 计算并导出 + 填入自动抄谱
-        self.update_timing_config_button = create_stated_button(_t("ui_update_timing_config_button"))
-        self.send_to_auto_rechart_button = create_stated_button(_t("ui_send_to_auto_rechart_button"))
+        self.update_timing_config_button = create_stated_button(
+            _t("ui_update_timing_config_button")
+        )
+        self.send_to_auto_rechart_button = create_stated_button(
+            _t("ui_send_to_auto_rechart_button")
+        )
         self.block2_row2 = self.create_row(
             self.update_timing_config_button,
             self.send_to_auto_rechart_button,
-            add_stretch=True)
+            add_stretch=True,
+        )
 
         # connect
-        self.update_timing_config_button.clicked.connect(self._on_compute_and_export_clicked)
-        self.send_to_auto_rechart_button.clicked.connect(self._on_send_to_auto_rechart_clicked)
-
+        self.update_timing_config_button.clicked.connect(
+            self._on_compute_and_export_clicked
+        )
+        self.send_to_auto_rechart_button.clicked.connect(
+            self._on_send_to_auto_rechart_clicked
+        )
 
     def _on_compute_and_export_clicked(self) -> None:
         # reset
@@ -268,22 +252,28 @@ class MeasureBpmPage(BaseOutputPage):
             return
 
         # 读 → 修正 global_offset → 保存对话框 → 写，统一由 edit_config 完成
-        res = export_aligned_config(config_path, first_note_time_ms, beat_index, parent=self)
+        res = export_aligned_config(
+            config_path, first_note_time_ms, beat_index, parent=self
+        )
         if not res.is_ok:
             # 用户取消保存对话框时静默恢复
             if res.error_msg != "user cancelled save dialog":
-                show_notify_dialog(_t("dialog_title"), _t("warning_compute_failed", error=res.error_msg))
+                show_notify_dialog(
+                    _t("dialog_title"),
+                    _t("warning_compute_failed", error=res.error_msg),
+                )
             self._set_all_buttons_enabled(True)
             return
 
         out_path = res.value
-        self.output_widget.append_text(_t("notice_compute_success", output_path=out_path))
+        self.output_widget.append_text(
+            _t("notice_compute_success", output_path=out_path)
+        )
         self._last_exported_config_path = str(out_path)
         # Lite 版无自动抄谱页面
         if not PathManage.is_lite():
             self.send_to_auto_rechart_button.show()
         self._set_all_buttons_enabled(True)
-
 
     def _on_send_to_auto_rechart_clicked(self) -> None:
         config_path = self._last_exported_config_path
@@ -291,7 +281,6 @@ class MeasureBpmPage(BaseOutputPage):
             show_notify_dialog(_t("dialog_title"), _t("warning_compute_prerequisite"))
             return
         self.request_send_to_auto_rechart.emit(config_path)
-
 
     def _set_all_buttons_enabled(self, enabled: bool) -> None:
         """启用/禁用页面上所有交互控件。"""
@@ -304,10 +293,10 @@ class MeasureBpmPage(BaseOutputPage):
         self.update_timing_config_button.setEnabled(enabled)
         self.send_to_auto_rechart_button.setEnabled(enabled)
 
-
     def _toggle_block2(self, show: bool) -> None:
         """True = show, False = Hide"""
-        if self._bpm_measurer_runner_id: return
+        if self._bpm_measurer_runner_id:
+            return
         self.block2_divider.setVisible(show)
         self.block2_row1.setVisible(show)
         self.block2_row2.setVisible(show)
@@ -317,12 +306,6 @@ class MeasureBpmPage(BaseOutputPage):
         self.first_note_time_line_edit.setText("")
         self.beat_index_line_edit.setText("")
         self._last_exported_config_path = None
-
-
-
-
-
-
 
     def _on_runner_ended(self, runner_id: str, ended) -> None:
 
@@ -342,9 +325,10 @@ class MeasureBpmPage(BaseOutputPage):
                     self.output_widget.append_text(_t("notice_bpm_measurer_cancelled"))
                     return
                 else:
-                    self.output_widget.append_text(_t("warning_bpm_measurer_failed", code=exit_code))
+                    self.output_widget.append_text(
+                        _t("warning_bpm_measurer_failed", code=exit_code)
+                    )
                     return
-
 
     def _parse_bpm_measurer_manifest(self) -> None:
         if not self._notify_path or not self._notify_path.is_file():
@@ -354,7 +338,9 @@ class MeasureBpmPage(BaseOutputPage):
             data = json.loads(self._notify_path.read_text(encoding="utf-8"))
             config_path = data.get("config_path", "")
         except Exception as e:
-            self.output_widget.append_text(_t("warning_manifest_read_failed", error=str(e)))
+            self.output_widget.append_text(
+                _t("warning_manifest_read_failed", error=str(e))
+            )
             return
         finally:
             try:

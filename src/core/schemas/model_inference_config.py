@@ -1,6 +1,5 @@
 from typing import Final
 
-
 MODEL_BACKEND_OPTIONS: Final[tuple[str, ...]] = (
     "ONNX CPU",
     "NCNN",
@@ -51,10 +50,8 @@ _MODEL_BACKEND_RULES = {
 INFERENCE_DEVICE_RESULT_PREFIX: Final[str] = "INFERENCE_DEVICE_RESULT:"
 
 
-
 def get_model_backend_rule(backend) -> dict | None:
     return _MODEL_BACKEND_RULES.get(str(backend).strip())
-
 
 
 def get_model_backend_id(backend) -> str | None:
@@ -62,11 +59,9 @@ def get_model_backend_id(backend) -> str | None:
     return rule["backend_id"] if rule is not None else None
 
 
-
 def get_model_group(backend) -> str | None:
     rule = get_model_backend_rule(backend)
     return rule["model_group"] if rule is not None else None
-
 
 
 def parse_inference_device(value) -> tuple[str, int | None] | None:
@@ -83,7 +78,6 @@ def parse_inference_device(value) -> tuple[str, int | None] | None:
     return scheme, int(index_text)
 
 
-
 def normalize_inference_device_id(value) -> str | None:
     parsed = parse_inference_device(value)
     if parsed is None:
@@ -92,18 +86,15 @@ def normalize_inference_device_id(value) -> str | None:
     return scheme if index is None else f"{scheme}:{index}"
 
 
-
 def is_inference_device_supported_by_backend(backend, value) -> bool:
     parsed = parse_inference_device(value)
     rule = get_model_backend_rule(backend)
     return parsed is not None and rule is not None and parsed[0] in rule["schemes"]
 
 
-
 def get_inference_device_by_backend(backend) -> str:
     rule = get_model_backend_rule(backend)
     return rule["default_device"] if rule is not None else "cpu"
-
 
 
 def normalize_inference_device_for_backend(backend, value) -> str:
@@ -112,11 +103,9 @@ def normalize_inference_device_for_backend(backend, value) -> str:
     return normalize_inference_device_id(value)
 
 
-
 def get_runtime_inference_device(backend, value) -> str:
     normalized = normalize_inference_device_for_backend(backend, value)
     return "cpu" if str(backend).strip() == "ONNX DML" else normalized
-
 
 
 def get_directml_device_index(value) -> int | None:

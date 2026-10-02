@@ -2,23 +2,21 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+
 from PyQt6.QtWidgets import QFileDialog
 
-from src.core.schemas.op_result import OpResult, ok, err
-from .parse_config import parse_config, compute_aligned_global_offset
+from src.core.schemas.op_result import OpResult, err, ok
+
+from .parse_config import compute_aligned_global_offset, parse_config
 
 # 仅识别 BPM-Measurer 导出格式的 global_offset 行：
 #   global_offset = <number>     (number 可带千分位 / 小数 / 前导符号)
 # 大小写不敏感；前导空白容错。
 # 其余行（段表 beat_index/bpm、注释、空行）逐字透传，不做任何解析或校验。
 _GLOBAL_OFFSET_RE = re.compile(
-    r'^(\s*global_offset\s*=\s*)(-?[\d,]+(?:\.\d+)?)(.*)$',
+    r"^(\s*global_offset\s*=\s*)(-?[\d,]+(?:\.\d+)?)(.*)$",
     re.IGNORECASE,
 )
-
-
-
-
 
 
 def set_global_offset(raw_config_text: str, new_offset_sec: float) -> OpResult[str]:
@@ -61,14 +59,6 @@ def set_global_offset(raw_config_text: str, new_offset_sec: float) -> OpResult[s
     return ok("\n".join(out_lines))
 
 
-
-
-
-
-
-
-
-
 def export_aligned_config(
     config_path,
     first_note_time_ms: float,
@@ -95,16 +85,12 @@ def export_aligned_config(
     if not src.is_file():
         return err(f"bpm config not found: {src}")
 
-
-
     # 1. 解析 config 得 notify JSON
     parse_res = parse_config(src)
     if not parse_res.is_ok:
         return err("export_aligned_config error", inner=parse_res)
-    
+
     notify_path = parse_res.value
-
-
 
     # 2. 计算新 global_offset
     try:
@@ -113,15 +99,15 @@ def export_aligned_config(
         )
     finally:
         # 删除 notify JSON 文件
-        try: notify_path.unlink(missing_ok=True)
-        except: pass
+        try:
+            notify_path.unlink(missing_ok=True)
+        except:
+            pass
 
     if not compute_res.is_ok:
         return err("export_aligned_config error", inner=compute_res)
-    
+
     new_offset_sec = compute_res.value
-
-
 
     # 3. 写入 global_offset
     try:
@@ -132,15 +118,15 @@ def export_aligned_config(
     set_res = set_global_offset(raw_text, new_offset_sec)
     if not set_res.is_ok:
         return err("export_aligned_config error", inner=set_res)
-    
+
     new_raw_text = set_res.value
-
-
 
     # 4. 保存对话框
     default_name = src.stem + "_aligned.txt"
     default_dir = src.parent / default_name
-    out_path, _ = QFileDialog.getSaveFileName(parent, "save bpm config", str(default_dir), "bpm config (*.txt)")
+    out_path, _ = QFileDialog.getSaveFileName(
+        parent, "save bpm config", str(default_dir), "bpm config (*.txt)"
+    )
     # 对话框关闭后，确保主窗口回到前台
     if parent:
         parent.window().raise_()

@@ -1,29 +1,11 @@
-import numpy as np
-import math
 from dataclasses import dataclass
 from fractions import Fraction
 
-from .shared_context import (
-    SharedContext,
-    create_shared_context,
-    get_a_zone_endpoint,
-    get_max_track_id,
-    get_touch_areas,
-)
-from ..detect.note_definition import (
-    NoteType,
-    NoteVariant,
-    Note_Geometry,
-    get_imgsz,
-    is_obb,
-    map_model_class_to_note_type,
-    map_note_type_to_class_id,
-    need_cls,
-)
-from .maidata_parse import parse_note_info, calculate_one_bar_ms
 import i18n
+import numpy as np
 
 from .maidata_fraction_utils import get_fraction
+from .maidata_parse import calculate_one_bar_ms, parse_note_info
 
 
 @dataclass
@@ -38,6 +20,7 @@ class MaidataItem:
 
     relative_time: 音符在小节内的相对位置 (0~1), 由 time 派生, 分数
     """
+
     time: Fraction
     content: str
     is_bpm: bool = False
@@ -46,9 +29,6 @@ class MaidataItem:
     @property
     def relative_time(self) -> Fraction:
         return self.time - self.time.numerator // self.time.denominator
-
-
-
 
 
 class PassedBarTracker:
@@ -71,9 +51,10 @@ class PassedBarTracker:
         self.current_bpm_segment_passed_bar = 0  # 仅分子，基于 384
         self.cur_note_track_id = -1  # 用于报错输出
 
-
     @staticmethod
-    def convert_timing_points(timing_points: list, lcm_denom: int) -> dict[int, tuple[int, float]]:
+    def convert_timing_points(
+        timing_points: list, lcm_denom: int
+    ) -> dict[int, tuple[int, float]]:
         """
         将 timing_points 转换为字典形式，方便按段索引访问
         key   = 段序号 (0, 1, 2, ...)
@@ -84,24 +65,27 @@ class PassedBarTracker:
             bar_index = round(beat_index * 0.25 * lcm_denom)  # 将 beat 转为 bar
             converted[i] = (bar_index, bpm)
         return converted
-    
 
     def update_track_id(self, new_track_id: int) -> None:
         self.cur_note_track_id = new_track_id
 
-
-    def add(self, current_bpm_segment_index: int,
-                  numerator: int, denominator: int, one: int) -> None:
+    def add(
+        self, current_bpm_segment_index: int, numerator: int, denominator: int, one: int
+    ) -> None:
         # 如果输入的段索引更大，说明已经跨段了，直接更新索引并清空 passed_bar
         if current_bpm_segment_index > self.current_bpm_segment_index:
             self.current_bpm_segment_index = current_bpm_segment_index
             self.current_bpm_segment_passed_bar = 0
         # 如果输入的段索引更小，说明尝试添加到之前的 BPM 段，直接报错
         elif current_bpm_segment_index < self.current_bpm_segment_index:
-            raise ValueError(i18n.t("maidata_generate.error_previous_bpm_segment",
-                                    track_id=self.cur_note_track_id,
-                                    index=current_bpm_segment_index,
-                                    current_index=self.current_bpm_segment_index))
+            raise ValueError(
+                i18n.t(
+                    "maidata_generate.error_previous_bpm_segment",
+                    track_id=self.cur_note_track_id,
+                    index=current_bpm_segment_index,
+                    current_index=self.current_bpm_segment_index,
+                )
+            )
 
         # 将分数统一转为 lcm_denom 为分母的形式
         # 假设分母不为 0, 并且是 lcm_denom 的因数
@@ -109,10 +93,9 @@ class PassedBarTracker:
         scaled_numerator = total_numerator * (self.lcm_denom // denominator)
         self.current_bpm_segment_passed_bar += scaled_numerator
 
-
     def get_total_elapsed_ms(self) -> float:
         """理论总播放时间（毫秒）"""
-        
+
         total_ms = 0.0
         idx = self.current_bpm_segment_index
 
@@ -131,13 +114,14 @@ class PassedBarTracker:
             next_bar, _ = self._timing_points[idx + 1]
             theory_total_bar = (next_bar - start_bar) / self.lcm_denom
             if actual_passed_bar > theory_total_bar:
-                print(f"get_total_elapsed_ms: Warning: note {self.cur_note_track_id}: actual_passed_bar {actual_passed_bar:.3f} exceeds theory_total_bar {theory_total_bar:.3f} for BPM segment {idx} {cur_bpm}, truncating to theory total.")
+                print(
+                    f"get_total_elapsed_ms: Warning: note {self.cur_note_track_id}: actual_passed_bar {actual_passed_bar:.3f} exceeds theory_total_bar {theory_total_bar:.3f} for BPM segment {idx} {cur_bpm}, truncating to theory total."
+                )
                 actual_passed_bar = theory_total_bar  # 截断
 
         total_ms += actual_passed_bar * calculate_one_bar_ms(cur_bpm)
 
         return total_ms
-
 
     def get_total_elapsed_bar(self) -> Fraction:
         """理论总播放时间 (小节位置)"""
@@ -159,19 +143,18 @@ class PassedBarTracker:
             next_bar, _ = self._timing_points[idx + 1]
             theory_total_bar = next_bar - start_bar
             if actual_passed_bar > theory_total_bar:
-                print(f"get_total_elapsed_bar: Warning: note {self.cur_note_track_id}: actual_passed_bar {actual_passed_bar} exceeds theory_total_bar {theory_total_bar} for BPM segment {idx}, truncating to theory total.")
+                print(
+                    f"get_total_elapsed_bar: Warning: note {self.cur_note_track_id}: actual_passed_bar {actual_passed_bar} exceeds theory_total_bar {theory_total_bar} for BPM segment {idx}, truncating to theory total."
+                )
                 actual_passed_bar = theory_total_bar  # 截断
         total_bars += actual_passed_bar
 
         return Fraction(total_bars, self.lcm_denom)
 
 
-
-
-
-
-
-def _generate_bpm_items(passed_bar_tracker: PassedBarTracker, timing_points: list) -> list[MaidataItem]:
+def _generate_bpm_items(
+    passed_bar_tracker: PassedBarTracker, timing_points: list
+) -> list[MaidataItem]:
     """
     为每个 BPM 段生成一个 BPM 变化点 item
     位置 = 该段起点相对首段起点的小节位置
@@ -189,17 +172,13 @@ def _generate_bpm_items(passed_bar_tracker: PassedBarTracker, timing_points: lis
     return bpm_items
 
 
+def generate_maidata(
+    notes_info,
+    timing_points,
+    base_denominator,
+    duration_denominator,
+) -> list[MaidataItem]:
 
-
-
-
-
-
-
-def generate_maidata(notes_info, timing_points,
-                     base_denominator, duration_denominator,
-                    ) -> list[MaidataItem]:
-    
     # timing_points = [(beat_index, bpm, start_ms), ...]
 
     items: list[MaidataItem] = []
@@ -211,22 +190,27 @@ def generate_maidata(notes_info, timing_points,
     last_bpm_seg_index = None
 
     is_single_bpm = len(timing_points) <= 1
-    
+
     # 仅用于统计音符约分偏差
     time_deviations = []
     # 仅用于统计吸附到 bpm 段的差值
     snap_deltas = []
 
-
-
     for key, value in notes_info:
-
         # 解析音符信息
-        result = parse_note_info(key, value, timing_points,
-                                 base_denominator, duration_denominator)
-        if result is None: continue
-        raw_cur_note_time, cur_note_time, cur_position, cur_bpm_seg_index, cur_note_track_id = result
-        
+        result = parse_note_info(
+            key, value, timing_points, base_denominator, duration_denominator
+        )
+        if result is None:
+            continue
+        (
+            raw_cur_note_time,
+            cur_note_time,
+            cur_position,
+            cur_bpm_seg_index,
+            cur_note_track_id,
+        ) = result
+
         # 统计吸附到 bpm 段的差值
         if cur_note_time != raw_cur_note_time:
             snap_deltas.append(raw_cur_note_time - cur_note_time)
@@ -242,9 +226,14 @@ def generate_maidata(notes_info, timing_points,
                 # 多 BPM: init_time = 首 BPM 段起点时间，首音符计入 tracker
                 init_time = timing_points[0][2]
                 passed_bar_tracker.update_track_id(cur_note_track_id)
-                bar_diff = calculate_bar_diff(0.0, cur_note_time,
-                                              -1, cur_bpm_seg_index,
-                                              timing_points, base_denominator)
+                bar_diff = calculate_bar_diff(
+                    0.0,
+                    cur_note_time,
+                    -1,
+                    cur_bpm_seg_index,
+                    timing_points,
+                    base_denominator,
+                )
                 passed_bar_tracker.add(*bar_diff)
                 cur_theory_time = init_time + passed_bar_tracker.get_total_elapsed_ms()
                 last_theory_time = cur_theory_time
@@ -257,9 +246,14 @@ def generate_maidata(notes_info, timing_points,
             continue
 
         # 计算当前音符的时间差
-        bar_diff = calculate_bar_diff(last_theory_time, cur_note_time,
-                                      last_bpm_seg_index, cur_bpm_seg_index,
-                                      timing_points, base_denominator)
+        bar_diff = calculate_bar_diff(
+            last_theory_time,
+            cur_note_time,
+            last_bpm_seg_index,
+            cur_bpm_seg_index,
+            timing_points,
+            base_denominator,
+        )
         # 更新 tracker
         passed_bar_tracker.update_track_id(cur_note_track_id)
         passed_bar_tracker.add(*bar_diff)
@@ -283,10 +277,6 @@ def generate_maidata(notes_info, timing_points,
         last_theory_time = cur_theory_time
         last_bpm_seg_index = cur_bpm_seg_index
 
-
-
-
-
     # 打印offset统计信息（至少需要多个音符才有偏差数据）
     if len(time_deviations) > 10:
         length = len(time_deviations)
@@ -295,17 +285,25 @@ def generate_maidata(notes_info, timing_points,
         max = np.max(time_deviations)
         median = np.median(time_deviations)
         std_dev = np.std(time_deviations)
-        print(f"\nTime deviations of {length} notes: Median {median:.3f}, Min {min:.3f}, Max {max:.3f}, Mean {mean:.3f}, Std Dev {std_dev:.3f}")
+        print(
+            f"\nTime deviations of {length} notes: Median {median:.3f}, Min {min:.3f}, Max {max:.3f}, Mean {mean:.3f}, Std Dev {std_dev:.3f}"
+        )
     else:
-        print(f"\nNot enough notes detected, no time deviation statistics available.")
+        print("\nNot enough notes detected, no time deviation statistics available.")
 
     # 打印吸附（snap）统计信息
     if snap_deltas:
         snap_count = len(snap_deltas)
         snap_mean = np.mean(snap_deltas)
-        backward_count = sum(1 for d in snap_deltas if d > 0)  # 后向吸附：吸附到当前段起点
-        forward_count = sum(1 for d in snap_deltas if d < 0)   # 前向吸附：吸附到下一段起点
-        print(f"\nSnap deltas of {snap_count} notes (backward {backward_count} / forward {forward_count}): Mean {snap_mean:.3f}")
+        backward_count = sum(
+            1 for d in snap_deltas if d > 0
+        )  # 后向吸附：吸附到当前段起点
+        forward_count = sum(
+            1 for d in snap_deltas if d < 0
+        )  # 前向吸附：吸附到下一段起点
+        print(
+            f"\nSnap deltas of {snap_count} notes (backward {backward_count} / forward {forward_count}): Mean {snap_mean:.3f}"
+        )
 
     # 创建 BPM 变化点 item
     bpm_items = _generate_bpm_items(passed_bar_tracker, timing_points)
@@ -320,22 +318,14 @@ def generate_maidata(notes_info, timing_points,
     return all_items
 
 
-
-
-
-
-
-
-
-
-
-def calculate_bar_diff(last_note_time: float,
-                       cur_note_time: float,
-                       last_bpm_seg_index: int,
-                       cur_bpm_seg_index: int,
-                       timing_points: list,
-                       base_denominator: int,
-                      ) -> tuple[int, int, int, int]:
+def calculate_bar_diff(
+    last_note_time: float,
+    cur_note_time: float,
+    last_bpm_seg_index: int,
+    cur_bpm_seg_index: int,
+    timing_points: list,
+    base_denominator: int,
+) -> tuple[int, int, int, int]:
     """
     如果当前音符和旧音符位于相同 bpm 段，起点用 last_note_time
     如果当前音符和旧音符位于不同 bpm 段，起点用该段的起点时间

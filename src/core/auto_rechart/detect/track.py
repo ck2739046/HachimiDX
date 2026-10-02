@@ -1,31 +1,29 @@
-from ultralytics.trackers import BOTSORT
 import os
-import cv2
 import time
-import numpy as np
 from collections import defaultdict
-from types import SimpleNamespace
-from ultralytics.engine.results import OBB
 from pathlib import Path
+from types import SimpleNamespace
 
-from ...schemas.op_result import OpResult, ok, err
-# from src.services import PathManage
-from .note_definition import (
-    NoteType,
-    NoteVariant,
-    Note_Geometry,
-    get_imgsz,
-    is_obb,
-    map_model_class_to_note_type,
-    map_note_type_to_class_id,
-    need_cls,
-)
-from .detect import _load_detect_results
-from ..tool import print_progress
+import cv2
 import i18n
+import numpy as np
+from ultralytics.engine.results import OBB
+from ultralytics.trackers import BOTSORT
+
+from ...schemas.op_result import OpResult, err, ok
+from ..tool import print_progress
+
 # from ..tool import print_progress, SEEK_THRESHOLD
 from .custom_oc_sort.oc_sort import OCSort
+from .detect import _load_detect_results
 
+# from src.services import PathManage
+from .note_definition import (
+    Note_Geometry,
+    NoteType,
+    NoteVariant,
+    map_note_type_to_class_id,
+)
 
 TRACKER_NOTE_TYPES = [
     NoteType.TAP,
@@ -42,35 +40,27 @@ DEBUG = False
 def _build_botsort_tracker(fps: float) -> BOTSORT:
     # def _build_botsort_tracker(fps: float, with_reid: bool = False) -> BOTSORT:
     tracker_args = SimpleNamespace(
-        tracker_type='botsort',
-
+        tracker_type="botsort",
         # 优先匹配的 conf 阈值
         # 置信度大于此值的检测框，会被用于匹配轨迹
         track_high_thresh=0.5,
-
         # 如果 low_thresh < conf < high_thresh 也会被匹配，但是优先级更低
         # 置信度大于此值的检测框，会被用于匹配轨迹
         track_low_thresh=0.25,
-
         # 如果一个框无法匹配，且其置信度 ≥ 此值，会被创建为新轨迹
         # 值越高，越不容易视为新 id
         new_track_thresh=0.5,
-
         # 当一个轨迹在连续若干帧未匹配到检测框时，不会立即删除，而是保留最多 track_buffer 帧
         # 值越高，越不容易视为新 id
         track_buffer=max(1, round(fps / 15)),  # 1/15s
-
         # 计算: 阈值 = 1-IOU
         # 值越高，越宽松，允许较大位移 (低iou) 也匹配上，越不容易视为新 id
         # 值越低, 越严格，仅允许较小位移 (高iou) 匹配上, 可能会被视为新 id
-        match_thresh=0.8, # 默认
-
+        match_thresh=0.8,  # 默认
         # 融合阈值，默认开启
         fuse_score=True,
-
         # 画面稳定，不需要 gmc 全局运动补偿
-        gmc_method='none',
-
+        gmc_method="none",
         # # 是否启用 ReID
         # with_reid=with_reid,
         # model=str(PathManage.REID_PT_PATH) if with_reid else 'HachimiDX',
@@ -83,7 +73,7 @@ def _build_botsort_tracker(fps: float) -> BOTSORT:
         # # 值越低，外观就不需要那么相似也能匹配上，越不容易视为新 id
         # appearance_thresh=0.8 if with_reid else 478,
         with_reid=False,
-        model='HachimiDX',
+        model="HachimiDX",
         proximity_thresh=273,
         appearance_thresh=478,
     )
@@ -94,50 +84,37 @@ def _build_ocsort_tracker(fps: float, debug: bool = False) -> OCSort:
 
     # 仅用于 SLIDE；参数按 OC-SORT 原生语义硬编码
     return OCSort(
-
         # 置信度低于此值的候选框会被丢弃
         det_thresh=0.4,
-
         # 轨迹在 x 帧没有新的匹配时被删除
         # 此处要比 min_hits 更大, 因为漏检一帧 hit_streak-2
         # 星星尾的开头经常有漏检, 此处要容忍
         max_age=round(fps * 0.1),  # 0.1s
-
         # 轨迹至少需要 x 个匹配到的点才被保留
         min_hits=max(2, round(fps * 0.05)),  # 0.05s, at least 2
-
         # Stage 1: 候选框与卡尔曼预测的框的 DIoU ≥ 此值时才会被匹配上
         # 这里应该要比 stage 3 更严格
-        s1_diou_thresh=0.5, # 75%
-
+        s1_diou_thresh=0.5,  # 75%
         # Stage 3: 候选框与轨迹最新框的 DIoU ≥ 此值时才会被匹配上
-        s3_diou_thresh=0.345, # 150%
-
+        s3_diou_thresh=0.345,  # 150%
         # 用于 vdc 的 angle_diff 计算
         # 向量 A (轨迹速度): ref_obs → 轨迹最新框
         # 向量 B (VDC 方向): ref_obs 的下一帧 → 候选框
         # ref_obs 为历史中首个中心距离 > pct*框尺寸 的观测（找不到时回退到最旧）
         delta_dist_pct=0.7,  # 有效位移阈值 = 70% 框尺寸
-
         # vdc 的权重
         # vdc = angle_diff * inertia * score(置信度)
         inertia=0.8,
-
         # 尺寸变大门控：候选框 max(w,h) ≤ 轨迹最后一帧 × (1+ratio)
         # 如最后一帧 max=30，ratio=0.15 → 候选框 max 须 ≤ 34.5
         # 值越大越宽松，越小越严格
         max_size_increase_ratio=0.2,
-
         # 尺寸变小门控：候选框 max(w,h) ≥ 轨迹最后一帧 × (1-ratio)
         # 如最后一帧 max=30，ratio=0.15 → 候选框 max 须 ≥ 25.5
         # 值越大越严格，越小越宽松
         max_size_decrease_ratio=0.2,
-
         debug=debug,
     )
-
-
-
 
 
 def _reverse_track_slide(track_geos, fps, detections_by_frame):
@@ -213,11 +190,11 @@ def _reverse_track_slide(track_geos, fps, detections_by_frame):
     return matched_geos
 
 
-
-def main(std_video_path: Path,
-         total_frames: int,
-         # enable_reid: bool,
-        ) -> OpResult[None]:
+def main(
+    std_video_path: Path,
+    total_frames: int,
+    # enable_reid: bool,
+) -> OpResult[None]:
     try:
         # 读取检测结果
         detect_results = _load_detect_results(std_video_path.parent)
@@ -272,7 +249,6 @@ def main(std_video_path: Path,
 
         # 遍历每一帧
         for frame_number in range(total_frames):
-
             # 按需解码视频帧
             frame = None
             # if enable_reid and frame_number in hold_frames_set:
@@ -307,11 +283,19 @@ def main(std_video_path: Path,
                 # 转换为tracker需要的数据格式
                 # 就算没有检测框，也要传个空对象给tracker以更新时间
                 if note_type == NoteType.SLIDE:
-                    tracker_input = _convert_detections_to_ocsort_format(type_detections)
-                    track_result = trackers_by_type[note_type].update(tracker_input, frame_number)
+                    tracker_input = _convert_detections_to_ocsort_format(
+                        type_detections
+                    )
+                    track_result = trackers_by_type[note_type].update(
+                        tracker_input, frame_number
+                    )
                 else:
-                    tracker_input = _convert_detections_to_botsort_format(type_detections, frame_shape)
-                    track_result = trackers_by_type[note_type].update(tracker_input, img=frame)
+                    tracker_input = _convert_detections_to_botsort_format(
+                        type_detections, frame_shape
+                    )
+                    track_result = trackers_by_type[note_type].update(
+                        tracker_input, img=frame
+                    )
                 if track_result is None or len(track_result) == 0:
                     continue
                 # 解析追踪结果
@@ -335,8 +319,10 @@ def main(std_video_path: Path,
                     matched_note_ids.add(id(original_note_geometry))
 
                     if DEBUG and note_type == NoteType.SLIDE:
-                        print(f"[TRACK] SLIDE local_id={local_track_id} → global_id={global_track_id}")
-            
+                        print(
+                            f"[TRACK] SLIDE local_id={local_track_id} → global_id={global_track_id}"
+                        )
+
             # 打印进度
             counter += 1
             if counter % 100 == 0:
@@ -344,14 +330,21 @@ def main(std_video_path: Path,
 
         # 最后再打印一次进度
         time.sleep(0.1)  # 等待全部结果完成
-        print_progress(i18n.t("track.progress_label"), counter, total_frames, final=True)
-                        
+        print_progress(
+            i18n.t("track.progress_label"), counter, total_frames, final=True
+        )
+
         # 结束
-        if cap and cap.isOpened(): cap.release()
+        if cap and cap.isOpened():
+            cap.release()
         finish_time = time.time()
-        print(i18n.t("track.notice_module_finished",
-                     seconds=f"{finish_time - start_time:.1f}",
-                     fps=f"{total_frames / (finish_time - start_time):.1f}"))
+        print(
+            i18n.t(
+                "track.notice_module_finished",
+                seconds=f"{finish_time - start_time:.1f}",
+                fps=f"{total_frames / (finish_time - start_time):.1f}",
+            )
+        )
 
         # === 反向追踪 slide tracks ===
         # 对每条 slide track 尝试反向追踪
@@ -376,12 +369,13 @@ def main(std_video_path: Path,
             print(i18n.t("track.notice_reverse_tracking", count=reverse_count))
 
         # 保存到文件
-        _save_track_results(final_tracked_results, std_video_path.parent, call_fn="track")
+        _save_track_results(
+            final_tracked_results, std_video_path.parent, call_fn="track"
+        )
         return ok()
 
     except Exception as e:
         return err("Unexcepted error in auto_rechart > detect > track", e)
-
 
 
 def _convert_detections_to_botsort_format(detections, frame_shape):
@@ -389,7 +383,7 @@ def _convert_detections_to_botsort_format(detections, frame_shape):
     # 如果没有检测结果，返回空对象
     if not detections or len(detections) == 0:
         return OBB(np.empty((0, 7), dtype=np.float32), frame_shape)
-    
+
     # 创建空白数据结构
     n = len(detections)
     data = np.zeros((n, 7), dtype=np.float32)
@@ -408,7 +402,6 @@ def _convert_detections_to_botsort_format(detections, frame_shape):
 
     # 封装为OBB对象
     return OBB(data, frame_shape)
-
 
 
 def _convert_detections_to_ocsort_format(detections):
@@ -431,7 +424,6 @@ def _convert_detections_to_ocsort_format(detections):
     return data
 
 
-
 def _parse_track_results(track_result, detections, note_type, detections_by_frame):
     """解析 tracker 输出，兼容两种格式。
 
@@ -441,7 +433,9 @@ def _parse_track_results(track_result, detections, note_type, detections_by_fram
         idx 是当前帧的检测下标，用 current_idx_to_note 回查。
     """
     parsed_track_results = []
-    current_idx_to_note = {i: note_geometry for i, note_geometry in enumerate(detections)}
+    current_idx_to_note = {
+        i: note_geometry for i, note_geometry in enumerate(detections)
+    }
 
     for result in track_result:
         if len(result) < 9:
@@ -453,7 +447,11 @@ def _parse_track_results(track_result, detections, note_type, detections_by_fram
             # OC-Sort 格式: [..., cls_id, det_frame, det_idx]
             det_frame = int(result[8])
             det_idx = int(result[9])
-            src_type = [d for d in detections_by_frame.get(det_frame, []) if d.note_type == note_type]
+            src_type = [
+                d
+                for d in detections_by_frame.get(det_frame, [])
+                if d.note_type == note_type
+            ]
             if 0 <= det_idx < len(src_type):
                 parsed_track_results.append((track_id, src_type[det_idx]))
         else:
@@ -465,15 +463,14 @@ def _parse_track_results(track_result, detections, note_type, detections_by_fram
     return parsed_track_results
 
 
-
 def _save_track_results(tracks, output_dir, call_fn=None):
 
     track_result_path = os.path.join(output_dir, "track_result.txt")
-    
-    with open(track_result_path, 'w', encoding='utf-8') as f:
+
+    with open(track_result_path, "w", encoding="utf-8") as f:
         for key, value in tracks.items():
             track_id, note_type = key
-            note_geometry_list = sorted(value, key=lambda x: x.frame) # 按帧号排序
+            note_geometry_list = sorted(value, key=lambda x: x.frame)  # 按帧号排序
 
             if len(note_geometry_list) > 0:
                 # 写入轨迹头
@@ -485,49 +482,56 @@ def _save_track_results(tracks, output_dir, call_fn=None):
                         f"{note.note_type.value}",
                         f"{note.note_variant.value}",
                         f"{note.conf:.4f}",
-                        f"{note.x1:.4f}", f"{note.y1:.4f}",
-                        f"{note.x2:.4f}", f"{note.y2:.4f}",
-                        f"{note.x3:.4f}", f"{note.y3:.4f}",
-                        f"{note.x4:.4f}", f"{note.y4:.4f}",
-                        f"{note.cx:.4f}", f"{note.cy:.4f}",
-                        f"{note.w:.4f}", f"{note.h:.4f}",
-                        f"{note.r:.4f}"
+                        f"{note.x1:.4f}",
+                        f"{note.y1:.4f}",
+                        f"{note.x2:.4f}",
+                        f"{note.y2:.4f}",
+                        f"{note.x3:.4f}",
+                        f"{note.y3:.4f}",
+                        f"{note.x4:.4f}",
+                        f"{note.y4:.4f}",
+                        f"{note.cx:.4f}",
+                        f"{note.cy:.4f}",
+                        f"{note.w:.4f}",
+                        f"{note.h:.4f}",
+                        f"{note.r:.4f}",
                     ]
-                    f.write(', '.join(data) + '\n')
+                    f.write(", ".join(data) + "\n")
 
-                f.write('\n')  # track_id 之间空行分隔
-    
+                f.write("\n")  # track_id 之间空行分隔
+
     prefix = f"[{call_fn}]: " if call_fn else ""
-    print(i18n.t("track.notice_result_saved", prefix=prefix, path=str(track_result_path)))
-
+    print(
+        i18n.t("track.notice_result_saved", prefix=prefix, path=str(track_result_path))
+    )
 
 
 def _load_track_results(output_dir):
 
     track_result_path = os.path.join(output_dir, "track_result.txt")
     tracks = defaultdict(list)
-    
-    with open(track_result_path, 'r', encoding='utf-8') as f:
+
+    with open(track_result_path, "r", encoding="utf-8") as f:
         current_track_id = -1
         current_note_type = -1
-        
+
         for line in f:
             line = line.strip()
             if not line:
                 continue
-            
-            if line.startswith('track_id:'):
+
+            if line.startswith("track_id:"):
                 # 解析轨迹头
-                parts = line.split(',')
+                parts = line.split(",")
                 if len(parts) == 2:
-                    current_track_id = int(parts[0].split(':')[1].strip())
-                    current_note_type = NoteType(parts[1].split(':')[1].strip())
+                    current_track_id = int(parts[0].split(":")[1].strip())
+                    current_note_type = NoteType(parts[1].split(":")[1].strip())
                     key = (current_track_id, current_note_type)
                     if key not in tracks:
                         tracks[key] = []
             else:
                 # 解析轨迹点数据
-                parts = line.split(',')
+                parts = line.split(",")
                 if len(parts) == 17:  # 有17个字段
                     point = Note_Geometry(
                         frame=int(parts[0].strip()),
@@ -546,15 +550,16 @@ def _load_track_results(output_dir):
                         cy=float(parts[13].strip()),
                         w=float(parts[14].strip()),
                         h=float(parts[15].strip()),
-                        r=float(parts[16].strip())
+                        r=float(parts[16].strip()),
                     )
                     tracks[(current_track_id, current_note_type)].append(point)
-    
+
     return tracks
 
 
-
-def _get_or_assign_global_track_id(note_type, local_track_id, id_mapping, next_id_holder):
+def _get_or_assign_global_track_id(
+    note_type, local_track_id, id_mapping, next_id_holder
+):
     """将 (note_type, local_track_id) 映射为全局连续 ID"""
     key = (note_type, int(local_track_id))
     if key not in id_mapping:

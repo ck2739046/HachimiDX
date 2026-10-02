@@ -1,6 +1,13 @@
-from PyQt6.QtWidgets import QLineEdit, QToolButton, QHBoxLayout
-from PyQt6.QtCore import Qt, QRectF
-from PyQt6.QtGui import QPainter, QPainterPath, QPen, QColor, QDoubleValidator, QIntValidator
+from PyQt6.QtCore import QRectF, Qt
+from PyQt6.QtGui import (
+    QColor,
+    QDoubleValidator,
+    QIntValidator,
+    QPainter,
+    QPainterPath,
+    QPen,
+)
+from PyQt6.QtWidgets import QHBoxLayout, QLineEdit, QToolButton
 
 from ..ui_style import UI_Style
 
@@ -20,7 +27,7 @@ class _ClearButton(QToolButton):
     def paintEvent(self, e):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        pen = QPen(QColor(c['text_primary']), 1)
+        pen = QPen(QColor(c["text_primary"]), 1)
         painter.setPen(pen)
 
         margin = 3
@@ -28,32 +35,26 @@ class _ClearButton(QToolButton):
         painter.drawLine(self.width() - margin, margin, margin, self.height() - margin)
 
 
-
-
-
-
-
-
 class StyledLineEdit(QLineEdit):
     """自定义 LineEdit：QSS 统一样式 + paintEvent 底部高亮线 + 可选清除按钮"""
 
     # 底部高亮线颜色
-    _FOCUS_COLOR = QColor(c['accent_hover'])
-    _UNFOCUS_COLOR = QColor(c['light_grey'])
+    _FOCUS_COLOR = QColor(c["accent_hover"])
+    _UNFOCUS_COLOR = QColor(c["light_grey"])
 
     def __init__(self, parent=None, *, clear_button_enabled=False):
         super().__init__(parent)
         self._clearBtnEnabled = clear_button_enabled
 
         self.setStyleSheet(
-             "QLineEdit {"
+            "QLineEdit {"
             f"  background-color: {c['grey']};"
             f"  border: 1px solid {c['grey_hover']};"
             f"  border-radius: {BORDER_R}px;"
             f"  padding: 0px 8px;"
             f"  color: {c['text_primary']};"
             f"  selection-background-color: {c['accent']};"
-             "}"
+            "}"
             f"QLineEdit:hover {{ background-color: {c['grey_hover']}; }}"
         )
 
@@ -62,23 +63,18 @@ class StyledLineEdit(QLineEdit):
         if clear_button_enabled:
             self._initClearButton()
 
-
-
-
-
     def _initClearButton(self):
         if self._hBoxLayout is None:
             self._hBoxLayout = QHBoxLayout(self)
             self._hBoxLayout.setContentsMargins(0, 0, 4, 0)
-            self._hBoxLayout.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            self._hBoxLayout.setAlignment(
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+            )
         self._clearButton = _ClearButton(self)
         self._hBoxLayout.addWidget(self._clearButton, 0, Qt.AlignmentFlag.AlignRight)
         self._clearButton.clicked.connect(self.clear)
         self.textChanged.connect(self._onTextChanged)
         self.setTextMargins(0, 0, 14, 0)
-
-
-
 
     def _drawBottomArc(self, painter: QPainter):
         color = self._FOCUS_COLOR if self.hasFocus() else self._UNFOCUS_COLOR
@@ -97,11 +93,6 @@ class StyledLineEdit(QLineEdit):
 
         path = path.subtracted(rect_path)
         painter.fillPath(path, color)
-
-
-
-
-
 
     def _shouldShowClear(self) -> bool:
         return self._clearBtnEnabled and bool(self.text()) and self.hasFocus()
@@ -130,13 +121,9 @@ class StyledLineEdit(QLineEdit):
         self._drawBottomArc(painter)
 
 
-
-
-
-
-
-
-def create_line_edit(default_text=None, placeholder=None, length=None, validator=None, clear_button=False):
+def create_line_edit(
+    default_text=None, placeholder=None, length=None, validator=None, clear_button=False
+):
     """
     创建文本输入框
 
@@ -161,9 +148,9 @@ def create_line_edit(default_text=None, placeholder=None, length=None, validator
     if placeholder:
         line_edit.setPlaceholderText(placeholder)
 
-    if validator == 'int':
+    if validator == "int":
         line_edit.setValidator(QIntValidator())
-    elif validator in ('float', 'double'):
+    elif validator in ("float", "double"):
         line_edit.setValidator(QDoubleValidator())
 
     if default_text:

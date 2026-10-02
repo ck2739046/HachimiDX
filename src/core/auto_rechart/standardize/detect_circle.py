@@ -1,23 +1,22 @@
-import cv2
-import numpy as np
-from typing import Tuple
 from pathlib import Path
 
-from ...schemas.op_result import OpResult, ok, err, print_op_result
-from ..tool import print_progress
+import cv2
 import i18n
+import numpy as np
+
+from ...schemas.op_result import OpResult, err, ok
+from ..tool import print_progress
 
 
-
-
-def main(input_video: Path,
-         mode: str,
-         need_screen_rectification: bool,
-         start_sec: float | None = None
-        ) -> OpResult[Tuple[Tuple[int, int], int]]:
+def main(
+    input_video: Path,
+    mode: str,
+    need_screen_rectification: bool,
+    start_sec: float | None = None,
+) -> OpResult[tuple[tuple[int, int], int]]:
     """
     检测视频中的圆形判定线
-    
+
     Args:
         input_video(Path): 输入视频路径
         mode(str): 视频模式（'source video'或'camera footage'）
@@ -45,8 +44,6 @@ def main(input_video: Path,
             circle_center = (video_width // 2, video_height // 2)
             circle_radius = min(video_width, video_height) // 2
             return ok((circle_center, circle_radius))
-        
-
 
         # 开始圆形检测
 
@@ -78,69 +75,74 @@ def main(input_video: Path,
 
         # 处理帧
         while frame_counter < (search_end_frame - search_start_frame):
-
             # 打印进度
             frame_counter += 1
-            print_progress(i18n.t("detect_circle.progress_label"), frame_counter, search_end_frame - search_start_frame)
+            print_progress(
+                i18n.t("detect_circle.progress_label"),
+                frame_counter,
+                search_end_frame - search_start_frame,
+            )
 
             ret, frame = cap.read()
-            if not ret: break  # 视频结束
+            if not ret:
+                break  # 视频结束
 
             processed_frame = preprocess_frame(frame, mode)
-            
+
             # 寻找轮廓并过滤有效圆形
             valid_circles = filter_valid_circles(processed_frame, r_small, r_large)
-            
+
             # 如果找到合适的圆形，选择半径最大的
             if valid_circles:
                 valid_circles.sort(key=lambda x: x[2], reverse=True)
                 x, y, radius = valid_circles[0]
                 circles_detected.append((round(x), round(y), round(radius)))
 
-                if len(circles_detected) >= target_circles_quantity : break
-            
-        
+                if len(circles_detected) >= target_circles_quantity:
+                    break
+
         if len(circles_detected) < target_circles_quantity:
             circle_center = (video_width // 2, video_height // 2)
             circle_radius = min(video_width, video_height) // 2 - 2
             print("Initial detection...fallback")
             print(f"  Circle center: {circle_center}, radius: {circle_radius}")
             return ok((circle_center, circle_radius))
-        
+
         # 取出现次数最多的圆
         most_common = max(set(circles_detected), key=circles_detected.count)
         circle_center = (most_common[0], most_common[1])
         circle_radius = most_common[2]
 
         # 微调
-        circle_center = (circle_center[0]+1, circle_center[1]) # x轴左移1像素
+        circle_center = (circle_center[0] + 1, circle_center[1])  # x轴左移1像素
         circle_radius -= int(video_size / 800)  # 半径减掉一点以避免边缘误差
 
-        print(f"Initial detection...ok{' '*12}")
+        print(f"Initial detection...ok{' ' * 12}")
         print(f"  Circle center: {circle_center}, radius: {circle_radius}")
-        
+
         return ok((circle_center, circle_radius))
-    
+
     except Exception as e:
-        return err(f"Unpected error in detect_circle: {str(e)}", error_raw = e)
-    
+        return err(f"Unpected error in detect_circle: {e!s}", error_raw=e)
+
     finally:
-        try: cap.release()
-        except: pass
+        try:
+            cap.release()
+        except:
+            pass
 
 
- 
 def preprocess_frame(frame, mode: str):
     """预处理 帧画面"""
 
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     # 如果是录屏，直接固定阈值二值化
-    if mode == 'source video':
+    if mode == "source video":
         _, binary = cv2.threshold(gray, 60, 255, cv2.THRESH_BINARY)
 
-    # 如果是摄屏，使用自适应 Canny 边缘检测    
-    else: # mode == 'camera footage'
+    # 如果是摄屏，使用自适应 Canny 边缘检测
+    else:  # mode == 'camera footage'
         median = np.median(gray)
         lower = int(max(0, 0.66 * median))
         upper = int(min(255, 1.33 * median))
@@ -152,17 +154,20 @@ def preprocess_frame(frame, mode: str):
     return binary
 
 
-
-def filter_valid_circles(processed_frame, r_small, r_large) -> list[tuple[float, float, float]] | None:
+def filter_valid_circles(
+    processed_frame, r_small, r_large
+) -> list[tuple[float, float, float]] | None:
     """
     在帧画面中查找轮廓，如果轮廓接近圆形且尺寸合适，返回最小包围圆
     """
 
     # 查找轮廓
-    contours, _ = cv2.findContours(processed_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(
+        processed_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+    )
     if not contours:
         return None
-    
+
     valid_circles = []
 
     # 遍历所有轮廓
@@ -170,7 +175,7 @@ def filter_valid_circles(processed_frame, r_small, r_large) -> list[tuple[float,
         # 计算最小包围圆
         (x, y), radius = cv2.minEnclosingCircle(contour)
         # 忽略尺寸不对的轮廓
-        if radius < r_small or radius > r_large: 
+        if radius < r_small or radius > r_large:
             continue
         # 验证轮廓是否接近圆形 (圆形度大于0.9）
         area = cv2.contourArea(contour)
@@ -180,5 +185,5 @@ def filter_valid_circles(processed_frame, r_small, r_large) -> list[tuple[float,
             continue
 
         valid_circles.append((x, y, radius))
-    
+
     return valid_circles if valid_circles else None

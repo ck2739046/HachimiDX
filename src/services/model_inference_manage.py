@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
-from src.core.schemas.op_result import OpResult, ok, err
 from src.core.schemas.model_inference_config import (
     get_directml_device_index,
+    get_inference_device_by_backend,
     get_model_backend_id,
     get_model_backend_rule,
     get_model_group,
@@ -11,8 +11,9 @@ from src.core.schemas.model_inference_config import (
     normalize_inference_device_for_backend,
     normalize_inference_device_id,
     parse_inference_device,
-    get_inference_device_by_backend,
 )
+from src.core.schemas.op_result import OpResult, err, ok
+
 from .path_manage import ModelPaths, PathManage
 
 
@@ -31,7 +32,6 @@ class ModelInferenceCheckResult:
 
 
 class ModelInferenceManage:
-
     @classmethod
     def get_model_backend_rule(cls, backend) -> dict | None:
         return get_model_backend_rule(backend)
@@ -97,20 +97,24 @@ class ModelInferenceManage:
 
         paths_result = PathManage.resolve_model_paths(backend, device_half)
         if not paths_result.is_ok:
-            return ok(ModelInferenceCheckResult(
-                paths=None,
-                model_group=model_group,
-                half=None,
-                device_half=device_half,
-                status="not_converted",
-                artifacts_available=False,
-            ))
+            return ok(
+                ModelInferenceCheckResult(
+                    paths=None,
+                    model_group=model_group,
+                    half=None,
+                    device_half=device_half,
+                    status="not_converted",
+                    artifacts_available=False,
+                )
+            )
 
-        return ok(ModelInferenceCheckResult(
-            paths=paths_result.value.paths,
-            model_group=model_group,
-            half=paths_result.value.half,
-            device_half=device_half,
-            status="compatible",
-            artifacts_available=True,
-        ))
+        return ok(
+            ModelInferenceCheckResult(
+                paths=paths_result.value.paths,
+                model_group=model_group,
+                half=paths_result.value.half,
+                device_half=device_half,
+                status="compatible",
+                artifacts_available=True,
+            )
+        )

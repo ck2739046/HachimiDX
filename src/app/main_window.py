@@ -2,27 +2,42 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
-from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QStackedWidget, QLabel, QSizePolicy
-from PyQt6.QtCore import Qt, QSize, QPoint, QObject, pyqtSignal, pyqtSlot, QUrl, QTimer
+import i18n
+from PyQt6.QtCore import QObject, QPoint, QSize, Qt, QTimer, QUrl, pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QIcon, QWindow
 from PyQt6.QtMultimedia import QMediaPlayer
 from PyQt6.QtMultimediaWidgets import QVideoWidget
+from PyQt6.QtWidgets import (
+    QApplication,
+    QHBoxLayout,
+    QMainWindow,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
-from .widgets import SquareWidget, SegmentedNavBar, widget_utils
-from .ui_style import UI_Style
+from src.core.schemas.op_result import OpResult, err, ok
+from src.core.schemas.settings_config import (
+    MAIN_APP_H_MAX,
+    MAIN_APP_H_MIN,
+    MAIN_APP_W_MAX,
+    MAIN_APP_W_MIN,
+)
+from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
+from src.services import (
+    MajdataSession,
+    PathManage,
+    SettingsManage,
+    VideoSyncServer,
+    check_update,
+)
 
 from .pages.majdata_page import MajdataPage
-from .pages.tools_page import ToolsPage
-from .pages.tasks_page import TasksPage
 from .pages.settings_page import SettingsPage
-
-import i18n
-from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
-from src.core.schemas.settings_config import MAIN_APP_W_MIN, MAIN_APP_W_MAX, MAIN_APP_H_MIN, MAIN_APP_H_MAX
-from src.core.schemas.op_result import ok, err, OpResult
-from src.services import SettingsManage, PathManage, MajdataSession, VideoSyncServer, check_update
+from .pages.tasks_page import TasksPage
+from .pages.tools_page import ToolsPage
+from .ui_style import UI_Style
+from .widgets import SegmentedNavBar, SquareWidget, widget_utils
 
 # Lite 版跳过导入 auto_rechart_page
 if not PathManage.is_lite():
@@ -31,9 +46,12 @@ if not PathManage.is_lite():
 
 class _CallbackEmitter(QObject):
     """Execute callables in Qt main thread via signal."""
+
     callback_signal = pyqtSignal(object)
+
     def __init__(self):
         super().__init__()
+
     def emit_callback(self, callback) -> None:
         self.callback_signal.emit(callback)
 
@@ -42,29 +60,28 @@ class LeftPanel(QWidget):
     """
     左侧面板 - 包含两个正方形占位符
     """
-    _default_size = None # 频繁调用，所以缓存
-    
+
+    _default_size = None  # 频繁调用，所以缓存
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.majdataview_placeholder = None
         self.video_placeholder = None
         self.setup_ui()
 
-
     def setup_ui(self):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(UI_Style.widget_spacing)
-        
+
         # 上方：MajdataView
         self.majdataview_placeholder = SquareWidget()
         layout.addWidget(self.majdataview_placeholder)
-        
+
         # 下方：VideoPlayer
         self.video_placeholder = SquareWidget()
         layout.addWidget(self.video_placeholder)
-
 
     def sizeHint(self):
 
@@ -74,13 +91,16 @@ class LeftPanel(QWidget):
             if result_w.is_ok and result_h.is_ok:
                 self._default_size = QSize(result_w.value, result_h.value)
             else:
-                print("--Warning: MainWindow.sizeHint: " + \
-                      i18n.t("general.error_SettingsManage_get_failed",
-                             keyy=f"{S_Defs.main_app_w_default.key} / {S_Defs.main_app_h_default.key}"))
-                self._default_size = super().sizeHint() # 默认行为
-                
-        return QSize(self._default_size)
+                print(
+                    "--Warning: MainWindow.sizeHint: "
+                    + i18n.t(
+                        "general.error_SettingsManage_get_failed",
+                        keyy=f"{S_Defs.main_app_w_default.key} / {S_Defs.main_app_h_default.key}",
+                    )
+                )
+                self._default_size = super().sizeHint()  # 默认行为
 
+        return QSize(self._default_size)
 
     def resizeEvent(self, event):
         """
@@ -90,7 +110,7 @@ class LeftPanel(QWidget):
         Height = 2 * Width + Spacing
         Width = (Height - Spacing) / 2
         """
-        
+
         # 计算目标宽度
         spacing = UI_Style.widget_spacing
         target_width = (self.height() - spacing) // 2
@@ -100,16 +120,14 @@ class LeftPanel(QWidget):
 
         super().resizeEvent(event)
 
-
     def set_majdata_view_hwnd(self, hwnd: int) -> None:
 
         layout = self.majdataview_placeholder.layout()
         # 清理旧容器，避免 restart 后重复嵌入
         widget_utils.clear_layout(layout)
         win = QWindow.fromWinId(int(hwnd))
-        container = QWidget.createWindowContainer(win, self) # parent = self
+        container = QWidget.createWindowContainer(win, self)  # parent = self
         layout.addWidget(container)
-
 
     def set_video_widget(self, widget: QWidget) -> None:
 
@@ -117,19 +135,15 @@ class LeftPanel(QWidget):
         layout.addWidget(widget)
 
 
-
-
-
-
 class RightPanel(QWidget):
     """
     右侧面板 - 包含主导航栏和主内容区
     """
+
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.majdata_page = None # 保存引用，后续要嵌入程序
+        self.majdata_page = None  # 保存引用，后续要嵌入程序
         self.setup_ui()
-
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
@@ -152,9 +166,12 @@ class RightPanel(QWidget):
         #     i18n.t("app.nav_bar.tasks_desc"),
         #     i18n.t("app.nav_bar.settings_desc"),
         # ]
-        self.nav_bar = SegmentedNavBar(nav_items,
-                                       height=UI_Style.main_navbar_height)
-                                       # tooltip_texts=nav_tooltips)
+        self.nav_bar = SegmentedNavBar(
+            nav_items,
+            height=UI_Style.main_navbar_height,
+            # tooltip_texts=nav_tooltips,
+        )
+
         layout.addWidget(self.nav_bar)
 
         # 2. 主内容 Stack
@@ -180,11 +197,12 @@ class RightPanel(QWidget):
 
         # 连接信号：Measure Bpm → Auto Rechart 一键填入
         if not PathManage.is_lite():
-            self.tools_page.request_send_to_auto_rechart.connect(self._on_send_to_auto_rechart)
+            self.tools_page.request_send_to_auto_rechart.connect(
+                self._on_send_to_auto_rechart
+            )
 
         # 连接信号
         self.nav_bar.currentChanged.connect(self.stack.setCurrentIndex)
-
 
     def _on_send_to_auto_rechart(self, bpm_config_path: str) -> None:
         """处理 Measure Bpm 的一键填入请求：填入 Auto Rechart 并跳转。"""
@@ -194,18 +212,11 @@ class RightPanel(QWidget):
         if success:
             self.nav_bar.setCurrentIndex(1)  # 切到 Auto Rechart
 
-
     def set_majdata_edit_hwnd(self, hwnd: int) -> None:
         self.majdata_page.set_edit_hwnd(int(hwnd))
 
-
     def set_majdata_page_video_player(self, media_player) -> None:
         self.majdata_page._media_player = media_player
-
-
-
-
-
 
 
 class MainWindow(QMainWindow):
@@ -213,7 +224,7 @@ class MainWindow(QMainWindow):
     主窗口
     布局：左侧两个正方形 | 右侧功能区
     """
-    
+
     def __init__(self):
         super().__init__()
         self._majdata_session = None
@@ -227,20 +238,18 @@ class MainWindow(QMainWindow):
         )
 
         # Video player
-        self._media_player: Optional[QMediaPlayer] = None
-        self._video_widget: Optional[QVideoWidget] = None
+        self._media_player: QMediaPlayer | None = None
+        self._video_widget: QVideoWidget | None = None
 
         # Cross-thread callback executor (for sync server)
         self._callback_emitter = _CallbackEmitter()
         self._callback_emitter.callback_signal.connect(self._execute_callback)
 
         self.setup_ui()
-    
 
-    
     def setup_ui(self):
         """设置主窗口"""
-        
+
         # 设置窗口标题和图标
         self.setWindowTitle("HachimiDX")
         self.setWindowIcon(QIcon(str(PathManage.APP_ICON_PATH)))
@@ -253,27 +262,33 @@ class MainWindow(QMainWindow):
         result_w = SettingsManage.get(S_Defs.main_app_w_default.key)
         result_h = SettingsManage.get(S_Defs.main_app_h_default.key)
         if not result_w.is_ok or not result_h.is_ok:
-            print("--Warning: MainWindow.setup_ui: " + \
-                  i18n.t("general.error_SettingsManage_get_failed",
-                         keyy=f"{S_Defs.main_app_w_default.key} / {S_Defs.main_app_h_default.key}"))
+            print(
+                "--Warning: MainWindow.setup_ui: "
+                + i18n.t(
+                    "general.error_SettingsManage_get_failed",
+                    keyy=f"{S_Defs.main_app_w_default.key} / {S_Defs.main_app_h_default.key}",
+                )
+            )
         else:
             self.resize(result_w.value, result_h.value)
 
         # 设置背景色
         self.setStyleSheet(f"background-color: {UI_Style.COLORS['bg']};")
-        
+
         # 创建中心 widget
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        
+
         # 主布局：水平分为左右两部分
         main_layout = QHBoxLayout(central_widget)
-        main_layout.setContentsMargins(UI_Style.widget_spacing,
-                                       UI_Style.widget_spacing,
-                                       UI_Style.widget_spacing,
-                                       UI_Style.widget_spacing)
+        main_layout.setContentsMargins(
+            UI_Style.widget_spacing,
+            UI_Style.widget_spacing,
+            UI_Style.widget_spacing,
+            UI_Style.widget_spacing,
+        )
         main_layout.setSpacing(UI_Style.widget_spacing)
-        
+
         # 左侧面板
         self.left_panel = LeftPanel()
         main_layout.addWidget(self.left_panel)
@@ -296,12 +311,12 @@ class MainWindow(QMainWindow):
         #     print(f"--Warning: MajdataSession.start failed: {result.error_msg}")
 
         # Majdata 页面的 restart maj 请求
-        self.right_panel.majdata_page.restart_requested.connect(self._majdata_session.restart)
+        self.right_panel.majdata_page.restart_requested.connect(
+            self._majdata_session.restart
+        )
 
         # 检查更新 (延迟1s)
         QTimer.singleShot(1000, check_update)
-
-
 
     def _restore_window_state(self) -> None:
         # 是否启用了 "记住窗口状态" 功能
@@ -313,21 +328,27 @@ class MainWindow(QMainWindow):
             if state is not None and state.ui_scale == self._runtime_ui_scale:
                 # 成功获取到上次窗口状态，尝试恢复
                 center = QPoint(state.x + state.width // 2, state.y + state.height // 2)
-                if any(screen.availableGeometry().contains(center) for screen in QApplication.screens()):
+                if any(
+                    screen.availableGeometry().contains(center)
+                    for screen in QApplication.screens()
+                ):
                     self.setGeometry(state.x, state.y, state.width, state.height)
                     return
         # fallback: 居中显示
         screen = QApplication.primaryScreen()
-        if screen is None: return
+        if screen is None:
+            return
         available = screen.availableGeometry()
-        self.move(available.x() + (available.width() - self.width()) // 2,
-                  available.y() + (available.height() - self.height()) // 2)
-
+        self.move(
+            available.x() + (available.width() - self.width()) // 2,
+            available.y() + (available.height() - self.height()) // 2,
+        )
 
     def _save_window_state(self) -> None:
         # 是否启用了 "记住窗口状态" 功能
         res = SettingsManage.get(S_Defs.main_app_remember_window_state.key)
-        if not res.is_ok or not res.value: return
+        if not res.is_ok or not res.value:
+            return
         # 已启用，保存当前窗口状态
         geometry = self.normalGeometry()
         save_result = SettingsManage.set(
@@ -341,16 +362,18 @@ class MainWindow(QMainWindow):
             },
         )
         if not save_result.is_ok:
-            print(f"--Warning: Failed to save main window state: {save_result.error_msg}")
-
-
+            print(
+                f"--Warning: Failed to save main window state: {save_result.error_msg}"
+            )
 
     def reset_window_to_default(self) -> OpResult:
         """重置窗口尺寸为默认值并居中显示，不修改已记忆的窗口状态。"""
         w = SettingsManage.get(S_Defs.main_app_w_default.key)
         h = SettingsManage.get(S_Defs.main_app_h_default.key)
         if not w.is_ok or not h.is_ok:
-            return err(f"Failed to load default window size: {w.error_msg} / {h.error_msg}")
+            return err(
+                f"Failed to load default window size: {w.error_msg} / {h.error_msg}"
+            )
 
         self.resize(w.value, h.value)
 
@@ -364,15 +387,16 @@ class MainWindow(QMainWindow):
 
         return ok()
 
-
     def _init_video_player(self) -> None:
 
         self._video_widget = QVideoWidget()
-        self._video_widget.setAspectRatioMode(Qt.AspectRatioMode.KeepAspectRatioByExpanding)
+        self._video_widget.setAspectRatioMode(
+            Qt.AspectRatioMode.KeepAspectRatioByExpanding
+        )
 
         self._media_player = QMediaPlayer()
         self._media_player.setVideoOutput(self._video_widget)
-        
+
         self.left_panel.set_video_widget(self._video_widget)
         self.right_panel.set_majdata_page_video_player(self._media_player)
 
@@ -383,8 +407,6 @@ class MainWindow(QMainWindow):
             server.set_main_thread_callback(self.execute_in_main_thread)
         except Exception as e:
             print(f"--Warning: Failed to bind Majdata sync server: {e}")
-
-
 
     def execute_in_main_thread(self, callback) -> None:
         """Schedule a callable to run in Qt main thread."""
@@ -399,8 +421,6 @@ class MainWindow(QMainWindow):
             callback()
         except Exception as e:
             print(f"[MajdataSync] Error executing callback: {e}")
-
-
 
     def closeEvent(self, event):
         # Non-blocking shutdown
@@ -421,14 +441,14 @@ class MainWindow(QMainWindow):
 
         try:
             # 开始退出 majdata，后通过信号得知退出完成
-            self._majdata_session.shutdown_finished.connect(lambda: QApplication.instance().quit())
+            self._majdata_session.shutdown_finished.connect(
+                lambda: QApplication.instance().quit()
+            )
             self._majdata_session.shutdown()
         except Exception:
             QApplication.instance().quit()
 
-        event.ignore() # 此处忽略，不退出，等待 majdata 信号
-
-
+        event.ignore()  # 此处忽略，不退出，等待 majdata 信号
 
     def _on_majdata_ready(self, view_hwnd: int, edit_hwnd: int) -> None:
         try:

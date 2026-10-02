@@ -2,25 +2,46 @@ import ctypes
 import sys
 
 from PyQt6 import sip
-from PyQt6.QtWidgets import (
-    QComboBox, QStyledItemDelegate, QListView, QFrame, QVBoxLayout,
-    QStyle, QAbstractItemView, QApplication, QGraphicsDropShadowEffect,
-)
 from PyQt6.QtCore import (
-    QPoint, QEvent, Qt, QPropertyAnimation, QRect, QRectF, QTimer,
-    QEasingCurve, QSize, pyqtSignal,
+    QEasingCurve,
+    QEvent,
+    QPoint,
+    QPropertyAnimation,
+    QRect,
+    QRectF,
+    QSize,
+    Qt,
+    QTimer,
+    pyqtSignal,
 )
 from PyQt6.QtGui import (
-    QCursor, QKeySequence, QPainter, QPen, QColor, QRegion,
-    QPainterPath, QShortcut,
+    QColor,
+    QCursor,
+    QKeySequence,
+    QPainter,
+    QPainterPath,
+    QPen,
+    QRegion,
+    QShortcut,
+)
+from PyQt6.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
+    QComboBox,
+    QFrame,
+    QGraphicsDropShadowEffect,
+    QListView,
+    QStyle,
+    QStyledItemDelegate,
+    QVBoxLayout,
 )
 
 from ..ui_style import UI_Style
-from .popup_tooltip import get_shared_tooltip, OVERFLOW_RATIO
+from .popup_tooltip import OVERFLOW_RATIO, get_shared_tooltip
 
 c = UI_Style.COLORS
 BORDER_R = 5
-BORDER_R_Sub = 3   # 下拉菜单内部子项的矩形圆角
+BORDER_R_Sub = 3  # 下拉菜单内部子项的矩形圆角
 POPUP_MAX_H = 300  # 下拉菜单最大高度，超出则显示滚动条
 SHADOW_MARGIN = 12  # 弹窗四周留给外圈阴影的边距（与 PopupToolTip 的留白一致）
 
@@ -57,13 +78,15 @@ class ComboItemDelegate(QStyledItemDelegate):
             r = option.rect.adjusted(2, 2, -2, -2)  # 内部收缩 2px
             path = QPainterPath()
             path.addRoundedRect(QRectF(r), BORDER_R_Sub, BORDER_R_Sub)
-            painter.fillPath(path, QColor(c['accent']))
+            painter.fillPath(path, QColor(c["accent"]))
 
         # 选项文字
         text = index.data(Qt.ItemDataRole.DisplayRole)
         if text is not None:
-            painter.setPen(QColor(c['text_primary']))
-            is_selected = self._combo is not None and index.row() == self._combo.currentIndex()
+            painter.setPen(QColor(c["text_primary"]))
+            is_selected = (
+                self._combo is not None and index.row() == self._combo.currentIndex()
+            )
             if is_selected:
                 font = painter.font()
                 font.setBold(True)
@@ -82,7 +105,7 @@ class ComboItemDelegate(QStyledItemDelegate):
         model = index.model()
         # 在每一项的底部绘制分隔线，并跳过最后一项
         if model and index.row() < model.rowCount() - 1:
-            painter.setPen(QPen(QColor(c['grey_hover']), 0.8))
+            painter.setPen(QPen(QColor(c["grey_hover"]), 0.8))
             y = option.rect.bottom() + 1
             painter.drawLine(option.rect.left() + 4, y, option.rect.right() - 4, y)
 
@@ -102,8 +125,8 @@ class ComboListView(QListView):
 
         self.setStyleSheet(f"""
             QListView {{
-                background-color: {c['grey']};
-                border: 1px solid {c['grey_hover']};
+                background-color: {c["grey"]};
+                border: 1px solid {c["grey_hover"]};
                 border-radius: {BORDER_R}px;
             }}
         """)
@@ -114,8 +137,14 @@ class _ComboPopup(QFrame):
 
     aboutToHide = pyqtSignal()
 
-    def __init__(self, combo: QComboBox | None = None, model=None, anchor=None,
-                 show_tooltip: bool = False, item_tooltips: list[str | None] | None = None):
+    def __init__(
+        self,
+        combo: QComboBox | None = None,
+        model=None,
+        anchor=None,
+        show_tooltip: bool = False,
+        item_tooltips: list[str | None] | None = None,
+    ):
         anchor = anchor if anchor is not None else combo
         # parent 交给锚点所在窗口：C++ 对象由 Qt 持有，Python 引用丢失不会销毁它，
         # 从而避免在鼠标事件处理途中（如 QListView 的 clicked 槽内）被析构
@@ -149,15 +178,17 @@ class _ComboPopup(QFrame):
 
         layout = QVBoxLayout(self)
         # 边距供主体外圈的阴影使用，阴影只能画在主体之外
-        layout.setContentsMargins(SHADOW_MARGIN, SHADOW_MARGIN, SHADOW_MARGIN, SHADOW_MARGIN)
+        layout.setContentsMargins(
+            SHADOW_MARGIN, SHADOW_MARGIN, SHADOW_MARGIN, SHADOW_MARGIN
+        )
         layout.setSpacing(0)
 
         # 阴影挂在主体上：列表自己画圆角与边框，阴影会顺着它的 alpha 铺开
         self._bubble = QFrame(self)
         shadow = QGraphicsDropShadowEffect(self._bubble)
-        shadow.setBlurRadius(20)               # 模糊半径
+        shadow.setBlurRadius(20)  # 模糊半径
         shadow.setColor(QColor(0, 0, 0, 100))  # 半透明黑色
-        shadow.setOffset(0, 3)                 # 向右下方向
+        shadow.setOffset(0, 3)  # 向右下方向
         self._bubble.setGraphicsEffect(shadow)
         layout.addWidget(self._bubble)
 
@@ -198,7 +229,7 @@ class _ComboPopup(QFrame):
         item_center_global = viewport.mapToGlobal(QPoint(0, item_center_y))
 
         # tooltip 默认显示在右侧
-        x_offset = -5   # 向左 5px
+        x_offset = -5  # 向左 5px
         y_offset = -29  # 向上 29px
         tip_w = self._tooltip.measure(text).width()
         x_right = viewport_right_x + x_offset
@@ -277,7 +308,7 @@ class _ComboPopup(QFrame):
         self.setMask(QRegion(0, SHADOW_MARGIN + full_h, win_w, win_h))
 
         # 创建并启动动画
-        self._ani = QPropertyAnimation(self, b'pos', self)
+        self._ani = QPropertyAnimation(self, b"pos", self)
         self._ani.setStartValue(start_pos)
         self._ani.setEndValue(end_pos)
         self._ani.setDuration(200)
@@ -323,8 +354,11 @@ class _ComboPopup(QFrame):
 
         # cleanup
         anchor = self._anchor
-        if (anchor is not None and not sip.isdeleted(anchor)
-                and getattr(anchor, '_popup', None) is self):
+        if (
+            anchor is not None
+            and not sip.isdeleted(anchor)
+            and getattr(anchor, "_popup", None) is self
+        ):
             anchor._popup = None
 
         self._outside_click_timer.stop()
@@ -334,13 +368,13 @@ class _ComboPopup(QFrame):
 
     @staticmethod
     def _left_button_down() -> bool:
-        if sys.platform == 'win32':
+        if sys.platform == "win32":
             return bool(ctypes.windll.user32.GetAsyncKeyState(0x01) & 0x8000)
         return bool(QApplication.mouseButtons() & Qt.MouseButton.LeftButton)
 
     @staticmethod
     def _escape_key_down() -> bool:
-        if sys.platform == 'win32':
+        if sys.platform == "win32":
             return bool(ctypes.windll.user32.GetAsyncKeyState(0x1B) & 0x8000)
         return False
 
@@ -362,9 +396,15 @@ class _ComboPopup(QFrame):
             self.close()
 
 
-def open_combo_popup(anchor, combo=None, model=None, width=None, on_item_clicked=None,
-                     show_tooltip: bool = False,
-                     item_tooltips: list[str | None] | None = None) -> bool:
+def open_combo_popup(
+    anchor,
+    combo=None,
+    model=None,
+    width=None,
+    on_item_clicked=None,
+    show_tooltip: bool = False,
+    item_tooltips: list[str | None] | None = None,
+) -> bool:
     """
     共享的下拉菜单弹出逻辑，供 StyledComboBox 与 SplitDropButton 复用。
 
@@ -375,7 +415,7 @@ def open_combo_popup(anchor, combo=None, model=None, width=None, on_item_clicked
 
     成功打开返回 True；无需打开（已打开或无选项）返回 False。
     """
-    if getattr(anchor, '_popup', None) is not None:
+    if getattr(anchor, "_popup", None) is not None:
         anchor.hidePopup()
         return False
 

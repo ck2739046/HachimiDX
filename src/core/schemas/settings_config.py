@@ -3,7 +3,6 @@ from typing import Literal
 
 from .model_inference_config import MODEL_BACKEND_OPTIONS
 
-
 # 窗口尺寸硬性边界常量（不写入 settings.json，不在设置页配置）
 MAIN_APP_W_MIN = 1240
 MAIN_APP_W_MAX = 5000
@@ -33,7 +32,6 @@ class SettingsConfig_Definition:
 
 @dataclass(slots=True)
 class SettingsConfig_Definitions:
-
     # model
 
     model_backend = SettingsConfig_Definition(
@@ -100,10 +98,14 @@ class SettingsConfig_Definitions:
         type="str",
         group="ffmpeg",
         default="CPU",
-        constraints={"options": ["CPU", "Intel", "Nvidia"],
-                     "options_tooltips": ["ui_ffmpeg_encoder_cpu_tooltip",
-                                          "ui_ffmpeg_encoder_intel_tooltip",
-                                          "ui_ffmpeg_encoder_nvidia_tooltip"]},
+        constraints={
+            "options": ["CPU", "Intel", "Nvidia"],
+            "options_tooltips": [
+                "ui_ffmpeg_encoder_cpu_tooltip",
+                "ui_ffmpeg_encoder_intel_tooltip",
+                "ui_ffmpeg_encoder_nvidia_tooltip",
+            ],
+        },
     )
 
     # general
@@ -113,9 +115,13 @@ class SettingsConfig_Definitions:
         type="str",
         group="general",
         default="en_US",
-        constraints={"options": ["zh_CN", "en_US"],
-                     "options_tooltips": ["ui_language_zh_cn_tooltip",
-                                          "ui_language_en_us_tooltip"]},
+        constraints={
+            "options": ["zh_CN", "en_US"],
+            "options_tooltips": [
+                "ui_language_zh_cn_tooltip",
+                "ui_language_en_us_tooltip",
+            ],
+        },
     )
 
     check_update = SettingsConfig_Definition(

@@ -1,9 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
-
 
 REASON_UNRESOLVED = "unresolved"
 REASON_NOT_TXT = "not_txt"
@@ -47,16 +46,12 @@ def collect_input_paths(
         try:
             resolved = input_path.resolve()
         except OSError:
-            entries.append(
-                CollectedInput(input_path, input_path, REASON_UNRESOLVED)
-            )
+            entries.append(CollectedInput(input_path, input_path, REASON_UNRESOLVED))
             continue
 
         if resolved.is_file():
             if resolved.suffix.casefold() != ".txt":
-                entries.append(
-                    CollectedInput(input_path, resolved, REASON_NOT_TXT)
-                )
+                entries.append(CollectedInput(input_path, resolved, REASON_NOT_TXT))
                 continue
             candidate = resolved
         elif resolved.is_dir():
@@ -68,16 +63,12 @@ def collect_input_paths(
                 continue
             candidate = maidata_path.resolve()
         else:
-            entries.append(
-                CollectedInput(input_path, resolved, REASON_INVALID_PATH)
-            )
+            entries.append(CollectedInput(input_path, resolved, REASON_INVALID_PATH))
             continue
 
         key = path_key(candidate)
         if key in seen:
-            entries.append(
-                CollectedInput(input_path, candidate, REASON_DUPLICATE)
-            )
+            entries.append(CollectedInput(input_path, candidate, REASON_DUPLICATE))
             continue
 
         seen.add(key)

@@ -1,15 +1,15 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QStackedWidget
-from PyQt6.QtCore import pyqtSignal
-
 import i18n
+from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtWidgets import QStackedWidget, QVBoxLayout, QWidget
 
 from ..ui_style import UI_Style
 from ..widgets import SegmentedNavBar
 from .tools_subpages.arcade_timing import ArcadeTimingPage
-from .tools_subpages.simply_align import SimplyAlignPage
-from .tools_subpages.run_ffmpeg import RunFFmpegPage
 from .tools_subpages.measure_bpm import MeasureBpmPage
 from .tools_subpages.merge_charts import MergeChartsPage
+from .tools_subpages.run_ffmpeg import RunFFmpegPage
+from .tools_subpages.simply_align import SimplyAlignPage
+
 
 class ToolsPage(QWidget):
     """
@@ -46,9 +46,8 @@ class ToolsPage(QWidget):
         #     i18n.t("app.sub_nav_bar.run_ffmpeg_desc"),
         #     i18n.t("app.sub_nav_bar.measure_bpm_desc"),
         # ]
-        self.nav_bar = SegmentedNavBar(nav_items,
-                                       height=UI_Style.sub_navbar_height)
-                                       # tooltip_texts=nav_tooltips)
+        self.nav_bar = SegmentedNavBar(nav_items, height=UI_Style.sub_navbar_height)
+        # tooltip_texts=nav_tooltips)
         layout.addWidget(self.nav_bar)
 
         # 2. 内容 Stack
@@ -67,9 +66,13 @@ class ToolsPage(QWidget):
         self.stack.addWidget(self.merge_charts_page)
 
         # 连接信号：Arcade Timing → Simply Align 一键跳转
-        self.arcade_timing_page.request_simply_align.connect(self._on_request_simply_align)
+        self.arcade_timing_page.request_simply_align.connect(
+            self._on_request_simply_align
+        )
         # 连接信号：Measure Bpm → Auto Rechart 一键填入（透传到上层）
-        self.measure_bpm_page.request_send_to_auto_rechart.connect(self.request_send_to_auto_rechart)
+        self.measure_bpm_page.request_send_to_auto_rechart.connect(
+            self.request_send_to_auto_rechart
+        )
 
         # 连接信号
         self.nav_bar.currentChanged.connect(self.stack.setCurrentIndex)

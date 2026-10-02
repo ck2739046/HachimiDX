@@ -1,29 +1,24 @@
 import traceback
 from pathlib import Path
+
+import i18n
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
-from .base_output_page import BaseOutputPage
+from src.core.schemas.auto_rechart_config import (
+    AutoRechartConfig_Definitions as AC_Defs,
+)
+from src.core.schemas.op_result import print_op_result
+from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
+from src.core.tools import show_confirm_dialog, show_notify_dialog
+from src.services import AutoRechartPipeline, SettingsManage, process_manager_api
+
 from ..ui_style import UI_Style
 from ..widgets import (
     MediaInputProbeWidget,
-    OutputLogWidget,
     OverlayWidget,
-    PointerCursorButton,
     RangeVisualizer,
-    ScrollableImageLabel,
-    SegmentedNavBar,
-    SplitDropButton,
-    SplitDropLineEdit,
-    SquareWidget,
-    StatedButton,
-    StyledCheckBox,
-    StyledComboBox,
-    StyledLineEdit,
-    ToolTipComboBox,
-    create_button,
     create_check_box,
-    create_clickable_label,
     create_combo_box,
     create_directory_selection_row,
     create_divider,
@@ -32,26 +27,14 @@ from ..widgets import (
     create_help_icon,
     create_label,
     create_line_edit,
-    create_path_display,
-    create_slider,
-    create_split_drop_button,
-    create_split_drop_line_edit,
     create_stated_button,
-    create_vertical_divider,
-    widget_utils,
 )
-from src.services import AutoRechartPipeline, SettingsManage, process_manager_api
-from src.core.tools import show_confirm_dialog, show_notify_dialog
-from src.core.schemas.op_result import OpResult, ok, err, print_op_result
-from src.core.schemas.auto_rechart_config import AutoRechartConfig_Definitions as AC_Defs
-from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
-import i18n
+from .base_output_page import BaseOutputPage
 
 I18N_Prefix = "app.auto_rechart_page"
 
 
 class AutoRechartPage(BaseOutputPage):
-
     def setup_content(self):
 
         self.content_layout = QVBoxLayout(self.content_area)
@@ -65,8 +48,8 @@ class AutoRechartPage(BaseOutputPage):
 
         # file selection panel
         self.chart_confirm_video_input = None
-        self.select_output_dir_row = None # 包含button + display，std模块禁用时显示
-        self.selected_output_dir_display = None # 由row控制
+        self.select_output_dir_row = None  # 包含button + display，std模块禁用时显示
+        self.selected_output_dir_display = None  # 由row控制
 
         # standardize panel
         self.song_name_line_edit = None
@@ -79,15 +62,15 @@ class AutoRechartPage(BaseOutputPage):
 
         # detect panel
         # self.enable_reid_check_box = None
-        self.skip_detect_label = None # adv 由row控制
-        self.skip_detect_check_box = None # adv 由row控制
-        self.skip_detect_help = None # adv 由row控制
-        self.skip_cls_label = None # adv 由row控制
-        self.skip_cls_check_box = None # adv 由row控制
-        self.skip_cls_help = None # adv 由row控制
-        self.skip_export_label = None # adv 由row控制
-        self.skip_export_tracked_check_box = None # adv 由row控制
-        self.skip_export_help = None # adv 由row控制
+        self.skip_detect_label = None  # adv 由row控制
+        self.skip_detect_check_box = None  # adv 由row控制
+        self.skip_detect_help = None  # adv 由row控制
+        self.skip_cls_label = None  # adv 由row控制
+        self.skip_cls_check_box = None  # adv 由row控制
+        self.skip_cls_help = None  # adv 由row控制
+        self.skip_export_label = None  # adv 由row控制
+        self.skip_export_tracked_check_box = None  # adv 由row控制
+        self.skip_export_help = None  # adv 由row控制
 
         # analyze panel
         self.bpm_type_combo_box = None
@@ -104,18 +87,16 @@ class AutoRechartPage(BaseOutputPage):
         self.duration_denominator_combo_box = None
 
         # common panel
-        self.common_divider = None # adv
-        self.enable_modules_row = None # adv 包含以下三个勾选框
-        self.enable_standardize_check_box = None # adv 由row控制
-        self.enable_detect_check_box = None # adv 由row控制
-        self.enable_analyze_check_box = None # adv 由row控制
+        self.common_divider = None  # adv
+        self.enable_modules_row = None  # adv 包含以下三个勾选框
+        self.enable_standardize_check_box = None  # adv 由row控制
+        self.enable_detect_check_box = None  # adv 由row控制
+        self.enable_analyze_check_box = None  # adv 由row控制
         self.taskname_line_edit = None
         self.submit_button = None
 
         # bottom panel
         self.advanced_mode_check_box = None
-
-
 
         # ------------------- UI builders -------------------
 
@@ -126,11 +107,14 @@ class AutoRechartPage(BaseOutputPage):
         self._build_common_panel()
         self._build_bottom_panel()
 
-
         # ------------------- 业务事件绑定 -------------------
-        
-        process_manager_api.get_signals().runner_output.connect(self.output_widget.handle_process_output)
-        process_manager_api.get_signals().runner_ended.connect(self.output_widget.handle_process_ended)
+
+        process_manager_api.get_signals().runner_output.connect(
+            self.output_widget.handle_process_output
+        )
+        process_manager_api.get_signals().runner_ended.connect(
+            self.output_widget.handle_process_ended
+        )
 
         # 初始化显示状态
         self._update_panels_visibility()
@@ -138,12 +122,6 @@ class AutoRechartPage(BaseOutputPage):
         self.swtich_advanced_mode()
         # Initialize BPM type visibility
         self._on_bpm_type_changed(0)
-
-
-
-
-
-
 
     def set_measure_bpm_result(self, bpm_config_path: str) -> bool:
         """
@@ -160,9 +138,8 @@ class AutoRechartPage(BaseOutputPage):
 
         # 检测是否已设置 BPM（静态数值或动态配置）
         is_static = self.bpm_type_combo_box.currentIndex() == 0
-        has_bpm = (
-            (is_static and self.static_bpm_line_edit.text().strip())
-            or (not is_static and self.bpm_config_path_display.text().strip())
+        has_bpm = (is_static and self.static_bpm_line_edit.text().strip()) or (
+            not is_static and self.bpm_config_path_display.text().strip()
         )
 
         # 已设置 → 弹窗确认覆盖
@@ -177,41 +154,44 @@ class AutoRechartPage(BaseOutputPage):
         self.bpm_config_path_display.setText(bpm_config_path)
         return True
 
-
-
-
     def _build_file_selection_panel(self):
 
         # divider
-        file_selection_divider = create_divider(i18n.t(f"{I18N_Prefix}.ui_select_file_divider"))
+        file_selection_divider = create_divider(
+            i18n.t(f"{I18N_Prefix}.ui_select_file_divider")
+        )
         self.content_layout.addWidget(file_selection_divider)
 
         # select chart confirm
         self.chart_confirm_video_input = MediaInputProbeWidget(
-            select_file_button_text=i18n.t(f"{I18N_Prefix}.ui_select_chart_confirm_video_button"),
-            select_file_button_length=170)
+            select_file_button_text=i18n.t(
+                f"{I18N_Prefix}.ui_select_chart_confirm_video_button"
+            ),
+            select_file_button_length=170,
+        )
         self.content_layout.addWidget(self.chart_confirm_video_input)
 
         # select output dir
-        (select_output_dir_button,
-         self.selected_output_dir_display,
-         select_output_dir_help
+        (
+            select_output_dir_button,
+            self.selected_output_dir_display,
+            select_output_dir_help,
         ) = create_directory_selection_row(
             button_text=i18n.t(f"{I18N_Prefix}.ui_selected_output_dir_button"),
             help_text=i18n.t(f"{I18N_Prefix}.ui_selected_output_dir_help"),
-            on_button_clicked_handler=lambda path: self._sync_taskname_from_name(Path(path).name)
+            on_button_clicked_handler=lambda path: self._sync_taskname_from_name(
+                Path(path).name
+            ),
         )
         # 此处手动创建是要保存 row 引用，以便后续控制 显示/隐藏
         self.select_output_dir_row = self.create_row(
             select_output_dir_button,
             select_output_dir_help,
-            self.selected_output_dir_display
+            self.selected_output_dir_display,
         )
 
         # 连接信号
         self.chart_confirm_video_input.media_loaded.connect(self.on_std_input_selected)
-
-
 
     def on_std_input_selected(self, error_msg: str) -> None:
         # Show error in popup window
@@ -219,9 +199,13 @@ class AutoRechartPage(BaseOutputPage):
             show_notify_dialog(i18n.t("app.auto_rechart_page.dialog_title"), error_msg)
             return
         # 更新 Song Name
-        self.song_name_line_edit.setText(Path(self.chart_confirm_video_input.get_path()).stem)
+        self.song_name_line_edit.setText(
+            Path(self.chart_confirm_video_input.get_path()).stem
+        )
         # 同步 Task Name
-        self._sync_taskname_from_name(Path(self.chart_confirm_video_input.get_path()).stem)
+        self._sync_taskname_from_name(
+            Path(self.chart_confirm_video_input.get_path()).stem
+        )
         # 更新视频范围可视化器
         self._update_video_range_visualizer()
         # # 根据预设fps阈值自动切换 ReID
@@ -243,15 +227,6 @@ class AutoRechartPage(BaseOutputPage):
             return
         self.taskname_line_edit.setText(name)
 
-
-
-
-
-    
-
-
-
-
     def _build_standardize_panel(self):
 
         standardize_panel = QWidget()
@@ -259,94 +234,102 @@ class AutoRechartPage(BaseOutputPage):
         layout.setContentsMargins(0, 0, 0, 0)
 
         # divider
-        standardize_divider = create_divider(i18n.t(f"{I18N_Prefix}.ui_standardize_divider"))
+        standardize_divider = create_divider(
+            i18n.t(f"{I18N_Prefix}.ui_standardize_divider")
+        )
         layout.addWidget(standardize_divider)
-        
+
         # Row 1
         song_name_label = create_label(i18n.t(f"{I18N_Prefix}.ui_song_name_label"))
         self.song_name_line_edit = create_line_edit(clear_button=True)
 
-        row = self.create_row(song_name_label, self.song_name_line_edit, add_to_layout=False)
+        row = self.create_row(
+            song_name_label, self.song_name_line_edit, add_to_layout=False
+        )
         layout.addWidget(row)
 
         # Row 2
         video_mode_label = create_label(i18n.t(f"{I18N_Prefix}.ui_video_mode_label"))
-        self.video_mode_combo_box = self._create_combobox_with_options(AC_Defs.video_mode, length=135)
+        self.video_mode_combo_box = self._create_combobox_with_options(
+            AC_Defs.video_mode, length=135
+        )
 
-        need_screen_rectification_label = create_label(i18n.t(f"{I18N_Prefix}.ui_need_screen_rectification_label"))
-        self.need_screen_rectification_check_box = create_check_box(AC_Defs.need_screen_rectification.default)
-        need_screen_rectification_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_need_screen_rectification_help"))
+        need_screen_rectification_label = create_label(
+            i18n.t(f"{I18N_Prefix}.ui_need_screen_rectification_label")
+        )
+        self.need_screen_rectification_check_box = create_check_box(
+            AC_Defs.need_screen_rectification.default
+        )
+        need_screen_rectification_help = create_help_icon(
+            i18n.t(f"{I18N_Prefix}.ui_need_screen_rectification_help")
+        )
 
-        row = self.create_row(video_mode_label,
-                          self.video_mode_combo_box,
-
-                          need_screen_rectification_label,
-                          self.need_screen_rectification_check_box,
-                          need_screen_rectification_help,
-
-                          add_stretch=True,
-                          add_to_layout=False)
+        row = self.create_row(
+            video_mode_label,
+            self.video_mode_combo_box,
+            need_screen_rectification_label,
+            self.need_screen_rectification_check_box,
+            need_screen_rectification_help,
+            add_stretch=True,
+            add_to_layout=False,
+        )
         layout.addWidget(row)
 
         # Row 3
         start_sec_label = create_label(i18n.t(f"{I18N_Prefix}.ui_start_sec_label"))
-        self.start_sec_line_edit = create_line_edit(length=60, validator='float')
+        self.start_sec_line_edit = create_line_edit(length=60, validator="float")
         start_sec_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_start_sec_help"))
 
-        trim_end_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_trim_end_label"))
-        self.end_sec_line_edit = create_line_edit(length=60, validator='float')
-        trim_end_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_trim_end_help"))
+        trim_end_label = create_label(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_trim_end_label")
+        )
+        self.end_sec_line_edit = create_line_edit(length=60, validator="float")
+        trim_end_help = create_help_icon(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_trim_end_help")
+        )
 
         self.video_range_visualizer = RangeVisualizer()
 
-        row = self.create_row(start_sec_label,
-                          self.start_sec_line_edit,
-                          start_sec_help,
-
-                          trim_end_label,
-                          self.end_sec_line_edit,
-                          trim_end_help,
-                          
-                          self.video_range_visualizer,
-                          add_stretch=True,
-                          add_to_layout=False)
+        row = self.create_row(
+            start_sec_label,
+            self.start_sec_line_edit,
+            start_sec_help,
+            trim_end_label,
+            self.end_sec_line_edit,
+            trim_end_help,
+            self.video_range_visualizer,
+            add_stretch=True,
+            add_to_layout=False,
+        )
         layout.addWidget(row)
 
         self.content_layout.addWidget(standardize_panel)
         self.overlay_standardize = OverlayWidget(standardize_panel)
 
         # 连接输入框信号到可视化器更新
-        self.start_sec_line_edit.textChanged.connect(self._update_video_range_visualizer)
+        self.start_sec_line_edit.textChanged.connect(
+            self._update_video_range_visualizer
+        )
         self.end_sec_line_edit.textChanged.connect(self._update_video_range_visualizer)
-
-        
 
     def _update_video_range_visualizer(self):
 
         duration, start_sec, end_sec = None, None, None
 
-        try: duration = float(self.chart_confirm_video_input.selected_file_duration)
-        except Exception: duration = None
-        try: start_sec = float(self.start_sec_line_edit.text().strip())
-        except Exception: start_sec = None
-        try: end_sec = float(self.end_sec_line_edit.text().strip())
-        except Exception: end_sec = None
+        try:
+            duration = float(self.chart_confirm_video_input.selected_file_duration)
+        except Exception:
+            duration = None
+        try:
+            start_sec = float(self.start_sec_line_edit.text().strip())
+        except Exception:
+            start_sec = None
+        try:
+            end_sec = float(self.end_sec_line_edit.text().strip())
+        except Exception:
+            end_sec = None
 
         self.video_range_visualizer.update_val(duration, start_sec, end_sec)
-        
-
-
-
-
-
-    
-
-
-
-
-
-
-
 
     def _build_detect_panel(self):
 
@@ -363,41 +346,47 @@ class AutoRechartPage(BaseOutputPage):
         # self.enable_reid_check_box = create_check_box(AC_Defs.enable_reid.default)
         # enable_reid_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_enable_reid_help"))
 
-        self.skip_detect_label = create_label(i18n.t(f"{I18N_Prefix}.ui_skip_detect_label"))
+        self.skip_detect_label = create_label(
+            i18n.t(f"{I18N_Prefix}.ui_skip_detect_label")
+        )
         self.skip_detect_check_box = create_check_box(AC_Defs.skip_detect.default)
-        self.skip_detect_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_skip_detect_help"))
+        self.skip_detect_help = create_help_icon(
+            i18n.t(f"{I18N_Prefix}.ui_skip_detect_help")
+        )
 
         self.skip_cls_label = create_label(i18n.t(f"{I18N_Prefix}.ui_skip_cls_label"))
         self.skip_cls_check_box = create_check_box(AC_Defs.skip_cls.default)
         self.skip_cls_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_skip_cls_help"))
 
-        self.skip_export_label = create_label(i18n.t(f"{I18N_Prefix}.ui_skip_export_tracked_label"))
-        self.skip_export_tracked_check_box = create_check_box(AC_Defs.skip_export_tracked_video.default)
-        self.skip_export_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_skip_export_tracked_help"))
+        self.skip_export_label = create_label(
+            i18n.t(f"{I18N_Prefix}.ui_skip_export_tracked_label")
+        )
+        self.skip_export_tracked_check_box = create_check_box(
+            AC_Defs.skip_export_tracked_video.default
+        )
+        self.skip_export_help = create_help_icon(
+            i18n.t(f"{I18N_Prefix}.ui_skip_export_tracked_help")
+        )
 
         # 此处手动创建是要保存 row 引用，以便后续控制 显示/隐藏
         # row = self.create_row(enable_reid_label, self.enable_reid_check_box, enable_reid_help,
-        row = self.create_row(self.skip_detect_label, self.skip_detect_check_box, self.skip_detect_help,
-                          self.skip_cls_label, self.skip_cls_check_box, self.skip_cls_help,
-                          self.skip_export_label, self.skip_export_tracked_check_box, self.skip_export_help,
-                          add_stretch=True,
-                          add_to_layout=False)
+        row = self.create_row(
+            self.skip_detect_label,
+            self.skip_detect_check_box,
+            self.skip_detect_help,
+            self.skip_cls_label,
+            self.skip_cls_check_box,
+            self.skip_cls_help,
+            self.skip_export_label,
+            self.skip_export_tracked_check_box,
+            self.skip_export_help,
+            add_stretch=True,
+            add_to_layout=False,
+        )
         layout.addWidget(row)
 
         self.content_layout.addWidget(detect_panel)
         self.overlay_detect = OverlayWidget(detect_panel)
-
-
-
-
-
-
-
-
-
-
-
-
 
     def _build_analyze_panel(self):
 
@@ -412,55 +401,95 @@ class AutoRechartPage(BaseOutputPage):
         # Row 1 (BPM type combo + static input / dynamic config file)
         bpm_type_label = create_label(i18n.t(f"{I18N_Prefix}.ui_bpm_type_label"))
         self.bpm_type_combo_box = create_combo_box(
-            items=[i18n.t(f"{I18N_Prefix}.ui_bpm_type_static"),
-                   i18n.t(f"{I18N_Prefix}.ui_bpm_type_dynamic")],
+            items=[
+                i18n.t(f"{I18N_Prefix}.ui_bpm_type_static"),
+                i18n.t(f"{I18N_Prefix}.ui_bpm_type_dynamic"),
+            ],
             default_index=0,
-            length = 93
+            length=93,
         )
-        self.input_static_bpm_label = create_label(i18n.t(f"{I18N_Prefix}.ui_input_static_bpm_label"))
-        self.static_bpm_line_edit = create_line_edit(length=70, validator='float')
-        self.static_bpm_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_static_bpm_help"))
-        self.static_bpm_spacer = create_label(expand=True) # 占位符，因为 add_stretch = False
+        self.input_static_bpm_label = create_label(
+            i18n.t(f"{I18N_Prefix}.ui_input_static_bpm_label")
+        )
+        self.static_bpm_line_edit = create_line_edit(length=70, validator="float")
+        self.static_bpm_help = create_help_icon(
+            i18n.t(f"{I18N_Prefix}.ui_static_bpm_help")
+        )
+        # 占位符，因为 add_stretch = False
+        self.static_bpm_spacer = create_label(expand=True)
 
-        (self.bpm_config_select_button,
-         self.bpm_config_path_display,
-         self.bpm_config_help
+        (
+            self.bpm_config_select_button,
+            self.bpm_config_path_display,
+            self.bpm_config_help,
         ) = create_file_selection_row(
-            button_text=i18n.t("app.tools_subpages.measure_bpm.ui_select_config_button"),
+            button_text=i18n.t(
+                "app.tools_subpages.measure_bpm.ui_select_config_button"
+            ),
             help_text=i18n.t("app.tools_subpages.measure_bpm.ui_select_config_help"),
             button_length=130,
             name_filter="bpm config (*.txt)",
         )
 
-        row = self.create_row(bpm_type_label, self.bpm_type_combo_box,
-                          self.input_static_bpm_label, self.static_bpm_line_edit, self.static_bpm_help,
-                          self.static_bpm_spacer,
-                          self.bpm_config_select_button, self.bpm_config_help, self.bpm_config_path_display,
-                          add_to_layout=False)
+        row = self.create_row(
+            bpm_type_label,
+            self.bpm_type_combo_box,
+            self.input_static_bpm_label,
+            self.static_bpm_line_edit,
+            self.static_bpm_help,
+            self.static_bpm_spacer,
+            self.bpm_config_select_button,
+            self.bpm_config_help,
+            self.bpm_config_path_display,
+            add_to_layout=False,
+        )
         layout.addWidget(row)
 
         # Row 2
         chart_lv_label = create_label(i18n.t(f"{I18N_Prefix}.ui_chart_lv_label"))
-        self.chart_lv_combo_box = self._create_combobox_with_options(AC_Defs.chart_lv, length=46)
+        self.chart_lv_combo_box = self._create_combobox_with_options(
+            AC_Defs.chart_lv, length=46
+        )
 
-        is_big_touch_label = create_label(i18n.t(f"{I18N_Prefix}.ui_is_big_touch_label"))
+        is_big_touch_label = create_label(
+            i18n.t(f"{I18N_Prefix}.ui_is_big_touch_label")
+        )
         self.is_big_touch_check_box = create_check_box(AC_Defs.is_big_touch.default)
-        is_big_touch_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_is_big_touch_help"))
+        is_big_touch_help = create_help_icon(
+            i18n.t(f"{I18N_Prefix}.ui_is_big_touch_help")
+        )
 
         bd_label = create_label(i18n.t(f"{I18N_Prefix}.ui_base_denominator_label"))
-        self.base_denominator_combo_box = self._create_combobox_with_options(AC_Defs.base_denominator, length=58, transfer_fn=self._transfer_denominator)
+        self.base_denominator_combo_box = self._create_combobox_with_options(
+            AC_Defs.base_denominator, length=58, transfer_fn=self._transfer_denominator
+        )
         bd_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_base_denominator_help"))
 
         dd_label = create_label(i18n.t(f"{I18N_Prefix}.ui_duration_denominator_label"))
-        self.duration_denominator_combo_box = self._create_combobox_with_options(AC_Defs.duration_denominator, length=58, transfer_fn=self._transfer_denominator)
-        dd_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_duration_denominator_help"))
+        self.duration_denominator_combo_box = self._create_combobox_with_options(
+            AC_Defs.duration_denominator,
+            length=58,
+            transfer_fn=self._transfer_denominator,
+        )
+        dd_help = create_help_icon(
+            i18n.t(f"{I18N_Prefix}.ui_duration_denominator_help")
+        )
 
-        row = self.create_row(chart_lv_label, self.chart_lv_combo_box,
-                          is_big_touch_label, self.is_big_touch_check_box, is_big_touch_help,
-                          bd_label, self.base_denominator_combo_box, bd_help,
-                          dd_label, self.duration_denominator_combo_box, dd_help,
-                          add_stretch=True,
-                          add_to_layout=False)
+        row = self.create_row(
+            chart_lv_label,
+            self.chart_lv_combo_box,
+            is_big_touch_label,
+            self.is_big_touch_check_box,
+            is_big_touch_help,
+            bd_label,
+            self.base_denominator_combo_box,
+            bd_help,
+            dd_label,
+            self.duration_denominator_combo_box,
+            dd_help,
+            add_stretch=True,
+            add_to_layout=False,
+        )
         layout.addWidget(row)
 
         self.content_layout.addWidget(analyze_panel)
@@ -470,17 +499,6 @@ class AutoRechartPage(BaseOutputPage):
         self.chart_lv_combo_box.currentTextChanged.connect(self._on_chart_lv_changed)
         self.bpm_type_combo_box.currentIndexChanged.connect(self._on_bpm_type_changed)
 
-
-
-
-
-
-
-    
-
-
-
-
     def _build_common_panel(self):
 
         # divider
@@ -488,41 +506,73 @@ class AutoRechartPage(BaseOutputPage):
         self.content_layout.addWidget(self.common_divider)
 
         # Row 1: Enable Modules
-        enable_standardize_label = create_label(i18n.t(f"{I18N_Prefix}.ui_enable_standardize_label"))
-        self.enable_standardize_check_box = create_check_box(default_checked=AC_Defs.is_standardize_enabled.default)
-        enable_standardize_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_enable_standardize_help"))
-        
-        enable_detect_label = create_label(i18n.t(f"{I18N_Prefix}.ui_enable_detect_label"))
-        self.enable_detect_check_box = create_check_box(default_checked=AC_Defs.is_detect_enabled.default)
-        enable_detect_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_enable_detect_help"))
+        enable_standardize_label = create_label(
+            i18n.t(f"{I18N_Prefix}.ui_enable_standardize_label")
+        )
+        self.enable_standardize_check_box = create_check_box(
+            default_checked=AC_Defs.is_standardize_enabled.default
+        )
+        enable_standardize_help = create_help_icon(
+            i18n.t(f"{I18N_Prefix}.ui_enable_standardize_help")
+        )
 
-        enable_analyze_label = create_label(i18n.t(f"{I18N_Prefix}.ui_enable_analyze_label"))
-        self.enable_analyze_check_box = create_check_box(default_checked=AC_Defs.is_analyze_enabled.default)
-        enable_analyze_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_enable_analyze_help"))
+        enable_detect_label = create_label(
+            i18n.t(f"{I18N_Prefix}.ui_enable_detect_label")
+        )
+        self.enable_detect_check_box = create_check_box(
+            default_checked=AC_Defs.is_detect_enabled.default
+        )
+        enable_detect_help = create_help_icon(
+            i18n.t(f"{I18N_Prefix}.ui_enable_detect_help")
+        )
+
+        enable_analyze_label = create_label(
+            i18n.t(f"{I18N_Prefix}.ui_enable_analyze_label")
+        )
+        self.enable_analyze_check_box = create_check_box(
+            default_checked=AC_Defs.is_analyze_enabled.default
+        )
+        enable_analyze_help = create_help_icon(
+            i18n.t(f"{I18N_Prefix}.ui_enable_analyze_help")
+        )
 
         # 此处手动创建是要保存 row 引用，以便后续控制 显示/隐藏
         self.enable_modules_row = self.create_row(
-            enable_standardize_label, self.enable_standardize_check_box, enable_standardize_help,
-            enable_detect_label, self.enable_detect_check_box, enable_detect_help,
-            enable_analyze_label, self.enable_analyze_check_box, enable_analyze_help,
-            add_stretch=True
+            enable_standardize_label,
+            self.enable_standardize_check_box,
+            enable_standardize_help,
+            enable_detect_label,
+            self.enable_detect_check_box,
+            enable_detect_help,
+            enable_analyze_label,
+            self.enable_analyze_check_box,
+            enable_analyze_help,
+            add_stretch=True,
         )
 
         # Row 2: Submit Button + Task Name Input
         self.content_layout.addSpacing(UI_Style.widget_spacing)
         self.taskname_line_edit = create_line_edit(
-            length=200, clear_button=True,
-            placeholder=i18n.t("app.tools_subpages.run_ffmpeg.ui_taskname_placeholder"))
-        self.submit_button = create_stated_button(i18n.t("app.tools_subpages.run_ffmpeg.ui_submit_button"), isbig=True)
+            length=200,
+            clear_button=True,
+            placeholder=i18n.t("app.tools_subpages.run_ffmpeg.ui_taskname_placeholder"),
+        )
+        self.submit_button = create_stated_button(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_submit_button"), isbig=True
+        )
         self.create_row(self.submit_button, self.taskname_line_edit, add_stretch=True)
 
         # 连接信号
-        self.enable_standardize_check_box.stateChanged.connect(self._update_panels_visibility)
-        self.enable_detect_check_box.stateChanged.connect(self._update_panels_visibility)
-        self.enable_analyze_check_box.stateChanged.connect(self._update_panels_visibility)
+        self.enable_standardize_check_box.stateChanged.connect(
+            self._update_panels_visibility
+        )
+        self.enable_detect_check_box.stateChanged.connect(
+            self._update_panels_visibility
+        )
+        self.enable_analyze_check_box.stateChanged.connect(
+            self._update_panels_visibility
+        )
         self.submit_button.clicked.connect(self.on_submit_clicked)
-
-
 
     def _update_panels_visibility(self):
 
@@ -537,22 +587,6 @@ class AutoRechartPage(BaseOutputPage):
         self.select_output_dir_row.setVisible(not std_enabled)
         self.chart_confirm_video_input.setVisible(std_enabled)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     def _build_bottom_panel(self):
         # 先 add stretch 让本模块始终在最底部
         self.content_layout.addStretch()
@@ -561,12 +595,12 @@ class AutoRechartPage(BaseOutputPage):
         advanced_label = create_label(i18n.t(f"{I18N_Prefix}.ui_advanced_mode_label"))
         self.advanced_mode_check_box = create_check_box(False)
 
-        row = self.create_row(advanced_label, self.advanced_mode_check_box, add_to_layout=False)
+        row = self.create_row(
+            advanced_label, self.advanced_mode_check_box, add_to_layout=False
+        )
         self.content_layout.addWidget(row, alignment=Qt.AlignmentFlag.AlignRight)
 
         self.advanced_mode_check_box.stateChanged.connect(self.swtich_advanced_mode)
-
-
 
     def swtich_advanced_mode(self):
 
@@ -590,21 +624,11 @@ class AutoRechartPage(BaseOutputPage):
             self.skip_detect_check_box.setChecked(AC_Defs.skip_detect.default)
             self.skip_cls_check_box.setChecked(AC_Defs.skip_cls.default)
             # general
-            self.enable_standardize_check_box.setChecked(AC_Defs.is_standardize_enabled.default)
+            self.enable_standardize_check_box.setChecked(
+                AC_Defs.is_standardize_enabled.default
+            )
             self.enable_detect_check_box.setChecked(AC_Defs.is_detect_enabled.default)
             self.enable_analyze_check_box.setChecked(AC_Defs.is_analyze_enabled.default)
-
-        
-
-
-
-
-
-    
-
-
-
-
 
     def _get_auto_rechart_log_path(self, raw_data: dict) -> Path:
         if raw_data[AC_Defs.is_standardize_enabled.key]:
@@ -615,18 +639,23 @@ class AutoRechartPage(BaseOutputPage):
             output_dir = Path(raw_data[AC_Defs.selected_folder.key])
         return output_dir / "HachimiDX_log.txt"
 
-
     def on_submit_clicked(self) -> None:
 
         def try_int(value) -> int | None:
-            if value is None: return None
-            try: return int(round(float(value)))
-            except: return None
-            
+            if value is None:
+                return None
+            try:
+                return int(round(float(value)))
+            except:
+                return None
+
         def try_float(value) -> float | None:
-            if value is None: return None
-            try: return float(value)
-            except: return None
+            if value is None:
+                return None
+            try:
+                return float(value)
+            except:
+                return None
 
         try:
             self.submit_button.setEnabled(False)
@@ -634,22 +663,32 @@ class AutoRechartPage(BaseOutputPage):
             raw_data = {
                 # common
                 AC_Defs.is_standardize_enabled.key: self.enable_standardize_check_box.isChecked(),
-                AC_Defs.is_detect_enabled.key:      self.enable_detect_check_box.isChecked(),
-                AC_Defs.is_analyze_enabled.key:     self.enable_analyze_check_box.isChecked(),
+                AC_Defs.is_detect_enabled.key: self.enable_detect_check_box.isChecked(),
+                AC_Defs.is_analyze_enabled.key: self.enable_analyze_check_box.isChecked(),
             }
 
             if raw_data[AC_Defs.is_standardize_enabled.key]:
-                raw_data.update({
-                    AC_Defs.standardize_input_video_path.key: self.chart_confirm_video_input.get_path() or None,
-                    AC_Defs.song_name.key: self.song_name_line_edit.text().strip() or None,
-                    AC_Defs.video_mode.key: self.video_mode_combo_box.currentText().strip(),
-                    AC_Defs.media_type.key: self.chart_confirm_video_input.selected_file_type,
-                    AC_Defs.duration.key: try_float(self.chart_confirm_video_input.selected_file_duration),
-                    AC_Defs.start_sec.key: try_float(self.start_sec_line_edit.text().strip()),
-                    AC_Defs.end_sec.key: try_float(self.end_sec_line_edit.text().strip()),
-                    AC_Defs.need_screen_rectification.key: self.need_screen_rectification_check_box.isChecked(),
-                    AC_Defs.target_res.key: 1080, # 暂时不修改
-                })
+                raw_data.update(
+                    {
+                        AC_Defs.standardize_input_video_path.key: self.chart_confirm_video_input.get_path()
+                        or None,
+                        AC_Defs.song_name.key: self.song_name_line_edit.text().strip()
+                        or None,
+                        AC_Defs.video_mode.key: self.video_mode_combo_box.currentText().strip(),
+                        AC_Defs.media_type.key: self.chart_confirm_video_input.selected_file_type,
+                        AC_Defs.duration.key: try_float(
+                            self.chart_confirm_video_input.selected_file_duration
+                        ),
+                        AC_Defs.start_sec.key: try_float(
+                            self.start_sec_line_edit.text().strip()
+                        ),
+                        AC_Defs.end_sec.key: try_float(
+                            self.end_sec_line_edit.text().strip()
+                        ),
+                        AC_Defs.need_screen_rectification.key: self.need_screen_rectification_check_box.isChecked(),
+                        AC_Defs.target_res.key: 1080,  # 暂时不修改
+                    }
+                )
                 # 添加 ui_scale 值
                 ui_scale_result = SettingsManage.get(S_Defs.main_app_ui_scale.key)
                 raw_data[AC_Defs.ui_scale.key] = (
@@ -658,33 +697,61 @@ class AutoRechartPage(BaseOutputPage):
                     else AC_Defs.ui_scale.default
                 )
             else:
-                raw_data.update({
-                    AC_Defs.selected_folder.key: self.selected_output_dir_display.text().strip() or None
-                })
+                raw_data.update(
+                    {
+                        AC_Defs.selected_folder.key: self.selected_output_dir_display.text().strip()
+                        or None
+                    }
+                )
 
             if raw_data[AC_Defs.is_detect_enabled.key]:
-                raw_data.update({
-                    AC_Defs.skip_detect.key: self.skip_detect_check_box.isChecked(),
-                    AC_Defs.skip_cls.key: self.skip_cls_check_box.isChecked(),
-                    AC_Defs.skip_export_tracked_video.key: self.skip_export_tracked_check_box.isChecked(),
-                    # AC_Defs.enable_reid.key: self.enable_reid_check_box.isChecked(),
-                })
-                
+                raw_data.update(
+                    {
+                        AC_Defs.skip_detect.key: self.skip_detect_check_box.isChecked(),
+                        AC_Defs.skip_cls.key: self.skip_cls_check_box.isChecked(),
+                        AC_Defs.skip_export_tracked_video.key: self.skip_export_tracked_check_box.isChecked(),
+                        # AC_Defs.enable_reid.key: self.enable_reid_check_box.isChecked(),
+                    }
+                )
+
             if raw_data[AC_Defs.is_analyze_enabled.key]:
-                raw_data.update({
-                    AC_Defs.is_big_touch.key: self.is_big_touch_check_box.isChecked(),
-                    AC_Defs.chart_lv.key: try_int(self.chart_lv_combo_box.currentText()),
-                    AC_Defs.base_denominator.key: try_int(self._transfer_denominator(self.base_denominator_combo_box.currentText())),
-                    AC_Defs.duration_denominator.key: try_int(self._transfer_denominator(self.duration_denominator_combo_box.currentText())),
-                })
+                raw_data.update(
+                    {
+                        AC_Defs.is_big_touch.key: self.is_big_touch_check_box.isChecked(),
+                        AC_Defs.chart_lv.key: try_int(
+                            self.chart_lv_combo_box.currentText()
+                        ),
+                        AC_Defs.base_denominator.key: try_int(
+                            self._transfer_denominator(
+                                self.base_denominator_combo_box.currentText()
+                            )
+                        ),
+                        AC_Defs.duration_denominator.key: try_int(
+                            self._transfer_denominator(
+                                self.duration_denominator_combo_box.currentText()
+                            )
+                        ),
+                    }
+                )
                 # BPM 二选一：
                 #   index 0 = 静态 BPM → 写 bpm
                 #   index 1 = 动态 BPM → 写 bpm_config
-                is_static_bpm = (self.bpm_type_combo_box.currentIndex() == 0)
+                is_static_bpm = self.bpm_type_combo_box.currentIndex() == 0
                 if is_static_bpm:
-                    raw_data.update({AC_Defs.bpm.key: try_float(self.static_bpm_line_edit.text().strip())})
+                    raw_data.update(
+                        {
+                            AC_Defs.bpm.key: try_float(
+                                self.static_bpm_line_edit.text().strip()
+                            )
+                        }
+                    )
                 else:
-                    raw_data.update({AC_Defs.bpm_config.key: self.bpm_config_path_display.text().strip() or None})
+                    raw_data.update(
+                        {
+                            AC_Defs.bpm_config.key: self.bpm_config_path_display.text().strip()
+                            or None
+                        }
+                    )
 
             # 如果启用音符分析模组，并且处于非高级模式下
             # 高等级谱面 + 低帧率视频 弹警告
@@ -695,19 +762,26 @@ class AutoRechartPage(BaseOutputPage):
                     if chart_lv is not None and fps is not None:
                         if chart_lv >= 4 and fps < 58:
                             title = i18n.t(f"{I18N_Prefix}.ui_low_fps_warning_title")
-                            text = i18n.t(f"{I18N_Prefix}.ui_low_fps_warning_text", level=chart_lv, fps=round(fps, 1))
+                            text = i18n.t(
+                                f"{I18N_Prefix}.ui_low_fps_warning_text",
+                                level=chart_lv,
+                                fps=round(fps, 1),
+                            )
                             if not show_confirm_dialog(title, text):
                                 return
 
             task_name = self.taskname_line_edit.text().strip()
             result = AutoRechartPipeline.submit_task(raw_data, task_name)
             if not result.is_ok:
-                reason = print_op_result(result) # 保底
+                reason = print_op_result(result)  # 保底
                 # 尝试直接访问普通 pydantic 错误
                 try:
                     root_result = result.inner.inner
-                    if "validate_pydantic()" in root_result.source.lower() and \
-                       "pydantic validation failed" in root_result.error_msg.lower():
+                    if (
+                        "validate_pydantic()" in root_result.source.lower()
+                        and "pydantic validation failed"
+                        in root_result.error_msg.lower()
+                    ):
                         reason = root_result.error_raw
                 except Exception:
                     pass
@@ -715,7 +789,10 @@ class AutoRechartPage(BaseOutputPage):
                 model_artifact_error = _find_model_artifact_error(result)
                 if model_artifact_error:
                     reason = model_artifact_error
-                error_msg = i18n.t("app.tools_subpages.run_ffmpeg.warning_task_submit_failed", error = reason)
+                error_msg = i18n.t(
+                    "app.tools_subpages.run_ffmpeg.warning_task_submit_failed",
+                    error=reason,
+                )
                 show_notify_dialog("AutoRechartPipeline error", error_msg)
                 return
 
@@ -725,23 +802,28 @@ class AutoRechartPage(BaseOutputPage):
                 log_enabled=True,
                 logtxt_path=self._get_auto_rechart_log_path(raw_data),
             )
-            
+
             # 显示悬浮通知
-            message = i18n.t("app.tools_subpages.run_ffmpeg.notice_task_submit_success", task_id=runner_id)
+            message = i18n.t(
+                "app.tools_subpages.run_ffmpeg.notice_task_submit_success",
+                task_id=runner_id,
+            )
             create_floating_notification(message, self.window())
 
-        except Exception as e:
-            show_notify_dialog(i18n.t("app.auto_rechart_page.dialog_title"),
-                i18n.t("app.tools_subpages.run_ffmpeg.warning_unexpected_submit_error", error=traceback.format_exc()))
+        except Exception:
+            show_notify_dialog(
+                i18n.t("app.auto_rechart_page.dialog_title"),
+                i18n.t(
+                    "app.tools_subpages.run_ffmpeg.warning_unexpected_submit_error",
+                    error=traceback.format_exc(),
+                ),
+            )
         finally:
             self.submit_button.setEnabled(True)
 
-
-
-
     def _on_bpm_type_changed(self, index: int):
         """Toggle visibility between static BPM input and dynamic config file row."""
-        is_static = (index == 0)
+        is_static = index == 0
         self.input_static_bpm_label.setVisible(is_static)
         self.static_bpm_line_edit.setVisible(is_static)
         self.static_bpm_help.setVisible(is_static)
@@ -750,13 +832,14 @@ class AutoRechartPage(BaseOutputPage):
         self.bpm_config_help.setVisible(not is_static)
         self.bpm_config_path_display.setVisible(not is_static)
 
-
-
     def _on_chart_lv_changed(self, text: str):
-        try: chart_lv = int(text)
-        except: return
+        try:
+            chart_lv = int(text)
+        except:
+            return
         preset = AC_Defs.CHART_LV_PRESETS.get(chart_lv, None)
-        if preset is None: return
+        if preset is None:
+            return
 
         # is_big_touch
         self.is_big_touch_check_box.setChecked(preset[AC_Defs.is_big_touch.key])
@@ -771,9 +854,7 @@ class AutoRechartPage(BaseOutputPage):
             preset[AC_Defs.duration_denominator.key],
         )
 
-
-
-    def _create_combobox_with_options(self, param, length = None, transfer_fn = None):
+    def _create_combobox_with_options(self, param, length=None, transfer_fn=None):
         options = param.constraints["options"]
         default_val = param.default
         default_index = options.index(default_val)
@@ -781,20 +862,24 @@ class AutoRechartPage(BaseOutputPage):
             options = transfer_fn(options)
         tooltips = param.constraints.get("options_tooltips")
         if tooltips:
-            tooltips = [None if key is None else i18n.t(f"{I18N_Prefix}.{key}") for key in tooltips]
-        return create_combo_box(length=length, items=options,
-                                default_index=default_index,
-                                show_tooltip=tooltips is not None,
-                                item_tooltips=tooltips)
-
-
+            tooltips = [
+                None if key is None else i18n.t(f"{I18N_Prefix}.{key}")
+                for key in tooltips
+            ]
+        return create_combo_box(
+            length=length,
+            items=options,
+            default_index=default_index,
+            show_tooltip=tooltips is not None,
+            item_tooltips=tooltips,
+        )
 
     def _transfer_denominator(self, input):
         """显示文本与真实数值互转：>=12 的分辨率文本最后添加*号"""
 
         if "*" in str(input):
             return input.replace("*", "").strip()
-        
+
         if isinstance(input, list):
             output = []
             for item in input:
@@ -806,8 +891,6 @@ class AutoRechartPage(BaseOutputPage):
 
         return input
 
-
-
     def _set_denominator_combo_value(self, combo_box, value: int):
         """按真实数值选中 combo 项 (忽略显示用的 "*" 标记)"""
         for i in range(combo_box.count()):
@@ -816,16 +899,16 @@ class AutoRechartPage(BaseOutputPage):
                 return
 
 
-
-
 def _find_model_artifact_error(result) -> str | None:
     artifact_error = None
     current = result
     while current is not None:
         source = str(getattr(current, "source", "")).lower()
         error_msg = str(getattr(current, "error_msg", ""))
-        if "_build_inference_args" in source and \
-           "models are not usable for backend" in error_msg.lower():
+        if (
+            "_build_inference_args" in source
+            and "models are not usable for backend" in error_msg.lower()
+        ):
             artifact_error = error_msg
         current = getattr(current, "inner", None)
     return artifact_error

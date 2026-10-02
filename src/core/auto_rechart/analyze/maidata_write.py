@@ -7,22 +7,11 @@ import os
 from fractions import Fraction
 from itertools import groupby, tee
 
-from .shared_context import (
-    SharedContext,
-    create_shared_context,
-    get_a_zone_endpoint,
-    get_max_track_id,
-    get_touch_areas,
-)
 from .maidata_generate import MaidataItem
 
-
 # 分音策略常量
-_MAX_DIV = 384     # 分音的分辨率，最小支持 1/384 小节
-_MAX_COMMAS = 5    # 单段内最多连续逗号数
-
-
-
+_MAX_DIV = 384  # 分音的分辨率，最小支持 1/384 小节
+_MAX_COMMAS = 5  # 单段内最多连续逗号数
 
 
 def _single_segments(numerator: int, denominator: int) -> list[tuple[int, int]]:
@@ -41,9 +30,6 @@ def _single_segments(numerator: int, denominator: int) -> list[tuple[int, int]]:
             if new_denominator <= _MAX_DIV:
                 res.append((new_numerator, new_denominator))
     return res
-
-
-
 
 
 def _gap_configs(g: Fraction, R: int):
@@ -67,16 +53,17 @@ def _gap_configs(g: Fraction, R: int):
     # 将分子转为基于 R 的
     tau = (g.numerator * R) // g.denominator
     # 零间隔，直接返回
-    if tau <= 0: return {}
+    if tau <= 0:
+        return {}
 
     configs = {}
 
     # 单段就能写完，零次分音切换
-    for (k, N) in _single_segments(tau, R):
+    for k, N in _single_segments(tau, R):
         configs[(N, N)] = (0, [(N, k)])
     if configs:
         return configs
-    
+
     # 不能用单段写完: 用 tick DP 求最优多段拆法
 
     # 1. 枚举候选段 (遍历顺序: k 外层升序, N 内层升序)
@@ -105,16 +92,16 @@ def _gap_configs(g: Fraction, R: int):
     # 升序后内层循环可用 `if tk > remaining: break` 提前终止, 跳过所有 nt>tau 的无效 atom
     # 稳定排序保同 tk 下原始 (k,N) 相对顺序。平行数组避免每转移解包元组
     atoms_sorted = sorted(atoms, key=lambda a: a[2])
-    atom_N    = [a[0] for a in atoms_sorted]
-    atom_k    = [a[1] for a in atoms_sorted]
-    atom_tk   = [a[2] for a in atoms_sorted]
+    atom_N = [a[0] for a in atoms_sorted]
+    atom_k = [a[1] for a in atoms_sorted]
+    atom_tk = [a[2] for a in atoms_sorted]
     atom_Nidx = [idx_of[a[0]] for a in atoms_sorted]
     n_atoms = len(atoms_sorted)
 
     # 2. DP 状态: dp[t] = dict[int_key] -> (sw, commas, parent)
     #    parent = (prev_t, prev_key_int, N, k) 指向前驱状态, 末尾回溯重建 segs
     dp = [dict() for _ in range(tau + 1)]
-    dp[0][0] = (0, 0, None)   # key 0 = first_idx=0, last_idx=0 = (None, None)
+    dp[0][0] = (0, 0, None)  # key 0 = first_idx=0, last_idx=0 = (None, None)
 
     # 3. DP 状态转移
     for t in range(tau):
@@ -128,18 +115,28 @@ def _gap_configs(g: Fraction, R: int):
             for a in range(n_atoms):
                 tk = atom_tk[a]
                 if tk > remaining:
-                    break              # 升序: 后续 atom 的 tk 只会更大, 全部越界, 提前终止
+                    break  # 升序: 后续 atom 的 tk 只会更大, 全部越界, 提前终止
                 Nidx = atom_Nidx[a]
                 if last_idx == Nidx:
-                    continue           # 禁相邻同分音 (last_idx==0 即 None, Nidx>=1 永不等于)
+                    continue  # 禁相邻同分音 (last_idx==0 即 None, Nidx>=1 永不等于)
                 nt = t + tk
-                nsw = sw + (0 if last_idx == 0 else 1)  # last 为 None 时 0 切换, 否则 +1
+                nsw = sw + (
+                    0 if last_idx == 0 else 1
+                )  # last 为 None 时 0 切换, 否则 +1
                 nfirst_idx = Nidx if first_idx == 0 else first_idx
                 new_key = nfirst_idx * stride + Nidx
                 cur = dp[nt].get(new_key)
-                new_commas = commas + atom_k[a]         # 累加等价于 sum(segs), 数学恒等
-                if cur is None or nsw < cur[0] or (nsw == cur[0] and new_commas < cur[1]):
-                    dp[nt][new_key] = (nsw, new_commas, (t, key_int, atom_N[a], atom_k[a]))
+                new_commas = commas + atom_k[a]  # 累加等价于 sum(segs), 数学恒等
+                if (
+                    cur is None
+                    or nsw < cur[0]
+                    or (nsw == cur[0] and new_commas < cur[1])
+                ):
+                    dp[nt][new_key] = (
+                        nsw,
+                        new_commas,
+                        (t, key_int, atom_N[a], atom_k[a]),
+                    )
 
     # 收口: 回溯 parent 链重建 segs, 把 DP 终态 (dp[tau]) 转成 (sw, segs) 返回给外层
     for key_int, (sw, _commas, _parent) in dp[tau].items():
@@ -162,10 +159,6 @@ def _gap_configs(g: Fraction, R: int):
         configs[(first, last)] = (sw, segs)
 
     return configs
-
-
-
-
 
 
 class _LayoutEngine:
@@ -196,7 +189,7 @@ class _LayoutEngine:
         anchors: list[tuple[Fraction, str, str]] = []  # (time, bpm_text, note_text)
         for time, group in groupby(items, key=lambda it: it.time):
             g1, g2 = tee(group, 2)
-            bpm_parts  = [it.content for it in g1 if     it.is_bpm]
+            bpm_parts = [it.content for it in g1 if it.is_bpm]
             note_parts = [it.content for it in g2 if not it.is_bpm]
             bpm_text = bpm_parts[0] if bpm_parts else ""
             note_text = "/".join(note_parts)
@@ -242,9 +235,10 @@ class _LayoutEngine:
         # --- 输出 ---
         return self._emit(anchors, gap_list, seg_map, line_ranges)
 
-
     @staticmethod
-    def _plan_lines(gap_list: list[Fraction], anchor_count: int) -> list[tuple[int, int]]:
+    def _plan_lines(
+        gap_list: list[Fraction], anchor_count: int
+    ) -> list[tuple[int, int]]:
         """完整间隔累计满一小节后，在下一个 anchor 前换行"""
         lines = []
         anchor_start = 0
@@ -260,10 +254,10 @@ class _LayoutEngine:
         lines.append((anchor_start, anchor_count - 1))
         return lines
 
-
     @classmethod
-    def _optimize_line(cls, active: list[tuple[int, dict]],
-                       block_starts: set[int]) -> dict:
+    def _optimize_line(
+        cls, active: list[tuple[int, dict]], block_starts: set[int]
+    ) -> dict:
         """一行内独立优化, BPM 后的间隔开启新分块"""
         chosen = []
         block = []
@@ -275,7 +269,6 @@ class _LayoutEngine:
         if block:
             chosen.extend(cls._cross_gap_dp(block))
         return dict(chosen)
-
 
     def _resolve_gap(self, start: Fraction, end: Fraction) -> dict:
         """按实际小节边界顺序生成一个逻辑间隔的候选方案"""
@@ -309,10 +302,8 @@ class _LayoutEngine:
 
         configs = self._resolve_gap_span(spans[0])
         for span in spans[1:]:
-            configs = self._combine_gap_configs(
-                configs, self._resolve_gap_span(span))
+            configs = self._combine_gap_configs(configs, self._resolve_gap_span(span))
         return configs
-
 
     def _resolve_gap_span(self, g: Fraction) -> dict:
         """生成不跨小节边界的一段候选方案"""
@@ -326,7 +317,6 @@ class _LayoutEngine:
             segs.append((1, k))
             remaining -= k
         return {(1, 1): (0, segs)}
-
 
     @staticmethod
     def _combine_gap_configs(left: dict, right: dict) -> dict:
@@ -347,7 +337,6 @@ class _LayoutEngine:
                 if sw < cur_sw or (sw == cur_sw and commas < cur_commas):
                     combined[key] = (sw, segs)
         return combined
-
 
     @staticmethod
     def _cross_gap_dp(active: list[tuple[int, dict]]) -> list[tuple[int, list]]:
@@ -380,8 +369,12 @@ class _LayoutEngine:
                 best_cost = None
                 best_prev = None
                 for prev_ld, (prev_cost, _, _) in prev_layer.items():
-                    tot = prev_cost + (0 if prev_ld == fd else 1) * _MAX_COMMAS \
-                          + sw * _MAX_COMMAS + seg_commas
+                    tot = (
+                        prev_cost
+                        + (0 if prev_ld == fd else 1) * _MAX_COMMAS
+                        + sw * _MAX_COMMAS
+                        + seg_commas
+                    )
                     if best_cost is None or tot < best_cost:
                         best_cost = tot
                         best_prev = prev_ld
@@ -403,12 +396,13 @@ class _LayoutEngine:
         result.reverse()
         return result
 
-
     @staticmethod
-    def _emit(anchors: list[tuple[Fraction, str, str]],
-              gap_list: list[Fraction],
-              seg_map: dict,
-              line_ranges: list[tuple[int, int]]) -> str:
+    def _emit(
+        anchors: list[tuple[Fraction, str, str]],
+        gap_list: list[Fraction],
+        seg_map: dict,
+        line_ranges: list[tuple[int, int]],
+    ) -> str:
         """
         按预先规划的行输出
 
@@ -430,7 +424,7 @@ class _LayoutEngine:
                     cur_div = D
 
             if anchor_start == 0 and gap_list[0] > 0 and 0 in seg_map:
-                for (N, k) in seg_map[0]:
+                for N, k in seg_map[0]:
                     emit_div(N)
                     buf.append("," * k)
 
@@ -449,17 +443,13 @@ class _LayoutEngine:
                     buf.append(note_text)
 
                 if segs:
-                    for (N, k) in segs:
+                    for N, k in segs:
                         emit_div(N)
                         buf.append("," * k)
 
             lines.append("".join(buf) + "\n")
 
         return "".join(lines) + "{1},,,E"
-
-
-
-
 
     def _gap_configs_cached(self, g: Fraction, R: int):
         """
@@ -476,10 +466,15 @@ class _LayoutEngine:
         return result
 
 
-def write_maidata(shared_context, items: list[MaidataItem],
-                  chart_lv: int, app_version: str,
-                  note_speed, touch_speed,
-                  first_bpm: str):
+def write_maidata(
+    shared_context,
+    items: list[MaidataItem],
+    chart_lv: int,
+    app_version: str,
+    note_speed,
+    touch_speed,
+    first_bpm: str,
+):
     """
     主入口
 
@@ -493,7 +488,16 @@ def write_maidata(shared_context, items: list[MaidataItem],
         os.remove(txt_path)
 
     video_name = output_dir.name
-    level_label = ['zero', 'easy', 'basic', 'advanced', 'expert', 'master', 'remaster', 'special']
+    level_label = [
+        "zero",
+        "easy",
+        "basic",
+        "advanced",
+        "expert",
+        "master",
+        "remaster",
+        "special",
+    ]
     print(f"\n{video_name} - {level_label[chart_lv]}")
 
     # 用排版引擎生成谱面正文
@@ -504,17 +508,17 @@ def write_maidata(shared_context, items: list[MaidataItem],
     note_speed_str = f"{note_speed:.2f}" if note_speed else "N/A"
     touch_speed_str = f"{touch_speed:.2f}" if touch_speed else "N/A"
 
-    with open(txt_path, 'w', encoding='utf-8') as f:
-        f.write(f'&title={video_name}\n')
-        f.write(f'&artist=default\n')
-        f.write(f'&first=0\n')
-        f.write(f'&des=Generated by HachimiDX v{app_version}\n\n')
+    with open(txt_path, "w", encoding="utf-8") as f:
+        f.write(f"&title={video_name}\n")
+        f.write("&artist=default\n")
+        f.write("&first=0\n")
+        f.write(f"&des=Generated by HachimiDX v{app_version}\n\n")
 
-        f.write(f'&des_{chart_lv}=default\n')
-        f.write(f'&lv_{chart_lv}=15\n\n')
+        f.write(f"&des_{chart_lv}=default\n")
+        f.write(f"&lv_{chart_lv}=15\n\n")
 
-        f.write(f'&inote_{chart_lv}={first_bpm}\n')
-        f.write(f'|| note speed: {note_speed_str}, touch speed: {touch_speed_str}\n')
+        f.write(f"&inote_{chart_lv}={first_bpm}\n")
+        f.write(f"|| note speed: {note_speed_str}, touch speed: {touch_speed_str}\n")
         f.write(body)
 
     print(f"generate maidata.txt at {txt_path}\n")

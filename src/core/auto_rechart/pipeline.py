@@ -12,9 +12,8 @@ from typing import Any
 
 from ..schemas.op_result import OpResult, err, ok
 
-
-_PUT_TIMEOUT = 0.5          # _put_or_stop 单次 put 超时(周期检查 stop)
-_POLL_INTERVAL = 0.5        # 主线程 poll-join 间隔
+_PUT_TIMEOUT = 0.5  # _put_or_stop 单次 put 超时(周期检查 stop)
+_POLL_INTERVAL = 0.5  # 主线程 poll-join 间隔
 _ERROR_GRACE_TIMEOUT = 5.0  # 异常后给存活 worker 的退出宽限(秒)
 
 
@@ -87,7 +86,7 @@ class Producer(ABC):
     """生产者基类。produce() 正常返回后，框架自动通知 consumer 结束。"""
 
     @abstractmethod
-    def produce(self, q: "queue.Queue[Any]", stop: threading.Event, ctx: Any) -> None:
+    def produce(self, q: queue.Queue[Any], stop: threading.Event, ctx: Any) -> None:
         """生产业务数据；正常返回即可。"""
 
     def on_start(self, ctx: Any) -> None:
@@ -98,7 +97,7 @@ class Producer(ABC):
 
     @staticmethod
     def _put_or_stop(
-        q: "queue.Queue[Any]",
+        q: queue.Queue[Any],
         item: Any,
         stop: threading.Event,
         timeout: float = _PUT_TIMEOUT,
@@ -170,7 +169,7 @@ class Pipeline:
             }
             return validation_error
 
-        q: "queue.Queue[Any]" = queue.Queue(maxsize=self.queue_size)
+        q: queue.Queue[Any] = queue.Queue(maxsize=self.queue_size)
         stop = threading.Event()
         state = _RunState()
         started_roles: set[str] = set()
@@ -231,7 +230,9 @@ class Pipeline:
 
         failures = state.failures()
         statuses = state.statuses()
-        if not failures and all(status == WorkerStatus.DONE for status in statuses.values()):
+        if not failures and all(
+            status == WorkerStatus.DONE for status in statuses.values()
+        ):
             return ok()
 
         if not failures:
@@ -240,7 +241,7 @@ class Pipeline:
 
     def _run_producer(
         self,
-        q: "queue.Queue[Any]",
+        q: queue.Queue[Any],
         stop: threading.Event,
         state: _RunState,
     ) -> None:
@@ -275,7 +276,7 @@ class Pipeline:
 
     def _run_consumer(
         self,
-        q: "queue.Queue[Any]",
+        q: queue.Queue[Any],
         stop: threading.Event,
         state: _RunState,
     ) -> None:
@@ -322,7 +323,7 @@ class Pipeline:
     def _safe_cleanup(
         self,
         role: str,
-        worker: "Producer | Consumer",
+        worker: Producer | Consumer,
         state: _RunState,
         error: OpResult[Any] | None,
     ) -> OpResult[Any] | None:
@@ -370,9 +371,13 @@ class Pipeline:
 
     def _validate_config(self) -> OpResult[None] | None:
         if not isinstance(self.queue_size, int) or self.queue_size <= 0:
-            return err(f"[pipeline] queue_size must be a positive integer: {self.queue_size!r}")
+            return err(
+                f"[pipeline] queue_size must be a positive integer: {self.queue_size!r}"
+            )
         if not isinstance(self.poll_interval, (int, float)) or self.poll_interval <= 0:
-            return err(f"[pipeline] poll_interval must be positive: {self.poll_interval!r}")
+            return err(
+                f"[pipeline] poll_interval must be positive: {self.poll_interval!r}"
+            )
         if (
             not isinstance(self.error_grace_timeout, (int, float))
             or self.error_grace_timeout <= 0
@@ -385,7 +390,7 @@ class Pipeline:
 
     @staticmethod
     def _put_message_or_stop(
-        q: "queue.Queue[Any]",
+        q: queue.Queue[Any],
         message: _Message,
         stop: threading.Event,
     ) -> bool:
@@ -398,7 +403,7 @@ class Pipeline:
         return False
 
     @staticmethod
-    def _replace_with_terminal(q: "queue.Queue[Any]", message: _Message) -> None:
+    def _replace_with_terminal(q: queue.Queue[Any], message: _Message) -> None:
         """异常路径丢弃待处理 item，并尽力放入终止消息解除 consumer。"""
         while True:
             try:

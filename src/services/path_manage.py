@@ -1,7 +1,8 @@
-from pathlib import Path
-from dataclasses import dataclass
 import re
-from src.core.schemas.op_result import OpResult, ok, err
+from dataclasses import dataclass
+from pathlib import Path
+
+from src.core.schemas.op_result import OpResult, err, ok
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,15 +32,15 @@ class PathManage:
 
     # 初始化时必须存在的路径
 
-    ROOT_DIR: Path = Path(__file__).resolve().parents[2] # 往上三级目录
+    ROOT_DIR: Path = Path(__file__).resolve().parents[2]  # 往上三级目录
     DATA_DIR: Path = ROOT_DIR / "data"
-    TEMP_DIR: Path = DATA_DIR / "temp" # 如果为空自动创建
+    TEMP_DIR: Path = DATA_DIR / "temp"  # 如果为空自动创建
     RESOURCES_DIR: Path = ROOT_DIR / "src" / "resources"
     LOCALES_DIR: Path = RESOURCES_DIR / "locales"
     WORKERS_DIR: Path = ROOT_DIR / "src" / "services" / "workers"
 
     # 资源文件
-    
+
     APP_ICON_PATH: Path = RESOURCES_DIR / "icon.ico"
     CLICK_TEMPLATE_PATH: Path = RESOURCES_DIR / "click_template.wav"
     # https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/1080/Big_Buck_Bunny_1080_10s_1MB.mp4
@@ -59,7 +60,7 @@ class PathManage:
     CLS_BREAK_PT_PATH: Path = MODELS_DIR / "cls-break.pt"
     CLS_EX_PT_PATH: Path = MODELS_DIR / "cls-ex.pt"
     TOUCH_HOLD_PT_PATH: Path = MODELS_DIR / "detect-touch-hold.pt"
-    
+
     CHECK_DEVICE_TEST_FP16_ONNX_PATH: Path = MODELS_DIR / "check_device_test.fp16.onnx"
     CHECK_DEVICE_TEST_FP32_ONNX_PATH: Path = MODELS_DIR / "check_device_test.fp32.onnx"
     # REID_PT_PATH: Path = MODELS_DIR / "re_id.pt"
@@ -70,7 +71,9 @@ class PathManage:
     CHECK_DEVICE_WORKER_PATH: Path = WORKERS_DIR / "check_device_worker.py"
     MODEL_CONVERT_WORKER_PATH: Path = WORKERS_DIR / "model_convert_worker.py"
     AUDIO_ALIGN_WORKER_PATH: Path = WORKERS_DIR / "audio_align_worker.py"
-    CHECK_FFMPEG_HW_ACCEL_WORKER_PATH: Path = WORKERS_DIR / "check_ffmpeg_hw_accel_worker.py"
+    CHECK_FFMPEG_HW_ACCEL_WORKER_PATH: Path = (
+        WORKERS_DIR / "check_ffmpeg_hw_accel_worker.py"
+    )
 
     # 初始化时可以不存在的路径
 
@@ -105,7 +108,6 @@ class PathManage:
     _MODEL_PRECISION_PATTERN = re.compile(r"^.+\.(fp16|fp32)\.[^.]+$")
     _NCNN_PRECISION_PATTERN = re.compile(r"^.+\.(fp16|fp32)_ncnn_model$")
 
-
     @classmethod
     def get_source_model_paths(cls) -> ModelPaths:
         return ModelPaths(
@@ -116,11 +118,9 @@ class PathManage:
             touch_hold=cls.TOUCH_HOLD_PT_PATH,
         )
 
-
     @classmethod
     def _get_precision_text(cls, half: bool) -> str:
         return "fp16" if half else "fp32"
-
 
     @classmethod
     def _get_artifact_paths(cls, half: bool) -> dict[str, Path]:
@@ -140,7 +140,6 @@ class PathManage:
             },
         }
 
-
     @classmethod
     def get_model_paths(cls, backend: str, half: bool) -> OpResult[ModelPaths]:
         if type(half) is not bool:
@@ -148,60 +147,81 @@ class PathManage:
         backend = str(backend).strip()
         artifact_paths = cls._get_artifact_paths(half)
         if backend in {"ONNX CPU", "ONNX DML", "ONNX Cuda"}:
-            return ok(ModelPaths(
-                detect=artifact_paths["onnx"]["detect"],
-                obb=artifact_paths["onnx"]["obb"],
-                cls_break=artifact_paths["onnx"]["cls_break"],
-                cls_ex=artifact_paths["onnx"]["cls_ex"],
-                touch_hold=artifact_paths["onnx"]["touch_hold"],
-            ))
+            return ok(
+                ModelPaths(
+                    detect=artifact_paths["onnx"]["detect"],
+                    obb=artifact_paths["onnx"]["obb"],
+                    cls_break=artifact_paths["onnx"]["cls_break"],
+                    cls_ex=artifact_paths["onnx"]["cls_ex"],
+                    touch_hold=artifact_paths["onnx"]["touch_hold"],
+                )
+            )
         if backend == "TensorRT":
-            return ok(ModelPaths(
-                detect=artifact_paths["trt"]["detect"],
-                obb=artifact_paths["trt"]["obb"],
-                cls_break=artifact_paths["trt"]["cls_break"],
-                cls_ex=artifact_paths["trt"]["cls_ex"],
-                touch_hold=artifact_paths["trt"]["touch_hold"],
-            ))
+            return ok(
+                ModelPaths(
+                    detect=artifact_paths["trt"]["detect"],
+                    obb=artifact_paths["trt"]["obb"],
+                    cls_break=artifact_paths["trt"]["cls_break"],
+                    cls_ex=artifact_paths["trt"]["cls_ex"],
+                    touch_hold=artifact_paths["trt"]["touch_hold"],
+                )
+            )
         if backend == "NCNN":
-            return ok(ModelPaths(
-                detect=artifact_paths["ncnn"]["detect"],
-                obb=artifact_paths["ncnn"]["obb"],
-                cls_break=artifact_paths["ncnn"]["cls_break"],
-                cls_ex=artifact_paths["ncnn"]["cls_ex"],
-                touch_hold=artifact_paths["ncnn"]["touch_hold"],
-            ))
+            return ok(
+                ModelPaths(
+                    detect=artifact_paths["ncnn"]["detect"],
+                    obb=artifact_paths["ncnn"]["obb"],
+                    cls_break=artifact_paths["ncnn"]["cls_break"],
+                    cls_ex=artifact_paths["ncnn"]["cls_ex"],
+                    touch_hold=artifact_paths["ncnn"]["touch_hold"],
+                )
+            )
         return err(f"Unknown model backend: {backend}")
-
 
     @classmethod
     def parse_model_precision(cls, path: Path, ncnn: bool = False) -> OpResult[bool]:
         pattern = cls._NCNN_PRECISION_PATTERN if ncnn else cls._MODEL_PRECISION_PATTERN
         match = pattern.fullmatch(path.name)
         if match is None:
-            return err(f"Model artifact name has no valid fp16 or fp32 precision marker: {path}")
+            return err(
+                f"Model artifact name has no valid fp16 or fp32 precision marker: {path}"
+            )
         return ok(match.group(1) == "fp16")
-
 
     @classmethod
     def read_model_precision(cls, paths: ModelPaths, backend: str) -> OpResult[bool]:
         is_ncnn = str(backend).strip() == "NCNN"
         actual_precisions: set[bool] = set()
-        for path in (paths.detect, paths.obb, paths.cls_break, paths.cls_ex, paths.touch_hold):
+        for path in (
+            paths.detect,
+            paths.obb,
+            paths.cls_break,
+            paths.cls_ex,
+            paths.touch_hold,
+        ):
             precision_result = cls.parse_model_precision(path, ncnn=is_ncnn)
             if not precision_result.is_ok:
-                return err("Model artifact precision validation failed", inner=precision_result)
+                return err(
+                    "Model artifact precision validation failed", inner=precision_result
+                )
             actual_precisions.add(precision_result.value)
 
         if len(actual_precisions) != 1:
             return err("Model artifacts must all use the same precision")
         return ok(actual_precisions.pop())
 
-
     @classmethod
-    def validate_model_paths(cls, paths: ModelPaths, backend: str, half: bool) -> OpResult[bool]:
+    def validate_model_paths(
+        cls, paths: ModelPaths, backend: str, half: bool
+    ) -> OpResult[bool]:
         is_ncnn = str(backend).strip() == "NCNN"
-        for path in (paths.detect, paths.obb, paths.cls_break, paths.cls_ex, paths.touch_hold):
+        for path in (
+            paths.detect,
+            paths.obb,
+            paths.cls_break,
+            paths.cls_ex,
+            paths.touch_hold,
+        ):
             if is_ncnn:
                 if not path.is_dir():
                     return err(f"Model artifact not found: {path}")
@@ -214,26 +234,32 @@ class PathManage:
 
         precision_result = cls.read_model_precision(paths, backend)
         if not precision_result.is_ok:
-            return err("Failed to read model artifact precision", inner=precision_result)
+            return err(
+                "Failed to read model artifact precision", inner=precision_result
+            )
         if precision_result.value != half:
             return err(
                 f"Model artifact precision mismatch: expected {'fp16' if half else 'fp32'}"
             )
         return ok(precision_result.value)
 
-
     @classmethod
     def resolve_model_paths(cls, backend: str, half: bool) -> OpResult[ResolvedModels]:
         paths_result = cls.get_model_paths(backend, half)
         if not paths_result.is_ok:
-            return err(f"Failed to get model paths for backend: {backend}", inner=paths_result)
+            return err(
+                f"Failed to get model paths for backend: {backend}", inner=paths_result
+            )
 
         validation_result = cls.validate_model_paths(paths_result.value, backend, half)
         if not validation_result.is_ok:
-            return err(f"Model artifact validation failed for backend: {backend}", inner=validation_result)
-        return ok(ResolvedModels(paths=paths_result.value, half=validation_result.value))
-
-
+            return err(
+                f"Model artifact validation failed for backend: {backend}",
+                inner=validation_result,
+            )
+        return ok(
+            ResolvedModels(paths=paths_result.value, half=validation_result.value)
+        )
 
     @classmethod
     def is_lite(cls) -> bool:
@@ -246,24 +272,34 @@ class PathManage:
         cls._is_lite = bool(is_lite)
 
         # 检查必须存在的目录
-        for dir_path in [cls.RESOURCES_DIR, cls.MODELS_DIR, cls.LOCALES_DIR, cls.WORKERS_DIR, cls.DATA_DIR]:
+        for dir_path in [
+            cls.RESOURCES_DIR,
+            cls.MODELS_DIR,
+            cls.LOCALES_DIR,
+            cls.WORKERS_DIR,
+            cls.DATA_DIR,
+        ]:
             if not dir_path.is_dir():
                 error_msg = f"Critical Error: Required directory not found: {dir_path}"
                 return err(error_msg)
-        
+
         # 创建可自动创建的目录
         for dir_path in [cls.TEMP_DIR]:
             if not dir_path.is_dir():
                 dir_path.mkdir(parents=True, exist_ok=True)
-        
+
         # 检查资源文件是否存在
-        for file_path in [cls.APP_ICON_PATH, cls.CLICK_TEMPLATE_PATH,
-                          cls.TEST_H264_PATH,
-                          cls.FFMPEG_EXE_PATH, cls.FFPROBE_EXE_PATH,
-                          cls.MajdataView_EXE_PATH, cls.MajdataEdit_EXE_PATH,
-                          cls.BPM_MEASURER_EXE_PATH,
-                          # cls.REID_PT_PATH
-                          ]:
+        for file_path in [
+            cls.APP_ICON_PATH,
+            cls.CLICK_TEMPLATE_PATH,
+            cls.TEST_H264_PATH,
+            cls.FFMPEG_EXE_PATH,
+            cls.FFPROBE_EXE_PATH,
+            cls.MajdataView_EXE_PATH,
+            cls.MajdataEdit_EXE_PATH,
+            cls.BPM_MEASURER_EXE_PATH,
+            # cls.REID_PT_PATH
+        ]:
             if not file_path.is_file():
                 error_msg = f"Critical Error: Required file not found: {file_path}"
                 return err(error_msg)
@@ -272,22 +308,35 @@ class PathManage:
         if not cls._is_lite:
             model_result = cls.validate_source_model_paths(cls.get_source_model_paths())
             if not model_result.is_ok:
-                return err("Critical Error: Required source model artifact not found", inner=model_result)
-            
+                return err(
+                    "Critical Error: Required source model artifact not found",
+                    inner=model_result,
+                )
+
         # 检查 worker 是否存在
-        for file_path in [cls.AUTO_RECHART_WORKER_PATH,
-                          cls.CHECK_DEVICE_WORKER_PATH,
-                          cls.MODEL_CONVERT_WORKER_PATH,
-                          cls.CHECK_FFMPEG_HW_ACCEL_WORKER_PATH]:
+        for file_path in [
+            cls.AUTO_RECHART_WORKER_PATH,
+            cls.CHECK_DEVICE_WORKER_PATH,
+            cls.MODEL_CONVERT_WORKER_PATH,
+            cls.CHECK_FFMPEG_HW_ACCEL_WORKER_PATH,
+        ]:
             if not file_path.is_file():
-                error_msg = f"Critical Error: Required worker script not found: {file_path}"
+                error_msg = (
+                    f"Critical Error: Required worker script not found: {file_path}"
+                )
                 return err(error_msg)
 
         return ok()
 
     @classmethod
     def validate_source_model_paths(cls, paths: ModelPaths) -> OpResult[None]:
-        for path in (paths.detect, paths.obb, paths.cls_break, paths.cls_ex, paths.touch_hold):
+        for path in (
+            paths.detect,
+            paths.obb,
+            paths.cls_break,
+            paths.cls_ex,
+            paths.touch_hold,
+        ):
             if not path.is_file():
                 return err(f"Source model artifact not found: {path}")
         return ok()

@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from src.services import PathManage
-
 import i18n
+
+from src.services import PathManage
 
 
 def build_launch_cmd(notify_path, audio_path=None) -> list[str]:
@@ -17,8 +17,6 @@ def build_launch_cmd(notify_path, audio_path=None) -> list[str]:
 
     cmd.append(f"--notify={Path(notify_path).resolve()}")
     return cmd
-
-
 
 
 def build_parse_config_cmd(notify_path, config_path) -> list[str]:

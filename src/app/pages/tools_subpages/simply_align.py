@@ -1,54 +1,29 @@
 import re
 from pathlib import Path
 
+import i18n
 from PyQt6.QtWidgets import QVBoxLayout
 
-from ..base_output_page import BaseOutputPage
+from src.core.build_worker_cmd import build_cmd_head_python_exe
+from src.core.schemas.media_config import MediaConfig_Definitions as M_Defs
+from src.core.schemas.media_config import MediaType
+from src.core.schemas.op_result import OpResult, err, ok, print_op_result
+from src.core.tools import FFprobeInspect, show_confirm_dialog, show_notify_dialog
+from src.services import MediaPipeline, PathManage, process_manager_api
+
+from ...ui_style import UI_Style
 from ...widgets import (
     MediaInputProbeWidget,
-    OutputLogWidget,
-    OverlayWidget,
-    PointerCursorButton,
-    RangeVisualizer,
-    ScrollableImageLabel,
-    SegmentedNavBar,
-    SplitDropButton,
-    SplitDropLineEdit,
-    SquareWidget,
-    StatedButton,
-    StyledCheckBox,
-    StyledComboBox,
-    StyledLineEdit,
-    ToolTipComboBox,
-    create_button,
     create_check_box,
-    create_clickable_label,
-    create_combo_box,
-    create_directory_selection_row,
     create_divider,
     create_file_selection_row,
     create_floating_notification,
     create_help_icon,
     create_label,
     create_line_edit,
-    create_path_display,
-    create_slider,
-    create_split_drop_button,
-    create_split_drop_line_edit,
     create_stated_button,
-    create_vertical_divider,
-    widget_utils,
 )
-from ...ui_style import UI_Style
-
-from src.core.build_worker_cmd import build_cmd_head_python_exe
-from src.core.schemas.op_result import OpResult, ok, err, print_op_result
-from src.core.tools import show_confirm_dialog, show_notify_dialog, FFprobeInspect
-from src.services import MediaPipeline, PathManage, process_manager_api
-import i18n
-
-from src.core.schemas.media_config import MediaType
-from src.core.schemas.media_config import MediaConfig_Definitions as M_Defs
+from ..base_output_page import BaseOutputPage
 
 I18N_Prefix = "app.tools_subpages.arcade_timing"
 I18N_Simply_Align_Prefix = "app.tools_subpages.simply_align"
@@ -58,8 +33,12 @@ I18N_Simply_Align_Prefix = "app.tools_subpages.simply_align"
 # "Audio files are perfectly aligned (offset < 0.01 sec)"  → 0
 # "Target file needs delay X sec"                         → +X
 # "Target file needs trim X sec"                          → -X
-_DELAY_RE = re.compile(r"Target file needs delay\s+(\d+(?:\.\d+)?)\s*sec(?!\w)", re.IGNORECASE)
-_TRIM_RE = re.compile(r"Target file needs trim\s+(\d+(?:\.\d+)?)\s*sec(?!\w)", re.IGNORECASE)
+_DELAY_RE = re.compile(
+    r"Target file needs delay\s+(\d+(?:\.\d+)?)\s*sec(?!\w)", re.IGNORECASE
+)
+_TRIM_RE = re.compile(
+    r"Target file needs trim\s+(\d+(?:\.\d+)?)\s*sec(?!\w)", re.IGNORECASE
+)
 _ALIGNED_RE = re.compile(r"Audio files are perfectly aligned", re.IGNORECASE)
 
 
@@ -101,14 +80,13 @@ def parse_offset_sec(recent_output: str) -> float | None:
     return None
 
 
-
 def build_edit_media_raw_data(
     target_path_str: str,
     target_media_type: MediaType,
     target_duration: float,
     offset_action: str | None,
     offset_value_sec: float | None,
-    output_suffix: str | None = None
+    output_suffix: str | None = None,
 ) -> OpResult[tuple[dict, Path]]:
     """构建一键编辑媒体的 raw_data 和输出路径，包含完整参数校验。
 
@@ -135,11 +113,11 @@ def build_edit_media_raw_data(
     # 校验媒体类型
     if target_media_type == MediaType.UNKNOWN:
         return err(i18n.t(f"{I18N_Simply_Align_Prefix}.warning_offset_not_ready"))
-    
+
     # 校验 action
     if offset_action == "aligned" or offset_value_sec == 0:
         return err(i18n.t(f"{I18N_Simply_Align_Prefix}.notice_skip_zero_offset"))
-    
+
     # 校验 offset
     if offset_action is None or offset_value_sec is None:
         return err(i18n.t(f"{I18N_Simply_Align_Prefix}.warning_offset_not_ready"))
@@ -151,18 +129,20 @@ def build_edit_media_raw_data(
     audio_format_default, _ = res.value
 
     if target_media_type == MediaType.AUDIO and target_path.suffix.lower() == ".mp3":
-        audio_format = "mp3" # 特殊处理 mp3
+        audio_format = "mp3"  # 特殊处理 mp3
     else:
         audio_format = audio_format_default
 
     # 构建输出路径
     output_filename = f"{target_path.stem}{output_suffix}" if output_suffix else None
-    res = M_Defs.build_full_output_path(str(target_path),
-                                        output_filename,
-                                        audio_format)
+    res = M_Defs.build_full_output_path(str(target_path), output_filename, audio_format)
     if not res.is_ok:
-        return err(i18n.t(f"{I18N_Simply_Align_Prefix}.warning_build_output_path_failed",
-                          error=print_op_result(res)))
+        return err(
+            i18n.t(
+                f"{I18N_Simply_Align_Prefix}.warning_build_output_path_failed",
+                error=print_op_result(res),
+            )
+        )
     output_path = Path(res.value[0])
 
     # 组装 raw_data
@@ -177,7 +157,6 @@ def build_edit_media_raw_data(
     }
 
     return ok((raw_data, output_path))
-
 
 
 class SimplyAlignPage(BaseOutputPage):
@@ -215,55 +194,74 @@ class SimplyAlignPage(BaseOutputPage):
         self._build_file_section()
         self._build_action_section()
 
-        process_manager_api.get_signals().runner_output.connect(self.output_widget.handle_process_output)
-        process_manager_api.get_signals().runner_ended.connect(self.output_widget.handle_process_ended)
+        process_manager_api.get_signals().runner_output.connect(
+            self.output_widget.handle_process_output
+        )
+        process_manager_api.get_signals().runner_ended.connect(
+            self.output_widget.handle_process_ended
+        )
         process_manager_api.get_signals().runner_ended.connect(self._on_runner_ended)
 
         self.content_layout.addStretch()
 
-
-
-
     def _build_file_section(self) -> None:
-        self.content_layout.addWidget(create_divider(i18n.t(f"{I18N_Prefix}.ui_select_file_divider")))
+        self.content_layout.addWidget(
+            create_divider(i18n.t(f"{I18N_Prefix}.ui_select_file_divider"))
+        )
 
-        reference_button, self.reference_path_display, reference_help = create_file_selection_row(
-            button_text=i18n.t(f"{I18N_Prefix}.ui_reference_file_button"),
-            help_text=i18n.t(f"{I18N_Simply_Align_Prefix}.ui_reference_file_help"),
+        reference_button, self.reference_path_display, reference_help = (
+            create_file_selection_row(
+                button_text=i18n.t(f"{I18N_Prefix}.ui_reference_file_button"),
+                help_text=i18n.t(f"{I18N_Simply_Align_Prefix}.ui_reference_file_help"),
+            )
         )
         self.create_row(reference_button, reference_help, self.reference_path_display)
 
         self.target_media_input = MediaInputProbeWidget(
-            select_file_button_help=i18n.t(f"{I18N_Simply_Align_Prefix}.ui_target_file_help"),
+            select_file_button_help=i18n.t(
+                f"{I18N_Simply_Align_Prefix}.ui_target_file_help"
+            ),
             select_file_button_text=i18n.t(f"{I18N_Prefix}.ui_target_file_button"),
         )
         self.content_layout.addWidget(self.target_media_input)
 
-        self.reference_path_display.textChanged.connect(lambda: self._set_quick_export_visible(False))
+        self.reference_path_display.textChanged.connect(
+            lambda: self._set_quick_export_visible(False)
+        )
         self.reference_path_display.textChanged.connect(self._on_reference_file_changed)
         self.target_media_input.media_loaded.connect(self.on_target_input_selected)
 
-
-
     def _build_action_section(self) -> None:
         # Action button + offset display
-        self.run_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_run_button"), isbig=True)
+        self.run_button = create_stated_button(
+            i18n.t(f"{I18N_Prefix}.ui_run_button"), isbig=True
+        )
         self.offset_label = create_label(bold=True)
-        self.offset_help_icon = create_help_icon(i18n.t(f"{I18N_Simply_Align_Prefix}.ui_offset_help"))
+        self.offset_help_icon = create_help_icon(
+            i18n.t(f"{I18N_Simply_Align_Prefix}.ui_offset_help")
+        )
         self.content_layout.addSpacing(UI_Style.widget_spacing)
-        self.create_row(self.run_button, self.offset_label, self.offset_help_icon, add_stretch=True)
+        self.create_row(
+            self.run_button, self.offset_label, self.offset_help_icon, add_stretch=True
+        )
 
         # Quick export: divider
-        self.quick_export_divider = create_divider(i18n.t(f"{I18N_Simply_Align_Prefix}.ui_quick_export_divider"))
+        self.quick_export_divider = create_divider(
+            i18n.t(f"{I18N_Simply_Align_Prefix}.ui_quick_export_divider")
+        )
         self.content_layout.addWidget(self.quick_export_divider)
 
         # Quick export: trim
-        self.quick_trim_label = create_label(i18n.t(f"{I18N_Simply_Align_Prefix}.ui_quick_trim_label"))
-        self.quick_trim_line_edit = create_line_edit(validator='float', length=100)
+        self.quick_trim_label = create_label(
+            i18n.t(f"{I18N_Simply_Align_Prefix}.ui_quick_trim_label")
+        )
+        self.quick_trim_line_edit = create_line_edit(validator="float", length=100)
 
         # Quick export: delay
-        self.quick_delay_label = create_label(i18n.t(f"{I18N_Simply_Align_Prefix}.ui_quick_delay_label"))
-        self.quick_delay_line_edit = create_line_edit(validator='float', length=100)
+        self.quick_delay_label = create_label(
+            i18n.t(f"{I18N_Simply_Align_Prefix}.ui_quick_delay_label")
+        )
+        self.quick_delay_line_edit = create_line_edit(validator="float", length=100)
 
         self.generate_video_label = create_label(
             i18n.t(f"{I18N_Simply_Align_Prefix}.ui_generate_video_label")
@@ -279,26 +277,30 @@ class SimplyAlignPage(BaseOutputPage):
         self.center_crop_help = create_help_icon(
             i18n.t(f"{I18N_Simply_Align_Prefix}.ui_center_crop_help")
         )
-        
+
         self.create_row(
-            self.quick_trim_label, self.quick_trim_line_edit,
-            self.quick_delay_label, self.quick_delay_line_edit,
-            self.generate_video_label, self.generate_video_button,
-            self.center_crop_label, self.center_crop_check_box, self.center_crop_help,
-            add_stretch=True
+            self.quick_trim_label,
+            self.quick_trim_line_edit,
+            self.quick_delay_label,
+            self.quick_delay_line_edit,
+            self.generate_video_label,
+            self.generate_video_button,
+            self.center_crop_label,
+            self.center_crop_check_box,
+            self.center_crop_help,
+            add_stretch=True,
         )
 
         self.run_button.clicked.connect(self.on_run_clicked)
         self.generate_video_button.clicked.connect(self.on_generate_video_clicked)
         self._set_quick_export_visible(False)
 
-
-
     def on_target_input_selected(self, error_msg: str) -> None:
         self._set_quick_export_visible(False)
         if len(error_msg) > 0:
-            show_notify_dialog(i18n.t(f"{I18N_Simply_Align_Prefix}.dialog_title"), error_msg)
-
+            show_notify_dialog(
+                i18n.t(f"{I18N_Simply_Align_Prefix}.dialog_title"), error_msg
+            )
 
     def _on_reference_file_changed(self, text: str) -> None:
         path = text.strip()
@@ -311,14 +313,12 @@ class SimplyAlignPage(BaseOutputPage):
         else:
             self._reference_media_type = MediaType.UNKNOWN
 
-
     def set_files_and_auto_run(self, reference_path: str, target_path: str) -> None:
         """编程方式设置基准文件和目标文件，并自动开始分析"""
         self.reference_path_display.setText(reference_path)
         self._on_reference_file_changed(reference_path)
         self.target_media_input.set_path(target_path)
         self.on_run_clicked()
-
 
     def _parse_inputs(self) -> OpResult[dict]:
         reference_file = self.reference_path_display.text().strip()
@@ -330,19 +330,22 @@ class SimplyAlignPage(BaseOutputPage):
             return err(i18n.t(f"{I18N_Prefix}.warning_target_file_required"))
 
         # Check both files contain audio streams
-        if self._reference_media_type not in (MediaType.AUDIO, MediaType.VIDEO_WITH_AUDIO):
+        if self._reference_media_type not in (
+            MediaType.AUDIO,
+            MediaType.VIDEO_WITH_AUDIO,
+        ):
             return err(i18n.t(f"{I18N_Prefix}.warning_no_audio_stream_ref"))
 
         target_type = self.target_media_input.selected_file_type
         if target_type not in (MediaType.AUDIO, MediaType.VIDEO_WITH_AUDIO):
             return err(i18n.t(f"{I18N_Prefix}.warning_no_audio_stream_target"))
 
-        return ok({
-            "reference_file": reference_file,
-            "target_file": target_file,
-        })
-
-
+        return ok(
+            {
+                "reference_file": reference_file,
+                "target_file": target_file,
+            }
+        )
 
     def on_run_clicked(self) -> None:
         if self._active_runner_id:
@@ -355,16 +358,20 @@ class SimplyAlignPage(BaseOutputPage):
         try:
             res = self._parse_inputs()
             if not res.is_ok:
-                show_notify_dialog(i18n.t(f"{I18N_Simply_Align_Prefix}.dialog_title"), res.error_msg)
+                show_notify_dialog(
+                    i18n.t(f"{I18N_Simply_Align_Prefix}.dialog_title"), res.error_msg
+                )
                 return
 
             data = res.value
             cmd = build_cmd_head_python_exe(PathManage.AUDIO_ALIGN_WORKER_PATH)
-            cmd.extend([
-                "true",  # is_simply_align
-                str(data["reference_file"]),
-                str(data["target_file"]),
-            ])
+            cmd.extend(
+                [
+                    "true",  # is_simply_align
+                    str(data["reference_file"]),
+                    str(data["target_file"]),
+                ]
+            )
 
             self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_run_start"))
 
@@ -372,7 +379,10 @@ class SimplyAlignPage(BaseOutputPage):
             if not result.is_ok:
                 show_notify_dialog(
                     i18n.t(f"{I18N_Simply_Align_Prefix}.dialog_title"),
-                    i18n.t(f"{I18N_Prefix}.warning_worker_start_failed", error=print_op_result(result)),
+                    i18n.t(
+                        f"{I18N_Prefix}.warning_worker_start_failed",
+                        error=print_op_result(result),
+                    ),
                 )
                 return
 
@@ -383,8 +393,6 @@ class SimplyAlignPage(BaseOutputPage):
             if not self._active_runner_id:
                 self.run_button.setEnabled(True)
 
-
-
     def _on_runner_ended(self, runner_id: str, ended) -> None:
         # Handle audio align worker
         if self._active_runner_id and runner_id == self._active_runner_id:
@@ -392,7 +400,9 @@ class SimplyAlignPage(BaseOutputPage):
             self.run_button.setEnabled(True)
 
             if getattr(ended, "cancelled", False):
-                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_run_cancelled"))
+                self.output_widget.append_text(
+                    i18n.t(f"{I18N_Prefix}.notice_run_cancelled")
+                )
                 return
 
             failed = bool(getattr(ended, "crashed", False))
@@ -401,7 +411,9 @@ class SimplyAlignPage(BaseOutputPage):
                 failed = True
 
             if failed:
-                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.warning_run_failed"))
+                self.output_widget.append_text(
+                    i18n.t(f"{I18N_Prefix}.warning_run_failed")
+                )
                 return
 
             self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_run_success"))
@@ -414,7 +426,9 @@ class SimplyAlignPage(BaseOutputPage):
             self.generate_video_button.setEnabled(True)
 
             if getattr(ended, "cancelled", False):
-                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_run_cancelled"))
+                self.output_widget.append_text(
+                    i18n.t(f"{I18N_Prefix}.notice_run_cancelled")
+                )
                 return
 
             failed = bool(getattr(ended, "crashed", False))
@@ -424,11 +438,15 @@ class SimplyAlignPage(BaseOutputPage):
 
             if failed:
                 self.output_widget.append_text(
-                    i18n.t(f"{I18N_Simply_Align_Prefix}.warning_video_generate_failed_log")
+                    i18n.t(
+                        f"{I18N_Simply_Align_Prefix}.warning_video_generate_failed_log"
+                    )
                 )
                 return
 
-            output_path_str = str(self._media_output_path) if self._media_output_path else "?"
+            output_path_str = (
+                str(self._media_output_path) if self._media_output_path else "?"
+            )
             self.output_widget.append_text(
                 i18n.t(
                     f"{I18N_Simply_Align_Prefix}.notice_video_generate_success",
@@ -437,13 +455,13 @@ class SimplyAlignPage(BaseOutputPage):
             )
             return
 
-
-
     def _try_parse_offset(self) -> None:
         offset = parse_offset_sec(self.output_widget.get_recent_lines(6))
 
         if offset is None:
-            self.output_widget.append_text(i18n.t(f"{I18N_Simply_Align_Prefix}.notice_offset_parse_failed"))
+            self.output_widget.append_text(
+                i18n.t(f"{I18N_Simply_Align_Prefix}.notice_offset_parse_failed")
+            )
             self._offset_action = None
             self._offset_value_sec = None
             self.offset_label.hide()
@@ -474,12 +492,13 @@ class SimplyAlignPage(BaseOutputPage):
         self.offset_help_icon.show()
         self._set_quick_export_visible(True)
 
-
-
     def _set_quick_export_visible(self, is_show: bool) -> None:
         if is_show:
             target_type = self.target_media_input.selected_file_type
-            if target_type not in (MediaType.VIDEO_WITH_AUDIO, MediaType.VIDEO_WITHOUT_AUDIO):
+            if target_type not in (
+                MediaType.VIDEO_WITH_AUDIO,
+                MediaType.VIDEO_WITHOUT_AUDIO,
+            ):
                 return
             self.offset_label.show()
             self.offset_help_icon.show()
@@ -516,9 +535,6 @@ class SimplyAlignPage(BaseOutputPage):
             # 隐藏即视为一轮快速导出结束，重置勾选状态，下次出现时回到默认值
             self.center_crop_check_box.setChecked(M_Defs.video_center_crop.default)
 
-
-
-
     def _get_sync_output_path(self, target_path: Path) -> Path:
         """获取输出路径，若 sync.mp4 已存在则询问是否删除，否则加后缀 < _int >"""
         sync_path = target_path.parent / "sync.mp4"
@@ -526,12 +542,15 @@ class SimplyAlignPage(BaseOutputPage):
             return sync_path
 
         title = i18n.t(f"{I18N_Simply_Align_Prefix}.dialog_title")
-        prompt = i18n.t(f"{I18N_Simply_Align_Prefix}.warning_sync_file_exists", path=str(sync_path))
-        
+        prompt = i18n.t(
+            f"{I18N_Simply_Align_Prefix}.warning_sync_file_exists", path=str(sync_path)
+        )
+
         # 用户选择删除
         if show_confirm_dialog(title, prompt):
             try:
                 from src.app.pages.majdata_page import MajdataPage
+
                 MajdataPage.try_unload_video_if_matches(target_path)
                 sync_path.unlink()
             except Exception as e:
@@ -544,8 +563,6 @@ class SimplyAlignPage(BaseOutputPage):
             if not candidate.exists():
                 return candidate
         return target_path.parent / "sync.mp4"
-
-
 
     def on_generate_video_clicked(self) -> None:
         """按钮入口，只负责重入保护。
@@ -565,7 +582,11 @@ class SimplyAlignPage(BaseOutputPage):
         if not self._offset_action:
             return
         # 从当前激活的 line edit 读取用户修改后的值
-        active_edit = self.quick_trim_line_edit if self._offset_action == "trim" else self.quick_delay_line_edit
+        active_edit = (
+            self.quick_trim_line_edit
+            if self._offset_action == "trim"
+            else self.quick_delay_line_edit
+        )
         try:
             offset_sec = float(active_edit.text().strip())
         except Exception:
@@ -586,16 +607,19 @@ class SimplyAlignPage(BaseOutputPage):
             return
 
         target_media_type = self.target_media_input.selected_file_type
-        if target_media_type not in (MediaType.VIDEO_WITH_AUDIO, MediaType.VIDEO_WITHOUT_AUDIO):
+        if target_media_type not in (
+            MediaType.VIDEO_WITH_AUDIO,
+            MediaType.VIDEO_WITHOUT_AUDIO,
+        ):
             return
 
         target_duration = self.target_media_input.selected_file_duration
 
         raw_fps = self.target_media_input.selected_video_fps
-        if raw_fps is not None and raw_fps > 130: # 允许有一点波动
+        if raw_fps is not None and raw_fps > 130:  # 允许有一点波动
             video_fps = 120  # 最高 120 帧
         else:
-            video_fps = None # 保持原始帧率
+            video_fps = None  # 保持原始帧率
 
         output_path = self._get_sync_output_path(target_path)
 
@@ -623,7 +647,9 @@ class SimplyAlignPage(BaseOutputPage):
         )
 
         try:
-            result = MediaPipeline.submit_task(raw_data, f"simply_align {target_path.name}")
+            result = MediaPipeline.submit_task(
+                raw_data, f"simply_align {target_path.name}"
+            )
             if not result.is_ok:
                 show_notify_dialog(
                     i18n.t(f"{I18N_Simply_Align_Prefix}.dialog_title"),
@@ -633,7 +659,9 @@ class SimplyAlignPage(BaseOutputPage):
                     ),
                 )
                 self.output_widget.append_text(
-                    i18n.t(f"{I18N_Simply_Align_Prefix}.warning_video_generate_failed_log")
+                    i18n.t(
+                        f"{I18N_Simply_Align_Prefix}.warning_video_generate_failed_log"
+                    )
                 )
                 return
 
@@ -641,7 +669,10 @@ class SimplyAlignPage(BaseOutputPage):
             self._active_media_runner_id = runner_id
             self.output_widget.bind_current_runner_id(runner_id)
 
-            message = i18n.t("app.tools_subpages.run_ffmpeg.notice_task_submit_success", task_id=runner_id)
+            message = i18n.t(
+                "app.tools_subpages.run_ffmpeg.notice_task_submit_success",
+                task_id=runner_id,
+            )
             create_floating_notification(message, self.window())
 
         finally:

@@ -1,13 +1,12 @@
-from dataclasses import dataclass
-from pathlib import Path
 import subprocess
 import sys
+from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 
 from src.core.tools import find_native_message
 from src.services import PathManage
-
 
 TEST_FP16_ONNX_PATH = PathManage.CHECK_DEVICE_TEST_FP16_ONNX_PATH
 TEST_FP32_ONNX_PATH = PathManage.CHECK_DEVICE_TEST_FP32_ONNX_PATH
@@ -43,7 +42,10 @@ def _run_onnx_model(ort, model_path: Path, providers, require_provider: str) -> 
     outputs = session.run(None, {model_input.name: np.zeros(input_shape, dtype=dtype)})
     if not outputs:
         raise RuntimeError("model returned no outputs")
-    if any(np.issubdtype(output.dtype, np.floating) and not np.isfinite(output).all() for output in outputs):
+    if any(
+        np.issubdtype(output.dtype, np.floating) and not np.isfinite(output).all()
+        for output in outputs
+    ):
         raise RuntimeError("model returned non-finite outputs")
 
 
@@ -87,13 +89,12 @@ def print_device_results(title: str, devices: list[DeviceResult]) -> None:
 def check_torch_installed() -> tuple[bool, object | None]:
     try:
         import torch
+
         print(f"PyTorch installed, version {torch.__version__}")
         return True, torch
     except Exception as e:
         print(f"Failed to load PyTorch: {e!r}")
         return False, None
-
-
 
 
 def get_windows_cpu_name() -> str:
@@ -118,4 +119,3 @@ def get_windows_cpu_name() -> str:
         return result.stdout.strip() if result.returncode == 0 else ""
     except (OSError, subprocess.TimeoutExpired):
         return ""
-

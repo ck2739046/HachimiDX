@@ -1,12 +1,16 @@
+import io
 import os
 import sys
 import traceback
 from pathlib import Path
-import io
 
 # 解决 Windows 控制台 Unicode 编码问题
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', write_through=True)
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace', write_through=True)
+sys.stdout = io.TextIOWrapper(
+    sys.stdout.buffer, encoding="utf-8", errors="replace", write_through=True
+)
+sys.stderr = io.TextIOWrapper(
+    sys.stderr.buffer, encoding="utf-8", errors="replace", write_through=True
+)
 
 
 if len(sys.argv) <= 1:
@@ -27,21 +31,18 @@ if root not in sys.path:
 # 解决方法是先导入 torch 再导入 pyqt6
 import torch  # noqa: F401
 
-
-
-from src.core.auto_rechart.standardize.main import main as standardize_main
-from src.core.auto_rechart.detect.main import main as detect_main
 from src.core.auto_rechart.analyze.main import main as analyze_main
+from src.core.auto_rechart.detect.main import main as detect_main
+from src.core.auto_rechart.standardize.main import main as standardize_main
 from src.core.auto_rechart.tool import install_ort_cpu_thread_tuning
 from src.core.schemas.media_config import MediaType
 from src.core.schemas.op_result import print_op_result
-from src.services import PathManage, I18nManage
-from src.main import VERSION
 from src.core.tools import redirect_native_stderr
+from src.main import VERSION
+from src.services import I18nManage, PathManage
 
 # worker 子进程没有经过 I18nManage.init(), 这里按父进程传入的 locale 环境变量初始化
 I18nManage.init_headless()
-
 
 
 def _as_bool(raw: str) -> bool:
@@ -99,8 +100,6 @@ def main(args: list[str]) -> bool:
             model_paths = model_paths_result.value.paths
             _half = model_paths_result.value.half
 
-
-
         if is_standardize_enabled:
             result = standardize_main(
                 input_video=_get_cfg(cfg, "standardize_input_video_path", Path),
@@ -111,17 +110,16 @@ def main(args: list[str]) -> bool:
                 duration=_get_cfg(cfg, "duration", float),
                 start_sec=_get_cfg(cfg, "start_sec", float),
                 end_sec=_get_cfg(cfg, "end_sec", float),
-                need_screen_rectification=_get_cfg(cfg, "need_screen_rectification", _as_bool),
+                need_screen_rectification=_get_cfg(
+                    cfg, "need_screen_rectification", _as_bool
+                ),
                 target_res=_get_cfg(cfg, "target_res", int),
                 ui_scale=_get_cfg(cfg, "ui_scale", int),
             )
             if not result.is_ok:
-                return _fail(print_op_result(result))     
-
-
+                return _fail(print_op_result(result))
 
         if is_detect_enabled:
-
             result = detect_main(
                 std_video_path=std_video_path,
                 batch_detect=_get_cfg(cfg, "predict_batch_size_detect_obb", int),
@@ -135,16 +133,15 @@ def main(args: list[str]) -> bool:
                 half=_half,
                 skip_detect=_get_cfg(cfg, "skip_detect", _as_bool),
                 skip_cls=_get_cfg(cfg, "skip_cls", _as_bool),
-                skip_export_tracked_video=_get_cfg(cfg, "skip_export_tracked_video", _as_bool),
+                skip_export_tracked_video=_get_cfg(
+                    cfg, "skip_export_tracked_video", _as_bool
+                ),
                 # enable_reid=_get_cfg(cfg, "enable_reid", _as_bool),
             )
             if not result.is_ok:
                 return _fail(print_op_result(result))
 
-
-
         if is_analyze_enabled:
-
             result = analyze_main(
                 std_video_path=std_video_path,
                 static_bpm=_get_cfg(cfg, "bpm", float),
@@ -160,7 +157,7 @@ def main(args: list[str]) -> bool:
                 batch_cls=_get_cfg(cfg, "predict_batch_size_classify", int),
                 cls_break_model_path=model_paths.cls_break,
                 cls_ex_model_path=model_paths.cls_ex,
-                app_version=VERSION
+                app_version=VERSION,
             )
             if not result.is_ok:
                 return _fail(print_op_result(result))
@@ -172,7 +169,6 @@ def main(args: list[str]) -> bool:
 
 
 if __name__ == "__main__":
-    
     # 各个模型推理都在本进程内执行, 原生日志走同一条 stderr。
     # 分成私有管道转发, 否则原生日志的 \r\n 行尾会被日志组件当成进度行, 覆盖掉进度显示。
     native_stderr = redirect_native_stderr("auto_rechart")

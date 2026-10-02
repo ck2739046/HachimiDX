@@ -1,7 +1,6 @@
 import json
 import socket
 import threading
-from typing import Optional
 
 
 class MajdataCommandClient:
@@ -37,9 +36,6 @@ class MajdataCommandClient:
             self._seq += 1
             return self._seq
 
-
-
-
     def _send_command(self, payload: dict) -> bool:
         """同步发送并等待 ack，带重试。成功返回 True"""
         seq = self._next_seq()
@@ -59,7 +55,7 @@ class MajdataCommandClient:
                     if status != "ok":
                         print(f"[MajdataCmd] ack error: {ack.get('error')}")
                     return status == "ok"
-            except socket.timeout:
+            except TimeoutError:
                 continue
             except OSError as e:
                 print(f"[MajdataCmd] send failed: {e}")
@@ -70,26 +66,17 @@ class MajdataCommandClient:
         print("[MajdataCmd] no ack after retries")
         return False
 
-
-
     def _send_command_bg(self, payload: dict) -> None:
         """后台线程发送，避免阻塞 UI"""
-        threading.Thread(target=lambda: self._send_command(payload), daemon=True).start()
-
-
-
-
-
-
+        threading.Thread(
+            target=lambda: self._send_command(payload), daemon=True
+        ).start()
 
     # 公开 api
 
-    def send_load(self,
-                  folder: str,
-                  maidata: str,
-                  track: str,
-                  pv: Optional[str] = None
-                 ) -> None:
+    def send_load(
+        self, folder: str, maidata: str, track: str, pv: str | None = None
+    ) -> None:
         payload = {"type": "load", "folder": folder, "maidata": maidata, "track": track}
         if pv:
             payload["pv"] = pv

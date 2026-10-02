@@ -1,13 +1,13 @@
-"""时值 → 分数 的转换工具。
-"""
+"""时值 → 分数 的转换工具。"""
 
 from __future__ import annotations
 
 import math
 
 
-
-def get_best_numerator_denominator(diff_bar, input_denominator, auto_12, auto_24, auto_48):
+def get_best_numerator_denominator(
+    diff_bar, input_denominator, auto_12, auto_24, auto_48
+):
     """
     在输入分母与 12/24/48 中选择误差最小的分母
 

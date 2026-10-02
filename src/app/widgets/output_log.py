@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TextIO
 
+import i18n
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QCursor, QTextBlockFormat, QTextCursor
 from PyQt6.QtWidgets import QPushButton, QTextEdit, QVBoxLayout, QWidget
@@ -10,14 +11,11 @@ from PyQt6.QtWidgets import QPushButton, QTextEdit, QVBoxLayout, QWidget
 from src.core.tools import OutputStreamDecoder, strip_ansi
 
 from ..ui_style import UI_Style
-import i18n
 
 I18N_Prefix = "app.widgets.output_log"
 
 _TEXT_EDIT_PADDING = 10
 _TEXT_EDIT_SCROLLBAR_WIDTH = 9
-
-
 
 
 @dataclass
@@ -30,14 +28,12 @@ class _RunnerFileLog:
         “\\r 进度行原地替换”而记录的状态：last_line_start 是上一行在文件中的
         字节偏移，is_last_line_replaceable 表示上一行是否允许被覆盖.
     """
+
     path: Path
     path_key: str
     file: TextIO
     is_last_line_replaceable: bool = False
     last_line_start: int | None = None
-
-
-
 
 
 class OutputLogWidget(QWidget):
@@ -65,34 +61,38 @@ class OutputLogWidget(QWidget):
         # 外层每项是一个关键词列表
         # 行中包含内层列表中所有 str 才忽略该行
         self._ignore_contains_filters: list[list[str]] = [
-
             # NCNN 在创建 Vulkan GPU 实例时默认写入
             ["[", "queueC=", "queueT=", "rebar=", "r-score="],
             ["[", "fp16-p/s/u/a=", "int8-p/s/u/a="],
             ["[", "subgroup=", "ops="],
             ["[", "fp16-cm=", "int8-cm="],
-
             # TensorRT 推理 detect/obb
             ["[TRT] [I] Loaded engine size: "],
-            ["[TRT] [I] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: "],
-            ["[TRT] [W] WARNING The logger passed into createInferRuntime differs from one already registered for an existing builder, runtime, or refitter. "],
-
+            [
+                "[TRT] [I] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: "
+            ],
+            [
+                "[TRT] [W] WARNING The logger passed into createInferRuntime differs from one already registered for an existing builder, runtime, or refitter. "
+            ],
             # TensorRT 推理 classify
             ["[TRT] [I] [MS] Running engine with multi stream info"],
             ["[TRT] [I] [MS] Number of aux streams is"],
             ["[TRT] [I] [MS] Number of total worker streams is"],
-            ["[TRT] [I] [MS] The main stream provided by execute/enqueue calls is the first worker stream"],
-
+            [
+                "[TRT] [I] [MS] The main stream provided by execute/enqueue calls is the first worker stream"
+            ],
             # TensorRT 转换模型
             ["[TRT] [W] Requested amount of GPU memory "],
             ["[TRT] [W] UNSUPPORTED_STATE: Skipping tactic"],
-            ["[TRT] [E] [virtualMemoryBuffer.cpp::nvinfer1::StdVirtualMemoryBufferImpl::resizePhysical::154] Error Code"],
-
+            [
+                "[TRT] [E] [virtualMemoryBuffer.cpp::nvinfer1::StdVirtualMemoryBufferImpl::resizePhysical::154] Error Code"
+            ],
             # Librosa 加载音频 (detect click start)
             ["error: No comment text / valid description?"],
-
             # onnxruntime-gpu 找不到 cuda ep 设备 (误报)
-            ["No registered plugin EP device found for 'CUDAExecutionProvider' with device_id="],
+            [
+                "No registered plugin EP device found for 'CUDAExecutionProvider' with device_id="
+            ],
         ]
 
         # 保存的最大行数
@@ -113,8 +113,6 @@ class OutputLogWidget(QWidget):
 
         self._setup_ui()
 
-
-
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -126,25 +124,25 @@ class OutputLogWidget(QWidget):
         self.text_edit.setStyleSheet(
             f"""
             QTextEdit {{
-                background-color: {UI_Style.COLORS['grey']};
-                color: {UI_Style.COLORS['text_primary']};
+                background-color: {UI_Style.COLORS["grey"]};
+                color: {UI_Style.COLORS["text_primary"]};
                 border: none;
                 padding: {_TEXT_EDIT_PADDING}px;
                 font-family: 'Consolas', 'Courier New', monospace;
                 font-size: 12px;
             }}
             QScrollBar:vertical {{
-                background-color: {UI_Style.COLORS['bg']};
+                background-color: {UI_Style.COLORS["bg"]};
                 width: {_TEXT_EDIT_SCROLLBAR_WIDTH}px;
                 border: none;
             }}
             QScrollBar::handle:vertical {{
-                background-color: {UI_Style.COLORS['grey_hover']};
+                background-color: {UI_Style.COLORS["grey_hover"]};
                 border-radius: 3px;
                 min-height: 20px;
             }}
             QScrollBar::handle:vertical:hover {{
-                background-color: {UI_Style.COLORS['accent']};
+                background-color: {UI_Style.COLORS["accent"]};
             }}
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
                 height: 0px;
@@ -159,7 +157,9 @@ class OutputLogWidget(QWidget):
 
         # 浮动"清空输出"按钮: 不进布局, 由 _reposition_clear_button() 贴到右上角,
         # 这样所有用本组件的页面都自带该按钮
-        self.clear_button = QPushButton(i18n.t(f"{I18N_Prefix}.ui_clear_output_button"), self)
+        self.clear_button = QPushButton(
+            i18n.t(f"{I18N_Prefix}.ui_clear_output_button"), self
+        )
         self.clear_button.setFixedHeight(22)
         self.clear_button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.clear_button.setStyleSheet(
@@ -173,8 +173,8 @@ class OutputLogWidget(QWidget):
                 font-size: 11px;
             }}
             QPushButton:hover {{
-                background-color: {UI_Style.COLORS['accent']};
-                color: {UI_Style.COLORS['text_primary']};
+                background-color: {UI_Style.COLORS["accent"]};
+                color: {UI_Style.COLORS["text_primary"]};
             }}
             """
         )
@@ -184,7 +184,6 @@ class OutputLogWidget(QWidget):
 
         # 段落间距 = 字体高度的 0.7 倍
         self._output_line_spacing = round(self.text_edit.fontMetrics().height() * 0.7)
-
 
     def _reposition_clear_button(self) -> None:
         """把浮动按钮贴到文本区右上角, 并让开右侧的 padding 与垂直滚动条."""
@@ -197,12 +196,9 @@ class OutputLogWidget(QWidget):
         x = self.width() - button.width() - offset
         button.move(max(x, _TEXT_EDIT_PADDING), _TEXT_EDIT_PADDING)
 
-
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._reposition_clear_button()
-
-
 
     def _append_paragraph(self, text: str) -> None:
         """追加一条逻辑行, 并给行与行之间留出间距.
@@ -225,8 +221,6 @@ class OutputLogWidget(QWidget):
         block_format.setTopMargin(self._output_line_spacing)
         QTextCursor(document.lastBlock()).setBlockFormat(block_format)
 
-
-
     def _limit_output_lines(self) -> None:
         document = self.text_edit.document()
         if document.blockCount() <= self.max_output_lines:
@@ -241,8 +235,6 @@ class OutputLogWidget(QWidget):
             cursor.removeSelectedText()
             cursor.deleteChar()  # 删除换行符
 
-
-
     def _append_output(
         self,
         text: str,
@@ -251,13 +243,13 @@ class OutputLogWidget(QWidget):
     ) -> bool:
         """
         添加输出文本
-        
+
         :param text: 要添加的文本
         :param replace_last: 是否替换最后一行（用于进度条更新，处理 \\r）
         :param runner_id: 该输出归属的 runner；用于把同一行镜像写到对应日志文件
         :return: 这条逻辑行是否真的上了屏；被过滤的行返回 False, 调用方据此决定要不要收尾
         """
-        
+
         if self._should_ignore_line(text):
             return False
 
@@ -270,14 +262,17 @@ class OutputLogWidget(QWidget):
             was_at_bottom = True
         else:
             was_at_bottom = False
-        
+
         if replace_last:
             # 只在上一行是进度行时才替换
             if self._is_last_line_replaceable:
                 # 替换最后一行：移动到文档末尾，选择当前行，删除并插入新文本
                 cursor = self.text_edit.textCursor()
                 cursor.movePosition(QTextCursor.MoveOperation.End)
-                cursor.movePosition(QTextCursor.MoveOperation.StartOfBlock, QTextCursor.MoveMode.KeepAnchor)
+                cursor.movePosition(
+                    QTextCursor.MoveOperation.StartOfBlock,
+                    QTextCursor.MoveMode.KeepAnchor,
+                )
                 cursor.removeSelectedText()
                 cursor.insertText(text)
                 # 不要设置光标，避免触发自动滚动
@@ -293,10 +288,10 @@ class OutputLogWidget(QWidget):
             self._is_last_line_replaceable = False
 
         self._write_file_log(runner_id, text, replace_last)
-        
+
         # 限制最大行数
         self._limit_output_lines()
-        
+
         # 智能滚动：仅当用户之前在底部时才自动滚动
         if was_at_bottom:
             self.text_edit.moveCursor(QTextCursor.MoveOperation.End)
@@ -306,17 +301,14 @@ class OutputLogWidget(QWidget):
 
         return True
 
-
-
     def append_text(self, text, runner_id: str | None = None):
         """
         手动添加文本（用于非进程输出的日志）
         安全假设：手动添加的文本不包含 \r
-        
+
         :param text: 要添加的文本
         """
         self._append_output(text, replace_last=False, runner_id=runner_id)
-
 
     @staticmethod
     def _normalize_log_path(path: str | Path) -> tuple[Path, str]:
@@ -325,7 +317,6 @@ class OutputLogWidget(QWidget):
         """
         normalized_path = Path(path).expanduser().resolve(strict=False)
         return normalized_path, os.path.normcase(str(normalized_path))
-
 
     def _close_runner_file_log(self, runner_id: str) -> None:
         """关闭并移除某 runner 的日志文件，同时释放对应路径的所有权."""
@@ -340,7 +331,6 @@ class OutputLogWidget(QWidget):
             state.file.close()
         except (OSError, ValueError):
             pass
-
 
     def _configure_runner_file_log(
         self,
@@ -384,13 +374,11 @@ class OutputLogWidget(QWidget):
         )
         self._log_path_owners[path_key] = runner_id
 
-
     def _get_runner_file_log(self, runner_id: str | None) -> _RunnerFileLog | None:
         """返回某 runner 的文件日志状态；runner_id 为 None 时返回 None."""
         if runner_id is None:
             return None
         return self._runner_file_logs.get(runner_id)
-
 
     def _resolve_append_runner_id(self, runner_id: str | None) -> str | None:
         """把一次输出归到具体的、带有文件日志的 runner_id.
@@ -400,7 +388,9 @@ class OutputLogWidget(QWidget):
         多个或零个都返回 None（避免歧义 / 无日志可写）.
         """
         if runner_id is not None:
-            return runner_id if self._get_runner_file_log(runner_id) is not None else None
+            return (
+                runner_id if self._get_runner_file_log(runner_id) is not None else None
+            )
 
         candidates = [
             current_runner_id
@@ -408,7 +398,6 @@ class OutputLogWidget(QWidget):
             if self._get_runner_file_log(current_runner_id) is not None
         ]
         return candidates[0] if len(candidates) == 1 else None
-
 
     def _write_file_log(
         self,
@@ -428,7 +417,11 @@ class OutputLogWidget(QWidget):
             return
 
         try:
-            if replace_last and state.is_last_line_replaceable and state.last_line_start is not None:
+            if (
+                replace_last
+                and state.is_last_line_replaceable
+                and state.last_line_start is not None
+            ):
                 # 覆盖上一进度行：回到其起始偏移，重写并截断其后内容
                 state.file.seek(state.last_line_start)
                 state.file.write(text)
@@ -448,7 +441,6 @@ class OutputLogWidget(QWidget):
             if resolved_runner_id is not None:
                 self._close_runner_file_log(resolved_runner_id)
 
-
     def _clear_output_state(self) -> None:
         """只清空屏幕显示.
 
@@ -460,7 +452,6 @@ class OutputLogWidget(QWidget):
         # 屏幕已空, 下一条进度行不能去找一条并不存在的上一行来覆盖
         self._is_last_line_replaceable = False
 
-
     def clear(self) -> None:
         """清空输出区域（仅屏幕显示）.
 
@@ -469,7 +460,6 @@ class OutputLogWidget(QWidget):
         后续若仍有输出（进程仍在跑）也会照常续写.
         """
         self._clear_output_state()
-
 
     # ===== Process runner_output handling (runner_id + bytes) =====
 
@@ -493,7 +483,7 @@ class OutputLogWidget(QWidget):
             log_enabled (bool): Whether to enable file logging for this runner.
             logtxt_path (str | Path | None): Path to the log file when logging is enabled.
         """
-        
+
         if runner_id:
             # 绑定新 runner：按其配置（重新）打开日志文件并接管该路径
             self._configure_runner_file_log(runner_id, log_enabled, logtxt_path)
@@ -503,12 +493,11 @@ class OutputLogWidget(QWidget):
             for current_runner_id in tuple(self._current_runner_id):
                 self._close_runner_file_log(current_runner_id)
             self._current_runner_id = set()
-            
+
         if clear:
             # clear 只清屏幕显示，不影响已落盘的日志文件
             self._clear_output_state()
 
-    
     def handle_process_ended(self, runner_id: str, _: any) -> None:
         """
         Slot: consume ProcessManager.signals.runner_ended(runner_id, RunnerEnded).
@@ -520,9 +509,9 @@ class OutputLogWidget(QWidget):
         self._close_runner_file_log(runner_id)
         self._current_runner_id.discard(runner_id)
 
-
-
-    def handle_process_output(self, runner_id: str, stream: str, payload: object) -> None:
+    def handle_process_output(
+        self, runner_id: str, stream: str, payload: object
+    ) -> None:
         """
         Slot: consume ProcessManager.signals.runner_output(runner_id, stream, bytes).
         Handles output only if runner_id matches the bound runner_id(s).
@@ -542,9 +531,6 @@ class OutputLogWidget(QWidget):
         if text:
             self._process_text_buffer(key, text)
 
-
-
-
     def flush_buffer(self) -> None:
         """刷新缓冲区，输出剩余内容"""
         runner_ids = {runner_id for runner_id, _ in self._stream_decoders}
@@ -552,16 +538,9 @@ class OutputLogWidget(QWidget):
         for runner_id in runner_ids:
             self._flush_runner(runner_id)
 
-
     def _flush_runner(self, runner_id: str) -> None:
-        keys = {
-            key for key in self._stream_decoders
-            if key[0] == runner_id
-        }
-        keys.update(
-            key for key in self._text_buffers
-            if key[0] == runner_id
-        )
+        keys = {key for key in self._stream_decoders if key[0] == runner_id}
+        keys.update(key for key in self._text_buffers if key[0] == runner_id)
         for key in keys:
             decoder = self._stream_decoders.pop(key, None)
             if decoder is not None:
@@ -582,8 +561,6 @@ class OutputLogWidget(QWidget):
                 # 半条记录到此为止, 新的一行从零开始
                 self._end_current_line(runner_id)
 
-
-
     def _should_ignore_line(self, text: str) -> bool:
         """根据包含词过滤列表判断该行是否应忽略"""
         if not text:
@@ -593,8 +570,6 @@ class OutputLogWidget(QWidget):
                 return True
         return False
 
-
-
     def _end_current_line(self, runner_id: str | None) -> None:
         """一条逻辑行已被换行收尾: 光标落到新行, 它不能再被后续 '\\r' 替换"""
         self._is_last_line_replaceable = False
@@ -602,7 +577,6 @@ class OutputLogWidget(QWidget):
         state = self._get_runner_file_log(self._resolve_append_runner_id(runner_id))
         if state is not None:
             state.is_last_line_replaceable = False
-
 
     def _process_text_buffer(self, key: tuple[str, str], text: str) -> None:
         """处理文本缓冲区中的 \\r 和 \\n
@@ -618,18 +592,18 @@ class OutputLogWidget(QWidget):
         # 处理缓冲区中的文本
         while True:
             # 检查是否有换行符
-            if '\n' in text_buffer:
+            if "\n" in text_buffer:
                 # 有换行符，处理到换行符为止的内容
-                line, text_buffer = text_buffer.split('\n', 1)
-                if line.endswith('\r'):
+                line, text_buffer = text_buffer.split("\n", 1)
+                if line.endswith("\r"):
                     # 只剥 CRLF 自带的那个 '\r'
                     line = line[:-1]
 
                 # 处理 \\r（回车符）
-                if '\r' in line:
+                if "\r" in line:
                     # 一段 \\r 只把光标拉回行首, 屏幕上始终是同一行: 只有最后一段是该行的
                     # 最终内容, 前面那些段是被反复覆盖掉的中间态, 不该各自成行
-                    segments = line.split('\r')
+                    segments = line.split("\r")
                     content = segments[-1] if segments[-1].strip() else segments[-2]
                     if content.strip():
                         rendered = self._append_output(
@@ -656,9 +630,9 @@ class OutputLogWidget(QWidget):
                     # 那一行已经显示好了, 这里不能再输出空行
                     self._end_current_line(key[0])
 
-            elif '\r' in text_buffer:
+            elif "\r" in text_buffer:
                 # 有回车符但没有换行符，说明是进度更新
-                parts = text_buffer.split('\r')
+                parts = text_buffer.split("\r")
                 # 只发送倒数第二个部分（如果有的话）
                 # 因为最后一个部分可能不完整，需要保留在缓冲区
                 if len(parts) >= 2:
@@ -682,16 +656,15 @@ class OutputLogWidget(QWidget):
 
         self._text_buffers[key] = text_buffer
 
-
     def get_recent_lines(self, num_lines):
         """
         获取最近几行文本 (过滤空行)
-        
+
         :param num_lines: 要获取的行数
         :return: 最近几行文本的字符串
         """
         full_text = self.text_edit.toPlainText()
-        lines = full_text.split('\n')
+        lines = full_text.split("\n")
         # 获取最后 num_lines 行，过滤空行
         recent_lines = [line for line in lines[-num_lines:] if line.strip()]
-        return '\n'.join(recent_lines)
+        return "\n".join(recent_lines)

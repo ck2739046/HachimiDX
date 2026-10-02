@@ -1,39 +1,35 @@
-import cv2
 import os
 import time
-import torch.utils.data
-from pathlib import Path
-import numpy as np
 from collections import defaultdict
+from pathlib import Path
 
-from ...schemas.op_result import OpResult, ok, err
+import cv2
 import i18n
-from .note_definition import (
-    NoteType,
-    NoteVariant,
-    Note_Geometry,
-    get_imgsz,
-    is_obb,
-    map_model_class_to_note_type,
-    map_note_type_to_class_id,
-    need_cls,
-)
+import numpy as np
+
+from ...schemas.op_result import OpResult, err, ok
 from .detect_decode import Decoder
 from .detect_inference import create_inferencer
-
-
-
+from .note_definition import (
+    Note_Geometry,
+    NoteType,
+    NoteVariant,
+    get_imgsz,
+)
 
 _PROGRESS_STALL_TIMEOUT = 60.0  # 如果 progress 连续一段时间无推进则报错
 
 
-
-def main(std_video_path,
-         total_frames,
-         batch_detect, inference_device,
-         detect_model_path, obb_model_path,
-         model_backend, half,
-        ) -> OpResult:
+def main(
+    std_video_path,
+    total_frames,
+    batch_detect,
+    inference_device,
+    detect_model_path,
+    obb_model_path,
+    model_backend,
+    half,
+) -> OpResult:
     """
     检测模块主入口
 
@@ -50,21 +46,29 @@ def main(std_video_path,
         # 1. 前置计算: decode_imgsz + coord_scale
         #    decoder 会把帧 resize 到 decode_imgsz
         #    worker 解析时乘 coord_scale 还原到原始尺寸
-        decode_imgsz = get_imgsz('detect')
+        decode_imgsz = get_imgsz("detect")
         cap = cv2.VideoCapture(str(std_video_path))
         std_video_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
         cap.release()
         if not std_video_width or std_video_width <= 0:
-            return err(i18n.t("detect.error_read_video_width_failed", path=str(std_video_path)))
+            return err(
+                i18n.t("detect.error_read_video_width_failed", path=str(std_video_path))
+            )
         coord_scale = std_video_width / decode_imgsz
 
         # 2. 构造 Decoder
         decoder = Decoder(str(std_video_path), decode_imgsz, batch_detect, total_frames)
 
         # 3. 构造 Inferencer
-        create_r = create_inferencer(detect_model_path, obb_model_path,
-                                     batch_detect, inference_device, coord_scale,
-                                     model_backend, half)
+        create_r = create_inferencer(
+            detect_model_path,
+            obb_model_path,
+            batch_detect,
+            inference_device,
+            coord_scale,
+            model_backend,
+            half,
+        )
         if not create_r.is_ok:
             return err("[detect] create_inferencer failed", inner=create_r)
         inferencer = create_r.value
@@ -72,13 +76,13 @@ def main(std_video_path,
         # 3. 构造 progress monitor (打印进度 + 停滞检测)
         monitor = _ProgressMonitor(total_frames)
 
-
-
         # 4. 主循环: 先收结果, 再从 decoder 取帧, 最后给 inferencer 喂帧
         while True:
             get_r = inferencer.get_results()
             if not get_r.is_ok:
-                return err("[detect.main.loop1] inferencer.get_results failed", inner=get_r)
+                return err(
+                    "[detect.main.loop1] inferencer.get_results failed", inner=get_r
+                )
             raw_results.extend(get_r.value)
 
             update_r = monitor.update(inferencer)
@@ -87,26 +91,30 @@ def main(std_video_path,
 
             batch_r = decoder.get_next_batch()
             if not batch_r.is_ok:
-                return err("[detect.main.loop1] decoder.get_next_batch failed", inner=batch_r)
+                return err(
+                    "[detect.main.loop1] decoder.get_next_batch failed", inner=batch_r
+                )
             if batch_r.value is None:
                 break  # 解码 EOF
 
             put_r = inferencer.put_batch(batch_r.value)
             if not put_r.is_ok:
-                return err("[detect.main.loop1] inferencer.put_batch failed", inner=put_r)
+                return err(
+                    "[detect.main.loop1] inferencer.put_batch failed", inner=put_r
+                )
 
         # 解码完成, 通知 worker 不再有新输入
         eof_r = inferencer.send_eof()
         if not eof_r.is_ok:
             return err("[detect.main] inferencer.send_eof failed", inner=eof_r)
 
-
-
         # 5. 收尾循环: 等待 inferencer 完成剩余的推理
         while not inferencer.is_done:
             get_r = inferencer.get_results()
             if not get_r.is_ok:
-                return err("[detect.main.loop2] inferencer.get_results failed", inner=get_r)
+                return err(
+                    "[detect.main.loop2] inferencer.get_results failed", inner=get_r
+                )
             raw_results.extend(get_r.value)
 
             update_r = monitor.update(inferencer)
@@ -122,13 +130,16 @@ def main(std_video_path,
         _ = monitor.update(inferencer)  # 最终刷新一次进度显示 (忽略结果)
         print()  # 换行跳出 \r 行
 
-
-
         # 6. 后处理 (prefilter + NMS) + 保存
         final_results = _postprocess_results(raw_results, std_video_path)
         _save_detect_results(final_results, std_video_path.parent)
 
-        print(i18n.t("detect.notice_module_finished", seconds=f"{time.time() - start_time:.1f}"))
+        print(
+            i18n.t(
+                "detect.notice_module_finished",
+                seconds=f"{time.time() - start_time:.1f}",
+            )
+        )
         return ok()
 
     except KeyboardInterrupt:
@@ -143,16 +154,16 @@ def main(std_video_path,
             decoder.close()
 
 
-
 class _ProgressMonitor:
     """简易进度监控器: 进度打印 + 停滞检测"""
 
-    def __init__(self, total_frames: int,
-                 stall_timeout: float = _PROGRESS_STALL_TIMEOUT):
+    def __init__(
+        self, total_frames: int, stall_timeout: float = _PROGRESS_STALL_TIMEOUT
+    ):
         self._total_frames = total_frames
         self._stall_timeout = stall_timeout
 
-        self._last_progress = None                 # 上次进度的数值, 用于停滞检测
+        self._last_progress = None  # 上次进度的数值, 用于停滞检测
         self._last_change_time = time.monotonic()  # 上次进度变化的时刻, 用于停滞检测
 
     def update(self, inferencer) -> OpResult:
@@ -168,24 +179,21 @@ class _ProgressMonitor:
             self._last_progress = progress
             self._last_change_time = time.monotonic()
         elif time.monotonic() - self._last_change_time > self._stall_timeout:
-            return err(i18n.t("detect.error_progress_stalled", timeout=self._stall_timeout))
+            return err(
+                i18n.t("detect.error_progress_stalled", timeout=self._stall_timeout)
+            )
 
         # 3. 打印进度
         total = self._total_frames
         pct_d = min(pd / total * 100, 100.0) if total else 0.0
         pct_o = min(po / total * 100, 100.0) if total else 0.0
-        print("\r"
-              f"detect {pd}/{total} ({pct_d:.1f}%)"
-              " | "
-              f"obb {po}/{total} ({pct_o:.1f}%)",
-              end="    ", flush=True)
+        print(
+            f"\rdetect {pd}/{total} ({pct_d:.1f}%) | obb {po}/{total} ({pct_o:.1f}%)",
+            end="    ",
+            flush=True,
+        )
 
         return ok()
-
-
-
-
-
 
 
 def _prefilter_tap_hold_by_size(note_geometrys: list, size_thresh: float) -> list:
@@ -195,9 +203,12 @@ def _prefilter_tap_hold_by_size(note_geometrys: list, size_thresh: float) -> lis
     if not note_geometrys:
         return []
     _TARGET_TYPES = (NoteType.TAP, NoteType.HOLD)
-    return [g for g in note_geometrys
-            if g.note_type not in _TARGET_TYPES              # 如果不是目标类型, 直接保留
-            or (g.w >= size_thresh and g.h >= size_thresh)]  # 如果是类型，应用尺寸过滤
+    return [
+        g
+        for g in note_geometrys
+        if g.note_type not in _TARGET_TYPES  # 如果不是目标类型, 直接保留
+        or (g.w >= size_thresh and g.h >= size_thresh)
+    ]  # 如果是类型，应用尺寸过滤
 
 
 def _dedup_detections(note_geometrys: list, model_name: str, iou_thresh: float) -> list:
@@ -209,18 +220,22 @@ def _dedup_detections(note_geometrys: list, model_name: str, iou_thresh: float) 
         by_type[t].append(g)
     note_geometrys_final = []
     for lst in by_type.values():
-        note_geometrys_final.extend(_dedup_detections_single_type(lst, model_name, iou_thresh))
+        note_geometrys_final.extend(
+            _dedup_detections_single_type(lst, model_name, iou_thresh)
+        )
     return note_geometrys_final
 
 
-def _dedup_detections_single_type(detections: list, model_name: str, iou_thresh: float) -> list:
+def _dedup_detections_single_type(
+    detections: list, model_name: str, iou_thresh: float
+) -> list:
     if len(detections) < 2:
         return detections
 
     # 按置信度降序排列，确保高置信度框优先保留
     detections = sorted(detections, key=lambda d: d.conf, reverse=True)
 
-    if model_name == 'detect':
+    if model_name == "detect":
         iou = _compute_detect_iou_matrix(detections)
     else:  # obb
         iou = _compute_obb_iou_matrix(detections)
@@ -258,8 +273,14 @@ def _compute_detect_iou_matrix(detections: list) -> np.ndarray:
 
 def _obb_iou_single(g1, g2) -> float:
     """计算两个 OBB 框之间的 IoU"""
-    pixel_box1 = np.array([[g1.x1, g1.y1], [g1.x2, g1.y2], [g1.x3, g1.y3], [g1.x4, g1.y4]], dtype=np.float32)
-    pixel_box2 = np.array([[g2.x1, g2.y1], [g2.x2, g2.y2], [g2.x3, g2.y3], [g2.x4, g2.y4]], dtype=np.float32)
+    pixel_box1 = np.array(
+        [[g1.x1, g1.y1], [g1.x2, g1.y2], [g1.x3, g1.y3], [g1.x4, g1.y4]],
+        dtype=np.float32,
+    )
+    pixel_box2 = np.array(
+        [[g2.x1, g2.y1], [g2.x2, g2.y2], [g2.x3, g2.y3], [g2.x4, g2.y4]],
+        dtype=np.float32,
+    )
     rect1 = cv2.minAreaRect(pixel_box1)
     rect2 = cv2.minAreaRect(pixel_box2)
     ret, intersection = cv2.rotatedRectangleIntersection(rect1, rect2)
@@ -286,19 +307,12 @@ def _compute_obb_iou_matrix(detections: list) -> np.ndarray:
     return iou
 
 
-
-
-
-
-
-
-
 def _postprocess_results(raw_results: list, std_video_path: Path) -> list:
     """推理完成后统一执行 prefilter + NMS 后处理"""
 
     if not raw_results:
         return []
-    
+
     # 计算 tap/hold 尺寸预过滤的阈值
     try:
         cap = cv2.VideoCapture(str(std_video_path))
@@ -309,15 +323,15 @@ def _postprocess_results(raw_results: list, std_video_path: Path) -> list:
         size_thresh = video_width / 1080.0 * 90
     except Exception as e:
         print(f"Failed to get video width. Error: {e}")
-        size_thresh = -1 # 不过滤
-    
+        size_thresh = -1  # 不过滤
+
     by_frame: dict[int, dict] = defaultdict(lambda: {"detect": [], "obb": []})
     for ng, model_name in raw_results:
         by_frame[ng.frame][model_name].append(ng)
 
     final_results = []
     for frame in sorted(by_frame.keys()):
-        for model_name in ('detect', 'obb'):
+        for model_name in ("detect", "obb"):
             geos = by_frame[frame][model_name]
             if not geos:
                 continue
@@ -328,19 +342,12 @@ def _postprocess_results(raw_results: list, std_video_path: Path) -> list:
     return final_results
 
 
-
-
-
-
-
-
-
 def _save_detect_results(detections, output_dir):
 
-    detections = sorted(detections, key=lambda x: x.frame) # 按帧号排序
+    detections = sorted(detections, key=lambda x: x.frame)  # 按帧号排序
     detect_result_path = os.path.join(output_dir, "detect_result.txt")
-    
-    with open(detect_result_path, 'w', encoding='utf-8') as f:
+
+    with open(detect_result_path, "w", encoding="utf-8") as f:
         current_frame = -1
         for detection in detections:
             # 写入新的帧号
@@ -353,15 +360,21 @@ def _save_detect_results(detections, output_dir):
                 f"{detection.note_type.value}",
                 f"{detection.note_variant.value}",
                 f"{detection.conf:.4f}",
-                f"{detection.x1:.4f}", f"{detection.y1:.4f}",
-                f"{detection.x2:.4f}", f"{detection.y2:.4f}",
-                f"{detection.x3:.4f}", f"{detection.y3:.4f}",
-                f"{detection.x4:.4f}", f"{detection.y4:.4f}",
-                f"{detection.cx:.4f}", f"{detection.cy:.4f}",
-                f"{detection.w:.4f}", f"{detection.h:.4f}",
-                f"{detection.r:.4f}"
+                f"{detection.x1:.4f}",
+                f"{detection.y1:.4f}",
+                f"{detection.x2:.4f}",
+                f"{detection.y2:.4f}",
+                f"{detection.x3:.4f}",
+                f"{detection.y3:.4f}",
+                f"{detection.x4:.4f}",
+                f"{detection.y4:.4f}",
+                f"{detection.cx:.4f}",
+                f"{detection.cy:.4f}",
+                f"{detection.w:.4f}",
+                f"{detection.h:.4f}",
+                f"{detection.r:.4f}",
             ]
-            f.write(', '.join(data) + '\n')
+            f.write(", ".join(data) + "\n")
 
     print(i18n.t("detect.notice_result_saved", path=str(detect_result_path)))
 
@@ -371,19 +384,22 @@ def _load_detect_results(output_dir):
     detections = []
     detect_result_path = os.path.join(output_dir, "detect_result.txt")
     if not os.path.exists(detect_result_path):
-        raise FileNotFoundError(i18n.t("detect.error_result_file_not_found", path=str(detect_result_path)))
-    
-    with open(detect_result_path, 'r', encoding='utf-8') as f:
+        raise FileNotFoundError(
+            i18n.t("detect.error_result_file_not_found", path=str(detect_result_path))
+        )
+
+    with open(detect_result_path, "r", encoding="utf-8") as f:
         current_frame = -1
         for line in f:
             line = line.strip()
-            if not line: continue
-            
-            if line.startswith('frame:'):
-                current_frame = int(line.split(':')[1].strip())
+            if not line:
+                continue
+
+            if line.startswith("frame:"):
+                current_frame = int(line.split(":")[1].strip())
             else:
                 # 解析音符数据
-                parts = line.split(',')
+                parts = line.split(",")
                 if len(parts) == 17:  # 有17个字段
                     detection = Note_Geometry(
                         frame=current_frame,
@@ -402,8 +418,8 @@ def _load_detect_results(output_dir):
                         cy=float(parts[13].strip()),
                         w=float(parts[14].strip()),
                         h=float(parts[15].strip()),
-                        r=float(parts[16].strip())
+                        r=float(parts[16].strip()),
                     )
                     detections.append(detection)
-    
+
     return detections

@@ -1,27 +1,22 @@
-import math
-from typing import Optional
-from src.services import PathManage, SettingsManage
-from .schemas.media_config import MediaType
-from .schemas.media_model import MediaModel
-from src.core.schemas.op_result import OpResult, ok, err
-from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
-from src.core.schemas.media_config import MediaConfig_Definitions as M_Defs
 import i18n
 
+from src.core.schemas.op_result import OpResult, err, ok
+from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
+from src.services import PathManage, SettingsManage
 
+from .schemas.media_config import MediaType
+from .schemas.media_model import MediaModel
 
 # 编解码映射
 
 ENCODER_MAP = {
-    "CPU":    {"codec": "libx264",
-               "quality_param": "-crf",
-               "pix_fmt": "yuv420p"},
-    "Nvidia": {"codec": "h264_nvenc",
-               "quality_param": "-cq",
-               "pix_fmt": "nv12"},
-    "Intel":  {"codec": "h264_qsv",
-               "quality_param": "-global_quality",
-               "pix_fmt": "nv12"},
+    "CPU": {"codec": "libx264", "quality_param": "-crf", "pix_fmt": "yuv420p"},
+    "Nvidia": {"codec": "h264_nvenc", "quality_param": "-cq", "pix_fmt": "nv12"},
+    "Intel": {
+        "codec": "h264_qsv",
+        "quality_param": "-global_quality",
+        "pix_fmt": "nv12",
+    },
 }
 
 
@@ -38,8 +33,6 @@ def _resolve_video_encoder() -> OpResult[dict]:
     return ok(entry)
 
 
-
-
 def build_ffmpeg_cmd(data: MediaModel) -> OpResult[list[str]]:
     """
     主入口: 构建 FFmpeg 命令行参数列表
@@ -53,34 +46,22 @@ def build_ffmpeg_cmd(data: MediaModel) -> OpResult[list[str]]:
 
     result = _build_constant_args()
     if not result.is_ok:
-        return err(
-            error_msg = "Failed to build constant FFmpeg arguments.",
-            inner = result
-        )
+        return err(error_msg="Failed to build constant FFmpeg arguments.", inner=result)
     args = result.value
 
     result = _build_common_args(data)
     if not result.is_ok:
-        return err(
-            error_msg = "Failed to build common FFmpeg arguments.",
-            inner = result
-        )
+        return err(error_msg="Failed to build common FFmpeg arguments.", inner=result)
     args.extend(result.value)
 
     result = _build_video_args(data)
     if not result.is_ok:
-        return err(
-            error_msg = "Failed to build video FFmpeg arguments.",
-            inner = result
-        )
+        return err(error_msg="Failed to build video FFmpeg arguments.", inner=result)
     args.extend(result.value)
 
     result = _build_audio_args(data)
     if not result.is_ok:
-        return err(
-            error_msg = "Failed to build audio FFmpeg arguments.",
-            inner = result
-        )
+        return err(error_msg="Failed to build audio FFmpeg arguments.", inner=result)
     args.extend(result.value)
 
     # 最后添加输出文件路径
@@ -89,27 +70,25 @@ def build_ffmpeg_cmd(data: MediaModel) -> OpResult[list[str]]:
     return ok(args)
 
 
-
-
-
 def _build_constant_args() -> OpResult[list[str]]:
     """构建 FFmpeg 固定的参数部分"""
 
     ffmpeg_exe = PathManage.FFMPEG_EXE_PATH
     if not ffmpeg_exe.is_file():
-        return err(i18n.t("build_ffmpeg_cmd.error_ffmpeg_not_found", path=str(ffmpeg_exe)))
-    
+        return err(
+            i18n.t("build_ffmpeg_cmd.error_ffmpeg_not_found", path=str(ffmpeg_exe))
+        )
+
     args = [
         str(ffmpeg_exe),
-        "-y",                 # 覆盖输出文件
-        "-hide_banner",       # 隐藏横幅信息
-        "-stats",             # 显示进度统计信息
-        "-loglevel", "error"  # 只显示错误信息
+        "-y",  # 覆盖输出文件
+        "-hide_banner",  # 隐藏横幅信息
+        "-stats",  # 显示进度统计信息
+        "-loglevel",
+        "error",  # 只显示错误信息
     ]
 
     return ok(args)
-
-
 
 
 def _build_common_args(data: MediaModel) -> OpResult[list[str]]:
@@ -128,10 +107,8 @@ def _build_common_args(data: MediaModel) -> OpResult[list[str]]:
     # 不知道 -ss/-to 的 seek 行为是否会有误差，反正先用滤镜处理
     # pad_start 也在滤镜中处理
     # output_path 要加在最后
-    
+
     return ok(args)
-
-
 
 
 def _build_video_args(data: MediaModel) -> OpResult[list[str]]:
@@ -139,14 +116,16 @@ def _build_video_args(data: MediaModel) -> OpResult[list[str]]:
 
     args = []
 
-    if not(data.media_type == MediaType.VIDEO_WITH_AUDIO or \
-           data.media_type == MediaType.VIDEO_WITHOUT_AUDIO):
+    if not (
+        data.media_type == MediaType.VIDEO_WITH_AUDIO
+        or data.media_type == MediaType.VIDEO_WITHOUT_AUDIO
+    ):
         return ok(args)  # 非视频类型，无需视频参数
 
     # 删除视频：不输出任何视频参数
     if data.delete_video:
         return ok(args)
-    
+
     encoder_res = _resolve_video_encoder()
     if not encoder_res.is_ok:
         return err("Failed to resolve video encoder", inner=encoder_res)
@@ -171,14 +150,19 @@ def _build_video_args(data: MediaModel) -> OpResult[list[str]]:
         args.extend(["-g", "30"])
 
     vf = _build_video_filter(
-        size = data.video_side_resolution,
-        crop = (data.video_crop_w, data.video_crop_h, data.video_crop_x, data.video_crop_y),
-        center_crop = data.video_center_crop,
-        pad = data.pad_start,
-        start = data.start,
-        end = data.end,
-        brightness = data.video_brightness,
-        perspective = (
+        size=data.video_side_resolution,
+        crop=(
+            data.video_crop_w,
+            data.video_crop_h,
+            data.video_crop_x,
+            data.video_crop_y,
+        ),
+        center_crop=data.video_center_crop,
+        pad=data.pad_start,
+        start=data.start,
+        end=data.end,
+        brightness=data.video_brightness,
+        perspective=(
             data.video_perspective_tl_x,
             data.video_perspective_tl_y,
             data.video_perspective_tr_x,
@@ -197,16 +181,26 @@ def _build_video_args(data: MediaModel) -> OpResult[list[str]]:
     return ok(args)
 
 
-
-def _build_video_filter(size: Optional[int],
-                        crop: tuple[Optional[int], Optional[int], Optional[int], Optional[int]],
-                        pad: Optional[float],
-                        start: Optional[float],
-                        end: Optional[float],
-                        brightness: Optional[float],
-                        perspective: Optional[tuple[Optional[float], Optional[float], Optional[float], Optional[float], Optional[float], Optional[float], Optional[float], Optional[float]]],
-                        center_crop: Optional[bool]
-                       ) -> Optional[str]:
+def _build_video_filter(
+    size: int | None,
+    crop: tuple[int | None, int | None, int | None, int | None],
+    pad: float | None,
+    start: float | None,
+    end: float | None,
+    brightness: float | None,
+    perspective: tuple[
+        float | None,
+        float | None,
+        float | None,
+        float | None,
+        float | None,
+        float | None,
+        float | None,
+        float | None,
+    ]
+    | None,
+    center_crop: bool | None,
+) -> str | None:
     """构建视频滤镜"""
 
     filters = []
@@ -240,10 +234,10 @@ def _build_video_filter(size: Optional[int],
     # Crop (支持越界，超出部分用黑色填充)
     if all(v is not None for v in crop):
         w, h, x, y = crop
-        pad_cmd, crop_cmd = (_build_crop_filter(w, h, x, y))
+        pad_cmd, crop_cmd = _build_crop_filter(w, h, x, y)
         filters.append(pad_cmd)
         filters.append(crop_cmd)
-        
+
     # Resize
     if size:
         filters.append(_build_resize_filter(size, crop, center_crop))
@@ -260,16 +254,15 @@ def _build_video_filter(size: Optional[int],
     return ",".join(filters) if filters else None
 
 
-
 def _build_crop_filter(w, h, x, y) -> tuple[str, str]:
     # 计算是否需要扩展画布以容纳整个 crop 区域
     # crop 区域范围: [x, x+w] 水平方向, [y, y+h] 垂直方向
     # 原视频范围: [0, iw] 水平方向, [0, ih] 垂直方向
-    
+
     # 向左/上偏移量（当 x<0 或 y<0 时）
     left_pad = abs(min(x, 0))  # 如果 x<0, left_pad=-x; 否则为 0
-    top_pad = abs(min(y, 0))   # 如果 y<0, top_pad=-y; 否则为 0
-    
+    top_pad = abs(min(y, 0))  # 如果 y<0, top_pad=-y; 否则为 0
+
     # 构建 FFmpeg 表达式来处理动态边界计算
     # 向右扩展量 = max(0, x + w - iw)  当 x>=0
     # 向右扩展量 = max(0, x + w - iw + left_pad) 当 x<0 (因为 iw 在新画布中是 iw+left_pad，相对位置变了)
@@ -279,27 +272,25 @@ def _build_crop_filter(w, h, x, y) -> tuple[str, str]:
     # 超出量 = max(0, left_pad + x + w - (left_pad + iw)) = max(0, x + w - iw)
     right_pad_expr = f"max(0\\,{x}+{w}-iw)"
     bottom_pad_expr = f"max(0\\,{y}+{h}-ih)"
-    
+
     # 计算 pad 后的画布大小
     pad_w_expr = f"{left_pad}+iw+{right_pad_expr}"
     pad_h_expr = f"{top_pad}+ih+{bottom_pad_expr}"
-    
+
     # 原视频在新画布中的位置
     pad_x = left_pad
     pad_y = top_pad
-    
+
     # 添加 pad 滤镜（使用表达式动态计算）
     pad_cmd = f"pad={pad_w_expr}:{pad_h_expr}:{pad_x}:{pad_y}:black"
-    
+
     # 调整 crop 坐标到新画布坐标系
     x = x + left_pad
     y = y + top_pad
-    
+
     crop_cmd = f"crop={w}:{h}:{x}:{y}"
 
     return pad_cmd, crop_cmd
-
-
 
 
 def _build_resize_filter(size, crop, center_crop) -> str:
@@ -310,18 +301,16 @@ def _build_resize_filter(size, crop, center_crop) -> str:
 
     # 先将原始视频居中裁成正方形，再缩放到目标尺寸
     if center_crop:
-        side = "min(iw,ih)".replace(",", r"\,") # 对逗号转义
+        side = "min(iw,ih)".replace(",", r"\,")  # 对逗号转义
         crop_cmd = f"crop={side}:{side}:(iw-{side})/2:(ih-{side})/2"
         return f"{crop_cmd},scale={size}:{size}"
 
     # 保持宽高比缩放到正方形，用黑边填充剩余
-    scale_expr = f"if(gt(iw,ih),{size},-1):if(gt(iw,ih),-1,{size})".replace(",", r"\,") # 对逗号转义
+    scale_expr = f"if(gt(iw,ih),{size},-1):if(gt(iw,ih),-1,{size})".replace(
+        ",", r"\,"
+    )  # 对逗号转义
     pad_expr = f"{size}:{size}:(ow-iw)/2:(oh-ih)/2:black"
     return f"scale={scale_expr},pad={pad_expr}"
-
-
-
-
 
 
 def _build_audio_args(data: MediaModel) -> OpResult[list[str]]:
@@ -331,8 +320,9 @@ def _build_audio_args(data: MediaModel) -> OpResult[list[str]]:
 
     # 音频导出任务强制仅保留音频流，避免把封面图/字幕/数据流写进输出容器。
     # 删除视频时同样仅保留音频流（视频转音频）。
-    if data.media_type == MediaType.AUDIO or \
-       (data.media_type == MediaType.VIDEO_WITH_AUDIO and data.delete_video):
+    if data.media_type == MediaType.AUDIO or (
+        data.media_type == MediaType.VIDEO_WITH_AUDIO and data.delete_video
+    ):
         args.extend(["-vn", "-sn", "-dn", "-map", "0:a:0"])
 
     # 有音频时考虑删除音频
@@ -340,12 +330,12 @@ def _build_audio_args(data: MediaModel) -> OpResult[list[str]]:
         if data.delete_audio:
             args.extend(["-an"])  # 无音频输出
             return ok(args)
-    
+
     # 没音频直接静音
     if data.media_type in [MediaType.VIDEO_WITHOUT_AUDIO]:
         args.extend(["-an"])  # 无音频输出
         return ok(args)
-    
+
     # audio_format
     if data.audio_format == "mp3":
         args.extend(["-c:a", "libmp3lame"])
@@ -355,10 +345,10 @@ def _build_audio_args(data: MediaModel) -> OpResult[list[str]]:
         args.extend(["-c:a", "libvorbis"])
     else:
         return err(f"Unsupported audio format: {data.audio_format}")
-    
+
     # audio_bitrate
     args.extend(["-b:a", data.audio_bitrate])
-    
+
     # sample_rate
     if data.audio_sample_rate:
         args.extend(["-ar", str(data.audio_sample_rate)])
@@ -367,27 +357,28 @@ def _build_audio_args(data: MediaModel) -> OpResult[list[str]]:
     args.extend(["-ac", "2"])
 
     # audio filter
-    af = _build_audio_filters(volume=data.audio_volume,
-                              media_type=data.media_type,
-                              delete_audio=data.delete_audio,
-                              pad=data.pad_start,
-                              start=data.start,
-                              end=data.end)
+    af = _build_audio_filters(
+        volume=data.audio_volume,
+        media_type=data.media_type,
+        delete_audio=data.delete_audio,
+        pad=data.pad_start,
+        start=data.start,
+        end=data.end,
+    )
     if af:
         args.extend(["-af", af])
 
     return ok(args)
 
 
-
-
-def _build_audio_filters(volume: Optional[int],
-                         media_type: MediaType,
-                         delete_audio: Optional[bool],
-                         pad: Optional[float],
-                         start: Optional[float],
-                         end: Optional[float]
-                        ) -> Optional[str]:
+def _build_audio_filters(
+    volume: int | None,
+    media_type: MediaType,
+    delete_audio: bool | None,
+    pad: float | None,
+    start: float | None,
+    end: float | None,
+) -> str | None:
     """构建音频滤镜"""
 
     filters = []
@@ -405,7 +396,7 @@ def _build_audio_filters(volume: Optional[int],
     # pad start
     if pad:
         pad_ms = int(round(pad * 1000.0))
-        filters.append(f"adelay={pad_ms}|{pad_ms}") # "ms|ms" for stereo
+        filters.append(f"adelay={pad_ms}|{pad_ms}")  # "ms|ms" for stereo
 
     # volume
     if volume and volume != 100:

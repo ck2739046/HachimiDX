@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import cv2
-import numpy as np
 
 from ...schemas.op_result import OpResult, err, ok
 from ..analyze.analyze_slide_movement import is_line_pass_a_zone_endpoint
@@ -15,7 +14,6 @@ from ..analyze.shared_context import get_a_zone_endpoint, get_touch_areas
 from ..tool import calculate_all_position, calculate_oct_position, catmull_rom_spline
 from .note_definition import NoteType
 from .track import _load_track_results, _save_track_results
-
 
 # 允许回退 20%
 TOUCH_REVERSE_GROWTH_RATIO = 0.2
@@ -49,16 +47,6 @@ def main(std_video_path: Path) -> OpResult[None]:
         return err("Unexpected error in auto_rechart > detect > post_track", e)
 
 
-
-
-
-
-
-
-
-
-
-
 def _build_context(std_video_path: Path) -> _PostTrackContext:
     """参考 analyze 模块的 shared_context 构建"""
 
@@ -88,18 +76,9 @@ def _build_context(std_video_path: Path) -> _PostTrackContext:
 
 def _get_next_track_id(tracks: dict) -> int:
     max_track_id = -1
-    for track_id, _note_type in tracks.keys():
+    for track_id, _note_type in tracks:
         max_track_id = max(max_track_id, int(track_id))
     return max_track_id + 1
-
-
-
-
-
-
-
-
-
 
 
 def _split_touch_notes(tracks: dict, context: _PostTrackContext, next_track_id: int):
@@ -144,15 +123,16 @@ def _split_touch_notes(tracks: dict, context: _PostTrackContext, next_track_id: 
             assigned_track_ids.append(new_key[0])
             new_tracks[new_key].extend(segment)
 
-        print(f"post_track: split {note_type.value} track_id {track_id} into {assigned_track_ids}")
+        print(
+            f"post_track: split {note_type.value} track_id {track_id} into {assigned_track_ids}"
+        )
 
     return new_tracks, next_track_id
 
 
-
-
-
-def _split_single_touch(note_geometry_list, touch_areas: dict, reverse_growth_threshold: float):
+def _split_single_touch(
+    note_geometry_list, touch_areas: dict, reverse_growth_threshold: float
+):
     """
     分割条件1 位置不同
     分割条件2 dist not decreasing
@@ -173,9 +153,7 @@ def _split_single_touch(note_geometry_list, touch_areas: dict, reverse_growth_th
         dist_diff = (curr_size - prev_size) / 2.0
 
         should_split = False
-        if curr_position != prev_position:
-            should_split = True
-        elif dist_diff > reverse_growth_threshold:
+        if curr_position != prev_position or dist_diff > reverse_growth_threshold:
             should_split = True
 
         if should_split:
@@ -190,17 +168,6 @@ def _split_single_touch(note_geometry_list, touch_areas: dict, reverse_growth_th
         segments.append(note_geometry_list[start_idx:])
 
     return [x for x in segments if len(x) > 0]
-
-
-
-
-
-
-
-
-
-
-
 
 
 def _split_slide_notes(tracks: dict, context: _PostTrackContext, next_track_id: int):
@@ -218,7 +185,9 @@ def _split_slide_notes(tracks: dict, context: _PostTrackContext, next_track_id: 
             new_tracks[key].extend(note_geometry_list)
             continue
 
-        head_segment, tail_segment, is_split = _classify_segment(context, note_geometry_list, track_id)
+        head_segment, tail_segment, is_split = _classify_segment(
+            context, note_geometry_list, track_id
+        )
 
         if head_segment is None and tail_segment is None:
             new_tracks[key].extend(note_geometry_list)
@@ -237,7 +206,9 @@ def _split_slide_notes(tracks: dict, context: _PostTrackContext, next_track_id: 
             new_key = (next_track_id, note_type)
             next_track_id += 1
             new_tracks[new_key].extend(tail_segment)
-            print(f"post_track: split slide track_id {track_id} into {track_id} and {new_key[0]}")
+            print(
+                f"post_track: split slide track_id {track_id} into {track_id} and {new_key[0]}"
+            )
             continue
 
         if head_segment is not None:
@@ -250,11 +221,11 @@ def _split_slide_notes(tracks: dict, context: _PostTrackContext, next_track_id: 
     return new_tracks, next_track_id
 
 
-
-
 # 从 analyze/preprocess_slide.py 迁移而来
 # 递归分类音符
-def _classify_segment(context: _PostTrackContext, note_geometry_list, track_id, is_segmented=False):
+def _classify_segment(
+    context: _PostTrackContext, note_geometry_list, track_id, is_segmented=False
+):
     if len(note_geometry_list) < 5:
         return None, None, False
 
@@ -272,9 +243,6 @@ def _classify_segment(context: _PostTrackContext, note_geometry_list, track_id, 
     if len(set(oct_positions)) == 1:
         return note_geometry_list, None, False
 
-
-
-
     all_positions = [
         calculate_all_position(
             context.touch_areas,
@@ -289,14 +257,18 @@ def _classify_segment(context: _PostTrackContext, note_geometry_list, track_id, 
 
     # 不在A区, 尝试惯性推断出发点
     # 如果够近, 也可能是星星尾，return
-    start_a_zone = _guess_target_a_zone_by_inertia(context.a_zone_endpoint, context.std_video_size, note_geometry_list[::-1])
+    start_a_zone = _guess_target_a_zone_by_inertia(
+        context.a_zone_endpoint, context.std_video_size, note_geometry_list[::-1]
+    )
     start_cx, start_cy = note_geometry_list[0].cx, note_geometry_list[0].cy
-    if _is_close_to_A_zone_endpoint(context.a_zone_endpoint, context.std_video_size, start_cx, start_cy, start_a_zone):
+    if _is_close_to_A_zone_endpoint(
+        context.a_zone_endpoint,
+        context.std_video_size,
+        start_cx,
+        start_cy,
+        start_a_zone,
+    ):
         return None, note_geometry_list, False
-
-
-
-
 
     # 是否已分段
     # yes: 已分段, 还不满足条件, 说明数据异常, fallback 星星头
@@ -328,8 +300,12 @@ def _classify_segment(context: _PostTrackContext, note_geometry_list, track_id, 
         head_segment = note_geometry_list[:split_idx]
         tail_segment = note_geometry_list[split_idx:]
         # 递归处理头部和尾部
-        head_result, _, _ = _classify_segment(context, head_segment, track_id, is_segmented=True)
-        _, tail_result, _ = _classify_segment(context, tail_segment, track_id, is_segmented=True)
+        head_result, _, _ = _classify_segment(
+            context, head_segment, track_id, is_segmented=True
+        )
+        _, tail_result, _ = _classify_segment(
+            context, tail_segment, track_id, is_segmented=True
+        )
         return head_result, tail_result, True
 
     # fallback 星星头

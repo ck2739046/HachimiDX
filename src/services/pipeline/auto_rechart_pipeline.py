@@ -24,11 +24,6 @@ class AutoRechartPipeline:
         except Exception as exc:
             return err("Failed to initialize AutoRechartPipeline", error_raw=exc)
 
-
-
-
-
-
     @staticmethod
     def validate(raw_data: dict[str, Any]) -> OpResult[AutoRechartModel]:
         res = validate_pydantic(AutoRechartModel, raw_data)
@@ -39,27 +34,23 @@ class AutoRechartPipeline:
             return err("Validated model has unexpected type", error_raw=type(model))
         return ok(model)
 
-
-
     @staticmethod
     def build_cmd(config: Any) -> OpResult[list[str]]:
         if not isinstance(config, AutoRechartModel):
-            return err("AUTO_RECHART task config must be AutoRechartModel", error_raw=type(config))
+            return err(
+                "AUTO_RECHART task config must be AutoRechartModel",
+                error_raw=type(config),
+            )
         return build_auto_rechart_cmd(config)
 
-
-
-
-
-
-
-
     @classmethod
-    def submit_task(cls, raw_data: dict[str, Any], task_name: str = "") -> OpResult[tuple[str, list[str]]]:
-        
+    def submit_task(
+        cls, raw_data: dict[str, Any], task_name: str = ""
+    ) -> OpResult[tuple[str, list[str]]]:
+
         if not cls._is_registered:
             return err("AutoRechartPipeline is not initialized (not registered)")
-        
+
         v_res = cls.validate(raw_data)
         if not v_res.is_ok:
             return err("Failed to validate auto rechart task input", inner=v_res)

@@ -1,11 +1,15 @@
-import sys
-from pathlib import Path
 import io
 import os
 import subprocess
+import sys
+from pathlib import Path
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', write_through=True)
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace', write_through=True)
+sys.stdout = io.TextIOWrapper(
+    sys.stdout.buffer, encoding="utf-8", errors="replace", write_through=True
+)
+sys.stderr = io.TextIOWrapper(
+    sys.stderr.buffer, encoding="utf-8", errors="replace", write_through=True
+)
 
 
 if len(sys.argv) <= 1:
@@ -18,11 +22,6 @@ if root not in sys.path:
 
 from src.services import PathManage
 
-
-
-
-
-
 FFMPEG = str(PathManage.FFMPEG_EXE_PATH)
 TEST_INPUT = str(PathManage.TEST_H264_PATH)
 
@@ -31,16 +30,14 @@ ENCODER_TESTS = [
     {
         "id": "Nvidia",
         "desc": "h264_nvenc",
-        "args": ["-i", TEST_INPUT, "-t", "1", "-c:v", "h264_nvenc", "-f", "null", "-"]
+        "args": ["-i", TEST_INPUT, "-t", "1", "-c:v", "h264_nvenc", "-f", "null", "-"],
     },
     {
         "id": "Intel",
         "desc": "h264_qsv",
-        "args": ["-i", TEST_INPUT, "-t", "1", "-c:v", "h264_qsv", "-f", "null", "-"]
+        "args": ["-i", TEST_INPUT, "-t", "1", "-c:v", "h264_qsv", "-f", "null", "-"],
     },
 ]
-
-
 
 
 def _run_ffmpeg(args: list[str]) -> bool:
@@ -59,8 +56,6 @@ def _run_ffmpeg(args: list[str]) -> bool:
         return False
 
 
-
-
 def _test_list(test_defs: list[dict]) -> str | None:
     """按优先级测试列表，返回第一个成功的 id"""
     for test in test_defs:
@@ -70,8 +65,6 @@ def _test_list(test_defs: list[dict]) -> str | None:
         if ok:
             return test["id"]
     return None
-
-
 
 
 def main():

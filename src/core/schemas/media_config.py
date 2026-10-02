@@ -2,8 +2,9 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Literal
-from .op_result import OpResult, ok, err
+
 from ..tools import validate_windows_filename
+from .op_result import OpResult, err, ok
 
 
 class MediaType(str, Enum):
@@ -11,7 +12,6 @@ class MediaType(str, Enum):
     VIDEO_WITH_AUDIO = "video_with_audio"
     VIDEO_WITHOUT_AUDIO = "video_without_audio"
     UNKNOWN = "unknown"
-
 
 
 @dataclass(slots=True)
@@ -48,46 +48,37 @@ class MediaConfig_Definition:
     default: any = None
     optional: bool = True
     constraints: dict | None = None
-    
 
 
 @dataclass(slots=True)
 class MediaConfig_Definitions:
-
     # common
 
     media_type = MediaConfig_Definition(
         key="media_type",
         type="enum",
         group="common",
-        optional=False, # 必选没有默认值
+        optional=False,  # 必选没有默认值
     )
 
     input_path = MediaConfig_Definition(
         key="input_path",
         type="path",
         group="common",
-        optional=False, # 必选没有默认值
-        constraints={
-            "must_exist": True
-        }
+        optional=False,  # 必选没有默认值
+        constraints={"must_exist": True},
     )
 
     output_path = MediaConfig_Definition(
         key="output_path",
         type="path",
         group="common",
-        optional=False, # 必选没有默认值
-        constraints={
-            "must_exist": False
-        }
+        optional=False,  # 必选没有默认值
+        constraints={"must_exist": False},
     )
 
     clear_metadata = MediaConfig_Definition(
-        key="clear_metadata",
-        type="bool",
-        group="common",
-        default=True
+        key="clear_metadata", type="bool", group="common", default=True
     )
 
     duration = MediaConfig_Definition(
@@ -95,9 +86,7 @@ class MediaConfig_Definitions:
         type="float",
         group="common",
         default=None,
-        constraints={
-            "ge": 0.0
-        }
+        constraints={"ge": 0.0},
     )
 
     pad_start = MediaConfig_Definition(
@@ -105,19 +94,11 @@ class MediaConfig_Definitions:
         type="float",
         group="common",
         default=None,
-        constraints={
-            "ge": 0.0
-        }
+        constraints={"ge": 0.0},
     )
 
     start = MediaConfig_Definition(
-        key="start",
-        type="float",
-        group="common",
-        default=None,
-        constraints={
-            "ge": 0.0
-        }
+        key="start", type="float", group="common", default=None, constraints={"ge": 0.0}
     )
 
     end = MediaConfig_Definition(
@@ -127,10 +108,6 @@ class MediaConfig_Definitions:
         default=None,
     )
 
-
-
-
-
     # audio
 
     # see get_audio_format_by_media_type()
@@ -138,16 +115,20 @@ class MediaConfig_Definitions:
         key="audio_format",
         type="str",
         group="audio",
-        default=None, # auto
+        default=None,  # auto
     )
 
     @staticmethod
-    def get_audio_format_by_media_type(media_type: MediaType) -> OpResult[tuple[str, list[str]]]:
+    def get_audio_format_by_media_type(
+        media_type: MediaType,
+    ) -> OpResult[tuple[str, list[str]]]:
         """return (default, options)"""
         if media_type == MediaType.AUDIO:
             return ok(("ogg", ["mp3", "ogg"]))
-        elif media_type == MediaType.VIDEO_WITH_AUDIO or \
-            media_type == MediaType.VIDEO_WITHOUT_AUDIO:
+        elif (
+            media_type == MediaType.VIDEO_WITH_AUDIO
+            or media_type == MediaType.VIDEO_WITHOUT_AUDIO
+        ):
             return ok(("aac", ["aac"]))
         else:
             return err(f"No valid audio_format for the given media_type: {media_type}")
@@ -159,7 +140,7 @@ class MediaConfig_Definitions:
         default="192k",
         constraints={
             "options": ["320k", "288k", "256k", "224k", "192k", "160k", "128k"]
-        }
+        },
     )
 
     audio_sample_rate = MediaConfig_Definition(
@@ -167,9 +148,7 @@ class MediaConfig_Definitions:
         type="int",
         group="audio",
         default=44100,
-        constraints={
-            "options": [44100, 48000]
-        }
+        constraints={"options": [44100, 48000]},
     )
 
     audio_volume = MediaConfig_Definition(
@@ -177,20 +156,8 @@ class MediaConfig_Definitions:
         type="int",
         group="audio",
         default=100,
-        constraints={
-            "ge": 0,
-            "le": 200
-        }
+        constraints={"ge": 0, "le": 200},
     )
-
-
-
-
-
-
-
-
-
 
     # video
 
@@ -198,81 +165,53 @@ class MediaConfig_Definitions:
         key="video_quality",
         type="int",
         group="video",
-        default=None, # auto
-        constraints={
-            "ge": 20,
-            "le": 28,
-            "options": list(range(20, 28+1))
-        }
+        default=None,  # auto
+        constraints={"ge": 20, "le": 28, "options": list(range(20, 28 + 1))},
     )
 
     @staticmethod
     def get_default_video_quality_by_encoder(encoder: str) -> int:
         dict = {"CPU": 23, "Nvidia": 28, "Intel": 23}
-        return dict.get(encoder, 23) # fallback
+        return dict.get(encoder, 23)  # fallback
 
     video_side_resolution = MediaConfig_Definition(
         key="video_side_resolution",
         type="int",
         group="video",
-        default=0, # original
-        constraints={
-            "options": [0, 480, 720, 1080, 1440, 2160]
-        }
+        default=0,  # original
+        constraints={"options": [0, 480, 720, 1080, 1440, 2160]},
     )
 
     video_center_crop = MediaConfig_Definition(
-        key="video_center_crop",
-        type="bool",
-        group="video",
-        default=False
+        key="video_center_crop", type="bool", group="video", default=False
     )
 
     video_fps = MediaConfig_Definition(
         key="video_fps",
         type="int",
         group="video",
-        default=0, # original
-        constraints={
-            "options": [0, 30, 60]
-        }
+        default=0,  # original
+        constraints={"options": [0, 30, 60]},
     )
 
     video_gop_optimize = MediaConfig_Definition(
-        key="video_gop_optimize",
-        type="bool",
-        group="video",
-        default=False
+        key="video_gop_optimize", type="bool", group="video", default=False
     )
 
     delete_audio = MediaConfig_Definition(
-        key="delete_audio",
-        type="bool",
-        group="video",
-        default=False
+        key="delete_audio", type="bool", group="video", default=False
     )
 
     delete_video = MediaConfig_Definition(
-        key="delete_video",
-        type="bool",
-        group="video",
-        default=False
+        key="delete_video", type="bool", group="video", default=False
     )
 
     video_crop_x = MediaConfig_Definition(
-        key="video_crop_x",
-        type="int",
-        group="video",
-        default=None,
-        constraints={}
+        key="video_crop_x", type="int", group="video", default=None, constraints={}
     )
 
     video_crop_y = MediaConfig_Definition(
-        key="video_crop_y",
-        type="int",
-        group="video",
-        default=None,
-        constraints={}
+        key="video_crop_y", type="int", group="video", default=None, constraints={}
     )
 
     video_crop_w = MediaConfig_Definition(
@@ -280,9 +219,7 @@ class MediaConfig_Definitions:
         type="int",
         group="video",
         default=None,
-        constraints={
-            "gt": 0
-        }
+        constraints={"gt": 0},
     )
 
     video_crop_h = MediaConfig_Definition(
@@ -290,65 +227,39 @@ class MediaConfig_Definitions:
         type="int",
         group="video",
         default=None,
-        constraints={
-            "gt": 0
-        }
+        constraints={"gt": 0},
     )
 
     video_perspective_tl_x = MediaConfig_Definition(
-        key="video_perspective_tl_x",
-        type="float",
-        group="video",
-        default=None
+        key="video_perspective_tl_x", type="float", group="video", default=None
     )
 
     video_perspective_tl_y = MediaConfig_Definition(
-        key="video_perspective_tl_y",
-        type="float",
-        group="video",
-        default=None
+        key="video_perspective_tl_y", type="float", group="video", default=None
     )
 
     video_perspective_tr_x = MediaConfig_Definition(
-        key="video_perspective_tr_x",
-        type="float",
-        group="video",
-        default=None
+        key="video_perspective_tr_x", type="float", group="video", default=None
     )
 
     video_perspective_tr_y = MediaConfig_Definition(
-        key="video_perspective_tr_y",
-        type="float",
-        group="video",
-        default=None
+        key="video_perspective_tr_y", type="float", group="video", default=None
     )
 
     video_perspective_bl_x = MediaConfig_Definition(
-        key="video_perspective_bl_x",
-        type="float",
-        group="video",
-        default=None
+        key="video_perspective_bl_x", type="float", group="video", default=None
     )
 
     video_perspective_bl_y = MediaConfig_Definition(
-        key="video_perspective_bl_y",
-        type="float",
-        group="video",
-        default=None
+        key="video_perspective_bl_y", type="float", group="video", default=None
     )
 
     video_perspective_br_x = MediaConfig_Definition(
-        key="video_perspective_br_x",
-        type="float",
-        group="video",
-        default=None
+        key="video_perspective_br_x", type="float", group="video", default=None
     )
 
     video_perspective_br_y = MediaConfig_Definition(
-        key="video_perspective_br_y",
-        type="float",
-        group="video",
-        default=None
+        key="video_perspective_br_y", type="float", group="video", default=None
     )
 
     video_brightness = MediaConfig_Definition(
@@ -359,15 +270,13 @@ class MediaConfig_Definitions:
         constraints={
             "ge": -1.0,
             "le": 1.0,
-        }
+        },
     )
 
-
-
-
     @staticmethod
-    def build_full_output_path(input_path: str, output_filename: str, audio_format: str) -> OpResult[tuple[str, str]]:
-
+    def build_full_output_path(
+        input_path: str, output_filename: str, audio_format: str
+    ) -> OpResult[tuple[str, str]]:
         """
         构建完整的输出文件路径
 
@@ -390,16 +299,15 @@ class MediaConfig_Definitions:
         if output_filename:
             result = validate_windows_filename(output_filename)
             if not result.is_ok:
-                return err(
-                    error_msg = result.error_msg,
-                    inner = result
-                )
-            
+                return err(error_msg=result.error_msg, inner=result)
+
         # 根据 audio_format 确定输出文件扩展名
-        output_extension = {"mp3": ".mp3", "aac": ".mp4", "ogg": ".ogg"}.get(audio_format.lower())
+        output_extension = {"mp3": ".mp3", "aac": ".mp4", "ogg": ".ogg"}.get(
+            audio_format.lower()
+        )
         if not output_extension:
             return err(f"Unsupported audio_format for output extension: {audio_format}")
-            
+
         # 构建最终输出文件路径
         input_dir = Path(input_path).resolve().parent
 

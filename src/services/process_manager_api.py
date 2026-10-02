@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from src.core.schemas.op_result import OpResult, err
 
 from .process_manager import ProcessManager, ProcessManagerSignals
@@ -12,7 +10,7 @@ def get_signals() -> ProcessManagerSignals:
     return ProcessManager.get_instance().signals
 
 
-def start(cmd: list[str], *, runner_id: Optional[str] = None) -> OpResult[str]:
+def start(cmd: list[str], *, runner_id: str | None = None) -> OpResult[str]:
     """Start a new process.
 
     Args:
@@ -42,6 +40,6 @@ def cancel(runner_id: str) -> OpResult[None]:
     runner_id = str(runner_id or "").strip()
     if not runner_id:
         return err("runner_id is empty")
-    
+
     mgr = ProcessManager.get_instance()
     return mgr.cancel(runner_id)

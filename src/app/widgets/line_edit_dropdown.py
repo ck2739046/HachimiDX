@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterable
+from collections.abc import Iterable
 
 from PyQt6.QtCore import QEvent, QRect, QRectF, QStringListModel, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPen
@@ -8,7 +8,6 @@ from PyQt6.QtWidgets import QLineEdit, QSizePolicy, QWidget
 
 from ..ui_style import UI_Style
 from .dropdown_widget import open_combo_popup
-
 
 c = UI_Style.COLORS
 DROPDOWN_W = 20
@@ -19,7 +18,9 @@ class SplitDropLineEdit(QWidget):
     textChanged = pyqtSignal(str)
     item_triggered = pyqtSignal(int, str)
 
-    def __init__(self, items: list[str] | None = None, parent: QWidget | None = None) -> None:
+    def __init__(
+        self, items: list[str] | None = None, parent: QWidget | None = None
+    ) -> None:
         super().__init__(parent)
         self._items = list(items or [])
         self._model = QStringListModel(self._items, self)
@@ -66,7 +67,9 @@ class SplitDropLineEdit(QWidget):
         return list(self._items)
 
     def resizeEvent(self, event) -> None:
-        self.line_edit.setGeometry(1, 1, max(0, self.width() - DROPDOWN_W - 1), self.height() - 2)
+        self.line_edit.setGeometry(
+            1, 1, max(0, self.width() - DROPDOWN_W - 1), self.height() - 2
+        )
         super().resizeEvent(event)
 
     def eventFilter(self, obj, event):
@@ -85,7 +88,8 @@ class SplitDropLineEdit(QWidget):
         self._hover_right = event.position().x() >= self.width() - DROPDOWN_W
         self.setCursor(
             Qt.CursorShape.PointingHandCursor
-            if self._hover_right else Qt.CursorShape.ArrowCursor
+            if self._hover_right
+            else Qt.CursorShape.ArrowCursor
         )
         self.update()
         super().mouseMoveEvent(event)
@@ -115,14 +119,22 @@ class SplitDropLineEdit(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         outer = QPainterPath()
-        outer.addRoundedRect(QRectF(0, 0, self.width(), self.height()), BORDER_R, BORDER_R)
+        outer.addRoundedRect(
+            QRectF(0, 0, self.width(), self.height()), BORDER_R, BORDER_R
+        )
         painter.fillPath(outer, QColor(c["grey"]))
 
         painter.setClipPath(outer)
         if self._hover_left:
-            painter.fillRect(QRect(0, 0, self.width() - DROPDOWN_W, self.height()), QColor(c["grey_hover"]))
+            painter.fillRect(
+                QRect(0, 0, self.width() - DROPDOWN_W, self.height()),
+                QColor(c["grey_hover"]),
+            )
         if self._hover_right:
-            painter.fillRect(QRect(self.width() - DROPDOWN_W, 0, DROPDOWN_W, self.height()), QColor(c["grey_hover"]))
+            painter.fillRect(
+                QRect(self.width() - DROPDOWN_W, 0, DROPDOWN_W, self.height()),
+                QColor(c["grey_hover"]),
+            )
         painter.setClipping(False)
 
         painter.setPen(QPen(QColor(c["grey_hover"]), 1))
@@ -130,7 +142,9 @@ class SplitDropLineEdit(QWidget):
         separator_x = self.width() - DROPDOWN_W
         painter.drawLine(separator_x, 0, separator_x, self.height())
 
-        indicator_color = QColor(c["accent_hover"] if self.line_edit.hasFocus() else c["light_grey"])
+        indicator_color = QColor(
+            c["accent_hover"] if self.line_edit.hasFocus() else c["light_grey"]
+        )
         indicator_height = BORDER_R * 2
         indicator = QPainterPath()
         indicator.addRoundedRect(
@@ -140,15 +154,21 @@ class SplitDropLineEdit(QWidget):
         )
         indicator_cutout = QPainterPath()
         indicator_cutout.addRect(
-            QRectF(0, self.height() - indicator_height, self.width(), indicator_height - 2)
+            QRectF(
+                0, self.height() - indicator_height, self.width(), indicator_height - 2
+            )
         )
         painter.fillPath(indicator.subtracted(indicator_cutout), indicator_color)
 
         painter.setPen(QPen(QColor(c["text_primary"]), 1.2))
         center_x = self.width() - DROPDOWN_W / 2
         center_y = self.height() / 2
-        painter.drawLine(int(center_x - 4), int(center_y - 2), int(center_x), int(center_y + 2))
-        painter.drawLine(int(center_x + 4), int(center_y - 2), int(center_x), int(center_y + 2))
+        painter.drawLine(
+            int(center_x - 4), int(center_y - 2), int(center_x), int(center_y + 2)
+        )
+        painter.drawLine(
+            int(center_x + 4), int(center_y - 2), int(center_x), int(center_y + 2)
+        )
 
     def showPopup(self) -> None:
         open_combo_popup(

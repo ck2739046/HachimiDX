@@ -2,46 +2,38 @@ import math
 
 from ..detect.note_definition import (
     NoteType,
-    NoteVariant,
-    Note_Geometry,
-    get_imgsz,
-    is_obb,
-    map_model_class_to_note_type,
-    map_note_type_to_class_id,
-    need_cls,
 )
-
-
 from .maidata_fraction_utils import get_fraction
 
-
 _WIFI_ENDPOINT_SEQ = {
-    '1': '456',
-    '2': '567',
-    '3': '678',
-    '4': '781',
-    '5': '812',
-    '6': '123',
-    '7': '234',
-    '8': '345',
+    "1": "456",
+    "2": "567",
+    "3": "678",
+    "4": "781",
+    "5": "812",
+    "6": "123",
+    "7": "234",
+    "8": "345",
 }
 
 
-
-def parse_note_info(key, value, timing_points,
-                    base_denominator, duration_denominator
-                   ) -> tuple[float, float, str, int, int] | None:
+def parse_note_info(
+    key, value, timing_points, base_denominator, duration_denominator
+) -> tuple[float, float, str, int, int] | None:
     """
     return: raw_cur_note_time, cur_note_time, cur_position, cur_bpm_segment_index, cur_note_track_id
     """
-    
+
     (track_id, note_type, note_variant, cur_position), time = key, value
 
     raw_cur_note_time = _get_note_reach_time(time, track_id)
-    if raw_cur_note_time is None: return None
+    if raw_cur_note_time is None:
+        return None
 
     # 可能需要吸附
-    cur_note_time = _snap_note_time_to_bpm_segment(raw_cur_note_time, timing_points, base_denominator)
+    cur_note_time = _snap_note_time_to_bpm_segment(
+        raw_cur_note_time, timing_points, base_denominator
+    )
 
     # 获取这个音符的 bpm
     cur_bpm_segment_index, cur_bpm = _get_bpm_by_note_time(cur_note_time, timing_points)
@@ -53,8 +45,11 @@ def parse_note_info(key, value, timing_points,
         if note_type == NoteType.SLIDE:
             # slide 可包含多个 duration
             cur_position = _append_slide_duration_syntax(
-                cur_position, list(time[1:]), one_bar_ms,
-                base_denominator, duration_denominator
+                cur_position,
+                list(time[1:]),
+                one_bar_ms,
+                base_denominator,
+                duration_denominator,
             )
             # 特例：三段同头直线 slide 压缩为 w 语法
             cur_position = _try_compress_wifi_slide(cur_position)
@@ -62,16 +57,18 @@ def parse_note_info(key, value, timing_points,
             # 特例: hold 时值为 0 时不添加时值文本
             pass
         else:
-            duration_syntax = _parse_note_duration(one_bar_ms, note_type, time[-1],
-                                                   base_denominator, duration_denominator)
+            duration_syntax = _parse_note_duration(
+                one_bar_ms, note_type, time[-1], base_denominator, duration_denominator
+            )
             cur_position += duration_syntax
 
-    return raw_cur_note_time, cur_note_time, cur_position, cur_bpm_segment_index, track_id
-
-
-
-
-
+    return (
+        raw_cur_note_time,
+        cur_note_time,
+        cur_position,
+        cur_bpm_segment_index,
+        track_id,
+    )
 
 
 def calculate_one_bar_ms(bpm):
@@ -95,13 +92,7 @@ def _get_bpm_by_note_time(note_time: float, timing_points: list) -> tuple[int, f
     return seg_idx, timing_points[seg_idx][1]
 
 
-
-
-
-
-
-def _snap_note_time_to_bpm_segment(note_time, timing_points,
-                                   base_denominator) -> float:
+def _snap_note_time_to_bpm_segment(note_time, timing_points, base_denominator) -> float:
     """
     双方向吸附：
     1. 前向：note_time 足够接近下一段起点 → 吸附到下一段
@@ -127,7 +118,7 @@ def _snap_note_time_to_bpm_segment(note_time, timing_points,
     seg_idx = _get_bpm_segment_idx(note_time, timing_points)
 
     # 后向吸附：当前段起点
-    if seg_idx > 0: # 第一段不吸
+    if seg_idx > 0:  # 第一段不吸
         current_start_ms = timing_points[seg_idx][2]
         diff_ms = note_time - current_start_ms
         current_bpm = timing_points[seg_idx][1]
@@ -138,7 +129,7 @@ def _snap_note_time_to_bpm_segment(note_time, timing_points,
             return current_start_ms
 
     # 前向吸附：下一段起点
-    if seg_idx < len(timing_points) - 1: # 如果位于最后一段，没有新段可供吸附，直接返回
+    if seg_idx < len(timing_points) - 1:  # 如果位于最后一段，没有新段可供吸附，直接返回
         next_start_ms = timing_points[seg_idx + 1][2]
         diff_ms = next_start_ms - note_time
         current_bpm = timing_points[seg_idx][1]
@@ -152,16 +143,14 @@ def _snap_note_time_to_bpm_segment(note_time, timing_points,
     return note_time
 
 
-
-
-
-
 def _get_note_reach_time(time, track_id):
 
     if isinstance(time, (float, int)):
         # check time
         if math.isnan(time) or time < 0:
-            print(f"get_note_reach_time: invalid time value for track_id {track_id}, time: {time}")
+            print(
+                f"get_note_reach_time: invalid time value for track_id {track_id}, time: {time}"
+            )
             return None
         # 赋值
         return time
@@ -174,7 +163,9 @@ def _get_note_reach_time(time, track_id):
         valid = True
         for i, t in enumerate(time):
             if not (isinstance(t, (float, int)) and not math.isnan(t) and t >= 0):
-                print(f"get_note_reach_time: invalid time tuple element at index {i} for track_id {track_id}, value: {t}")
+                print(
+                    f"get_note_reach_time: invalid time tuple element at index {i} for track_id {track_id}, value: {t}"
+                )
                 valid = False
                 break
         if not valid:
@@ -183,13 +174,15 @@ def _get_note_reach_time(time, track_id):
         return time[0]
 
     else:
-        print(f"get_note_reach_time: invalid time format for track_id {track_id}, time: {time}")
+        print(
+            f"get_note_reach_time: invalid time format for track_id {track_id}, time: {time}"
+        )
         return None
 
 
-
-
-def _parse_note_duration(one_bar_Msec, note_type, note_duration, base_denominator, duration_denominator) -> str:
+def _parse_note_duration(
+    one_bar_Msec, note_type, note_duration, base_denominator, duration_denominator
+) -> str:
 
     duration_in_bar = note_duration / one_bar_Msec
 
@@ -212,8 +205,7 @@ def _parse_note_duration(one_bar_Msec, note_type, note_duration, base_denominato
 
     # 将 duration 变为分数形式
     numerator, denominator, one = get_fraction(
-        duration_in_bar, denominator_to_use,
-        auto_12, auto_24, auto_48
+        duration_in_bar, denominator_to_use, auto_12, auto_24, auto_48
     )
     # 将整数部分加入分子
     if one > 0:
@@ -223,18 +215,14 @@ def _parse_note_duration(one_bar_Msec, note_type, note_duration, base_denominato
         numerator = 1
         denominator = 1
 
-    duration_syntax = f'[{denominator}:{numerator}]'
+    duration_syntax = f"[{denominator}:{numerator}]"
 
     return duration_syntax
 
 
-
-
-def _append_slide_duration_syntax(position: str,
-                                  durations,
-                                  one_bar_Msec,
-                                  base_denominator,
-                                  duration_denominator) -> str:
+def _append_slide_duration_syntax(
+    position: str, durations, one_bar_Msec, base_denominator, duration_denominator
+) -> str:
     """
     插入 slide 的时值文本
     - 单 slide: 1-2 -> 1-2[8:1]
@@ -244,7 +232,7 @@ def _append_slide_duration_syntax(position: str,
         return position
 
     # 单星星: 直接在末尾添加时值
-    if '*' not in position:
+    if "*" not in position:
         return position + _parse_note_duration(
             one_bar_Msec,
             NoteType.SLIDE,
@@ -254,7 +242,7 @@ def _append_slide_duration_syntax(position: str,
         )
 
     # 多段链式语法：按 '*' 分段填充时值
-    segments = position.split('*')
+    segments = position.split("*")
     if len(segments) != len(durations):
         print(
             f"generate_maidata: slide segment/duration mismatch, "
@@ -280,9 +268,7 @@ def _append_slide_duration_syntax(position: str,
         )
         output_segments.append(segment + duration_syntax)
 
-    return '*'.join(output_segments)
-
-
+    return "*".join(output_segments)
 
 
 def _try_compress_wifi_slide(slide_position: str) -> str:
@@ -302,26 +288,25 @@ def _try_compress_wifi_slide(slide_position: str) -> str:
     def check_varient(syntax) -> bool:
         if not syntax[0].isdigit():
             return False
-        varient = syntax[1:] if len(syntax) > 1 else ''
-        if varient not in ('', 'b', 'x', 'bx'):
+        varient = syntax[1:] if len(syntax) > 1 else ""
+        if varient not in ("", "b", "x", "bx"):
             return False
         return True
 
-
-    if '*' not in slide_position:
+    if "*" not in slide_position:
         return slide_position
 
     # 按 * 分割
-    segments = slide_position.split('*')
+    segments = slide_position.split("*")
 
     # 必须严格是三段
     if len(segments) != 3:
         return slide_position
-    
+
     # 每个段有且仅有一个 "-"
-    if not all(seg.count('-') == 1 for seg in segments):
+    if not all(seg.count("-") == 1 for seg in segments):
         return slide_position
-    
+
     duration = None
     start = None
     end_syntax = None
@@ -330,16 +315,16 @@ def _try_compress_wifi_slide(slide_position: str) -> str:
     # 第一段结构: 起点(变体) "-" 终点(变体) 时值
     try:
         # 提取时值
-        syntax, dur_part = segments[0].split('[')
+        syntax, dur_part = segments[0].split("[")
         # 提取起点终点
-        start, end = syntax.split('-')
+        start, end = syntax.split("-")
         if not check_varient(start):
             return slide_position
         if not check_varient(end):
             return slide_position
         # 通过
-        duration = '[' + dur_part # 补全括号
-        end_syntax = end[1:] if len(end) > 1 else ''
+        duration = "[" + dur_part  # 补全括号
+        end_syntax = end[1:] if len(end) > 1 else ""
         end_pos_ids = end[0]
     except Exception:
         return slide_position
@@ -348,26 +333,26 @@ def _try_compress_wifi_slide(slide_position: str) -> str:
     for seg in segments[1:]:
         try:
             # 提取时值
-            syntax, dur_part = seg.split('[')
-            if '[' + dur_part != duration: # 时值一致性检查
+            syntax, dur_part = seg.split("[")
+            if "[" + dur_part != duration:  # 时值一致性检查
                 return slide_position
             # 提取终点
-            if not syntax.startswith('-'):
+            if not syntax.startswith("-"):
                 return slide_position
             end = syntax[1:]
             if not check_varient(end):
                 return slide_position
-            if end[1:] != end_syntax: # 变体一致性检查
+            if end[1:] != end_syntax:  # 变体一致性检查
                 return slide_position
-            end_pos_ids = end_pos_ids + end[0] # concat str
+            end_pos_ids = end_pos_ids + end[0]  # concat str
         except Exception:
             return slide_position
 
     seq = _WIFI_ENDPOINT_SEQ.get(start[0])
     if not seq:
         return slide_position
-    
+
     if sorted(end_pos_ids) != sorted(seq):
         return slide_position
-    
+
     return f"{start}w{seq[1]}{end_syntax}{duration}"

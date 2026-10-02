@@ -1,28 +1,21 @@
 import time
-import torch.multiprocessing as tmp
-from queue import Empty, Full
 from dataclasses import dataclass
 from enum import Enum
+from queue import Empty, Full
 
-from ...schemas.op_result import OpResult, ok, err
-from .note_definition import (
-    NoteType,
-    NoteVariant,
-    Note_Geometry,
-    get_imgsz,
-    is_obb,
-    map_model_class_to_note_type,
-    map_note_type_to_class_id,
-    need_cls,
-)
-from .detect_inference_worker import inference_worker_main
-from src.services import kill_process_tree
 import i18n
+import torch.multiprocessing as tmp
 
+from src.services import kill_process_tree
 
+from ...schemas.op_result import OpResult, err, ok
+from .detect_inference_worker import inference_worker_main
+from .note_definition import (
+    get_imgsz,
+)
 
-_FRAME_QUEUE_CAP = 20         # 输入: 待推理的视频帧 queue 上限 (detect/obb 各一条)
-_RESULTS_QUEUE_CAP = 1000     # 输出: 推理结果 queue 上限
+_FRAME_QUEUE_CAP = 20  # 输入: 待推理的视频帧 queue 上限 (detect/obb 各一条)
+_RESULTS_QUEUE_CAP = 1000  # 输出: 推理结果 queue 上限
 
 _PUT_TO_INPUT_QUEUE_TIMEOUT = 0.1
 _WORKER_EXIT_TIMEOUT = 10.0
@@ -33,12 +26,10 @@ _WORKER_EXIT_TIMEOUT = 10.0
 _NO_RAW_ERROR = ""
 
 
-
-
-
 @dataclass
 class _InferencerDeps:
     """create_inferencer 装配好参数打包供 Inferencer.__init__ 消费"""
+
     process_detect: "tmp.Process"
     process_obb: "tmp.Process"
     input_queue_detect: "tmp.Queue"
@@ -51,16 +42,22 @@ class _InferencerDeps:
     progress_ref_obb: "tmp.Value"
 
 
-
-def create_inferencer(detect_model_path, obb_model_path,
-                      batch_size, inference_device, coord_scale,
-                      model_backend, half,
-                    ) -> OpResult:
+def create_inferencer(
+    detect_model_path,
+    obb_model_path,
+    batch_size,
+    inference_device,
+    coord_scale,
+    model_backend,
+    half,
+) -> OpResult:
     """构造 Inferencer (而不是直接调用 Inferencer.__init__)"""
 
     if batch_size <= 0:
-        return err(i18n.t("detect_inference.error_batch_size_invalid", value=batch_size))
-    if get_imgsz('detect') != get_imgsz('obb'):
+        return err(
+            i18n.t("detect_inference.error_batch_size_invalid", value=batch_size)
+        )
+    if get_imgsz("detect") != get_imgsz("obb"):
         return err(i18n.t("detect_inference.error_imgsz_mismatch"))
 
     # 构造进程间共享对象
@@ -70,24 +67,42 @@ def create_inferencer(detect_model_path, obb_model_path,
     control_queue_detect = tmp.Queue()
     control_queue_obb = tmp.Queue()
     stop_event = tmp.Event()
-    progress_ref_detect = tmp.Value('i', 0)
-    progress_ref_obb = tmp.Value('i', 0)
+    progress_ref_detect = tmp.Value("i", 0)
+    progress_ref_obb = tmp.Value("i", 0)
 
     # 创建推理 worker 进程 (detect/obb)
     process_detect = tmp.Process(
         target=inference_worker_main,
-        args=(detect_model_path, 'detect', inference_device,
-              coord_scale, half, model_backend,
-              input_queue_detect, output_queue, control_queue_detect,
-              progress_ref_detect, stop_event),
+        args=(
+            detect_model_path,
+            "detect",
+            inference_device,
+            coord_scale,
+            half,
+            model_backend,
+            input_queue_detect,
+            output_queue,
+            control_queue_detect,
+            progress_ref_detect,
+            stop_event,
+        ),
         daemon=True,
     )
     process_obb = tmp.Process(
         target=inference_worker_main,
-        args=(obb_model_path, 'obb', inference_device,
-              coord_scale, half, model_backend,
-              input_queue_obb, output_queue, control_queue_obb,
-              progress_ref_obb, stop_event),
+        args=(
+            obb_model_path,
+            "obb",
+            inference_device,
+            coord_scale,
+            half,
+            model_backend,
+            input_queue_obb,
+            output_queue,
+            control_queue_obb,
+            progress_ref_obb,
+            stop_event,
+        ),
         daemon=True,
     )
 
@@ -99,40 +114,36 @@ def create_inferencer(detect_model_path, obb_model_path,
         process_obb.start()
         started.append(process_obb)
     except Exception as e:
-        failed_name = 'obb' if process_detect in started else 'detect'
+        failed_name = "obb" if process_detect in started else "detect"
         for p in started:
             if p.is_alive():
                 p.terminate()
-        return err(f"[inferencer] failed to start {failed_name} model worker: {e}", error_raw=e)
+        return err(
+            f"[inferencer] failed to start {failed_name} model worker: {e}", error_raw=e
+        )
 
     # 真正创建 Inferencer
     deps = _InferencerDeps(
-        process_detect, process_obb,
-        input_queue_detect, input_queue_obb,
+        process_detect,
+        process_obb,
+        input_queue_detect,
+        input_queue_obb,
         output_queue,
-        control_queue_detect, control_queue_obb,
+        control_queue_detect,
+        control_queue_obb,
         stop_event,
-        progress_ref_detect, progress_ref_obb,
+        progress_ref_detect,
+        progress_ref_obb,
     )
     inferencer = Inferencer(deps)
 
     return ok(inferencer)
 
 
-
-
-
-
-
-
-
-
-
-
 class WorkerStatus(Enum):
-    RUNNING = 'running'   # 未结束
-    DONE    = 'done'      # 正常结束
-    FAILED  = 'failed'    # 报错
+    RUNNING = "running"  # 未结束
+    DONE = "done"  # 正常结束
+    FAILED = "failed"  # 报错
 
 
 class Inferencer:
@@ -164,37 +175,31 @@ class Inferencer:
 
         # worker 状态机: RUNNING / DONE / FAILED
         # sticky: 仅在 RUNNING 时可转 DONE/FAILED, 终态不可回退
-        self._status = {'detect': WorkerStatus.RUNNING,
-                        'obb':    WorkerStatus.RUNNING,}
+        self._status = {
+            "detect": WorkerStatus.RUNNING,
+            "obb": WorkerStatus.RUNNING,
+        }
 
         self._class_force_closed = False  # 仅在用户主动关闭时为 True
-                                          # 只会在 stop() 写入
-        self._failures = []               # 失败事件 - list[OpResult]
-                                          # 只会在 check_health() 写入
-        self._pending_results = []        # get_results 缓冲 - list[(Note_Geometry, task_name)]
-                                          # 在结果收集时写入, 仅在 get_results() 清空
-
+        # 只会在 stop() 写入
+        self._failures = []  # 失败事件 - list[OpResult]
+        # 只会在 check_health() 写入
+        self._pending_results = []  # get_results 缓冲 - list[(Note_Geometry, task_name)]
+        # 在结果收集时写入, 仅在 get_results() 清空
 
     @property
     def progress(self) -> tuple:
         """tuple[detect_done_frames, obb_done_frames]"""
         return (self._progress_ref_detect.value, self._progress_ref_obb.value)
 
-
     @property
     def is_done(self) -> bool:
         """两个 worker 是否都已离开 RUNNING (即 DONE 或 FAILED)"""
         return all(s != WorkerStatus.RUNNING for s in self._status.values())
 
-
-
-
-
-
     def _set_status(self, name, status):
         if self._status[name] == WorkerStatus.RUNNING:
             self._status[name] = status
-
 
     def _dispatch_control_queue_result(self, name, op_result):
         """
@@ -210,7 +215,6 @@ class Inferencer:
             self._failures.append(op_result)
             self._set_status(name, WorkerStatus.FAILED)
 
-
     def _check_workers_health(self) -> bool:
         """
         检查 inference workers 健康状态, 处理控制队列, 更新状态机
@@ -220,14 +224,14 @@ class Inferencer:
         """
         # 1. 排空两条控制队列 → dispatch result
         for item in _drain_queue(self._control_queue_detect):
-            self._dispatch_control_queue_result('detect', item)
+            self._dispatch_control_queue_result("detect", item)
         for item in _drain_queue(self._control_queue_obb):
-            self._dispatch_control_queue_result('obb', item)
+            self._dispatch_control_queue_result("obb", item)
 
         # 2. 检查进程是否存活
         for name, p, control_q in (
-            ('detect', self._process_detect, self._control_queue_detect),
-            ('obb', self._process_obb, self._control_queue_obb),
+            ("detect", self._process_detect, self._control_queue_detect),
+            ("obb", self._process_obb, self._control_queue_obb),
         ):
             status_is_running = bool(self._status[name] == WorkerStatus.RUNNING)
             # 状态是 running 但实际进程挂了
@@ -250,17 +254,9 @@ class Inferencer:
         is_failed = any(s == WorkerStatus.FAILED for s in self._status.values())
         return not is_failed
 
-
     def _collect_ready_results(self):
         """将 output_queue 中已就绪的结果暂存到内部缓冲"""
         self._pending_results.extend(_drain_queue(self._output_queue))
-
-
-
-
-
-
-
 
     def put_batch(self, batch, timeout: float = 60.0) -> OpResult:
         """tee batch 到 detect/obb 两条 input_queue"""
@@ -284,13 +280,19 @@ class Inferencer:
                     # 队列满了, 检查健康状态再重试
                     if not self._check_workers_health():
                         inner_err = _build_chain_OpResult(self._failures)
-                        return err("[inferencer] put_batch: health check failed.",
-                                   inner=inner_err, error_raw=_NO_RAW_ERROR)
+                        return err(
+                            "[inferencer] put_batch: health check failed.",
+                            inner=inner_err,
+                            error_raw=_NO_RAW_ERROR,
+                        )
                     if time.monotonic() > deadline:
                         # 超时
                         inner_err = _build_chain_OpResult(self._failures)
-                        return err("[inferencer] put_batch: timeout putting batch",
-                                   inner=inner_err, error_raw=_NO_RAW_ERROR)
+                        return err(
+                            "[inferencer] put_batch: timeout putting batch",
+                            inner=inner_err,
+                            error_raw=_NO_RAW_ERROR,
+                        )
                     continue
                 except Exception as e:
                     # 其他异常
@@ -302,8 +304,6 @@ class Inferencer:
 
         return ok()
 
-
-
     def get_results(self) -> OpResult:
         """
         收集 output_queue 中已就绪的推理结果
@@ -313,7 +313,9 @@ class Inferencer:
             return err("[inferencer] get_results: already closed.")
         if not self._check_workers_health():
             inner_err = _build_chain_OpResult(self._failures)
-            return err("[inferencer] get_results: health check failed.", inner=inner_err)
+            return err(
+                "[inferencer] get_results: health check failed.", inner=inner_err
+            )
 
         # 排空输出队列, 存进 _pending_results
         self._collect_ready_results()
@@ -322,9 +324,6 @@ class Inferencer:
         self._pending_results = []
 
         return ok(value=snapshot)
-
-
-
 
     def send_eof(self, timeout: float = 60.0) -> OpResult:
         """
@@ -351,19 +350,24 @@ class Inferencer:
                     self._collect_ready_results()
                     if not self._check_workers_health():
                         inner_err = _build_chain_OpResult(self._failures)
-                        return err("[inferencer] send_eof: health check failed.",
-                                   inner=inner_err, error_raw=_NO_RAW_ERROR)
+                        return err(
+                            "[inferencer] send_eof: health check failed.",
+                            inner=inner_err,
+                            error_raw=_NO_RAW_ERROR,
+                        )
                     if time.monotonic() > deadline:
                         # 超时
-                        return err("[inferencer] send_eof: timeout putting EOF",
-                                   error_raw=_NO_RAW_ERROR)
+                        return err(
+                            "[inferencer] send_eof: timeout putting EOF",
+                            error_raw=_NO_RAW_ERROR,
+                        )
                 except Exception as e:
                     # 其他异常
-                    return err(f"[inferencer] send_eof: error putting EOF: {e}", error_raw=e)
+                    return err(
+                        f"[inferencer] send_eof: error putting EOF: {e}", error_raw=e
+                    )
 
         return ok()
-
-
 
     def stop(self):
         """强制关闭推理"""
@@ -378,7 +382,9 @@ class Inferencer:
             self._control_queue_detect,
             self._control_queue_obb,
         )
-        is_aborting = any(status != WorkerStatus.DONE for status in self._status.values())
+        is_aborting = any(
+            status != WorkerStatus.DONE for status in self._status.values()
+        )
 
         # 异常关闭允许丢弃待发送帧，避免解释器等待 QueueFeederThread。
         if is_aborting:
@@ -413,12 +419,11 @@ class Inferencer:
                     pass
 
 
-
-
-
 def _format_exit_line(p, model_name):
     exitcode = p.exitcode
-    win_code = (exitcode & 0xFFFFFFFF) if exitcode is not None and exitcode < 0 else None
+    win_code = (
+        (exitcode & 0xFFFFFFFF) if exitcode is not None and exitcode < 0 else None
+    )
     win_str = f"0x{win_code:08X}" if win_code is not None else "N/A"
     return f"{model_name} model inferencer died, exitcode={exitcode} win_code={win_str}"
 

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Optional
-
 from src.core.schemas.op_result import OpResult, err
+
 from .task_scheduler import TaskScheduler, TaskType
 
 
@@ -11,8 +10,7 @@ def get_signals():
     return TaskScheduler.get_instance().signals
 
 
-def register(task_type: TaskType,
-             concurrency: int = 1) -> None:
+def register(task_type: TaskType, concurrency: int = 1) -> None:
     """Register a task type with its concurrency limit."""
 
     if not isinstance(concurrency, int) or concurrency < 1:
@@ -21,11 +19,9 @@ def register(task_type: TaskType,
     TaskScheduler.get_instance().register(task_type, concurrency=concurrency)
 
 
-
-def submit_task(task_type: TaskType,
-                cmd: list[str],
-                *,
-                task_name: Optional[str] = "") -> OpResult[str]:
+def submit_task(
+    task_type: TaskType, cmd: list[str], *, task_name: str | None = ""
+) -> OpResult[str]:
     """Submit a new task (pre-built cmd) to the scheduler.
 
     Args:
@@ -41,8 +37,9 @@ def submit_task(task_type: TaskType,
     if not isinstance(cmd[0], str) or not cmd[0].strip():
         return err("cmd[0] must be program path")
 
-    return TaskScheduler.get_instance().submit_task(task_type, cmd=cmd, task_name=task_name)
-
+    return TaskScheduler.get_instance().submit_task(
+        task_type, cmd=cmd, task_name=task_name
+    )
 
 
 def cancel(runner_id: str) -> OpResult[None]:

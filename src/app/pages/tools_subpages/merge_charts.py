@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from functools import partial
 from pathlib import Path
-from typing import Callable
 
 import i18n
 from PyQt6.QtWidgets import (
@@ -18,9 +18,9 @@ from PyQt6.QtWidgets import (
 )
 
 from src.core.chart_merge import (
+    HEADER_KEYS,
     ChartBlock,
     CollectedInput,
-    HEADER_KEYS,
     LevelSelection,
     ParsedChartFile,
     aggregate_candidates,
@@ -37,6 +37,7 @@ from src.core.tools import (
     show_notify_dialog,
     validate_windows_filename,
 )
+
 from ...widgets import (
     SplitDropLineEdit,
     ToolTipComboBox,
@@ -52,7 +53,6 @@ from ...widgets import (
     widget_utils,
 )
 from ..base_output_page import BaseOutputPage
-
 
 I18N_PREFIX = "app.tools_subpages.merge_charts"
 
@@ -151,7 +151,9 @@ class MergeChartsPage(BaseOutputPage):
         select_dirs_button = create_button(_t("ui_select_dirs_button"), width=103)
         input_help = create_help_icon(_t("ui_input_help"))
         self._input_combo = create_combo_box(show_tooltip=True)
-        self._remove_input_button = create_button(_t("ui_remove_current_button"), width=100)
+        self._remove_input_button = create_button(
+            _t("ui_remove_current_button"), width=100
+        )
         self._clear_inputs_button = create_button(_t("ui_clear_all_button"), width=75)
         self.create_row(
             select_files_button,
@@ -369,14 +371,17 @@ class MergeChartsPage(BaseOutputPage):
             default = select_header_default(key, values)
             edit.set_items(values)
             # 仅在未手动改动时套用新默认值，避免覆盖用户输入
-            if not preserve_text or edit.text() in ("", self._header_defaults.get(key, "")):
+            if not preserve_text or edit.text() in (
+                "",
+                self._header_defaults.get(key, ""),
+            ):
                 edit.setText(default)
             self._header_defaults[key] = default
 
-    def _sync_level_rows(self, charts_by_level: dict[int, tuple[ChartBlock, ...]]) -> None:
-        previous = {
-            level: _row_state(row) for level, row in self._level_rows.items()
-        }
+    def _sync_level_rows(
+        self, charts_by_level: dict[int, tuple[ChartBlock, ...]]
+    ) -> None:
+        previous = {level: _row_state(row) for level, row in self._level_rows.items()}
         levels = ordered_chart_levels(charts_by_level)
         if tuple(self._level_rows) != levels:
             self._rebuild_level_rows(levels)

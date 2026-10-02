@@ -1,22 +1,20 @@
-import os
-from ultralytics.utils import LOGGER
 import logging
+import os
 from pathlib import Path
 
-from .detect import main as detect_module
-from .track import main as track_module
-from .post_track import main as post_track_module
-from .classify import main as classify_module
-from .export_track_video import main as export_video_module
-
-from ...schemas.op_result import OpResult, ok, err
-from ...schemas.op_result import print_op_result
-from ...tools import FFprobeInspect
 import i18n
+from ultralytics.utils import LOGGER
 
+from ...schemas.op_result import OpResult, err, ok, print_op_result
+from ...tools import FFprobeInspect
+from .classify import main as classify_module
+from .detect import main as detect_module
+from .export_track_video import main as export_video_module
+from .post_track import main as post_track_module
+from .track import main as track_module
 
 original_level = LOGGER.level
-LOGGER.setLevel(logging.ERROR) # 只显示错误信息，忽略 Warning
+LOGGER.setLevel(logging.ERROR)  # 只显示错误信息，忽略 Warning
 
 
 def _get_total_frames_by_ffprobe(std_video_path: Path) -> OpResult[int]:
@@ -30,44 +28,81 @@ def _get_total_frames_by_ffprobe(std_video_path: Path) -> OpResult[int]:
 
     return ok(total_frames)
 
-def main(std_video_path,
-         batch_detect, batch_cls, inference_device,
-         detect_model_path, obb_model_path, cls_ex_model_path, cls_break_model_path,
-         model_backend, half=False,
-         skip_detect=False, skip_cls=False, skip_export_tracked_video=False,
-         # enable_reid=True
-        ) -> OpResult[None]:
+
+def main(
+    std_video_path,
+    batch_detect,
+    batch_cls,
+    inference_device,
+    detect_model_path,
+    obb_model_path,
+    cls_ex_model_path,
+    cls_break_model_path,
+    model_backend,
+    half=False,
+    skip_detect=False,
+    skip_cls=False,
+    skip_export_tracked_video=False,
+    # enable_reid=True
+) -> OpResult[None]:
     try:
         # 检查输入文件
         paths = []
-        for path in [std_video_path, detect_model_path, obb_model_path, cls_ex_model_path, cls_break_model_path]:
+        for path in [
+            std_video_path,
+            detect_model_path,
+            obb_model_path,
+            cls_ex_model_path,
+            cls_break_model_path,
+        ]:
             path = os.path.abspath(path)
             path = os.path.normpath(path)
             if not os.path.exists(path):
-                raise FileNotFoundError(i18n.t("detect_main.error_model_not_found", path=str(path)))
+                raise FileNotFoundError(
+                    i18n.t("detect_main.error_model_not_found", path=str(path))
+                )
             paths.append(path)
-        std_video_path, detect_model_path, obb_model_path, cls_ex_model_path, cls_break_model_path = paths 
+        (
+            std_video_path,
+            detect_model_path,
+            obb_model_path,
+            cls_ex_model_path,
+            cls_break_model_path,
+        ) = paths
         std_video_path = Path(std_video_path)
 
         # 检查模型配置
         if batch_detect <= 0 or batch_cls <= 0:
-            raise ValueError(i18n.t("detect_main.error_batch_invalid",
-                                    batch_detect=batch_detect, batch_cls=batch_cls))
+            raise ValueError(
+                i18n.t(
+                    "detect_main.error_batch_invalid",
+                    batch_detect=batch_detect,
+                    batch_cls=batch_cls,
+                )
+            )
 
         # 统一通过 ffprobe 逐帧时间戳计算总帧数，避免 VFR 下 OpenCV 帧数不准
         total_frames_result = _get_total_frames_by_ffprobe(std_video_path)
         if not total_frames_result.is_ok:
             detail = print_op_result(total_frames_result)
-            return err(i18n.t("detect_main.error_read_total_frames_failed", detail=detail), inner=total_frames_result)
+            return err(
+                i18n.t("detect_main.error_read_total_frames_failed", detail=detail),
+                inner=total_frames_result,
+            )
         total_frames = total_frames_result.value
 
         # 检测模块
         if not skip_detect:
-            result = detect_module(std_video_path,
-                                   total_frames,
-                                   batch_detect, inference_device,
-                                   detect_model_path, obb_model_path,
-                                   model_backend, half)
+            result = detect_module(
+                std_video_path,
+                total_frames,
+                batch_detect,
+                inference_device,
+                detect_model_path,
+                obb_model_path,
+                model_backend,
+                half,
+            )
             if not result.is_ok:
                 return err("detect module failed", inner=result)
         else:
@@ -86,10 +121,14 @@ def main(std_video_path,
 
         # 分类模块
         if not skip_cls:
-            result = classify_module(std_video_path,
-                                     batch_cls, inference_device,
-                                     cls_ex_model_path, cls_break_model_path,
-                                     half=half)
+            result = classify_module(
+                std_video_path,
+                batch_cls,
+                inference_device,
+                cls_ex_model_path,
+                cls_break_model_path,
+                half=half,
+            )
             if not result.is_ok:
                 return err("classify module failed", inner=result)
         else:
@@ -104,7 +143,7 @@ def main(std_video_path,
             print(i18n.t("detect_main.notice_skip_export_video"))
 
         return ok()
-        
+
     except KeyboardInterrupt:
         print("\nInterrupted")
         return err("Interrupted by user (KeyboardInterrupt)")

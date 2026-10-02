@@ -9,9 +9,9 @@ from .importing import import_chart_inputs
 from .parse import HEADER_KEYS, ChartBlock, ParsedChartFile
 
 __all__ = [
+    "HEADER_KEYS",
     "ChartBlock",
     "CollectedInput",
-    "HEADER_KEYS",
     "LevelSelection",
     "ParsedChartFile",
     "aggregate_candidates",

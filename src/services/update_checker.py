@@ -3,24 +3,23 @@
 import json
 import re
 from datetime import date
-from typing import Optional
 
 import i18n
-
 from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 
+from src.core.schemas.op_result import OpResult, err, ok
 from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
-from src.core.schemas.op_result import OpResult, ok, err
-from .settings_manage import SettingsManage
 from src.core.tools import show_confirm_dialog, show_notify_dialog
+
+from .settings_manage import SettingsManage
 
 # Transfer timeout: abort if no data for 10 seconds.
 REQUEST_TIMEOUT_MS = 10_000
 
 
-def _parse_semver(raw: str) -> Optional[tuple[int, ...]]:
+def _parse_semver(raw: str) -> tuple[int, ...] | None:
     """Parse a version string into a comparable tuple of ints.
 
     Handles: "1.2.1", "v1.2.1", "v1.2.1-beta", etc.
@@ -52,6 +51,7 @@ def _extract_tag_name(reply: QNetworkReply) -> OpResult[str]:
 # public entry point
 # ---------------------------------------------------------------------------
 
+
 def check_update(force: bool = False) -> None:
     """
     Main Entry point
@@ -67,7 +67,9 @@ def check_update(force: bool = False) -> None:
             # 先查看设置项，决定是否检查更新
             result = SettingsManage.get(S_Defs.check_update.key)
             if not result.is_ok:
-                print(i18n.t("check_update.notice_check_failed", error=result.error_msg))
+                print(
+                    i18n.t("check_update.notice_check_failed", error=result.error_msg)
+                )
                 return
             if not result.value:
                 print(i18n.t("check_update.notice_skipped"))
@@ -90,11 +92,10 @@ def check_update(force: bool = False) -> None:
         nam.setTransferTimeout(REQUEST_TIMEOUT_MS)
         nam.setAutoDeleteReplies(True)
 
-
-
         def _on_reply_finished(reply: QNetworkReply) -> None:
             """Handle the completed network reply — compare versions, optionally show dialog."""
             from src.main import REPO, VERSION  # 避免循环依赖
+
             dialog_title = i18n.t("check_update.dialog_title")
             try:
                 # 1. Network-level error (DNS, timeout, connection refused, etc.)
@@ -107,11 +108,15 @@ def check_update(force: bool = False) -> None:
                     return
 
                 # 2. HTTP status
-                status = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
+                status = reply.attribute(
+                    QNetworkRequest.Attribute.HttpStatusCodeAttribute
+                )
                 if status != 200:
-                    msg = i18n.t("check_update.notice_fetch_failed",
-                                 status=status or 0,
-                                 error=reply.reasonPhrase() or "unknown")
+                    msg = i18n.t(
+                        "check_update.notice_fetch_failed",
+                        status=status or 0,
+                        error=reply.reasonPhrase() or "unknown",
+                    )
                     print(msg)
                     if force:
                         show_notify_dialog(dialog_title, msg)
@@ -120,8 +125,11 @@ def check_update(force: bool = False) -> None:
                 # 3. Parse JSON body
                 tag_result = _extract_tag_name(reply)
                 if not tag_result.is_ok:
-                    msg = i18n.t("check_update.notice_fetch_failed",
-                                 status=200, error=tag_result.error_msg)
+                    msg = i18n.t(
+                        "check_update.notice_fetch_failed",
+                        status=200,
+                        error=tag_result.error_msg,
+                    )
                     print(msg)
                     if force:
                         show_notify_dialog(dialog_title, msg)
@@ -133,8 +141,11 @@ def check_update(force: bool = False) -> None:
                 current_ver = _parse_semver(VERSION)
 
                 if latest_ver is None or current_ver is None:
-                    msg = i18n.t("check_update.notice_parse_failed",
-                                 current=VERSION, latest=latest_tag)
+                    msg = i18n.t(
+                        "check_update.notice_parse_failed",
+                        current=VERSION,
+                        latest=latest_tag,
+                    )
                     print(msg)
                     if force:
                         show_notify_dialog(dialog_title, msg)
@@ -149,22 +160,27 @@ def check_update(force: bool = False) -> None:
                     return
 
                 # 5. New version available — confirm
-                print(i18n.t("check_update.notice_new_version",
-                             latest=latest_tag, current=VERSION))
+                print(
+                    i18n.t(
+                        "check_update.notice_new_version",
+                        latest=latest_tag,
+                        current=VERSION,
+                    )
+                )
                 SettingsManage.set(S_Defs.last_check_update_time.key, today_str)
                 if show_confirm_dialog(
                     i18n.t("check_update.dialog_title"),
-                    i18n.t("check_update.dialog_prompt",
-                           latest_version=latest_tag,
-                           current_version=f"v{VERSION}")
+                    i18n.t(
+                        "check_update.dialog_prompt",
+                        latest_version=latest_tag,
+                        current_version=f"v{VERSION}",
+                    ),
                 ):
                     QDesktopServices.openUrl(QUrl(f"{REPO}/releases/latest"))
             finally:
                 # cleanup
                 nam.finished.disconnect(_on_reply_finished)
                 nam.deleteLater()
-
-
 
         nam.finished.connect(_on_reply_finished)
 

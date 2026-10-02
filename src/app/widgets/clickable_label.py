@@ -1,15 +1,18 @@
 from PyQt6.QtCore import Qt, QUrl
 from PyQt6.QtGui import QCursor, QDesktopServices
+
 from .label import create_label
 from .popup_tooltip import install_tooltip
 
 
-def create_clickable_label(label_text="",
-                           tooltip_text="",
-                           url=None,
-                           label_color=None,
-                           label_font_size=None,
-                           label_bold=False):
+def create_clickable_label(
+    label_text="",
+    tooltip_text="",
+    url=None,
+    label_color=None,
+    label_font_size=None,
+    label_bold=False,
+):
     """
     创建可点击的文本标签，支持悬停 tooltip 和点击打开 URL。
 
@@ -26,10 +29,9 @@ def create_clickable_label(label_text="",
     """
 
     # 直接调用 create_label() 创建基础标签
-    label = create_label(text=label_text,
-                         color=label_color,
-                         font_size=label_font_size,
-                         bold=label_bold)
+    label = create_label(
+        text=label_text, color=label_color, font_size=label_font_size, bold=label_bold
+    )
 
     # 设置光标
     label.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
@@ -39,8 +41,10 @@ def create_clickable_label(label_text="",
 
     # 点击打开 URL
     if url is not None:
+
         def _mouse_press_event(_event):
             QDesktopServices.openUrl(QUrl(url))
+
         label.mousePressEvent = _mouse_press_event
 
     return label

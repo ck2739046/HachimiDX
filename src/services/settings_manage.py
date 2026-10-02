@@ -1,14 +1,15 @@
 import json
 import os
-import tempfile
 import shutil
+import tempfile
 import threading
 from copy import deepcopy
-from typing import Any, Optional
+from typing import Any
 
-from src.core.schemas.op_result import OpResult, ok, err
+from src.core.schemas.op_result import OpResult, err, ok
 from src.core.schemas.settings_model import SettingsModel
 from src.core.tools import validate_pydantic
+
 from .path_manage import PathManage
 
 # 创建本地别名，避免每次都写 PathManage.xxx
@@ -17,14 +18,10 @@ TEMP_DIR = PathManage.TEMP_DIR
 LOCALES_DIR = PathManage.LOCALES_DIR
 
 
-
 # 管理器实现
 class SettingsManage:
-
     _lock = threading.RLock()
-    _config: Optional[SettingsModel] = None
-
-
+    _config: SettingsModel | None = None
 
     @classmethod
     def init(cls) -> OpResult[None]:
@@ -34,11 +31,8 @@ class SettingsManage:
             return ok()
         else:
             return err(
-                "Critical Error: Failed to initialize SettingsManage.",
-                inner = result
+                "Critical Error: Failed to initialize SettingsManage.", inner=result
             )
-
-
 
     @classmethod
     def _load_or_create(cls) -> OpResult[SettingsModel]:
@@ -49,14 +43,13 @@ class SettingsManage:
                 print("--Warning: configuration file not found.")
                 return None
             try:
-                with open(SETTINGS_PATH, 'r', encoding='utf-8') as f:
+                with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     return data
             except Exception as e:
-                print(f"--Warning: failed to load configuration. "
-                      f"Error:\n{str(e)}")
+                print(f"--Warning: failed to load configuration. Error:\n{e!s}")
                 return None
-            
+
         with cls._lock:
             # 1. 文件存在：尝试读取并校验
             data = try_load_json()
@@ -71,25 +64,29 @@ class SettingsManage:
                         shutil.copy2(SETTINGS_PATH, backup_path)
                         print(f"--Notice: Corrupted config backed up to {backup_path}")
                     except Exception as e:
-                        print(f"--Warning: Failed to backup corrupted config: {str(e)}")
+                        print(f"--Warning: Failed to backup corrupted config: {e!s}")
 
                 # 如果有变化，说明原数据有缺失或异常项
                 # new_data 是修复后的数据，尝试写入文件
                 if has_changes:
-                    print("--Notice: configuration file updated with per-item normalization.")
+                    print(
+                        "--Notice: configuration file updated with per-item normalization."
+                    )
                     save_result = cls._save_to_file(new_data)
                     if not save_result.is_ok:
-                        print("--Warning: failed to save normalized configuration, fallback to recreate default config.")
-                        print(f"Error:\n{save_result.error_msg}\n{str(save_result.error_raw)}")
+                        print(
+                            "--Warning: failed to save normalized configuration, fallback to recreate default config."
+                        )
+                        print(
+                            f"Error:\n{save_result.error_msg}\n{save_result.error_raw!s}"
+                        )
                         need_return = False
-                        
+
                 # 无变化或者变化已成功保存，尝试返回校验后的模型
                 if need_return:
                     result = validate_pydantic(SettingsModel, new_data)
                     if result.is_ok:
                         return ok(result.value)
-
-
 
             # 2. 文件不存在，或者文件存在但读取或校验失败：创建默认配置
 
@@ -97,23 +94,20 @@ class SettingsManage:
             if os.path.exists(SETTINGS_PATH):
                 os.remove(SETTINGS_PATH)
             default_model = SettingsModel()
-            result = cls._save_to_file(default_model.model_dump(mode='json'))
+            result = cls._save_to_file(default_model.model_dump(mode="json"))
             if result.is_ok:
                 return ok(default_model)
             else:
                 return err(
                     "Critical Error: Failed to create new configuration file.",
-                    inner = result
+                    inner=result,
                 )
-    
-
-
 
     @staticmethod
     def _check_data(input_data) -> tuple[bool, bool, dict]:
 
         new_input_data = deepcopy(SettingsModel().model_dump(mode="json"))
-        default_data = SettingsModel().model_dump(mode='json')
+        default_data = SettingsModel().model_dump(mode="json")
         has_changes = False
         need_backup = False
 
@@ -121,7 +115,6 @@ class SettingsManage:
             has_changes = True
 
         for key, default_value in default_data.items():
-
             # 逐项检验：如果输入有缺失项，将此项设为默认值
             if key not in input_data:
                 print(f"--Warning: missing required key '{key}', reset to default.")
@@ -145,8 +138,6 @@ class SettingsManage:
 
         return has_changes, need_backup, new_input_data
 
-        
-
     @staticmethod
     def _save_to_file(data: dict[str, Any]) -> OpResult[None]:
         """原子化保存字典到文件"""
@@ -154,10 +145,14 @@ class SettingsManage:
         try:
             os.makedirs(TEMP_DIR, exist_ok=True)
             data_json = json.dumps(data, ensure_ascii=False, indent=4)
-            
+
             with tempfile.NamedTemporaryFile(
-                mode='w', encoding='utf-8', dir=TEMP_DIR,
-                delete=False, suffix='.tmp', prefix='settings_'
+                mode="w",
+                encoding="utf-8",
+                dir=TEMP_DIR,
+                delete=False,
+                suffix=".tmp",
+                prefix="settings_",
             ) as tf:
                 tf.write(data_json)
                 temp_path = tf.name
@@ -169,12 +164,7 @@ class SettingsManage:
         except Exception as e:
             if temp_path and os.path.exists(temp_path):
                 os.remove(temp_path)
-            return err(
-                error_msg = "Failed to save configuration to file.",
-                error_raw = e
-            )
-        
-
+            return err(error_msg="Failed to save configuration to file.", error_raw=e)
 
     @classmethod
     def reset(cls) -> OpResult[None]:
@@ -185,14 +175,12 @@ class SettingsManage:
                 os.remove(SETTINGS_PATH)
             # 创建默认配置
             default_model = SettingsModel()
-            result = cls._save_to_file(default_model.model_dump(mode='json'))
+            result = cls._save_to_file(default_model.model_dump(mode="json"))
             if not result.is_ok:
-                return err("Failed to reset configuration.", inner = result)
+                return err("Failed to reset configuration.", inner=result)
             # 更新内存配置
             cls._config = default_model
             return ok()
-
-
 
     @classmethod
     def refresh(cls) -> OpResult[None]:
@@ -203,12 +191,7 @@ class SettingsManage:
                 cls._config = result.value
                 return ok()
             else:
-                return err(
-                    "Failed to refresh configuration from file.",
-                    inner = result
-                )
-
-
+                return err("Failed to refresh configuration from file.", inner=result)
 
     @classmethod
     def get(cls, key: str) -> OpResult[Any]:
@@ -218,16 +201,17 @@ class SettingsManage:
             if cls._config is None:
                 init_res = cls.init()
                 if not init_res.is_ok:
-                    return err("Failed to initialize settings before get", inner=init_res)
+                    return err(
+                        "Failed to initialize settings before get", inner=init_res
+                    )
 
             try:
                 val = getattr(cls._config, key)
                 return ok(val)
             except AttributeError as e:
-                return err(f"Config item '{key}' not found", error_raw = e)
+                return err(f"Config item '{key}' not found", error_raw=e)
             except Exception as e:
-                return err(f"Error retrieving config", error_raw = e)
-
+                return err("Error retrieving config", error_raw=e)
 
     @classmethod
     def get_many(cls, keys: tuple[str, ...]) -> OpResult[dict[str, Any]]:
@@ -235,7 +219,9 @@ class SettingsManage:
             if cls._config is None:
                 init_res = cls.init()
                 if not init_res.is_ok:
-                    return err("Failed to initialize settings before get_many", inner=init_res)
+                    return err(
+                        "Failed to initialize settings before get_many", inner=init_res
+                    )
 
             try:
                 return ok({key: deepcopy(getattr(cls._config, key)) for key in keys})
@@ -244,8 +230,6 @@ class SettingsManage:
             except Exception as e:
                 return err("Error retrieving config snapshot", error_raw=e)
 
-
-
     @classmethod
     def set(cls, key: str, value) -> OpResult[None]:
         """设置配置项（带校验和持久化）"""
@@ -253,7 +237,9 @@ class SettingsManage:
             if cls._config is None:
                 init_result = cls.init()
                 if not init_result.is_ok:
-                    return err("Failed to initialize settings before set", inner=init_result)
+                    return err(
+                        "Failed to initialize settings before set", inner=init_result
+                    )
             # 获取当前配置的副本
             current_data = cls._config.model_dump(mode="json")
             # 更新副本的值
@@ -263,11 +249,11 @@ class SettingsManage:
             if result.is_ok:
                 new_config = result.value
             else:
-                return err("Failed to validate configuration.", inner = result)
+                return err("Failed to validate configuration.", inner=result)
             # 校验通过，保存到文件
-            result = cls._save_to_file(new_config.model_dump(mode='json'))
+            result = cls._save_to_file(new_config.model_dump(mode="json"))
             if not result.is_ok:
-                return err("Failed to save configuration.", inner = result)
+                return err("Failed to save configuration.", inner=result)
             # 更新内存中的配置
             cls._config = new_config
             return ok()

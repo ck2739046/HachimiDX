@@ -1,29 +1,30 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Optional
 import time
+from dataclasses import dataclass
+from typing import Any
 
 from PyQt6.QtCore import QObject, QProcess, QTimer, pyqtSignal
 
-from src.core.schemas.op_result import OpResult, ok, err
+from src.core.schemas.op_result import OpResult, err, ok
 from src.core.tools import generate_uid
+
 from .watchdog import kill_process_tree
 
 
 @dataclass(slots=True)
 class RunnerEnded:
     runner_id: str
-    exit_code: Optional[int] = None
+    exit_code: int | None = None
     crashed: bool = False
     cancelled: bool = False
-    error_msg: Optional[str] = None
+    error_msg: str | None = None
     error_raw: Any = None
 
 
 class ProcessManagerSignals(QObject):
     runner_output = pyqtSignal(str, str, object)  # (runner_id, stream, bytes)
-    runner_ended = pyqtSignal(str, object)   # (runner_id, RunnerEnded)
+    runner_ended = pyqtSignal(str, object)  # (runner_id, RunnerEnded)
 
 
 class ProcessManager(QObject):
@@ -39,20 +40,20 @@ class ProcessManager(QObject):
     - get_instance(): lazy singleton creation (auto-initializes)
     """
 
-    _instance: Optional["ProcessManager"] = None
+    _instance: ProcessManager | None = None
 
     @classmethod
-    def get_instance(cls) -> "ProcessManager":
+    def get_instance(cls) -> ProcessManager:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
 
-    def __init__(self, parent: Optional[QObject] = None) -> None:
+    def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self.signals = ProcessManagerSignals()
 
         # 每 50ms 发送一轮信号
-        self._flush_interval_ms: int = 50        
+        self._flush_interval_ms: int = 50
 
         # dict: runner_id -> QProcess
         self._procs: dict[str, QProcess] = {}
@@ -74,14 +75,12 @@ class ProcessManager(QObject):
         self._flush_timer.timeout.connect(self._flush_all_buffers)
         self._flush_timer.start()
 
-
-
     # -------------------
     # Public operations
     # -------------------
 
-    def start(self, cmd: list[str], *, runner_id: Optional[str] = None) -> OpResult[str]:
-        
+    def start(self, cmd: list[str], *, runner_id: str | None = None) -> OpResult[str]:
+
         if not runner_id:
             # 尝试生成 runner_id
             for attempt in range(3):
@@ -94,9 +93,9 @@ class ProcessManager(QObject):
             # 指定了 runner_id
             if runner_id in self._procs:
                 return err(f"runner_id already exists: {runner_id}")
-            
+
         rid = str(runner_id).strip()
-            
+
         process = QProcess(self)
         process.setProcessChannelMode(QProcess.ProcessChannelMode.SeparateChannels)
 
@@ -112,21 +111,29 @@ class ProcessManager(QObject):
             "stderr": bytearray(),
         }
 
-        process.readyReadStandardOutput.connect(lambda rid=rid: self._on_ready_read(rid, "stdout"))
-        process.readyReadStandardError.connect(lambda rid=rid: self._on_ready_read(rid, "stderr"))
-        process.finished.connect(lambda code, status, rid=rid: self._on_finished(rid, int(code), status))
+        process.readyReadStandardOutput.connect(
+            lambda rid=rid: self._on_ready_read(rid, "stdout")
+        )
+        process.readyReadStandardError.connect(
+            lambda rid=rid: self._on_ready_read(rid, "stderr")
+        )
+        process.finished.connect(
+            lambda code, status, rid=rid: self._on_finished(rid, int(code), status)
+        )
         process.errorOccurred.connect(lambda e, rid=rid: self._on_error(rid, e))
 
         # 延迟发送开始文本
         start_msg = f"\n-\n{'=' * 30}\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] Task_id '{rid}' start.\n-\n{', '.join(cmd)}\n-\n"
-        QTimer.singleShot(0, lambda rid=rid: self.signals.runner_output.emit(rid, "stdout", bytes(start_msg, 'utf-8')))
-        
+        QTimer.singleShot(
+            0,
+            lambda rid=rid: self.signals.runner_output.emit(
+                rid, "stdout", bytes(start_msg, "utf-8")
+            ),
+        )
+
         process.start()
 
         return ok(rid)
-
-
-
 
     def cancel(self, runner_id: str) -> OpResult[None]:
 
@@ -143,12 +150,9 @@ class ProcessManager(QObject):
                 proc.terminate()
                 QTimer.singleShot(400, lambda rid=rid: self._force_kill_if_running(rid))
         except Exception as e:
-            return err("Failed to cancel process", error_raw = e)
+            return err("Failed to cancel process", error_raw=e)
 
         return ok(None)
-
-
-
 
     def kill_all_running(self) -> None:
         """
@@ -158,12 +162,9 @@ class ProcessManager(QObject):
         for rid in list(self._procs.keys()):
             self._force_kill_if_running(rid)
 
-
-
-
     # -------------------
     # Internal helpers
-    # -------------------  
+    # -------------------
 
     def _on_ready_read(self, runner_id: str, stream: str) -> None:
 
@@ -188,9 +189,6 @@ class ProcessManager(QObject):
 
         runner_buffers[stream].extend(bytes(data))
 
-
-
-
     def _flush_all_buffers(self) -> None:
         # Emit at most once per interval per runner.
         for rid in list(self._buffers):
@@ -211,16 +209,13 @@ class ProcessManager(QObject):
             except Exception:
                 pass
 
-
     def _read_remaining_output(self, runner_id: str) -> None:
         self._on_ready_read(runner_id, "stdout")
         self._on_ready_read(runner_id, "stderr")
 
-
-
-
-
-    def _on_finished(self, runner_id: str, exit_code: int, exit_status: QProcess.ExitStatus) -> None:
+    def _on_finished(
+        self, runner_id: str, exit_code: int, exit_status: QProcess.ExitStatus
+    ) -> None:
         if runner_id not in self._procs:
             return
 
@@ -240,14 +235,11 @@ class ProcessManager(QObject):
         )
         self._emit_and_cleanup_ended(runner_id, ended)
 
-
-
-
     def _on_error(self, runner_id: str, err_type: QProcess.ProcessError) -> None:
 
         if runner_id not in self._procs:
             return
-        
+
         # 从 error_type 获取错误信息
         self._last_error[runner_id] = getattr(err_type, "name", str(err_type))
 
@@ -274,9 +266,6 @@ class ProcessManager(QObject):
             )
             self._emit_and_cleanup_ended(runner_id, ended)
 
-
-
-
     def _force_kill_if_running(self, runner_id: str) -> None:
 
         proc = self._procs.get(runner_id)
@@ -288,7 +277,7 @@ class ProcessManager(QObject):
         except RuntimeError:
             # QProcess 的 C++ 对象已被销毁
             return
-        
+
         pid = int(proc.processId())
         if pid <= 0:
             proc.kill()
@@ -297,14 +286,13 @@ class ProcessManager(QObject):
         # 对每个进程的整棵进程树执行 psutil kill
         kill_process_tree(pid)
 
-
-            
-
     def _emit_and_cleanup_ended(self, runner_id: str, ended: RunnerEnded) -> None:
         try:
             # 先发送结束文本
             end_msg = f"\n-\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] Task_id '{runner_id}' ended.\n-\n"
-            self.signals.runner_output.emit(runner_id, "stdout", bytes(end_msg, 'utf-8'))
+            self.signals.runner_output.emit(
+                runner_id, "stdout", bytes(end_msg, "utf-8")
+            )
             # 然后发送 ended 信号
             self.signals.runner_ended.emit(runner_id, ended)
         except Exception:

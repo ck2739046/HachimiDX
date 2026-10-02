@@ -1,18 +1,18 @@
 import os
 
-from src.core.schemas.op_result import OpResult, ok, err
-
-from .path_manage import PathManage
-from .settings_manage import SettingsManage
-from .i18n_manage import I18nManage
-from .pipeline.media_pipeline import MediaPipeline
-from .majdata_sync_server import VideoSyncServer
-from .process_manager import ProcessManager
 import i18n
+
+from src.core.schemas.op_result import OpResult, err, ok
+
+from .i18n_manage import I18nManage
+from .majdata_sync_server import VideoSyncServer
+from .path_manage import PathManage
+from .pipeline.media_pipeline import MediaPipeline
+from .process_manager import ProcessManager
+from .settings_manage import SettingsManage
 
 
 class AllServices:
-
     _is_pre_initialized = False
     _is_post_initialized = False
 
@@ -22,9 +22,8 @@ class AllServices:
 
         if cls._is_pre_initialized:
             return ok()
-        
-        print("Initializing all services...") # 此时i18n尚未初始化，只能英语
 
+        print("Initializing all services...")  # 此时i18n尚未初始化，只能英语
 
         # PathManage
         # 后续其他组件都依赖它提供的路径，因此必须最先初始化
@@ -33,7 +32,6 @@ class AllServices:
             print("PathManage initialization completed.")
         else:
             return err("Failed to initialize PathManage.", inner=result)
-
 
         # SettingsManage
         result = SettingsManage.init()
@@ -45,7 +43,6 @@ class AllServices:
         scale_result = SettingsManage.get("main_app_ui_scale")
         if scale_result.is_ok and scale_result.value != 100:
             os.environ["QT_SCALE_FACTOR"] = str(scale_result.value / 100)
-        
 
         # I18nManage
         # 依赖 SettingsManage 获取语言设置，因此必须在 SettingsManage 之后初始化
@@ -54,7 +51,6 @@ class AllServices:
             print("I18nManage initialization completed.")
         else:
             return err("Failed to initialize I18nManage.", inner=result)
-        
 
         # Majdata sync server (global singleton)
         try:
@@ -62,7 +58,6 @@ class AllServices:
             print("Majdata sync server initialization completed.")
         except Exception as e:
             return err(f"Failed to initialize Majdata sync server: {e}")
-        
 
         # 清理残留的 bpm_notify 文件
         for pattern in ("bpm_parse_notify_*.json", "bpm_notify_*.json"):
@@ -72,13 +67,8 @@ class AllServices:
                 except OSError:
                     pass
 
-
         cls._is_pre_initialized = True
         return ok()
-
-
-
-
 
     @classmethod
     def post_initialize(cls) -> OpResult[None]:
@@ -86,7 +76,6 @@ class AllServices:
 
         if cls._is_post_initialized:
             return ok()
-
 
         # pipeline 必须在创建 QApplication 之后初始化
         # 因为内部用到了 QTimer, 依赖于 QApplication 的事件调度器
@@ -99,20 +88,16 @@ class AllServices:
         # Lite 版没有自动抄谱
         if not PathManage.is_lite():
             from .pipeline.auto_rechart_pipeline import AutoRechartPipeline  # 惰性导入
+
             result = AutoRechartPipeline.init()
             if result.is_ok:
                 print("AutoRechartPipeline initialization completed.")
             else:
                 return err("Failed to initialize AutoRechartPipeline.", inner=result)
 
-
         print(i18n.t("all_services.notice_all_initialized"))
         cls._is_post_initialized = True
         return ok()
-
-
-
-
 
     @classmethod
     def shutdown_all(cls) -> None:

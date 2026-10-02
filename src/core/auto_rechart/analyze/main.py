@@ -1,75 +1,47 @@
-from pathlib import Path
 import os
+from pathlib import Path
 
-from ..detect.note_definition import (
-    NoteType,
-    NoteVariant,
-    Note_Geometry,
-    get_imgsz,
-    is_obb,
-    map_model_class_to_note_type,
-    map_note_type_to_class_id,
-    need_cls,
-)
-from ...measure_bpm.parse_config import load_timing_points
-from ...schemas.op_result import OpResult, ok, err
-from ..tool import (
-    SEEK_THRESHOLD,
-    calculate_all_position,
-    calculate_oct_position,
-    catmull_rom_spline,
-    draw_path_on_frame,
-    install_ort_cpu_thread_tuning,
-    print_progress,
-    release_ncnn_vulkan,
-)
 import i18n
-from .shared_context import (
-    SharedContext,
-    create_shared_context,
-    get_a_zone_endpoint,
-    get_max_track_id,
-    get_touch_areas,
-)
 
-from .preprocess_tap import preprocess_tap_data
-from .preprocess_touch import preprocess_touch_data
-from .preprocess_hold import preprocess_hold_data
-from .preprocess_touch_hold import preprocess_touch_hold_data
-from .preprocess_slide import preprocess_slide_data
-
-from .estimate_tap_speed import estimate_tap_DefaultMsec
-from .estimate_touch_speed import estimate_touch_DefaultMsec
-
+from ...measure_bpm.parse_config import load_timing_points
+from ...schemas.op_result import OpResult, err, ok
+from .analyze_hold import analyze_hold_time
+from .analyze_slide import analyze_slide_time
 from .analyze_tap import analyze_tap_time
 from .analyze_touch import analyze_touch_time
-from .analyze_hold import analyze_hold_time
 from .analyze_touch_hold import analyze_touch_hold_time
-from .analyze_slide import analyze_slide_time
-
+from .estimate_tap_speed import estimate_tap_DefaultMsec
+from .estimate_touch_speed import estimate_touch_DefaultMsec
 from .maidata_generate import generate_maidata
 from .maidata_write import write_maidata
+from .preprocess_hold import preprocess_hold_data
+from .preprocess_slide import preprocess_slide_data
+from .preprocess_tap import preprocess_tap_data
+from .preprocess_touch import preprocess_touch_data
+from .preprocess_touch_hold import preprocess_touch_hold_data
+from .shared_context import (
+    create_shared_context,
+)
 
 
+def main(
+    std_video_path: Path,
+    is_big_touch: bool,
+    chart_lv: int,
+    base_denominator: int,
+    duration_denominator: int,
+    inference_device,
+    batch_touch_hold: int,
+    touch_hold_model_path: Path,
+    half: bool = False,
+    batch_cls: int = 16,
+    cls_break_model_path: Path = None,
+    cls_ex_model_path: Path = None,
+    static_bpm: float = None,
+    bpm_config: Path = None,
+    app_version: str = "",
+) -> OpResult[None]:
 
-
-def main(std_video_path: Path,
-         is_big_touch: bool,
-         chart_lv: int,
-         base_denominator: int,
-         duration_denominator: int,
-         inference_device,
-         batch_touch_hold: int,
-         touch_hold_model_path: Path,
-         half: bool = False,
-         batch_cls: int = 16,
-         cls_break_model_path: Path = None,
-         cls_ex_model_path: Path = None,
-         static_bpm: float = None,
-         bpm_config: Path = None,
-         app_version: str = ''
-        ) -> OpResult[None]:
-    
     try:
         print(i18n.t("analyze_main.notice_module_started"))
 
@@ -79,12 +51,17 @@ def main(std_video_path: Path,
             try:
                 tp_res = load_timing_points(bpm_config)
                 if not tp_res.is_ok:
-                    return err(f"failed to load timing_points: {tp_res.error_msg}", inner=tp_res)
+                    return err(
+                        f"failed to load timing_points: {tp_res.error_msg}",
+                        inner=tp_res,
+                    )
                 timing_points = tp_res.value
             finally:
                 # 清理 notify 文件
-                try: Path(bpm_config).unlink(missing_ok=True)
-                except: pass
+                try:
+                    Path(bpm_config).unlink(missing_ok=True)
+                except:
+                    pass
         elif static_bpm is not None:
             timing_points = [(0.0, static_bpm, 0.0)]
         else:
@@ -120,80 +97,111 @@ def main(std_video_path: Path,
         slide_head_data, slide_tail_data = preprocess_slide_data(shared_context)
 
         # 分析音符流速
-        ( shared_context.note_DefaultMsec, shared_context.note_OptionNotespeed,
-          note_SpeedIndex, tap_speed_print_info
+        (
+            shared_context.note_DefaultMsec,
+            shared_context.note_OptionNotespeed,
+            note_SpeedIndex,
+            tap_speed_print_info,
         ) = estimate_tap_DefaultMsec(
-          shared_context, tap_data, slide_head_data, hold_data)
-        
-        ( shared_context.touch_DefaultMsec, shared_context.touch_OptionNotespeed,
-          touch_SpeedIndex, touch_speed_print_info
-        ) = estimate_touch_DefaultMsec(
-          shared_context, touch_data, touch_hold_data)
+            shared_context, tap_data, slide_head_data, hold_data
+        )
+
+        (
+            shared_context.touch_DefaultMsec,
+            shared_context.touch_OptionNotespeed,
+            touch_SpeedIndex,
+            touch_speed_print_info,
+        ) = estimate_touch_DefaultMsec(shared_context, touch_data, touch_hold_data)
 
         # 分析音符时间
-        tap_info, slide_info, touch_info, hold_info, touch_hold_info = {}, {}, {}, {}, {}
+        tap_info, slide_info, touch_info, hold_info, touch_hold_info = (
+            {},
+            {},
+            {},
+            {},
+            {},
+        )
         if shared_context.touch_DefaultMsec is not None:
             touch_info = analyze_touch_time(shared_context, touch_data)
             touch_hold_info = analyze_touch_hold_time(shared_context, touch_hold_data)
         if shared_context.note_DefaultMsec is not None:
-            tap_info = analyze_tap_time(shared_context, tap_data)    
+            tap_info = analyze_tap_time(shared_context, tap_data)
             hold_info = analyze_hold_time(shared_context, hold_data)
             slide_info = analyze_slide_time(
-                shared_context, slide_head_data, slide_tail_data,
+                shared_context,
+                slide_head_data,
+                slide_tail_data,
                 timing_points,
-                cls_ex_model_path, cls_break_model_path,
-                inference_device, batch_cls,
+                cls_ex_model_path,
+                cls_break_model_path,
+                inference_device,
+                batch_cls,
                 half=half,
             )
 
         # merge/sort/save preprocess info
-        final_note_info = merge_preprocess_info(std_video_path, tap_info, slide_info, touch_info, hold_info, touch_hold_info)
+        final_note_info = merge_preprocess_info(
+            std_video_path, tap_info, slide_info, touch_info, hold_info, touch_hold_info
+        )
         # 如果没有检测到任何音符，提前返回
         if not final_note_info:
             print("No notes detected, skipping maidata.txt generation")
             return ok()
 
         # generate maidata
-        maidata_items = generate_maidata(final_note_info, timing_points,
-                                         base_denominator, duration_denominator)
+        maidata_items = generate_maidata(
+            final_note_info, timing_points, base_denominator, duration_denominator
+        )
         first_bpm = f"({timing_points[0][1]:g})" if timing_points else "(unknown)"
-        write_maidata(shared_context, maidata_items,
-                      chart_lv, app_version,
-                      note_SpeedIndex, touch_SpeedIndex,
-                      first_bpm)
+        write_maidata(
+            shared_context,
+            maidata_items,
+            chart_lv,
+            app_version,
+            note_SpeedIndex,
+            touch_SpeedIndex,
+            first_bpm,
+        )
 
         print(tap_speed_print_info)
         print(touch_speed_print_info)
-        
+
         return ok()
-    
+
     except Exception as e:
-        return err(f"Unexpected error in auto_rechart > analyze > main", e)
+        return err("Unexpected error in auto_rechart > analyze > main", e)
 
 
-
-
-
-
-def merge_preprocess_info(std_video_path, tap_info, slide_info, touch_info, hold_info, touch_hold_info):
+def merge_preprocess_info(
+    std_video_path, tap_info, slide_info, touch_info, hold_info, touch_hold_info
+):
 
     # 合并所有info
-    all_notes_info = {**tap_info, **slide_info, **touch_info, **hold_info, **touch_hold_info}
-    
+    all_notes_info = {
+        **tap_info,
+        **slide_info,
+        **touch_info,
+        **hold_info,
+        **touch_hold_info,
+    }
+
     # 按时间排序                                              kv = (key, value), kv[1] = value
     # 这里排序后是一个 list of tuple (key, value)
-    sorted_notes = sorted(all_notes_info.items(), key=lambda kv: kv[1][0] if isinstance(kv[1], tuple) else kv[1])
+    sorted_notes = sorted(
+        all_notes_info.items(),
+        key=lambda kv: kv[1][0] if isinstance(kv[1], tuple) else kv[1],
+    )
 
     # 保存合并后的整体预处理数据到文件
-    note_preprocess_result_path = std_video_path.parent / 'note_preprocess_result.txt'
+    note_preprocess_result_path = std_video_path.parent / "note_preprocess_result.txt"
     if os.path.exists(note_preprocess_result_path):
         os.remove(note_preprocess_result_path)
 
-    with open(note_preprocess_result_path, 'w', encoding='utf-8') as f:
+    with open(note_preprocess_result_path, "w", encoding="utf-8") as f:
         for (track_id, note_type, note_variant, position), time in sorted_notes:
             # 将time元组转为字符串
             if isinstance(time, tuple):
-                time = ','.join(str(item) for item in time)
+                time = ",".join(str(item) for item in time)
 
             # 写入格式：track_id, note_type, note_variant, position, time
             f.write(f"{track_id}, {note_type}, {note_variant}, {position}, {time}\n")

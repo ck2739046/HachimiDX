@@ -4,7 +4,6 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-
 _INOTE_RE = re.compile(r"^&inote_(\d+)=(.*)$")
 _PARAMETER_RE = re.compile(r"^&([a-zA-Z]+(?:_\d+)?)=(.*)$")
 
@@ -106,10 +105,7 @@ def _scan_lines(
 def _build_header_candidates(
     parameters: dict[str, list[str]],
 ) -> dict[str, tuple[str, ...]]:
-    return {
-        key: tuple(dict.fromkeys(parameters.get(key, [])))
-        for key in HEADER_KEYS
-    }
+    return {key: tuple(dict.fromkeys(parameters.get(key, []))) for key in HEADER_KEYS}
 
 
 def _strip_trailing_blank_lines(body: list[str]) -> tuple[str, ...]:
@@ -133,7 +129,7 @@ def _build_charts(
                 level=level,
                 inote_value=chart_range.inote_value,
                 body_lines=_strip_trailing_blank_lines(
-                    lines[chart_range.body_start:chart_range.body_end]
+                    lines[chart_range.body_start : chart_range.body_end]
                 ),
                 designer=parameters.get(f"des_{level}", [""])[0],
                 level_value=parameters.get(f"lv_{level}", [""])[0],

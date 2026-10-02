@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import math
-import numpy as np
-import lap
-from filterpy.kalman import KalmanFilter
 
+import lap
+import numpy as np
+from filterpy.kalman import KalmanFilter
 
 # ============================================================================
 # 辅助函数 — 参考原版 OC-SORT (https://github.com/noahcao/OC_SORT)
 # ============================================================================
+
 
 def convert_bbox_centre(bbox: np.ndarray) -> tuple[float, float, float, float]:
     """从 [x1,y1,x2,y2] 提取 (cx,cy,w,h)."""
@@ -28,7 +29,7 @@ def speed_direction(bbox1: np.ndarray, bbox2: np.ndarray) -> np.ndarray:
     dy = cy2 - cy1
     dx = cx2 - cx1
     speed = np.array([dy, dx], dtype=np.float32)
-    norm = np.sqrt(dy ** 2 + dx ** 2) + 1e-6
+    norm = np.sqrt(dy**2 + dx**2) + 1e-6
     return speed / norm
 
 
@@ -60,30 +61,39 @@ def convert_x_to_bbox(x: np.ndarray) -> np.ndarray:
 # s=w*h, r=w/h. w/h 由 s,r 解算。
 # ============================================================================
 
+
 class KalmanBoxTracker:
     """7 维恒速 Kalman: [x,y,s,r, vx,vy,vs].
     观测: [x,y,s,r] (4 维)."""
 
     # 状态转移矩阵 F (7×7, dt=1) — 照搬原版 OC-SORT
-    _F = np.array([
-        [1, 0, 0, 0, 1, 0, 0],
-        [0, 1, 0, 0, 0, 1, 0],
-        [0, 0, 1, 0, 0, 0, 1],
-        [0, 0, 0, 1, 0, 0, 0],
-        [0, 0, 0, 0, 1, 0, 0],
-        [0, 0, 0, 0, 0, 1, 0],
-        [0, 0, 0, 0, 0, 0, 1],
-    ], dtype=np.float32)
+    _F = np.array(
+        [
+            [1, 0, 0, 0, 1, 0, 0],
+            [0, 1, 0, 0, 0, 1, 0],
+            [0, 0, 1, 0, 0, 0, 1],
+            [0, 0, 0, 1, 0, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0],
+            [0, 0, 0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 0, 0, 1],
+        ],
+        dtype=np.float32,
+    )
 
     # 观测矩阵 H (4×7): 直读前 4 维
-    _H = np.array([
-        [1, 0, 0, 0, 0, 0, 0],
-        [0, 1, 0, 0, 0, 0, 0],
-        [0, 0, 1, 0, 0, 0, 0],
-        [0, 0, 0, 1, 0, 0, 0],
-    ], dtype=np.float32)
+    _H = np.array(
+        [
+            [1, 0, 0, 0, 0, 0, 0],
+            [0, 1, 0, 0, 0, 0, 0],
+            [0, 0, 1, 0, 0, 0, 0],
+            [0, 0, 0, 1, 0, 0, 0],
+        ],
+        dtype=np.float32,
+    )
 
-    def __init__(self, bbox: np.ndarray, delta_dist_pct: float = 0.5, track_id: int = 0):
+    def __init__(
+        self, bbox: np.ndarray, delta_dist_pct: float = 0.5, track_id: int = 0
+    ):
         cx, cy, w, h = convert_bbox_centre(bbox[:4])
 
         self.kf = KalmanFilter(dim_x=7, dim_z=4)
@@ -91,23 +101,23 @@ class KalmanBoxTracker:
         self.kf.H = KalmanBoxTracker._H.copy()
 
         # 观测噪声 R — 照搬原版: s/r 维加 10× 噪声
-        self.kf.R[2:, 2:] *= 10.
+        self.kf.R[2:, 2:] *= 10.0
 
         # 初始状态协方差 P — 照搬原版: 速度高不确定
-        self.kf.P[4:, 4:] *= 1000.
-        self.kf.P *= 10.
+        self.kf.P[4:, 4:] *= 1000.0
+        self.kf.P *= 10.0
 
         # 过程噪声 Q — tuned on SLIDE tracks (7D CV)
         #   q_pos=0.01: 极低位置噪声 → 强信任模型外推
         #   q_vel=0.4:  中速噪声 → 转弯比较灵敏
         #   q_s=0.01:   低面积噪声 → 框尺寸稳定
-        self.kf.Q[0, 0] = 0.01   # x
-        self.kf.Q[1, 1] = 0.01   # y
-        self.kf.Q[2, 2] = 0.01   # s (面积)
-        self.kf.Q[3, 3] = 0.01   # r (宽高比)
-        self.kf.Q[4, 4] = 0.4    # vx
-        self.kf.Q[5, 5] = 0.4    # vy
-        self.kf.Q[6, 6] = 0.0001 # vs
+        self.kf.Q[0, 0] = 0.01  # x
+        self.kf.Q[1, 1] = 0.01  # y
+        self.kf.Q[2, 2] = 0.01  # s (面积)
+        self.kf.Q[3, 3] = 0.01  # r (宽高比)
+        self.kf.Q[4, 4] = 0.4  # vx
+        self.kf.Q[5, 5] = 0.4  # vy
+        self.kf.Q[6, 6] = 0.0001  # vs
 
         self.kf.x[:4] = _convert_wh_to_z(cx, cy, w, h)
 
@@ -178,9 +188,7 @@ class KalmanBoxTracker:
         # ====== 记录 z-format 观测 (cx,cy) ======
         if bbox is not None:
             cx, cy, w, h = convert_bbox_centre(bbox[:4])
-            self._history_obs_z.append(
-                np.array([[cx], [cy]], dtype=np.float32)
-            )
+            self._history_obs_z.append(np.array([[cx], [cy]], dtype=np.float32))
             self._last_w = max(w, 1.0)
             self._last_h = max(h, 1.0)
         else:
@@ -197,9 +205,7 @@ class KalmanBoxTracker:
             self._unfreeze_kf()
 
         # ====== 正常 tracker 级更新 ======
-        obs = np.array(
-            [bbox[0], bbox[1], bbox[2], bbox[3], bbox[4]], dtype=np.float32
-        )
+        obs = np.array([bbox[0], bbox[1], bbox[2], bbox[3], bbox[4]], dtype=np.float32)
 
         if self.last_observation.sum() >= 0:
             ref_obs = self._find_ref_obs(obs)
@@ -231,10 +237,10 @@ class KalmanBoxTracker:
 
     def _freeze_kf(self) -> None:
         self._frozen_state = {
-            'x': self.kf.x.copy(),
-            'P': self.kf.P.copy(),
-            'K': self.kf.K.copy(),
-            '_history_obs_z': list(self._history_obs_z),
+            "x": self.kf.x.copy(),
+            "P": self.kf.P.copy(),
+            "K": self.kf.K.copy(),
+            "_history_obs_z": list(self._history_obs_z),
         }
 
     def _unfreeze_kf(self) -> None:
@@ -244,17 +250,15 @@ class KalmanBoxTracker:
 
         new_history = list(self._history_obs_z)
         fs = self._frozen_state
-        self.kf.x = fs['x'].copy()
-        self.kf.P = fs['P'].copy()
-        self.kf.K = fs['K'].copy()
+        self.kf.x = fs["x"].copy()
+        self.kf.P = fs["P"].copy()
+        self.kf.K = fs["K"].copy()
         self._frozen_state = None
 
-        self._history_obs_z = list(fs['_history_obs_z'])
+        self._history_obs_z = list(fs["_history_obs_z"])
         self._history_obs_z = self._history_obs_z[:-1]
 
-        non_none_indices = [
-            i for i, z in enumerate(new_history) if z is not None
-        ]
+        non_none_indices = [i for i, z in enumerate(new_history) if z is not None]
         if len(non_none_indices) < 2:
             self._observed = True
             return
@@ -314,6 +318,7 @@ _KalmanBoxTracker = KalmanBoxTracker
 # 关联匹配函数 — 源自原版 OC-SORT association.py (Stage 1 仅 VDC+DIoU)
 # ============================================================================
 
+
 def diou_batch(bboxes1: np.ndarray, bboxes2: np.ndarray) -> np.ndarray:
     """Compute DIoU between two sets of bboxes in [x1,y1,x2,y2] form.
 
@@ -341,7 +346,9 @@ def diou_batch(bboxes1: np.ndarray, bboxes2: np.ndarray) -> np.ndarray:
     union = area1_pre[:, np.newaxis] + area2_pre[np.newaxis, :] - wh
     iou = wh / union
 
-    inner_diag = (cx1_pre[:, np.newaxis] - cx2_pre[np.newaxis, :]) ** 2 + (cy1_pre[:, np.newaxis] - cy2_pre[np.newaxis, :]) ** 2
+    inner_diag = (cx1_pre[:, np.newaxis] - cx2_pre[np.newaxis, :]) ** 2 + (
+        cy1_pre[:, np.newaxis] - cy2_pre[np.newaxis, :]
+    ) ** 2
 
     xxc1 = np.minimum(bboxes1[..., 0], bboxes2[..., 0])
     yyc1 = np.minimum(bboxes1[..., 1], bboxes2[..., 1])
@@ -364,7 +371,7 @@ def speed_direction_batch(
     cy2 = (tracks[:, 1, :] + tracks[:, 3, :]) / 2.0
     dx = cx1 - cx2
     dy = cy1 - cy2
-    norm = np.sqrt(dx ** 2 + dy ** 2) + 1e-6
+    norm = np.sqrt(dx**2 + dy**2) + 1e-6
     dx = dx / norm
     dy = dy / norm
     return dy, dx
@@ -474,8 +481,8 @@ def _build_size_gate_mask(
     if N == 0 or M == 0:
         return np.empty((N, M), dtype=bool)
 
-    det_max = det_max_side[:, None]            # (N, 1)
-    trk_max = trk_last_max_sides[None, :]      # (1, M)
+    det_max = det_max_side[:, None]  # (N, 1)
+    trk_max = trk_last_max_sides[None, :]  # (1, M)
 
     ok = np.ones((N, M), dtype=bool)
 
@@ -530,10 +537,12 @@ def _post_check(
     valid = validity_sub[det_pos, trk_pos]
 
     good = (
-        np.column_stack([
-            valid_det_map[det_pos[valid]],
-            valid_trk_map[trk_pos[valid]],
-        ]).astype(int)
+        np.column_stack(
+            [
+                valid_det_map[det_pos[valid]],
+                valid_trk_map[trk_pos[valid]],
+            ]
+        ).astype(int)
         if valid.any()
         else np.empty((0, 2), dtype=int)
     )
@@ -547,6 +556,7 @@ def _post_check(
 # ============================================================================
 # 精简 OCSort — 仅 Stage 1 (VDC + DIoU)
 # ============================================================================
+
 
 class OCSort:
     def __init__(
@@ -621,10 +631,14 @@ class OCSort:
         scores = dets_all[:, 4] if len(dets_all) else np.empty((0,), dtype=np.float32)
         remain_inds = scores > self.det_thresh
         dets = dets_all[remain_inds]
-        det_max_side = np.maximum(
-            dets[:, 2] - dets[:, 0],
-            dets[:, 3] - dets[:, 1],
-        ) if len(dets) > 0 else np.empty((0,), dtype=np.float32)
+        det_max_side = (
+            np.maximum(
+                dets[:, 2] - dets[:, 0],
+                dets[:, 3] - dets[:, 1],
+            )
+            if len(dets) > 0
+            else np.empty((0,), dtype=np.float32)
+        )
 
         # ====== predict ======
         trks = np.zeros((len(self.trackers), 5), dtype=np.float32)
@@ -646,14 +660,14 @@ class OCSort:
                 trk.velocity if trk.velocity is not None else _zero_vel
                 for trk in self.trackers
             ],
-            dtype=np.float32
+            dtype=np.float32,
         )
         ref_obs_list = np.array(
             [
                 trk._ref_obs if trk._ref_obs is not None else _sentinel
                 for trk in self.trackers
             ],
-            dtype=np.float32
+            dtype=np.float32,
         )
 
         # ====== debug: 打印轨迹状态 ======
@@ -673,11 +687,15 @@ class OCSort:
 
         # ====== 轨迹最后一帧尺寸（提前计算，Stage 1 / Stage 3 共用） ======
         if self.trackers:
-            trk_last_max_sides = np.array([
-                max(trk._last_w, trk._last_h)
-                if trk.last_observation.sum() >= 0 else 0.0
-                for trk in self.trackers
-            ], dtype=np.float32)
+            trk_last_max_sides = np.array(
+                [
+                    max(trk._last_w, trk._last_h)
+                    if trk.last_observation.sum() >= 0
+                    else 0.0
+                    for trk in self.trackers
+                ],
+                dtype=np.float32,
+            )
         else:
             trk_last_max_sides = np.empty((0,), dtype=np.float32)
 
@@ -685,8 +703,10 @@ class OCSort:
         if len(dets) > 0 and len(trks) > 0:
             full_diou = diou_batch(dets[:, :5], trks)
             size_mask = _build_size_gate_mask(
-                det_max_side, trk_last_max_sides,
-                self.max_size_increase_ratio, self.max_size_decrease_ratio,
+                det_max_side,
+                trk_last_max_sides,
+                self.max_size_increase_ratio,
+                self.max_size_decrease_ratio,
             )
             validity = (full_diou >= self.s1_diou_thresh) & size_mask
 
@@ -706,27 +726,42 @@ class OCSort:
                     debug_ids_sub = [debug_track_ids[i] for i in valid_trks]
 
                 matched_sub, unmapped_dets_sub, unmapped_trks_sub = associate(
-                    dets_sub, trks_sub,
-                    diou_sub, validity_sub,
-                    vel_sub, ref_sub, self.inertia,
+                    dets_sub,
+                    trks_sub,
+                    diou_sub,
+                    validity_sub,
+                    vel_sub,
+                    ref_sub,
+                    self.inertia,
                     debug_enabled=self.debug,
                     debug_frame_number=frame_number,
                     debug_track_ids=debug_ids_sub,
                 )
 
                 good, bad_dets, bad_trks = _post_check(
-                    matched_sub, validity_sub, valid_dets, valid_trks,
+                    matched_sub,
+                    validity_sub,
+                    valid_dets,
+                    valid_trks,
                 )
                 unmapped_dets = valid_dets[unmapped_dets_sub]
                 unmapped_trks = valid_trks[unmapped_trks_sub]
 
                 matched = good
-                unmatched_dets = np.concatenate([
-                    orphan_dets, unmapped_dets, bad_dets,
-                ]).astype(int)
-                unmatched_trks = np.concatenate([
-                    orphan_trks, unmapped_trks, bad_trks,
-                ]).astype(int)
+                unmatched_dets = np.concatenate(
+                    [
+                        orphan_dets,
+                        unmapped_dets,
+                        bad_dets,
+                    ]
+                ).astype(int)
+                unmatched_trks = np.concatenate(
+                    [
+                        orphan_trks,
+                        unmapped_trks,
+                        bad_trks,
+                    ]
+                ).astype(int)
             else:
                 matched = np.empty((0, 2), dtype=int)
                 unmatched_dets = np.arange(len(dets))
@@ -748,8 +783,10 @@ class OCSort:
 
             diou_left = diou_batch(left_dets, left_trks)
             size_mask_left = _build_size_gate_mask(
-                left_det_max_side, left_trk_max_sides,
-                self.max_size_increase_ratio, self.max_size_decrease_ratio,
+                left_det_max_side,
+                left_trk_max_sides,
+                self.max_size_increase_ratio,
+                self.max_size_decrease_ratio,
             )
             validity_left = (diou_left >= self.s3_diou_thresh) & size_mask_left
 
@@ -764,8 +801,10 @@ class OCSort:
                 raw_indices = linear_assignment(cost)
 
                 good, bad_dets, bad_trks = _post_check(
-                    raw_indices, validity_sub,
-                    s3_valid_dets, s3_valid_trks,
+                    raw_indices,
+                    validity_sub,
+                    s3_valid_dets,
+                    s3_valid_trks,
                 )
 
                 # good pairs → update tracker with detection
@@ -825,9 +864,7 @@ class OCSort:
                 trk.time_since_output = 0
 
                 if trk.hit_streak == self.min_hits:
-                    pad_cnt = min(
-                        self.min_hits - 1, len(trk.history_observations) - 1
-                    )
+                    pad_cnt = min(self.min_hits - 1, len(trk.history_observations) - 1)
                     for prev_i in range(pad_cnt):
                         hist_pos = -(prev_i + 2)
                         prev_obs = trk.history_observations[hist_pos]

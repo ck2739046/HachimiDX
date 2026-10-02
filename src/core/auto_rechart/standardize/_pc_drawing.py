@@ -1,12 +1,8 @@
 import cv2
 import numpy as np
-from typing import Dict
-
-
 
 
 class DrawingMixin:
-
     def _ui_point(self, point) -> tuple[int, int]:
         return self._scale_ui_coord(point[0]), self._scale_ui_coord(point[1])
 
@@ -53,7 +49,9 @@ class DrawingMixin:
         )
 
     def _draw_polylines(self, image, points, color, thickness=1) -> None:
-        scaled_points = np.rint(points.astype(np.float32) * self.ui_scale_factor).astype(np.int32)
+        scaled_points = np.rint(
+            points.astype(np.float32) * self.ui_scale_factor
+        ).astype(np.int32)
         cv2.polylines(
             image,
             [scaled_points],
@@ -62,23 +60,27 @@ class DrawingMixin:
             thickness=self._ui_thickness(thickness),
         )
 
-    def _compose_panel(self, frame, zoom_percent: float, offset_x: int = 0, offset_y: int = 0):
+    def _compose_panel(
+        self, frame, zoom_percent: float, offset_x: int = 0, offset_y: int = 0
+    ):
         """
         将原始帧绘制到 800×800 黑色画布上
 
-        输入: 
+        输入:
             原始帧 frame
             缩放百分比 zoom_percent
             像素偏移 offset_x/y
 
-        输出: 
+        输出:
             tuple
                 canvas,
                 定位元信息 meta {zoom_percent, top_left_x, top_left_y})
         """
 
         # 空画布
-        canvas = np.zeros((self.frame_preview_size_px, self.frame_preview_size_px, 3), dtype=np.uint8)
+        canvas = np.zeros(
+            (self.frame_preview_size_px, self.frame_preview_size_px, 3), dtype=np.uint8
+        )
 
         frame_h, frame_w = frame.shape[:2]
         logical_scaled_w = max(1, int(round(frame_w * zoom_percent / 100)))
@@ -87,8 +89,12 @@ class DrawingMixin:
         scaled_h = self._scale_ui_length(logical_scaled_h)
         scaled = cv2.resize(frame, (scaled_w, scaled_h), interpolation=cv2.INTER_LINEAR)
 
-        logical_top_left_x = int(round((self.FRAME_PREVIEW_SIZE - logical_scaled_w) * 0.5 + offset_x))
-        logical_top_left_y = int(round((self.FRAME_PREVIEW_SIZE - logical_scaled_h) * 0.5 + offset_y))
+        logical_top_left_x = int(
+            round((self.FRAME_PREVIEW_SIZE - logical_scaled_w) * 0.5 + offset_x)
+        )
+        logical_top_left_y = int(
+            round((self.FRAME_PREVIEW_SIZE - logical_scaled_h) * 0.5 + offset_y)
+        )
         top_left_x = self._scale_ui_coord(logical_top_left_x)
         top_left_y = self._scale_ui_coord(logical_top_left_y)
 
@@ -112,18 +118,16 @@ class DrawingMixin:
         }
         return canvas, meta
 
-
-
-
-
-
-    def _draw_dashed_circle(self, panel: np.ndarray,
-                            center,
-                            radius,
-                            color,
-                            thickness: int = 2,
-                            dash_deg: float = 3,
-                            gap_deg: float = 2) -> None:
+    def _draw_dashed_circle(
+        self,
+        panel: np.ndarray,
+        center,
+        radius,
+        color,
+        thickness: int = 2,
+        dash_deg: float = 3,
+        gap_deg: float = 2,
+    ) -> None:
         """绘制虚线圆"""
         if radius <= 0:
             return
@@ -155,13 +159,12 @@ class DrawingMixin:
         width = self.FRAME_PREVIEW_SIZE
         center_x = width // 2
         center_y = height // 2
-        
+
         # 内圆 判定线
-        inner_d = self.FRAME_PREVIEW_SIZE * 960/1080 # 判定线参考圆
+        inner_d = self.FRAME_PREVIEW_SIZE * 960 / 1080  # 判定线参考圆
         inner_r = int(inner_d / 2)
         inner_cx, inner_cy = center_x - 1, center_y - 1
-        self._draw_dashed_circle(panel, (inner_cx, inner_cy),
-                                 inner_r, (0, 255, 0))
+        self._draw_dashed_circle(panel, (inner_cx, inner_cy), inner_r, (0, 255, 0))
 
         # 内圈上 8 个红色判定点
         for deg in (22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5):
@@ -172,9 +175,8 @@ class DrawingMixin:
 
         # 外圆 屏幕边缘
         outer_radius = min(width, height) // 2
-        self._draw_dashed_circle(panel, (inner_cx, inner_cy),
-                                 outer_radius, (0, 255, 0))
-        
+        self._draw_dashed_circle(panel, (inner_cx, inner_cy), outer_radius, (0, 255, 0))
+
         # 垂直/水平线 穿过内圈上的 8 个参考点
         # 每条线距圆心 = inner_r * sin(22.5°) 恰好经过参考点
         line_offset = int(round(inner_r * np.sin(np.deg2rad(22.5))))
@@ -186,12 +188,6 @@ class DrawingMixin:
         h_line2_y = inner_cy + line_offset
         self._draw_line(panel, (0, h_line1_y), (width, h_line1_y), (0, 255, 0), 1)
         self._draw_line(panel, (0, h_line2_y), (width, h_line2_y), (0, 255, 0), 1)
-
-
-
-
-
-
 
     def _draw_center_handle(self, panel: np.ndarray, panel_side: str) -> None:
         """左右面板通用: 在面板中心绘制可拖动的中心点"""
@@ -208,27 +204,36 @@ class DrawingMixin:
 
         # 直线连接 固定中心红点 -> 当前拖拽点
         if (cx, cy) != (fixed_cx, fixed_cy):
-            self._draw_line(panel, (fixed_cx, fixed_cy), (cx, cy),
-                            self.CENTER_REF_LINE_COLOR, self.CENTER_REF_LINE_THICK)
+            self._draw_line(
+                panel,
+                (fixed_cx, fixed_cy),
+                (cx, cy),
+                self.CENTER_REF_LINE_COLOR,
+                self.CENTER_REF_LINE_THICK,
+            )
 
         # 固定中心: 实心小红点
-        self._draw_circle(panel, (fixed_cx, fixed_cy),
-                          self.CENTER_REF_RADIUS,
-                          self.CENTER_REF_COLOR, -1)
+        self._draw_circle(
+            panel,
+            (fixed_cx, fixed_cy),
+            self.CENTER_REF_RADIUS,
+            self.CENTER_REF_COLOR,
+            -1,
+        )
 
-        self._draw_circle(panel, (cx, cy),
-                          self.PERSPECTIVE_POINT_RADIUS,
-                          self.POINT_COLOR, 1)
-        self._draw_circle(panel, (cx, cy),
-                          self.PERSPECTIVE_POINT_RADIUS + self.OUTER_RADIUS_PLUS,
-                          (255, 255, 255), 1)
+        self._draw_circle(
+            panel, (cx, cy), self.PERSPECTIVE_POINT_RADIUS, self.POINT_COLOR, 1
+        )
+        self._draw_circle(
+            panel,
+            (cx, cy),
+            self.PERSPECTIVE_POINT_RADIUS + self.OUTER_RADIUS_PLUS,
+            (255, 255, 255),
+            1,
+        )
         self._draw_text(panel, "C", (cx + 10, cy - 10), 0.5, (255, 255, 255), 1)
 
-
-
-
-
-    def _draw_quad_overlay(self, panel: np.ndarray, meta: Dict[str, float]) -> None:
+    def _draw_quad_overlay(self, panel: np.ndarray, meta: dict[str, float]) -> None:
         """在左面板绘制四边形透视框"""
         if self.quad_points is None:
             return
@@ -242,13 +247,17 @@ class DrawingMixin:
 
         for i, pt in enumerate(canvas_points):
             point = (float(pt[0]), float(pt[1]))
-            self._draw_circle(panel, point,
-                              self.PERSPECTIVE_POINT_RADIUS,
-                              self.POINT_COLOR, 1)
-            self._draw_circle(panel, point,
-                              self.PERSPECTIVE_POINT_RADIUS + self.OUTER_RADIUS_PLUS,
-                              (255, 255, 255), 1)
-            
+            self._draw_circle(
+                panel, point, self.PERSPECTIVE_POINT_RADIUS, self.POINT_COLOR, 1
+            )
+            self._draw_circle(
+                panel,
+                point,
+                self.PERSPECTIVE_POINT_RADIUS + self.OUTER_RADIUS_PLUS,
+                (255, 255, 255),
+                1,
+            )
+
             # 在点旁边标记序号
             self._draw_text(
                 panel,
@@ -259,25 +268,43 @@ class DrawingMixin:
                 1,
             )
 
-
-
-
-    def _draw_combined_overlay(self, canvas: np.ndarray, is_playing: bool,
-                               input_zoom_percent: float, output_zoom_percent: float) -> None:
+    def _draw_combined_overlay(
+        self,
+        canvas: np.ndarray,
+        is_playing: bool,
+        input_zoom_percent: float,
+        output_zoom_percent: float,
+    ) -> None:
         """
         在整块画布底部绘制控制区:
             滑块
             分隔线
             提示文字(SPACE/ESC、PAUSED)。
         """
-        
-        # 中间纵向的分割线
-        self._draw_line(canvas, (self.FRAME_PREVIEW_SIZE, 0), (self.FRAME_PREVIEW_SIZE, self.FRAME_PREVIEW_SIZE), (255, 255, 255), 1)
 
-        self._draw_slider_panel(canvas, 0, # 左侧 panel
-                                "Scale", input_zoom_percent, "input")
-        self._draw_slider_panel(canvas, self.FRAME_PREVIEW_SIZE, # 右侧 panel
-                                "Scale", output_zoom_percent, "output")
+        # 中间纵向的分割线
+        self._draw_line(
+            canvas,
+            (self.FRAME_PREVIEW_SIZE, 0),
+            (self.FRAME_PREVIEW_SIZE, self.FRAME_PREVIEW_SIZE),
+            (255, 255, 255),
+            1,
+        )
+
+        self._draw_slider_panel(
+            canvas,
+            0,  # 左侧 panel
+            "Scale",
+            input_zoom_percent,
+            "input",
+        )
+        self._draw_slider_panel(
+            canvas,
+            self.FRAME_PREVIEW_SIZE,  # 右侧 panel
+            "Scale",
+            output_zoom_percent,
+            "output",
+        )
         self._draw_left_brightness_slider(canvas)
         self._draw_right_stretch_sliders(canvas)
         self._draw_right_offset_sliders(canvas)
@@ -291,20 +318,20 @@ class DrawingMixin:
 
         if not is_playing:
             # PAUSED 放到 hint 行右侧
-            self._draw_text(canvas, "PAUSED", (hint_x + 300, hint_y), 0.6, (0, 255, 255), 2)
+            self._draw_text(
+                canvas, "PAUSED", (hint_x + 300, hint_y), 0.6, (0, 255, 255), 2
+            )
 
-
-
-
-
-    def _draw_slider_panel(self,
-                           canvas: np.ndarray,
-                           panel_offset_x: int,
-                           label: str,
-                           zoom_percent: float,
-                           slider_name: str) -> None:
+    def _draw_slider_panel(
+        self,
+        canvas: np.ndarray,
+        panel_offset_x: int,
+        label: str,
+        zoom_percent: float,
+        slider_name: str,
+    ) -> None:
         """左右面板通用: 仅绘制单面板底部控制区的 scale 滑块"""
-        
+
         control_top = self.FRAME_PREVIEW_SIZE
         control_bottom = self.WINDOW_HEIGHT
 
@@ -339,10 +366,6 @@ class DrawingMixin:
             max_percent=slider_geo["max"],
         )
 
-
-
-
-
     def _draw_right_stretch_sliders(self, canvas: np.ndarray) -> None:
         """绘制右侧 stretch_x / stretch_y 拉伸滑块"""
         geo = self._get_slider_geometries()
@@ -374,7 +397,6 @@ class DrawingMixin:
             max_percent=y_geo["max"],
         )
 
-
     def _draw_left_brightness_slider(self, canvas: np.ndarray) -> None:
         """绘制左侧亮度滑块(brightness)"""
         geo = self._get_slider_geometries()["brightness"]
@@ -392,7 +414,6 @@ class DrawingMixin:
             min_percent=geo["min"],
             max_percent=geo["max"],
         )
-
 
     def _draw_left_offset_readout(self, canvas: np.ndarray) -> None:
         """左面板控制区常态化显示 input offset (纯文本, 无滑块)"""
@@ -419,11 +440,6 @@ class DrawingMixin:
             (255, 255, 255),
             1,
         )
-
-
-
-
-
 
     def _draw_right_offset_sliders(self, canvas: np.ndarray) -> None:
         """绘制右侧 offset_x / offset_y 粗偏移滑块"""
@@ -456,10 +472,6 @@ class DrawingMixin:
             max_percent=y_geo["max"],
         )
 
-
-
-
-
     def _draw_right_fine_offset_sliders(self, canvas: np.ndarray) -> None:
         """绘制右侧 fine_offset_x / fine_offset_y 精细偏移滑块"""
         geo = self._get_slider_geometries()
@@ -491,40 +503,53 @@ class DrawingMixin:
             max_percent=y_geo["max"],
         )
 
-
-    def _draw_slider(self,
-                     canvas: np.ndarray,
-                     label: str,          # slider 左上方的标签文本
-                     value_text: str,     # slider 右上方的数值文本
-                     is_selected: bool,   # 是否正在被拖动（选中）
-                     track_x1: int,
-                     track_x2: int,
-                     track_y: int,
-                     percent_value: int,  # 用于绘制滑块位置
-                     min_percent: int,
-                     max_percent: int) -> None:
+    def _draw_slider(
+        self,
+        canvas: np.ndarray,
+        label: str,  # slider 左上方的标签文本
+        value_text: str,  # slider 右上方的数值文本
+        is_selected: bool,  # 是否正在被拖动（选中）
+        track_x1: int,
+        track_x2: int,
+        track_y: int,
+        percent_value: int,  # 用于绘制滑块位置
+        min_percent: int,
+        max_percent: int,
+    ) -> None:
         """
         通用单滑块绘制工具:
            标签、滑轨、滑块(选中时高亮)、数值文本
         """
-        
+
         # slider 左上方的标签
         label_y = track_y - 14
         self._draw_text(canvas, label, (track_x1, label_y), 0.46, (255, 255, 255), 1)
 
         # 滑轨
-        self._draw_line(canvas, (track_x1, track_y), (track_x2, track_y), (170, 170, 170), 2)
+        self._draw_line(
+            canvas, (track_x1, track_y), (track_x2, track_y), (170, 170, 170), 2
+        )
 
         # 滑块
-        knob_x = int(round(self._slider_percent_to_x(percent_value, track_x1, track_x2, min_percent, max_percent)))
+        knob_x = int(
+            round(
+                self._slider_percent_to_x(
+                    percent_value, track_x1, track_x2, min_percent, max_percent
+                )
+            )
+        )
         knob_color = self.POINT_COLOR if not is_selected else (0, 200, 255)
-        self._draw_circle(canvas, (knob_x, track_y),
-                  self.SLIDER_KNOB_RADIUS,
-                  knob_color, -1)
-        self._draw_circle(canvas, (knob_x, track_y),
-                  self.SLIDER_KNOB_RADIUS + self.OUTER_RADIUS_PLUS,
-                  (255, 255, 255), 1)
-        
+        self._draw_circle(
+            canvas, (knob_x, track_y), self.SLIDER_KNOB_RADIUS, knob_color, -1
+        )
+        self._draw_circle(
+            canvas,
+            (knob_x, track_y),
+            self.SLIDER_KNOB_RADIUS + self.OUTER_RADIUS_PLUS,
+            (255, 255, 255),
+            1,
+        )
+
         # slider 右上方的数值
         self._draw_text(
             canvas,

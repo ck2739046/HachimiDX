@@ -20,7 +20,9 @@ repo_name = "HachimiDX"
 
 VERSION = "1.6.5"
 REPO = f"https://github.com/{author}/{repo_name}"
-API_RELEASE_LATEST = f"https://api.github.com/repos/{author}/{repo_name}/releases/latest"
+API_RELEASE_LATEST = (
+    f"https://api.github.com/repos/{author}/{repo_name}/releases/latest"
+)
 
 # generate by https://patorjk.com/software/taag using font "Terrace"
 logo = """
@@ -36,34 +38,29 @@ logo = """
 """
 
 
-
-
-
-
-
-
-
 def prompt_missing_dependencies() -> None:
     """依赖库缺失时弹窗，引导用户先跑安装脚本"""
     import subprocess
     from tkinter import messagebox
+
     from src.services import PathManage
+
     install_bat = PathManage.INSTALL_BAT_PATH
 
     # 先检查安装脚本是否存在
     if not install_bat.is_file():
         messagebox.showerror(
             "HachimiDX",
-            "尚未安装依赖库，且安装脚本不存在，请检查安装包完整性。\n" +
-            "Dependencies are not installed, and the installation script is missing." +
-            "Please check the integrity of the installation package.",
+            "尚未安装依赖库，且安装脚本不存在，请检查安装包完整性。\n"
+            + "Dependencies are not installed, and the installation script is missing."
+            + "Please check the integrity of the installation package.",
         )
         return 1
     # 选 No 直接退出
     if not messagebox.askyesno(
         "HachimiDX",
-        "尚未安装依赖库，是否现在安装？\n" +
-        "Dependencies are not installed, install now?",
+        "尚未安装依赖库，是否现在安装？\n"
+        + "Dependencies are not installed, install now?",
     ):
         return
     # 选 Yes 启动安装脚本
@@ -75,17 +72,18 @@ def prompt_missing_dependencies() -> None:
 
 def setup_font(app) -> None:
     from PyQt6.QtGui import QFont
+
     try:
         # 加载外部字体文件
         # font_path = PathManage.FONT_EN_PATH
         # font_id = QFontDatabase.addApplicationFont(str(font_path))
         # if font_id == -1:
-            # print(f"[Font] 外部字体文件加载失败: {font_path.name}")
-            # return
+        #     print(f"[Font] 外部字体文件加载失败: {font_path.name}")
+        #     return
         # loaded = QFontDatabase.applicationFontFamilies(font_id)
         # if not loaded:
-            # print(f"[Font] 外部字体注册后未获取到 family 名称")
-            # return
+        #     print(f"[Font] 外部字体注册后未获取到 family 名称")
+        #     return
         families = ["Microsoft YaHei UI"]
         font = QFont()
         font.setFamilies(families)
@@ -103,10 +101,6 @@ def exception_handler(exctype, value, traceback):
     # Print the original error
     sys.__excepthook__(exctype, value, traceback)
     print(build_str("End of error."))
-
-
-
-
 
 
 def main(is_lite: bool = False) -> int:
@@ -135,7 +129,7 @@ def main(is_lite: bool = False) -> int:
     if not shared_memory.create(1, QSharedMemory.AccessMode.ReadWrite):
         print("程序已在运行中。\nApp is already running.")
         return 2
-    
+
     # 启动 watchdog (清理 Majdata 进程)
     watchdog_path = project_root / "src" / "services" / "watchdog.py"
     subprocess.Popen(
@@ -158,7 +152,7 @@ def main(is_lite: bool = False) -> int:
     app = QApplication(sys.argv)
     app.setApplicationName("HachimiDX")
     app.aboutToQuit.connect(AllServices.shutdown_all)
-    app._single_instance_lock = shared_memory # 保持引用
+    app._single_instance_lock = shared_memory  # 保持引用
 
     # 阶段2: 后初始化, 在创建 QApplication 之后执行
     result = AllServices.post_initialize()
@@ -180,6 +174,7 @@ def main(is_lite: bool = False) -> int:
     # 必须等 pre_initialize 初始化 PathManage 后再导入 MainWindow
     # 因为页面会检查 PathManage.is_lite()
     from src.app import MainWindow
+
     window = MainWindow()
     window.show()
 
@@ -188,19 +183,17 @@ def main(is_lite: bool = False) -> int:
     return exit_code
 
 
-
-
-
 if __name__ == "__main__":
-
     # launcher 传入 --is_lite true|false，如不提供则默认 false
     is_lite = False
     if "--is_lite" in sys.argv:
         arg_index = sys.argv.index("--is_lite") + 1
         raw_value = sys.argv[arg_index] if arg_index < len(sys.argv) else ""
         if raw_value not in ("true", "false"):
-            print(f"Invalid --is_lite value: {raw_value!r}, expected 'true' or 'false'.")
+            print(
+                f"Invalid --is_lite value: {raw_value!r}, expected 'true' or 'false'."
+            )
             sys.exit(1)
         is_lite = raw_value == "true"
-        
+
     sys.exit(main(is_lite))

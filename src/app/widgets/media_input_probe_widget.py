@@ -1,16 +1,14 @@
-from PyQt6.QtWidgets import QHBoxLayout, QWidget, QVBoxLayout
-from PyQt6.QtCore import pyqtSignal
 import i18n
+from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 
-from src.core.tools import FFprobeInspect, FFprobeInspectResult
-from src.core.schemas.op_result import print_op_result
 from src.core.schemas.media_config import MediaType
+from src.core.schemas.op_result import print_op_result
+from src.core.tools import FFprobeInspect, FFprobeInspectResult
 
 from .file_selection_row import create_file_selection_row
-from .label import create_label
 from .help_icon import create_help_icon
-
-
+from .label import create_label
 
 I18N_Prefix = "app.widgets.media_input_probe_widget"
 
@@ -18,18 +16,19 @@ _ROW_SPACING = 5
 
 
 class MediaInputProbeWidget(QWidget):
-
     # Signal
     # 如果成功，结果是空字符串
     # 如果失败，结果是错误信息
     media_loaded = pyqtSignal(str)
-    
 
-    def __init__(self, parent=None,
-                 select_file_button_help: str = None,
-                 select_file_button_text: str = None,
-                 select_file_button_length: int = None,
-                 select_file_filter: str = None):
+    def __init__(
+        self,
+        parent=None,
+        select_file_button_help: str = None,
+        select_file_button_text: str = None,
+        select_file_button_length: int = None,
+        select_file_filter: str = None,
+    ):
 
         super().__init__(parent)
 
@@ -42,56 +41,61 @@ class MediaInputProbeWidget(QWidget):
         self.selected_file_type = MediaType.UNKNOWN
         self.selected_video_fps = None
 
-        self._init_ui(select_file_button_help,
-                      select_file_button_text,
-                      select_file_button_length,
-                      select_file_filter)
-        
+        self._init_ui(
+            select_file_button_help,
+            select_file_button_text,
+            select_file_button_length,
+            select_file_filter,
+        )
 
-
-
-
-
-    def _init_ui(self,
-                 select_file_button_help: str,
-                 select_file_button_text: str,
-                 select_file_button_length: int,
-                 select_file_filter: str = None):
+    def _init_ui(
+        self,
+        select_file_button_help: str,
+        select_file_button_text: str,
+        select_file_button_length: int,
+        select_file_filter: str = None,
+    ):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        
+
         # Row 1: File selection
-        (select_file_button,
-         self.input_file_path_display_line_edit,
-         select_file_help,
+        (
+            select_file_button,
+            self.input_file_path_display_line_edit,
+            select_file_help,
         ) = create_file_selection_row(
-            button_text = select_file_button_text or i18n.t(f"{I18N_Prefix}.ui_select_input_file_button"),
-            button_length = select_file_button_length,
-            help_text = select_file_button_help,
-            on_button_clicked_handler = self._on_input_file_selected,
-            name_filter = select_file_filter,
+            button_text=select_file_button_text
+            or i18n.t(f"{I18N_Prefix}.ui_select_input_file_button"),
+            button_length=select_file_button_length,
+            help_text=select_file_button_help,
+            on_button_clicked_handler=self._on_input_file_selected,
+            name_filter=select_file_filter,
         )
 
         row1_layout = QHBoxLayout()
         row1_layout.setSpacing(_ROW_SPACING)
         row1_layout.setContentsMargins(0, 0, 0, 0)
         # select_file_help 在未提供 help 文本时为 None，需跳过
-        for widget in (select_file_button, select_file_help, self.input_file_path_display_line_edit):
+        for widget in (
+            select_file_button,
+            select_file_help,
+            self.input_file_path_display_line_edit,
+        ):
             if widget is not None:
                 row1_layout.addWidget(widget)
         layout.addLayout(row1_layout)
 
-
-        
         # Row 2: Probe result
 
         probe_result_display_prefix = create_label(
-            text=i18n.t(f"{I18N_Prefix}.ui_ffprobe_inspect_prefix"))
-        
+            text=i18n.t(f"{I18N_Prefix}.ui_ffprobe_inspect_prefix")
+        )
+
         probe_result_display_help = create_help_icon(
-            i18n.t(f"{I18N_Prefix}.ui_ffprobe_inspect_help"))
-        
+            i18n.t(f"{I18N_Prefix}.ui_ffprobe_inspect_help")
+        )
+
         self.probe_result_display_label = create_label(expand=True)
 
         row2_layout = QHBoxLayout()
@@ -101,18 +105,9 @@ class MediaInputProbeWidget(QWidget):
         row2_layout.addWidget(probe_result_display_help)
         row2_layout.addWidget(self.probe_result_display_label)
         layout.addLayout(row2_layout)
-        
-
-
-
-
-
-
-
-
 
     def _on_input_file_selected(self, selected_file_path: str) -> None:
-         
+
         result = FFprobeInspect.inspect_media(selected_file_path)
         if not result.is_ok:
             # reset
@@ -121,11 +116,14 @@ class MediaInputProbeWidget(QWidget):
             self.selected_file_type = MediaType.UNKNOWN
             self.selected_video_fps = None
             # emit signal
-            error_msg = i18n.t(f"{I18N_Prefix}.warning_ffprobe_inspect_failed", error_msg = print_op_result(result))
+            error_msg = i18n.t(
+                f"{I18N_Prefix}.warning_ffprobe_inspect_failed",
+                error_msg=print_op_result(result),
+            )
             self.media_loaded.emit(error_msg)
             return
 
-        # ok    
+        # ok
         ffprobe_result = result.value
         # 更新公共变量
         self.selected_file_duration = ffprobe_result.duration
@@ -149,32 +147,28 @@ class MediaInputProbeWidget(QWidget):
         self.probe_result_display_label.setText(display_text)
         # emit signal
         self.media_loaded.emit("")
-        
-
-
-
-
 
     def _build_probe_result_text(self, result: FFprobeInspectResult) -> str:
 
         video_info = result.video_stream.get("info_str", "")
 
         if video_info:
-            video_line = i18n.t(f"{I18N_Prefix}.ui_video_stream_info_prefix") + video_info
+            video_line = (
+                i18n.t(f"{I18N_Prefix}.ui_video_stream_info_prefix") + video_info
+            )
         else:
             video_line = i18n.t(f"{I18N_Prefix}.ui_no_video_stream_info")
-        
+
         audio_info = result.audio_stream.get("info_str", "")
 
         if audio_info:
-            audio_line = i18n.t(f"{I18N_Prefix}.ui_audio_stream_info_prefix") + audio_info
+            audio_line = (
+                i18n.t(f"{I18N_Prefix}.ui_audio_stream_info_prefix") + audio_info
+            )
         else:
             audio_line = i18n.t(f"{I18N_Prefix}.ui_no_audio_stream_info")
 
         return f"{video_line}\n{audio_line}"
-
-
-
 
     def get_path(self) -> str:
         return str(self.input_file_path_display_line_edit.text()).strip()
@@ -186,10 +180,8 @@ class MediaInputProbeWidget(QWidget):
         self.selected_file_type = MediaType.UNKNOWN
         self.selected_video_fps = None
 
-
     def set_path(self, path: str) -> None:
         """编程方式设置文件路径并自动触发 ffprobe 检测"""
         self.input_file_path_display_line_edit.setText(path)
         if path:
             self._on_input_file_selected(path)
-    

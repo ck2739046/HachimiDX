@@ -1,46 +1,65 @@
 from datetime import date
 from typing import Annotated
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, field_validator, model_validator
 
+import i18n
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictBool,
+    field_validator,
+    model_validator,
+)
+
+from .model_inference_config import (
+    normalize_inference_device_for_backend,
+    normalize_inference_device_id,
+)
 from .settings_config import (
     MAIN_APP_H_MAX,
     MAIN_APP_H_MIN,
     MAIN_APP_W_MAX,
     MAIN_APP_W_MIN,
+)
+from .settings_config import (
     SettingsConfig_Definitions as S_Defs,
 )
-from .model_inference_config import (
-    normalize_inference_device_for_backend,
-    normalize_inference_device_id,
-)
-import i18n
 
 
 class MainAppWindowState(BaseModel):
-
     model_config = ConfigDict(extra="forbid")
 
     x: int
     y: int
     width: Annotated[int, Field(ge=MAIN_APP_W_MIN, le=MAIN_APP_W_MAX)]
     height: Annotated[int, Field(ge=MAIN_APP_H_MIN, le=MAIN_APP_H_MAX)]
-    ui_scale: Annotated[int, Field(
-        ge=S_Defs.main_app_ui_scale.constraints["ge"],
-        le=S_Defs.main_app_ui_scale.constraints["le"],
-    )]
+    ui_scale: Annotated[
+        int,
+        Field(
+            ge=S_Defs.main_app_ui_scale.constraints["ge"],
+            le=S_Defs.main_app_ui_scale.constraints["le"],
+        ),
+    ]
 
 
 class SettingsModel(BaseModel):
-
     model_config = ConfigDict(extra="forbid")
 
     # 模型推理相关
     model_backend: str = Field(default=S_Defs.model_backend.default)
     inference_device: str = Field(default=S_Defs.inference_device.default)
-    inference_device_half: StrictBool = Field(default=S_Defs.inference_device_half.default)
-    predict_batch_size_detect_obb: Annotated[int, Field(gt=S_Defs.predict_batch_size_detect_obb.constraints["gt"])] = S_Defs.predict_batch_size_detect_obb.default
-    predict_batch_size_classify: Annotated[int, Field(gt=S_Defs.predict_batch_size_classify.constraints["gt"])] = S_Defs.predict_batch_size_classify.default
-    predict_batch_size_touch_hold: Annotated[int, Field(gt=S_Defs.predict_batch_size_touch_hold.constraints["gt"])] = S_Defs.predict_batch_size_touch_hold.default
+    inference_device_half: StrictBool = Field(
+        default=S_Defs.inference_device_half.default
+    )
+    predict_batch_size_detect_obb: Annotated[
+        int, Field(gt=S_Defs.predict_batch_size_detect_obb.constraints["gt"])
+    ] = S_Defs.predict_batch_size_detect_obb.default
+    predict_batch_size_classify: Annotated[
+        int, Field(gt=S_Defs.predict_batch_size_classify.constraints["gt"])
+    ] = S_Defs.predict_batch_size_classify.default
+    predict_batch_size_touch_hold: Annotated[
+        int, Field(gt=S_Defs.predict_batch_size_touch_hold.constraints["gt"])
+    ] = S_Defs.predict_batch_size_touch_hold.default
     # FFmpeg 硬件加速相关
     ffmpeg_hw_encoder: str = Field(default=S_Defs.ffmpeg_hw_encoder.default)
     # 应用通用设置
@@ -48,31 +67,53 @@ class SettingsModel(BaseModel):
     check_update: StrictBool = Field(default=S_Defs.check_update.default)
     last_check_update_time: str = Field(default=S_Defs.last_check_update_time.default)
     # 窗口大小
-    main_app_w_default: Annotated[int, Field(ge=S_Defs.main_app_w_default.constraints["ge"], le=S_Defs.main_app_w_default.constraints["le"])] = S_Defs.main_app_w_default.default
-    main_app_h_default: Annotated[int, Field(ge=S_Defs.main_app_h_default.constraints["ge"], le=S_Defs.main_app_h_default.constraints["le"])] = S_Defs.main_app_h_default.default
+    main_app_w_default: Annotated[
+        int,
+        Field(
+            ge=S_Defs.main_app_w_default.constraints["ge"],
+            le=S_Defs.main_app_w_default.constraints["le"],
+        ),
+    ] = S_Defs.main_app_w_default.default
+    main_app_h_default: Annotated[
+        int,
+        Field(
+            ge=S_Defs.main_app_h_default.constraints["ge"],
+            le=S_Defs.main_app_h_default.constraints["le"],
+        ),
+    ] = S_Defs.main_app_h_default.default
     # 界面缩放
-    main_app_ui_scale: Annotated[int, Field(ge=S_Defs.main_app_ui_scale.constraints["ge"], le=S_Defs.main_app_ui_scale.constraints["le"])] = S_Defs.main_app_ui_scale.default
-    main_app_remember_window_state: StrictBool = S_Defs.main_app_remember_window_state.default
-    main_app_window_state: MainAppWindowState | None = S_Defs.main_app_window_state.default
-
-
+    main_app_ui_scale: Annotated[
+        int,
+        Field(
+            ge=S_Defs.main_app_ui_scale.constraints["ge"],
+            le=S_Defs.main_app_ui_scale.constraints["le"],
+        ),
+    ] = S_Defs.main_app_ui_scale.default
+    main_app_remember_window_state: StrictBool = (
+        S_Defs.main_app_remember_window_state.default
+    )
+    main_app_window_state: MainAppWindowState | None = (
+        S_Defs.main_app_window_state.default
+    )
 
     @field_validator("model_backend")
     @classmethod
     def validate_model_backend_options(cls, v: str) -> str:
         allowed = S_Defs.model_backend.constraints["options"]
         if v not in allowed:
-            raise ValueError(i18n.t("settings_model.error_model_backend_options", allowed=allowed))
+            raise ValueError(
+                i18n.t("settings_model.error_model_backend_options", allowed=allowed)
+            )
         return v
-
-
 
     @field_validator("inference_device")
     @classmethod
     def validate_inference_device_options(cls, v: str) -> str:
         normalized = normalize_inference_device_id(v)
         if normalized is None:
-            raise ValueError(i18n.t("settings_model.error_inference_device_invalid", value=v))
+            raise ValueError(
+                i18n.t("settings_model.error_inference_device_invalid", value=v)
+            )
         return normalized
 
     @field_validator("ffmpeg_hw_encoder")
@@ -80,21 +121,22 @@ class SettingsModel(BaseModel):
     def validate_ffmpeg_hw_encoder_options(cls, v: str) -> str:
         allowed = S_Defs.ffmpeg_hw_encoder.constraints["options"]
         if v not in allowed:
-            raise ValueError(i18n.t("settings_model.error_ffmpeg_hw_encoder_options", allowed=allowed))
+            raise ValueError(
+                i18n.t(
+                    "settings_model.error_ffmpeg_hw_encoder_options", allowed=allowed
+                )
+            )
         return v
-
-
-
 
     @field_validator("language")
     @classmethod
     def validate_language_options(cls, v: str) -> str:
         allowed = S_Defs.language.constraints["options"]
         if v not in allowed:
-            raise ValueError(i18n.t("settings_model.error_language_options", allowed=allowed))
+            raise ValueError(
+                i18n.t("settings_model.error_language_options", allowed=allowed)
+            )
         return v
-
-
 
     @field_validator("last_check_update_time")
     @classmethod
@@ -109,8 +151,6 @@ class SettingsModel(BaseModel):
             )
         return v
 
-
-
     @model_validator(mode="after")
     def sync_inference_device_with_backend(self):
         self.inference_device = normalize_inference_device_for_backend(
@@ -118,4 +158,3 @@ class SettingsModel(BaseModel):
             self.inference_device,
         )
         return self
-

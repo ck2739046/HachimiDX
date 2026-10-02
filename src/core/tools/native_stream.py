@@ -18,8 +18,6 @@ import sys
 import threading
 import traceback
 
-
-
 _READ_CHUNK_BYTES = 65536
 
 # 原生库的日志带 ANSI 颜色码, 转发前剥掉, 免得只剩颜色码的行变成一个空的前缀行
@@ -34,19 +32,17 @@ def strip_ansi(text: str) -> str:
     return _ANSI_ESCAPE.sub("", text)
 
 
-
-
 class OutputStreamDecoder:
     """
     把一条输出流的裸字节增量解码成文本.
 
-    同一条流上可能混排两种编码: 
+    同一条流上可能混排两种编码:
       - python 侧按 utf-8 写,
       - 部分库按 gbk 写,
       - onnxruntime 这类原生库绕过 sys.stderr 直接写 fd, 在 Windows 上是 utf-16-le.
-    
-    管道又会按任意字节边界切分, 所以这里按「段」处理: 
-      utf-8/GBK 文本里不可能出现 0x00 字节, 
+
+    管道又会按任意字节边界切分, 所以这里按「段」处理:
+      utf-8/GBK 文本里不可能出现 0x00 字节,
       于是 0x00 就是 utf-16-le 段的线索.
       每次只消费到完整换行符, 段起点便始终落在字符边界上,
       不会出现整段奇偶错位.
@@ -61,9 +57,9 @@ class OutputStreamDecoder:
     @classmethod
     def _utf16le_span(cls, data: bytes, offset: int = 0) -> int:
         """从 offset 起判定连续的 utf-16-le 段长度(偶数); 不像 utf-16-le 则返回 0."""
-        if data[offset:offset + 2] == b"\xff\xfe":
+        if data[offset : offset + 2] == b"\xff\xfe":
             cursor = offset + 2
-        elif data[offset + 1:offset + 2] == b"\x00":
+        elif data[offset + 1 : offset + 2] == b"\x00":
             # utf-16-le 的 ASCII 文本是 `字符 0x00`
             # 第二个字节非 0 说明 offset 不在字符边界上
             # 只看窗口占比不够: 短的 utf-8 前缀后面接长原生日志时会误判
@@ -76,8 +72,8 @@ class OutputStreamDecoder:
         # utf-8/GBK 永远不含 0x00, 于是只推进到窗口内最后一个 NUL 之后,
         # 正好停在 utf-16 与 utf-8 的交界, 不会越界把 utf-8 字节当 utf-16 解.
         while cursor + 2 <= len(data):
-            window = data[cursor:cursor + cls._UTF16_PROBE_BYTES]
-            window = window[:len(window) - len(window) % 2]
+            window = data[cursor : cursor + cls._UTF16_PROBE_BYTES]
+            window = window[: len(window) - len(window) % 2]
             last_nul = window.rfind(b"\x00")
             if last_nul < 0:
                 break
@@ -146,12 +142,18 @@ class OutputStreamDecoder:
             if span:
                 # utf-16-le 段: 只在段内按 2 字节对齐找换行, 段外字节留给下一轮
                 utf16le = True
-                prefix_end = span - span % 2 if final else self._last_utf16le_delimiter_end(raw, span)
+                prefix_end = (
+                    span - span % 2
+                    if final
+                    else self._last_utf16le_delimiter_end(raw, span)
+                )
             else:
                 # utf-8 段: 只到下一个 utf-16-le 段起点为止
                 utf16le = False
                 limit = self._next_utf16le_start(raw)
-                prefix_end = limit if final else self._last_utf8_delimiter_end(raw, limit)
+                prefix_end = (
+                    limit if final else self._last_utf8_delimiter_end(raw, limit)
+                )
             if prefix_end <= 0:
                 break
 
@@ -166,8 +168,6 @@ class OutputStreamDecoder:
             decoded_parts.append(self._decode_bytes(raw))
 
         return "".join(decoded_parts)
-
-
 
 
 def decode_native_message(exc: BaseException) -> str | None:
@@ -226,7 +226,9 @@ def describe_exception(exc: BaseException) -> str:
     frames = traceback.format_list(traceback.extract_tb(exc.__traceback__))
     if not frames:
         return f"RuntimeError: {detail}"
-    return f"Traceback (most recent call last):\n{''.join(frames)}RuntimeError: {detail}"
+    return (
+        f"Traceback (most recent call last):\n{''.join(frames)}RuntimeError: {detail}"
+    )
 
 
 def rewrite_native_error_line(text: str, exc: BaseException | None) -> str:
@@ -243,14 +245,10 @@ def rewrite_native_error_line(text: str, exc: BaseException | None) -> str:
         detail = decode_native_message(item)
         if not detail or "[ONNXRuntimeError]" not in detail:
             continue
-        useless = "".join(
-            traceback.format_exception_only(type(item), item)
-        ).strip()
+        useless = "".join(traceback.format_exception_only(type(item), item)).strip()
         if useless and useless in text:
             return text.replace(useless, f"RuntimeError: {detail}")
     return text
-
-
 
 
 class NativeStderrRedirect:

@@ -1,20 +1,14 @@
 import cv2
 import numpy as np
-from typing import Dict
-
-
 
 
 class InteractionMixin:
-
-
     def _is_center_hit(self, px: float, py: float) -> bool:
         """判断点击是否命中面板中心点 (容差 = 中心点半径)"""
         cx = float(self.FRAME_PREVIEW_SIZE // 2)
         cy = float(self.FRAME_PREVIEW_SIZE // 2)
         dist = float(np.hypot(px - cx, py - cy))
         return dist <= float(self.PERSPECTIVE_POINT_RADIUS + self.OUTER_RADIUS_PLUS)
-
 
     def _begin_center_drag(self, panel_side: str, px: float, py: float) -> None:
         """开始拖动中心点: 记录起始鼠标位置与对应面板的当前 offset 快照"""
@@ -27,7 +21,6 @@ class InteractionMixin:
         else:
             self._center_drag_start_offset_x = self.output_offset_x_px
             self._center_drag_start_offset_y = self.output_offset_y_px
-
 
     def _handle_center_drag_move(self, x: int, y: int) -> None:
         """拖动中心点时按鼠标增量更新对应面板 offset, 并刷新手柄显示位置"""
@@ -45,16 +38,19 @@ class InteractionMixin:
         new_offset_y = self._center_drag_start_offset_y + delta_y
 
         if self.center_drag_panel == "left":
-            self.input_offset_x_px = self._clamp_value(new_offset_x, self.OFFSET_MIN_PX, self.OFFSET_MAX_PX)
-            self.input_offset_y_px = self._clamp_value(new_offset_y, self.OFFSET_MIN_PX, self.OFFSET_MAX_PX)
+            self.input_offset_x_px = self._clamp_value(
+                new_offset_x, self.OFFSET_MIN_PX, self.OFFSET_MAX_PX
+            )
+            self.input_offset_y_px = self._clamp_value(
+                new_offset_y, self.OFFSET_MIN_PX, self.OFFSET_MAX_PX
+            )
         else:
-            self.output_offset_x_px = self._clamp_value(new_offset_x, self.OFFSET_MIN_PX, self.OFFSET_MAX_PX)
-            self.output_offset_y_px = self._clamp_value(new_offset_y, self.OFFSET_MIN_PX, self.OFFSET_MAX_PX)
-
-
-
-
-
+            self.output_offset_x_px = self._clamp_value(
+                new_offset_x, self.OFFSET_MIN_PX, self.OFFSET_MAX_PX
+            )
+            self.output_offset_y_px = self._clamp_value(
+                new_offset_y, self.OFFSET_MIN_PX, self.OFFSET_MAX_PX
+            )
 
     def _on_mouse_event(self, event, x, y, flags, param) -> None:
         """
@@ -99,7 +95,6 @@ class InteractionMixin:
 
         # 鼠标按下
         if event == cv2.EVENT_LBUTTONDOWN:
-
             # 左面板: 四边形透视点优先
             if is_left:
                 min_dist = float("inf")
@@ -110,10 +105,12 @@ class InteractionMixin:
                     if dist < min_dist:
                         min_dist = dist
                         min_idx = idx
-                if min_dist <= float(self.PERSPECTIVE_POINT_RADIUS + self.OUTER_RADIUS_PLUS):
+                if min_dist <= float(
+                    self.PERSPECTIVE_POINT_RADIUS + self.OUTER_RADIUS_PLUS
+                ):
                     self.dragging_point_index = min_idx
                     return
-                
+
             # 左右面板通用: 鼠标按下时处理中心点拖拽
             if self._is_center_hit(float(panel_x), float(y)):
                 self._begin_center_drag(panel_side, float(panel_x), float(y))
@@ -123,11 +120,6 @@ class InteractionMixin:
         if event == cv2.EVENT_MOUSEMOVE and is_left and self.dragging_point_index >= 0:
             new_point = self._panel_to_frame(float(x), float(y), self.left_panel_meta)
             self.quad_points[self.dragging_point_index] = new_point
-
-
-
-
-
 
     def _handle_slider_event(self, event: int, x: int, y: int) -> bool:
         """
@@ -178,12 +170,9 @@ class InteractionMixin:
 
         return True
 
-
-
-
-
-
-    def _update_slider_from_mouse(self, slider_name: str, x: int, geo: Dict[str, int]) -> None:
+    def _update_slider_from_mouse(
+        self, slider_name: str, x: int, geo: dict[str, int]
+    ) -> None:
         """按鼠标 x 坐标换算百分比, 写入对应滑块状态字段"""
         percent = self._slider_x_to_percent(
             float(x),
@@ -211,37 +200,32 @@ class InteractionMixin:
         elif slider_name == "fine_offset_y":
             self.output_fine_offset_y_px = percent
 
-
-    def _slider_percent_to_x(self,
-                             percent_value: int,
-                             track_x1: int,
-                             track_x2: int,
-                             min_percent: int,
-                             max_percent: int) -> float:
+    def _slider_percent_to_x(
+        self,
+        percent_value: int,
+        track_x1: int,
+        track_x2: int,
+        min_percent: int,
+        max_percent: int,
+    ) -> float:
         """把滑块百分比换算为轨道上的像素 x (用于绘制滑块位置)"""
         clamped = self._clamp_value(percent_value, min_percent, max_percent)
         ratio = (clamped - min_percent) / float(max(1, max_percent - min_percent))
         return track_x1 + ratio * (track_x2 - track_x1)
 
-
-    def _slider_x_to_percent(self,
-                             x: float,
-                             track_x1: int,
-                             track_x2: int,
-                             min_percent: int,
-                             max_percent: int) -> int:
+    def _slider_x_to_percent(
+        self, x: float, track_x1: int, track_x2: int, min_percent: int, max_percent: int
+    ) -> int:
         """把鼠标像素 x 反算为滑块百分比 (用于拖拽写入)"""
         ratio = (x - track_x1) / float(max(1, track_x2 - track_x1))
         percent = min_percent + ratio * (max_percent - min_percent)
         return self._clamp_value(int(round(percent)), min_percent, max_percent)
 
-
     def _clamp_value(self, value: int, min_value: int, max_value: int) -> int:
         """把 value 限制到 [min_value, max_value] 区间"""
         return max(min_value, min(max_value, int(value)))
 
-
-    def _get_slider_geometries(self) -> Dict[str, Dict[str, int]]:
+    def _get_slider_geometries(self) -> dict[str, dict[str, int]]:
         """计算所有滑块的轨道坐标 (x1/x2/y) 与取值范围 (min/max)"""
 
         control_top = self.FRAME_PREVIEW_SIZE
@@ -254,7 +238,7 @@ class InteractionMixin:
         # 右边实际滑条的长度 (减去了边距)
         available_len = right_full_x2 - right_full_x1
         # 将右侧滑条分成两半，中间的间距 = SLIDER_MARGIN_X
-        half_len = max(1, int(available_len/2 - self.SLIDER_MARGIN_X/2))
+        half_len = max(1, int(available_len / 2 - self.SLIDER_MARGIN_X / 2))
 
         right_half_left_x1 = right_full_x1
         right_half_left_x2 = right_half_left_x1 + half_len
@@ -262,7 +246,7 @@ class InteractionMixin:
         right_half_right_x1 = right_half_right_x2 - half_len
 
         # 第一层
-        y1 = control_top + self.SLIDER_MARGIN_Y*2 + self.SLIDER_HEIGHT // 2
+        y1 = control_top + self.SLIDER_MARGIN_Y * 2 + self.SLIDER_HEIGHT // 2
         # 第二层
         y2 = y1 + self.SLIDER_MARGIN_Y + self.SLIDER_HEIGHT
         # 第三层
@@ -310,15 +294,21 @@ class InteractionMixin:
                 "x1": right_half_left_x1,
                 "x2": right_half_left_x2,
                 "y": y3,
-                "min": -self.frame_width if self.frame_width > 0 else self.OFFSET_MIN_PX,
+                "min": -self.frame_width
+                if self.frame_width > 0
+                else self.OFFSET_MIN_PX,
                 "max": self.frame_width if self.frame_width > 0 else self.OFFSET_MAX_PX,
             },
             "offset_y": {
                 "x1": right_half_right_x1,
                 "x2": right_half_right_x2,
                 "y": y3,
-                "min": -self.frame_height if self.frame_height > 0 else self.OFFSET_MIN_PX,
-                "max": self.frame_height if self.frame_height > 0 else self.OFFSET_MAX_PX,
+                "min": -self.frame_height
+                if self.frame_height > 0
+                else self.OFFSET_MIN_PX,
+                "max": self.frame_height
+                if self.frame_height > 0
+                else self.OFFSET_MAX_PX,
             },
             "fine_offset_x": {
                 "x1": right_half_left_x1,

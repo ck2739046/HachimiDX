@@ -19,6 +19,7 @@ def check() -> list[DeviceResult] | None:
 
     try:
         import ncnn
+
         print(f"NCNN installed, version {ncnn.__version__}")
     except Exception as e:
         print(f"Failed to load NCNN: {e!r}")

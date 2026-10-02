@@ -6,9 +6,17 @@ import threading
 import unicodedata
 
 import i18n
-from PyQt6.QtCore import QEventLoop, QTimer, Qt
+from PyQt6.QtCore import QEventLoop, Qt, QTimer
 from PyQt6.QtGui import QCloseEvent, QCursor, QFont, QGuiApplication, QIcon
-from PyQt6.QtWidgets import QApplication, QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QSizePolicy
+from PyQt6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QSizePolicy,
+    QVBoxLayout,
+)
 
 from src.services import PathManage
 
@@ -38,7 +46,7 @@ class _PopupConfirmDialog(QDialog):
             self._mode = "confirm"
 
         # 插入零宽空格，让 QLabel 自动换行
-        self._display_text = "\u200B".join(list(self._prompt_text)).strip()
+        self._display_text = "\u200b".join(list(self._prompt_text)).strip()
 
         self.setWindowTitle(title)
         self.setModal(False)
@@ -56,7 +64,7 @@ class _PopupConfirmDialog(QDialog):
         W_SMALL = 330
         W_MEDIUM = 500
         W_LARGE = 700
-        
+
         lines = self._prompt_text.splitlines()
         max_line_len = max((_display_width(line) for line in lines), default=0)
 
@@ -86,10 +94,12 @@ class _PopupConfirmDialog(QDialog):
         self._text_label = QLabel(self._display_text)
         self._text_label.setWordWrap(True)
         _mono_font = QFont()
-        _mono_font.setFamilies(['Consolas', 'Microsoft YaHei UI'])
+        _mono_font.setFamilies(["Consolas", "Microsoft YaHei UI"])
         _mono_font.setStyleHint(QFont.StyleHint.Monospace)
         self._text_label.setFont(_mono_font)
-        self._text_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self._text_label.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
+        )
         self._text_label.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
             | Qt.TextInteractionFlag.TextSelectableByKeyboard
@@ -100,7 +110,9 @@ class _PopupConfirmDialog(QDialog):
         self._hint_label = QLabel()
         self._hint_label.setWordWrap(True)
         self._hint_label.setTextFormat(Qt.TextFormat.PlainText)
-        self._hint_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self._hint_label.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
 
         btn_row = QHBoxLayout()
         btn_row.addStretch(1)
@@ -352,9 +364,7 @@ def show_notify_dialog(title: str, prompt_text: str) -> bool:
         return False
 
 
-
 if __name__ == "__main__":
-
     # init i18n
     tool_dir = os.path.dirname(os.path.abspath(__file__))
     locales_dir = os.path.normpath(os.path.join(tool_dir, "../../resources/locales"))
@@ -384,14 +394,14 @@ if __name__ == "__main__":
             return
 
         title, text, mode = test_configs[index]
-        print(f"Spawning window {index+1}/{len(test_configs)}: {title} ({mode})")
-        
+        print(f"Spawning window {index + 1}/{len(test_configs)}: {title} ({mode})")
+
         d = _PopupConfirmDialog(title, text, mode=mode)
         key = f"win_{index}_{mode}"
         d.finished.connect(
             lambda _code, d=d, key=key: results.__setitem__(key, d.result_value())
         )
-        
+
         d.show()
         active_dialogs.append(d)
 

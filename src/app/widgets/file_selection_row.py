@@ -1,21 +1,29 @@
-from PyQt6.QtWidgets import QPushButton, QLineEdit, QFileDialog
 import os
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QCursor
-from ..ui_style import UI_Style
+
+from PyQt6.QtWidgets import QFileDialog
+
+from .button import create_button
 from .help_icon import create_help_icon
 from .path_display import create_path_display
-from .button import create_button
 
 # --- File filter constants (Qt setNameFilter format) ---
 
 _SUPPORTED_AUDIO = [
-    "*.mp3", "*.m4a", "*.aac",
-    "*.wav", "*.mka", "*.flac",
-    "*.ogg", "*.oga", "*.opus",
+    "*.mp3",
+    "*.m4a",
+    "*.aac",
+    "*.wav",
+    "*.mka",
+    "*.flac",
+    "*.ogg",
+    "*.oga",
+    "*.opus",
 ]
 _SUPPORTED_VIDEO = [
-    "*.mov", "*.mkv", "*.mp4", "*.webm",
+    "*.mov",
+    "*.mkv",
+    "*.mp4",
+    "*.webm",
 ]
 
 AUDIO_FILTER = f"audio ({' '.join(_SUPPORTED_AUDIO)})"
@@ -28,11 +36,13 @@ _FILTER_MAP = {
 }
 
 
-def create_file_selection_row(button_text: str,
-                              button_length: int = None,
-                              help_text: str = None,
-                              on_button_clicked_handler=None,
-                              name_filter: str = None):
+def create_file_selection_row(
+    button_text: str,
+    button_length: int = None,
+    help_text: str = None,
+    on_button_clicked_handler=None,
+    name_filter: str = None,
+):
     """
     创建文件选择行UI组件
 
@@ -51,7 +61,8 @@ def create_file_selection_row(button_text: str,
         tuple: (button_widget, line_edit_widget, help_label_widget | None)
     """
 
-    if button_length is None: button_length = 120
+    if button_length is None:
+        button_length = 120
 
     # 创建文件选择按钮
     button = create_button(button_text, button_length)
@@ -77,7 +88,9 @@ def create_file_selection_row(button_text: str,
         if file_dialog.exec():
             selected_files = file_dialog.selectedFiles()
             if selected_files:
-                selected_file_path = os.path.normpath(os.path.abspath(selected_files[0]))
+                selected_file_path = os.path.normpath(
+                    os.path.abspath(selected_files[0])
+                )
                 line_edit.setText(selected_file_path)
 
                 # 如果有自定义处理函数，则调用它
@@ -95,10 +108,12 @@ def create_file_selection_row(button_text: str,
     return button, line_edit, help_label
 
 
-def create_directory_selection_row(button_text: str,
-                                   help_text: str = None,
-                                   button_length = None,
-                                   on_button_clicked_handler=None):
+def create_directory_selection_row(
+    button_text: str,
+    help_text: str = None,
+    button_length=None,
+    on_button_clicked_handler=None,
+):
     """
     创建目录选择行UI组件
 
@@ -112,7 +127,8 @@ def create_directory_selection_row(button_text: str,
         tuple: (button_widget, line_edit_widget, help_label_widget | None)
     """
 
-    if button_length is None: button_length = 120
+    if button_length is None:
+        button_length = 120
 
     # 创建文件选择按钮
     button = create_button(button_text, button_length)
@@ -130,10 +146,7 @@ def create_directory_selection_row(button_text: str,
         parent_window = button.window()
         start_dir = line_edit.text().strip() or os.getcwd()
         selected_dir = QFileDialog.getExistingDirectory(
-            parent_window,
-            button_text,
-            start_dir,
-            QFileDialog.Option.ShowDirsOnly
+            parent_window, button_text, start_dir, QFileDialog.Option.ShowDirsOnly
         )
         # 对话框关闭后，确保主窗口回到前台
         if parent_window:

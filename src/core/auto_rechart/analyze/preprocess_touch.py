@@ -1,34 +1,16 @@
 from ..detect.note_definition import (
     NoteType,
-    NoteVariant,
-    Note_Geometry,
-    get_imgsz,
-    is_obb,
-    map_model_class_to_note_type,
-    map_note_type_to_class_id,
-    need_cls,
 )
 from ..tool import (
-    SEEK_THRESHOLD,
     calculate_all_position,
-    calculate_oct_position,
-    catmull_rom_spline,
-    draw_path_on_frame,
-    install_ort_cpu_thread_tuning,
-    print_progress,
-    release_ncnn_vulkan,
 )
 from .shared_context import (
     SharedContext,
-    create_shared_context,
-    get_a_zone_endpoint,
-    get_max_track_id,
-    get_touch_areas,
 )
 
 
 def preprocess_touch_data(shared_context: SharedContext):
-    '''
+    """
     返回格式:
     dict{
         key: (track_id, note_type, note_variant, note_position),
@@ -41,7 +23,7 @@ def preprocess_touch_data(shared_context: SharedContext):
             ...
         ]
     }
-    '''
+    """
 
     touch_data = {}
 
@@ -53,31 +35,31 @@ def preprocess_touch_data(shared_context: SharedContext):
 
     # read track data
     for key, value in shared_context.track_data.items():
-
         track_id, note_type = key
         note_geometry_list = value
 
-        if note_type != NoteType.TOUCH: continue
-        if len(note_geometry_list) < 5: continue
+        if note_type != NoteType.TOUCH:
+            continue
+        if len(note_geometry_list) < 5:
+            continue
 
         # read track path
         valid_track_path = []
         for note in note_geometry_list:
-
             # 反推得出三角到中心的距离
             avg_touch_size = (note.w + note.h) / 2
             dist = avg_touch_size / 2 - outer_size
             # 计算方位
-            position = calculate_all_position(shared_context.touch_areas, note.cx, note.cy)
+            position = calculate_all_position(
+                shared_context.touch_areas, note.cx, note.cy
+            )
             # 过滤前后两端的数据
             if dist > valid_dist_start:
-                continue # 掐头
+                continue  # 掐头
             elif dist < valid_dist_end:
-                continue # 去尾
+                continue  # 去尾
             # 添加轨迹点
             valid_track_path.append((note.frame, dist, position))
-
-
 
         # 检查轨迹存在
         if not valid_track_path:
@@ -86,13 +68,17 @@ def preprocess_touch_data(shared_context: SharedContext):
 
         # 检验长度
         if len(valid_track_path) < 3:
-            print(f"preprocess_touch_data: path too short for track_id {track_id}, length: {len(valid_track_path)}")
+            print(
+                f"preprocess_touch_data: path too short for track_id {track_id}, length: {len(valid_track_path)}"
+            )
             continue
 
         # 检验方位一致
         positions = [x[2] for x in valid_track_path]
         if len(set(positions)) != 1:
-            print(f"preprocess_touch_data: positions not consistent for track_id {track_id}")
+            print(
+                f"preprocess_touch_data: positions not consistent for track_id {track_id}"
+            )
             continue
 
         # 按frame排序
@@ -100,7 +86,10 @@ def preprocess_touch_data(shared_context: SharedContext):
 
         # 检查dist是否递减 (允许微小回退20%总距离)
         dists = [x[1] for x in valid_track_path]
-        if not all(later - earlier < 0.2 * shared_context.touch_travel_dist for earlier, later in zip(dists, dists[1:])):
+        if not all(
+            later - earlier < 0.2 * shared_context.touch_travel_dist
+            for earlier, later in zip(dists, dists[1:])
+        ):
             print(f"preprocess_touch_data: dist not decreasing for track_id {track_id}")
             continue
 
@@ -111,18 +100,14 @@ def preprocess_touch_data(shared_context: SharedContext):
 
         path = []
         for frame_num, dist, position in valid_track_path:
-            path.append({
-                'frame': frame_num,
-                'dist': dist
-            })
+            path.append({"frame": frame_num, "dist": dist})
 
         touch_data[key] = path
-
 
     if not touch_data:
         print("preprocess_touch_data: no touch data")
         return {}
-    
+
     return touch_data
 
 
@@ -153,8 +138,8 @@ def preprocess_touch_data(shared_context: SharedContext):
 #     contours, _ = cv2.findContours(thresh_dot_roi, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 #     if not contours: return None_result
 #     for contour in contours:
-#         (x, y), radius = cv2.minEnclosingCircle(contour)         
-#         # 尺寸合适 
+#         (x, y), radius = cv2.minEnclosingCircle(contour)
+#         # 尺寸合适
 #         if radius < center_dot_min or radius > center_dot_max: continue
 #         # 验证轮廓圆形度 (0.8)
 #         area = cv2.contourArea(contour)
@@ -179,7 +164,7 @@ def preprocess_touch_data(shared_context: SharedContext):
 #     for contour in contours:
 
 #         # 尺寸合适
-#         (x, y), radius = cv2.minEnclosingCircle(contour)          
+#         (x, y), radius = cv2.minEnclosingCircle(contour)
 #         if radius < touch_radius_min or radius > touch_radius_max:
 #             continue
 
@@ -199,7 +184,7 @@ def preprocess_touch_data(shared_context: SharedContext):
 #         total_pixels = len(contour_pixels)
 #         white_ratio = white_pixels / total_pixels
 #         if white_ratio > 0.5: continue
-        
+
 #         # 方向正确
 #         # 获取包围圆的上下左右四个点
 #         up = (x, y - radius)
@@ -227,7 +212,7 @@ def preprocess_touch_data(shared_context: SharedContext):
 #             if note_cx - cx < 0: continue
 #         # 计算cloest_box_point到音符中心的距离
 #         dist = np.sqrt(((closest_box_point[0] - note_cx) ** 2 + (closest_box_point[1] - note_cy) ** 2))
-#         # 保存结果 
+#         # 保存结果
 #         if orientation not in valid_points.keys():
 #             valid_points[orientation] = (radius, dist, closest_box_point, contour, round(x), round(y))
 #         else:
@@ -254,7 +239,7 @@ def preprocess_touch_data(shared_context: SharedContext):
 #         cv2.destroyAllWindows()
 
 #         return None_result
-    
+
 
 #     # 转换为外框尺寸 ( offset = 0.08 * radius )
 #     avg_dist = np.mean(dists)

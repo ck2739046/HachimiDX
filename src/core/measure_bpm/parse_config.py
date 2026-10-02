@@ -4,11 +4,10 @@ import json
 import subprocess
 from pathlib import Path
 
-from src.services import PathManage
-from src.core.schemas.op_result import OpResult, ok, err
-from src.core.tools import generate_uid
 from src.core.build_bpm_measurer_cmd import build_parse_config_cmd
-
+from src.core.schemas.op_result import OpResult, err, ok
+from src.core.tools import generate_uid
+from src.services import PathManage
 
 # BPM-Measurer --parse_config 无头模式退出码语义（见 App.HeadlessExport.cs）。
 # 0（成功）不在表中；其他码 / None（崩溃）均视为失败。
@@ -19,14 +18,13 @@ _EXIT_CODE_REASON: dict[int, str] = {
 }
 
 
-
 def generate_notify_path() -> Path:
     return PathManage.TEMP_DIR / f"bpm_parse_notify_{generate_uid()}.json"
 
 
-
-
-def parse_config(config_path: str | Path, timeout: float | None = 60.0) -> OpResult[Path]:
+def parse_config(
+    config_path: str | Path, timeout: float | None = 60.0
+) -> OpResult[Path]:
     """
     同用 BPM-Measurer 的 --parse_config 模式，生成 bpm notify 文件。
 
@@ -46,7 +44,8 @@ def parse_config(config_path: str | Path, timeout: float | None = 60.0) -> OpRes
             成功 → notify_path
     """
 
-    if timeout is None or timeout <= 0: timeout = 60
+    if timeout is None or timeout <= 0:
+        timeout = 60
 
     cfg = Path(config_path)
     if not cfg.is_file():
@@ -73,20 +72,13 @@ def parse_config(config_path: str | Path, timeout: float | None = 60.0) -> OpRes
     stderr_tail = proc.stderr.decode("utf-8", errors="replace").strip()
     return err(
         f"BPM-Measurer parse_config failed (exit={exit_code}): {reason}",
-        error_raw=f"stderr: {stderr_tail}" if stderr_tail else ""
+        error_raw=f"stderr: {stderr_tail}" if stderr_tail else "",
     )
 
 
-
-
-
-
-
-
-
-
-
-def load_timing_points(notify_path: str | Path) -> OpResult[list[tuple[float, float, float]]]:
+def load_timing_points(
+    notify_path: str | Path,
+) -> OpResult[list[tuple[float, float, float]]]:
     """
     读取 BPM-Measurer 输出的 notify JSON，计算每个 bpm 段的起始绝对时间(ms)。
 
@@ -108,8 +100,6 @@ def load_timing_points(notify_path: str | Path) -> OpResult[list[tuple[float, fl
         return err("failed to compute segment starts", inner=res)
 
     return ok(res.value)
-
-
 
 
 def _load_notify(notify_path: str | Path) -> OpResult[tuple[float, list[dict]]]:
@@ -161,9 +151,9 @@ def _load_notify(notify_path: str | Path) -> OpResult[tuple[float, list[dict]]]:
     return ok((global_offset_sec, timing_points))
 
 
-
-
-def _compute_segment_starts(global_offset_sec: float, timing_points: list[dict]) -> OpResult[list[tuple[float, float, float]]]:
+def _compute_segment_starts(
+    global_offset_sec: float, timing_points: list[dict]
+) -> OpResult[list[tuple[float, float, float]]]:
     """
     段起始绝对时间计算（复刻 BPM-Measurer/TimingEngine.cs RecalculateTiming)
         time_sec[0] = global_offset
@@ -194,9 +184,7 @@ def _compute_segment_starts(global_offset_sec: float, timing_points: list[dict])
 
         if i == 0:
             if beat_index != 0:
-                return err(
-                    f"first timing_point beat_index must be 0, got {beat_index}"
-                )
+                return err(f"first timing_point beat_index must be 0, got {beat_index}")
             time_sec = base_sec
         else:
             prev_beat_index = float(timing_points[i - 1]["beat_index"])
@@ -219,22 +207,14 @@ def _compute_segment_starts(global_offset_sec: float, timing_points: list[dict])
         if segments and bpm == segments[-1][1]:
             continue
 
-        segments.append((beat_index, bpm, time_sec * 1000.0)) # 转成毫秒
+        segments.append((beat_index, bpm, time_sec * 1000.0))  # 转成毫秒
 
     return ok(segments)
 
 
-
-
-
-
-
-
-
-
-def compute_aligned_global_offset(notify_json_path: str | Path,
-                                  first_note_time_ms: float,
-                                  beat_index: float) -> OpResult[float]:
+def compute_aligned_global_offset(
+    notify_json_path: str | Path, first_note_time_ms: float, beat_index: float
+) -> OpResult[float]:
     """
     根据 first_note_time 与 beat_index 反推 global_offset_sec
 
@@ -282,11 +262,9 @@ def compute_aligned_global_offset(notify_json_path: str | Path,
     return ok(g_new)
 
 
-
-
-def beat_to_time_sec(target_beat_index: float,
-                     global_offset_sec: float,
-                     timing_points: list[dict]) -> OpResult[float]:
+def beat_to_time_sec(
+    target_beat_index: float, global_offset_sec: float, timing_points: list[dict]
+) -> OpResult[float]:
     """
     给定 global_offset 与 timing_points，返回指定 beat 对应的绝对时间
 
@@ -303,7 +281,9 @@ def beat_to_time_sec(target_beat_index: float,
     except (TypeError, ValueError):
         return err(f"target_beat_index must be a number, got: {target_beat_index!r}")
     if target_beat < 0:
-        return err(f"target_beat_index must be non-negative, got: {target_beat_index!r}")
+        return err(
+            f"target_beat_index must be non-negative, got: {target_beat_index!r}"
+        )
 
     res = _compute_segment_starts(global_offset_sec, timing_points)
     if not res.is_ok:

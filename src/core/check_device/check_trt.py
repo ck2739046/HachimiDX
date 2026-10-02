@@ -13,9 +13,6 @@ def _get_half_support(tensorrt, torch, index: int) -> bool:
         return False
 
 
-
-
-
 def check() -> list[DeviceResult] | None:
 
     devices = check_cuda(print_device=False)
@@ -24,6 +21,7 @@ def check() -> list[DeviceResult] | None:
 
     try:
         import tensorrt
+
         print(f"TensorRT installed, version {tensorrt.__version__}")
     except Exception as e:
         print(f"Failed to load TensorRT: {e!r}")

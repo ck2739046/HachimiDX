@@ -6,14 +6,14 @@ except ImportError:
     from win32 import win32gui
 
 import time
-from typing import Optional
 
 from PyQt6.QtCore import QObject, QProcess, QTimer, pyqtSignal
 
-from src.core.schemas.op_result import OpResult, ok, err
+from src.core.schemas.op_result import OpResult, ok
+
+from .majdata_command_client import MajdataCommandClient
 from .path_manage import PathManage
 from .watchdog import shutdown_majdata
-from .majdata_command_client import MajdataCommandClient
 
 
 class MajdataSession(QObject):
@@ -34,34 +34,31 @@ class MajdataSession(QObject):
     error = pyqtSignal(str)
     shutdown_finished = pyqtSignal()
 
-
-    def __init__(self, parent: Optional[QObject] = None) -> None:
+    def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
 
-        self._majdataview_proc: Optional[QProcess] = None
-        self._majdataedit_proc: Optional[QProcess] = None
-        self._majdataview_hwnd: Optional[int] = None
-        self._majdataedit_hwnd: Optional[int] = None
+        self._majdataview_proc: QProcess | None = None
+        self._majdataedit_proc: QProcess | None = None
+        self._majdataview_hwnd: int | None = None
+        self._majdataedit_hwnd: int | None = None
 
         self._poll_timer = QTimer(self)
         self._poll_timer.setInterval(20)
         self._poll_timer.timeout.connect(self._poll_hwnds)
-        self._poll_started_at: Optional[float] = None
+        self._poll_started_at: float | None = None
         # 等待 majdata 启动并出现窗口
         self._poll_timeout_s: float = 30.0
 
         self._shutdown_in_progress: bool = False
         self._restart_pending: bool = False
-        
+
         self._shutdown_timer = QTimer(self)
         self._shutdown_timer.setInterval(20)
         self._shutdown_timer.timeout.connect(self._poll_majdataedit_exit)
-        self._shutdown_started_at: Optional[float] = None
+        self._shutdown_started_at: float | None = None
         self._shutdown_timeout_s: float = 10.0
         # 此处设置 10s 是因为 majdataedit 退出时可能有弹窗提示用户是否保存谱面更改
         # 留 10s 时间让用户看到弹窗并点击，然后再强制退出
-
-    
 
     def _ensure_timers(self) -> None:
         """start() 可能被 shutdown 后重新调用（restart），此时 timers 已置 None，需重建"""
@@ -73,7 +70,6 @@ class MajdataSession(QObject):
             self._shutdown_timer = QTimer(self)
             self._shutdown_timer.setInterval(20)
             self._shutdown_timer.timeout.connect(self._poll_majdataedit_exit)
-
 
     def start(self) -> OpResult[None]:
 
@@ -89,16 +85,24 @@ class MajdataSession(QObject):
 
         self._majdataview_proc = QProcess(self)
         self._majdataview_proc.setWorkingDirectory(working_dir)
-        self._majdataview_proc.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+        self._majdataview_proc.setProcessChannelMode(
+            QProcess.ProcessChannelMode.MergedChannels
+        )
         self._majdataview_proc.setProgram(str(majdataview_exe))
 
         self._majdataedit_proc = QProcess(self)
         self._majdataedit_proc.setWorkingDirectory(working_dir)
-        self._majdataedit_proc.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+        self._majdataedit_proc.setProcessChannelMode(
+            QProcess.ProcessChannelMode.MergedChannels
+        )
         self._majdataedit_proc.setProgram(str(majdataedit_exe))
 
-        self._majdataview_proc.readyReadStandardOutput.connect(self._on_majdataview_stdout_ready)
-        self._majdataedit_proc.readyReadStandardOutput.connect(self._on_majdataedit_stdout_ready)
+        self._majdataview_proc.readyReadStandardOutput.connect(
+            self._on_majdataview_stdout_ready
+        )
+        self._majdataedit_proc.readyReadStandardOutput.connect(
+            self._on_majdataedit_stdout_ready
+        )
 
         self._majdataview_proc.start()
         self._majdataedit_proc.start()
@@ -112,23 +116,21 @@ class MajdataSession(QObject):
 
         return ok(None)
 
-
-
-
-
-
     def _on_majdataview_stdout_ready(self) -> None:
 
         # 过滤输出
         filters = (
             # 启动的 unity memory config 日志
-            '[unitymemory] configuration parameters',
-            '"memorysetup-'
+            "[unitymemory] configuration parameters",
+            '"memorysetup-',
         )
 
         if self._majdataview_proc:
-            data = self._decode_stdout(self._majdataview_proc.readAllStandardOutput().data())
-            if not data: return
+            data = self._decode_stdout(
+                self._majdataview_proc.readAllStandardOutput().data()
+            )
+            if not data:
+                return
             new_lines = []
             for line in data.splitlines():
                 if line.lower().strip().startswith(filters):
@@ -139,18 +141,20 @@ class MajdataSession(QObject):
             if new_lines:
                 print("\n".join(new_lines))
 
-
     def _on_majdataedit_stdout_ready(self) -> None:
 
         # 过滤输出
         filters = (
             # iniwave 打印
-            'initwave'
+            "initwave"
         )
-        
+
         if self._majdataedit_proc:
-            data = self._decode_stdout(self._majdataedit_proc.readAllStandardOutput().data())
-            if not data: return
+            data = self._decode_stdout(
+                self._majdataedit_proc.readAllStandardOutput().data()
+            )
+            if not data:
+                return
             new_lines = []
             for line in data.splitlines():
                 if line.lower().strip().startswith(filters):
@@ -161,21 +165,15 @@ class MajdataSession(QObject):
             if new_lines:
                 print("\n".join(new_lines))
 
-
     @staticmethod
     def _decode_stdout(raw: bytes) -> str:
-        for encoding in ('utf-8', 'gbk'):
+        for encoding in ("utf-8", "gbk"):
             try:
                 return raw.decode(encoding)
             except (UnicodeDecodeError, LookupError):
                 continue
         # 全部失败，用 replace 兜底
-        return raw.decode('utf-8', errors='replace')
-
-
-
-
-
+        return raw.decode("utf-8", errors="replace")
 
     def _poll_hwnds(self) -> None:
 
@@ -185,11 +183,14 @@ class MajdataSession(QObject):
         elapsed = time.time() - self._poll_started_at
         if elapsed > self._poll_timeout_s:
             self._poll_timer.stop()
-            self.error.emit("MajdataSession: timed out waiting for MajdataView/MajdataEdit windows.")
+            self.error.emit(
+                "MajdataSession: timed out waiting for MajdataView/MajdataEdit windows."
+            )
             return
-        
-        def _find_hwnd(keyword: str, mode: str) -> Optional[int]:
+
+        def _find_hwnd(keyword: str, mode: str) -> int | None:
             found = []
+
             def _enum_cb(hwnd, _):
                 if win32gui.IsWindowVisible(hwnd):
                     title = win32gui.GetWindowText(hwnd)
@@ -200,6 +201,7 @@ class MajdataSession(QObject):
                         if title.startswith(keyword):
                             found.append(int(hwnd))
                 return True
+
             win32gui.EnumWindows(_enum_cb, None)
             return found[0] if found else None
 
@@ -212,19 +214,15 @@ class MajdataSession(QObject):
             self._poll_timer.stop()
             # 延迟 50ms 发出 ready 确保窗口完全就绪
             QTimer.singleShot(
-                50, lambda: self.ready.emit(int(self._majdataview_hwnd), int(self._majdataedit_hwnd))
+                50,
+                lambda: self.ready.emit(
+                    int(self._majdataview_hwnd), int(self._majdataedit_hwnd)
+                ),
             )
-
-
-
-
-
-
 
     def restart(self) -> None:
         self._restart_pending = True
         self.shutdown()
-
 
     def shutdown(self) -> None:
 
@@ -243,7 +241,6 @@ class MajdataSession(QObject):
         self._shutdown_started_at = time.time()
         self._shutdown_timer.start()
 
-
     def _poll_majdataedit_exit(self) -> None:
 
         proc = self._majdataedit_proc
@@ -253,7 +250,7 @@ class MajdataSession(QObject):
             elapsed = time.time() - self._shutdown_started_at
             if elapsed < self._shutdown_timeout_s:
                 return
-            
+
             # 超时，强制杀掉
             proc.kill()
             proc.waitForFinished(200)
@@ -264,8 +261,6 @@ class MajdataSession(QObject):
         if view_proc:
             view_proc.kill()
             view_proc.waitForFinished(200)
-
-
 
         # cleanup
         self._shutdown_timer.stop()
@@ -291,10 +286,6 @@ class MajdataSession(QObject):
         if self._restart_pending:
             self._restart_pending = False
             QTimer.singleShot(0, self.start)
-
-
-
-
 
 
 # static method

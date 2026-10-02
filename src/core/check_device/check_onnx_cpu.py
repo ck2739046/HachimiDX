@@ -9,6 +9,7 @@ from .common import (
 def check() -> list[DeviceResult] | None:
     try:
         import onnxruntime as ort
+
         print(f"ONNX Runtime installed, version {ort.__version__}")
     except Exception as e:
         print(f"Failed to load ONNX Runtime: {e!r}")
@@ -24,7 +25,9 @@ def check() -> list[DeviceResult] | None:
         print("CPU execution provider is unavailable")
         return None
     if "CUDAExecutionProvider" in providers or "DmlExecutionProvider" in providers:
-        print("ONNX CPU is unavailable because CUDA or DirectML execution provider is available, and it's conflicting with the CPU execution provider.")
+        print(
+            "ONNX CPU is unavailable because CUDA or DirectML execution provider is available, and it's conflicting with the CPU execution provider."
+        )
         return None
 
     name = get_windows_cpu_name() or "CPU"

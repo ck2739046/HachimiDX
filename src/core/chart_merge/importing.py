@@ -1,12 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Collection
 from dataclasses import replace
 from pathlib import Path
-from typing import Collection
 
 from .collect import CollectedInput, collect_input_paths
 from .parse import ParsedChartFile, parse_chart_file
-
 
 REASON_INVALID_ENCODING = "invalid_encoding"
 REASON_READ_FAILED = "read_failed"
@@ -36,9 +35,7 @@ def import_chart_inputs(
             results.append(replace(entry, reason=REASON_INVALID_ENCODING))
             continue
         except OSError as exc:
-            results.append(
-                replace(entry, reason=REASON_READ_FAILED, detail=str(exc))
-            )
+            results.append(replace(entry, reason=REASON_READ_FAILED, detail=str(exc)))
             continue
 
         if not parsed.charts:

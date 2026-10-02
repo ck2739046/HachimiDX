@@ -13,7 +13,17 @@ def launch_console_script(script: Path, work_dir: Path | None = None) -> bool:
     wrapper = subprocess.Popen(
         # 标题传空串：start 只在标题被引号包裹时才识别它，否则会当成要执行的命令。
         # 显式 cmd /c 承载脚本，否则 start 会用 cmd /K 拉起 .bat，脚本结束后窗口不关。
-        ["cmd", "/c", "start", "", "/d", str(work_dir or script.parent), "cmd", "/c", str(script)],
+        [
+            "cmd",
+            "/c",
+            "start",
+            "",
+            "/d",
+            str(work_dir or script.parent),
+            "cmd",
+            "/c",
+            str(script),
+        ],
         creationflags=subprocess.CREATE_NO_WINDOW,
         stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,

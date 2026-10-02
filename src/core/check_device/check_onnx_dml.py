@@ -2,8 +2,12 @@ import ctypes
 import sys
 import uuid
 
-from .common import DeviceResult, check_torch_installed, print_device_results, test_onnx_models
-
+from .common import (
+    DeviceResult,
+    check_torch_installed,
+    print_device_results,
+    test_onnx_models,
+)
 
 D3D_FEATURE_LEVEL_12_0 = 0xC000
 
@@ -33,7 +37,9 @@ class _DmlTensorDataTypeSupport(ctypes.Structure):
 
 
 def _com_method(pointer, index, restype, *argtypes):
-    vtable = ctypes.cast(pointer, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))).contents
+    vtable = ctypes.cast(
+        pointer, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))
+    ).contents
     prototype = getattr(ctypes, "WINFUNCTYPE", ctypes.CFUNCTYPE)
     return prototype(restype, ctypes.c_void_p, *argtypes)(vtable[index])
 
@@ -66,7 +72,10 @@ def query_directml_precision_support(adapter_index: int) -> tuple[bool, bool]:
         iid_dml_device = _GUID.from_string("6dbd6437-96fd-423f-a98c-ae5e7c2a573f")
 
         create_factory = dxgi.CreateDXGIFactory1
-        create_factory.argtypes = [ctypes.POINTER(_GUID), ctypes.POINTER(ctypes.c_void_p)]
+        create_factory.argtypes = [
+            ctypes.POINTER(_GUID),
+            ctypes.POINTER(ctypes.c_void_p),
+        ]
         create_factory.restype = ctypes.c_long
         if create_factory(ctypes.byref(iid_factory), ctypes.byref(factory)) < 0:
             raise RuntimeError("failed to create DXGI factory")
@@ -89,12 +98,15 @@ def query_directml_precision_support(adapter_index: int) -> tuple[bool, bool]:
             ctypes.POINTER(ctypes.c_void_p),
         ]
         create_d3d_device.restype = ctypes.c_long
-        if create_d3d_device(
-            adapter,
-            D3D_FEATURE_LEVEL_12_0,
-            ctypes.byref(iid_d3d_device),
-            ctypes.byref(d3d_device),
-        ) < 0:
+        if (
+            create_d3d_device(
+                adapter,
+                D3D_FEATURE_LEVEL_12_0,
+                ctypes.byref(iid_d3d_device),
+                ctypes.byref(d3d_device),
+            )
+            < 0
+        ):
             raise RuntimeError("failed to create D3D12 device")
 
         create_dml_device = directml.DMLCreateDevice
@@ -105,12 +117,15 @@ def query_directml_precision_support(adapter_index: int) -> tuple[bool, bool]:
             ctypes.POINTER(ctypes.c_void_p),
         ]
         create_dml_device.restype = ctypes.c_long
-        if create_dml_device(
-            d3d_device,
-            0,
-            ctypes.byref(iid_dml_device),
-            ctypes.byref(dml_device),
-        ) < 0:
+        if (
+            create_dml_device(
+                d3d_device,
+                0,
+                ctypes.byref(iid_dml_device),
+                ctypes.byref(dml_device),
+            )
+            < 0
+        ):
             raise RuntimeError("failed to create DirectML device")
 
         check_feature_support = _com_method(
@@ -149,10 +164,6 @@ def query_directml_precision_support(adapter_index: int) -> tuple[bool, bool]:
         _release_com(factory)
 
 
-
-
-
-
 def check() -> list[DeviceResult] | None:
 
     ok, _ = check_torch_installed()
@@ -161,6 +172,7 @@ def check() -> list[DeviceResult] | None:
 
     try:
         import onnxruntime as ort
+
         print(f"ONNX Runtime installed, version {ort.__version__}")
     except Exception as e:
         print(f"Failed to load ONNX Runtime: {e!r}")
@@ -200,28 +212,40 @@ def check() -> list[DeviceResult] | None:
             if index in seen_indexes:
                 continue
             seen_indexes.add(index)
-            name = str(metadata.get("Description", "")).strip() or f"DirectML device {index}"
+            name = (
+                str(metadata.get("Description", "")).strip()
+                or f"DirectML device {index}"
+            )
             try:
                 fp16_supported, fp32_supported = query_directml_precision_support(index)
             except Exception as e:
-                devices.append(DeviceResult(
-                    f"dml:{index}", name, False,
-                    f"failed to detect FP16/FP32 support: {e!r}",
-                ))
+                devices.append(
+                    DeviceResult(
+                        f"dml:{index}",
+                        name,
+                        False,
+                        f"failed to detect FP16/FP32 support: {e!r}",
+                    )
+                )
                 continue
             half, error = test_onnx_models(
                 ort,
-                [("DmlExecutionProvider", {"device_id": index}), "CPUExecutionProvider"],
+                [
+                    ("DmlExecutionProvider", {"device_id": index}),
+                    "CPUExecutionProvider",
+                ],
                 "DmlExecutionProvider",
                 fp16_supported=fp16_supported,
                 fp32_supported=fp32_supported,
             )
-            devices.append(DeviceResult(
-                f"dml:{index}",
-                name,
-                bool(half),
-                error,
-            ))
+            devices.append(
+                DeviceResult(
+                    f"dml:{index}",
+                    name,
+                    bool(half),
+                    error,
+                )
+            )
 
         if not devices:
             print("No available DirectML devices found")

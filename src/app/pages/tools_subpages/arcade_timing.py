@@ -1,62 +1,36 @@
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, pyqtSignal
+import i18n
+from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QVBoxLayout
 
-from ..base_output_page import BaseOutputPage
-from .simply_align import parse_offset_sec, build_edit_media_raw_data
+from src.core.build_worker_cmd import build_cmd_head_python_exe
+from src.core.schemas.media_config import MediaType
+from src.core.schemas.op_result import OpResult, err, ok, print_op_result
+from src.core.tools import FFprobeInspect, show_notify_dialog
+from src.services import MediaPipeline, PathManage, process_manager_api
+
+from ...ui_style import UI_Style
 from ...widgets import (
     MediaInputProbeWidget,
-    OutputLogWidget,
-    OverlayWidget,
-    PointerCursorButton,
-    RangeVisualizer,
     ScrollableImageLabel,
-    SegmentedNavBar,
-    SplitDropButton,
-    SplitDropLineEdit,
-    SquareWidget,
-    StatedButton,
-    StyledCheckBox,
-    StyledComboBox,
-    StyledLineEdit,
-    ToolTipComboBox,
-    create_button,
-    create_check_box,
-    create_clickable_label,
     create_combo_box,
-    create_directory_selection_row,
     create_divider,
     create_file_selection_row,
     create_floating_notification,
     create_help_icon,
     create_label,
     create_line_edit,
-    create_path_display,
-    create_slider,
-    create_split_drop_button,
-    create_split_drop_line_edit,
     create_stated_button,
-    create_vertical_divider,
-    widget_utils,
 )
-from ...ui_style import UI_Style
-
-from src.core.build_worker_cmd import build_cmd_head_python_exe
-from src.core.schemas.op_result import OpResult, ok, err, print_op_result
-from src.core.schemas.media_config import MediaType
-from src.core.schemas.media_config import MediaConfig_Definitions as M_Defs
-from src.core.tools import show_notify_dialog, FFprobeInspect
-from src.services import MediaPipeline, PathManage, process_manager_api
-import i18n
-
+from ..base_output_page import BaseOutputPage
+from .simply_align import build_edit_media_raw_data, parse_offset_sec
 
 I18N_Prefix = "app.tools_subpages.arcade_timing"
 
 
 class ArcadeTimingPage(BaseOutputPage):
-
     request_simply_align = pyqtSignal(str, str)
 
     def setup_content(self):
@@ -88,20 +62,26 @@ class ArcadeTimingPage(BaseOutputPage):
         self._build_param_section()
         self._build_preview_section()
 
-        process_manager_api.get_signals().runner_output.connect(self.output_widget.handle_process_output)
-        process_manager_api.get_signals().runner_ended.connect(self.output_widget.handle_process_ended)
+        process_manager_api.get_signals().runner_output.connect(
+            self.output_widget.handle_process_output
+        )
+        process_manager_api.get_signals().runner_ended.connect(
+            self.output_widget.handle_process_ended
+        )
         process_manager_api.get_signals().runner_ended.connect(self._on_runner_ended)
 
         self.content_layout.addStretch()
 
-
-
     def _build_file_section(self) -> None:
-        self.content_layout.addWidget(create_divider(i18n.t(f"{I18N_Prefix}.ui_select_file_divider")))
+        self.content_layout.addWidget(
+            create_divider(i18n.t(f"{I18N_Prefix}.ui_select_file_divider"))
+        )
 
-        reference_button, self.reference_path_display, reference_help = create_file_selection_row(
-            button_text=i18n.t(f"{I18N_Prefix}.ui_reference_file_button"),
-            help_text=i18n.t(f"{I18N_Prefix}.ui_reference_file_help"),
+        reference_button, self.reference_path_display, reference_help = (
+            create_file_selection_row(
+                button_text=i18n.t(f"{I18N_Prefix}.ui_reference_file_button"),
+                help_text=i18n.t(f"{I18N_Prefix}.ui_reference_file_help"),
+            )
         )
         self.create_row(reference_button, reference_help, self.reference_path_display)
 
@@ -113,12 +93,10 @@ class ArcadeTimingPage(BaseOutputPage):
         self.content_layout.addWidget(self.target_media_input)
         self.reference_path_display.textChanged.connect(self._on_reference_file_changed)
 
-    
     def on_target_input_selected(self, error_msg: str) -> None:
         self._on_file_changed()
         if len(error_msg) > 0:
             show_notify_dialog(i18n.t(f"{I18N_Prefix}.dialog_title"), error_msg)
-
 
     def _on_reference_file_changed(self, text: str) -> None:
         path = text.strip()
@@ -133,12 +111,10 @@ class ArcadeTimingPage(BaseOutputPage):
             self._reference_media_type = MediaType.UNKNOWN
         self._on_file_changed()
 
-
     def _on_file_changed(self) -> None:
         """当基准文件或目标文件变更时，清除旧的分析/编辑结果"""
         self._media_output_path = None
         self._reset_result_state()
-
 
     def _reset_result_state(self) -> None:
         """重置分析结果相关 UI 状态（不涉及输入控件）"""
@@ -152,10 +128,10 @@ class ArcadeTimingPage(BaseOutputPage):
         self.waveform_label.hide()
         self.waveform_label.clear_image()
 
-
-
     def _build_param_section(self) -> None:
-        self.content_layout.addWidget(create_divider(i18n.t(f"{I18N_Prefix}.ui_params_divider")))
+        self.content_layout.addWidget(
+            create_divider(i18n.t(f"{I18N_Prefix}.ui_params_divider"))
+        )
 
         bpm_label = create_label(i18n.t(f"{I18N_Prefix}.ui_bpm_label"))
         self.bpm_line_edit = create_line_edit(length=70, validator="float")
@@ -163,12 +139,21 @@ class ArcadeTimingPage(BaseOutputPage):
 
         click_count_label = create_label(i18n.t(f"{I18N_Prefix}.ui_click_count_label"))
         self.click_count_combo_box = create_combo_box(
-            items=[str(i) for i in range(1, 10)], default_index=3, length=50)
-        click_count_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_click_count_help"))
+            items=[str(i) for i in range(1, 10)], default_index=3, length=50
+        )
+        click_count_help = create_help_icon(
+            i18n.t(f"{I18N_Prefix}.ui_click_count_help")
+        )
 
-        click_start_label = create_label(i18n.t(f"{I18N_Prefix}.ui_click_start_time_label"))
-        self.click_start_time_line_edit = create_line_edit(default_text="0", length=70, validator="float")
-        click_start_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_click_start_time_help"))
+        click_start_label = create_label(
+            i18n.t(f"{I18N_Prefix}.ui_click_start_time_label")
+        )
+        self.click_start_time_line_edit = create_line_edit(
+            default_text="0", length=70, validator="float"
+        )
+        click_start_help = create_help_icon(
+            i18n.t(f"{I18N_Prefix}.ui_click_start_time_help")
+        )
 
         self.create_row(
             bpm_label,
@@ -184,31 +169,39 @@ class ArcadeTimingPage(BaseOutputPage):
         )
 
         self.content_layout.addSpacing(UI_Style.widget_spacing)
-        self.run_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_run_button"), isbig=True)
+        self.run_button = create_stated_button(
+            i18n.t(f"{I18N_Prefix}.ui_run_button"), isbig=True
+        )
         self.run_button.clicked.connect(self.on_run_clicked)
 
         self.offset_label = create_label(bold=True)
         self.offset_label.hide()
 
-        self.offset_help_icon = create_help_icon(i18n.t("app.tools_subpages.simply_align.ui_offset_help"))
+        self.offset_help_icon = create_help_icon(
+            i18n.t("app.tools_subpages.simply_align.ui_offset_help")
+        )
         self.offset_help_icon.hide()
 
-        self.edit_target_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_edit_target_button"))
+        self.edit_target_button = create_stated_button(
+            i18n.t(f"{I18N_Prefix}.ui_edit_target_button")
+        )
         self.edit_target_button.clicked.connect(self.on_edit_target_clicked)
         self.edit_target_button.hide()
 
-        self.video_align_button = create_stated_button(i18n.t(f"{I18N_Prefix}.ui_video_align_button"))
+        self.video_align_button = create_stated_button(
+            i18n.t(f"{I18N_Prefix}.ui_video_align_button")
+        )
         self.video_align_button.clicked.connect(self.on_video_align_clicked)
         self.video_align_button.hide()
 
-        self.create_row(self.run_button,
-                        self.offset_label,
-                        self.offset_help_icon,
-                        self.edit_target_button,
-                        self.video_align_button,
-                        add_stretch=True)
-
-
+        self.create_row(
+            self.run_button,
+            self.offset_label,
+            self.offset_help_icon,
+            self.edit_target_button,
+            self.video_align_button,
+            add_stretch=True,
+        )
 
     def _build_preview_section(self) -> None:
 
@@ -216,8 +209,6 @@ class ArcadeTimingPage(BaseOutputPage):
         self.waveform_label.setMinimumHeight(210)
         self.waveform_label.hide()
         self.content_layout.addWidget(self.waveform_label)
-
-
 
     def _parse_inputs(self) -> OpResult[dict]:
         reference_file = self.reference_path_display.text().strip()
@@ -229,7 +220,10 @@ class ArcadeTimingPage(BaseOutputPage):
             return err(i18n.t(f"{I18N_Prefix}.warning_target_file_required"))
 
         # Check both files contain audio streams
-        if self._reference_media_type not in (MediaType.AUDIO, MediaType.VIDEO_WITH_AUDIO):
+        if self._reference_media_type not in (
+            MediaType.AUDIO,
+            MediaType.VIDEO_WITH_AUDIO,
+        ):
             return err(i18n.t(f"{I18N_Prefix}.warning_no_audio_stream_ref"))
 
         target_type = self.target_media_input.selected_file_type
@@ -237,7 +231,9 @@ class ArcadeTimingPage(BaseOutputPage):
             return err(i18n.t(f"{I18N_Prefix}.warning_no_audio_stream_target"))
 
         try:
-            bpm = float((self.bpm_line_edit.text() if self.bpm_line_edit else "").strip())
+            bpm = float(
+                (self.bpm_line_edit.text() if self.bpm_line_edit else "").strip()
+            )
         except Exception:
             return err(i18n.t(f"{I18N_Prefix}.warning_invalid_bpm"))
         if not 30 <= bpm <= 400:
@@ -251,21 +247,27 @@ class ArcadeTimingPage(BaseOutputPage):
             return err(i18n.t(f"{I18N_Prefix}.warning_invalid_click_count"))
 
         try:
-            click_start_time = float((self.click_start_time_line_edit.text() if self.click_start_time_line_edit else "").strip())
+            click_start_time = float(
+                (
+                    self.click_start_time_line_edit.text()
+                    if self.click_start_time_line_edit
+                    else ""
+                ).strip()
+            )
         except Exception:
             return err(i18n.t(f"{I18N_Prefix}.warning_invalid_click_start_time"))
         if click_start_time < 0:
             return err(i18n.t(f"{I18N_Prefix}.warning_invalid_click_start_time"))
 
-        return ok({
-            "reference_file": reference_file,
-            "target_file": target_file,
-            "bpm": bpm,
-            "click_count": click_count,
-            "click_start_time": click_start_time,
-        })
-
-
+        return ok(
+            {
+                "reference_file": reference_file,
+                "target_file": target_file,
+                "bpm": bpm,
+                "click_count": click_count,
+                "click_start_time": click_start_time,
+            }
+        )
 
     def on_run_clicked(self) -> None:
         if self._active_runner_id:
@@ -282,14 +284,16 @@ class ArcadeTimingPage(BaseOutputPage):
             data = res.value
 
             cmd = build_cmd_head_python_exe(PathManage.AUDIO_ALIGN_WORKER_PATH)
-            cmd.extend([
-                "false", # is_simply_align
-                str(data["reference_file"]),
-                str(data["target_file"]),
-                str(data["bpm"]),
-                str(data["click_count"]),
-                str(data["click_start_time"]),
-            ])
+            cmd.extend(
+                [
+                    "false",  # is_simply_align
+                    str(data["reference_file"]),
+                    str(data["target_file"]),
+                    str(data["bpm"]),
+                    str(data["click_count"]),
+                    str(data["click_start_time"]),
+                ]
+            )
 
             self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_run_start"))
 
@@ -297,7 +301,10 @@ class ArcadeTimingPage(BaseOutputPage):
             if not result.is_ok:
                 show_notify_dialog(
                     i18n.t(f"{I18N_Prefix}.dialog_title"),
-                    i18n.t(f"{I18N_Prefix}.warning_worker_start_failed", error=print_op_result(result)),
+                    i18n.t(
+                        f"{I18N_Prefix}.warning_worker_start_failed",
+                        error=print_op_result(result),
+                    ),
                 )
                 return
 
@@ -308,8 +315,6 @@ class ArcadeTimingPage(BaseOutputPage):
             if not self._active_runner_id:
                 self.run_button.setEnabled(True)
 
-
-
     def _on_runner_ended(self, runner_id: str, ended) -> None:
         # Handle audio align worker
         if self._active_runner_id and runner_id == self._active_runner_id:
@@ -317,7 +322,9 @@ class ArcadeTimingPage(BaseOutputPage):
             self.run_button.setEnabled(True)
 
             if getattr(ended, "cancelled", False):
-                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_run_cancelled"))
+                self.output_widget.append_text(
+                    i18n.t(f"{I18N_Prefix}.notice_run_cancelled")
+                )
                 return
 
             failed = bool(getattr(ended, "crashed", False))
@@ -326,7 +333,9 @@ class ArcadeTimingPage(BaseOutputPage):
                 failed = True
 
             if failed:
-                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.warning_run_failed"))
+                self.output_widget.append_text(
+                    i18n.t(f"{I18N_Prefix}.warning_run_failed")
+                )
                 return
 
             self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_run_success"))
@@ -341,7 +350,9 @@ class ArcadeTimingPage(BaseOutputPage):
             self.edit_target_button.setEnabled(True)
 
             if getattr(ended, "cancelled", False):
-                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_run_cancelled"))
+                self.output_widget.append_text(
+                    i18n.t(f"{I18N_Prefix}.notice_run_cancelled")
+                )
                 return
 
             failed = bool(getattr(ended, "crashed", False))
@@ -350,29 +361,38 @@ class ArcadeTimingPage(BaseOutputPage):
                 failed = True
 
             if failed:
-                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.warning_edit_target_failed_log"))
+                self.output_widget.append_text(
+                    i18n.t(f"{I18N_Prefix}.warning_edit_target_failed_log")
+                )
                 self.video_align_button.hide()
                 return
 
-            output_path_str = str(self._media_output_path) if self._media_output_path else "?"
+            output_path_str = (
+                str(self._media_output_path) if self._media_output_path else "?"
+            )
             self.output_widget.append_text(
-                i18n.t(f"{I18N_Prefix}.notice_edit_target_success", output_path=output_path_str)
+                i18n.t(
+                    f"{I18N_Prefix}.notice_edit_target_success",
+                    output_path=output_path_str,
+                )
             )
             self.video_align_button.show()
             return
-
-
 
     def _try_show_wave_image(self) -> None:
 
         wave_path = PathManage.TEMP_WAV_IMAGE_PATH
         if not wave_path.is_file():
-            self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.warning_wave_not_found"))
+            self.output_widget.append_text(
+                i18n.t(f"{I18N_Prefix}.warning_wave_not_found")
+            )
             return
 
         pixmap = QPixmap(str(Path(wave_path)))
         if pixmap.isNull():
-            self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.warning_wave_load_failed"))
+            self.output_widget.append_text(
+                i18n.t(f"{I18N_Prefix}.warning_wave_load_failed")
+            )
             return
 
         self.waveform_label.set_image(pixmap)
@@ -383,13 +403,13 @@ class ArcadeTimingPage(BaseOutputPage):
         except Exception:
             pass
 
-
-
     def _try_parse_offset(self) -> None:
         offset = parse_offset_sec(self.output_widget.get_recent_lines(6))
 
         if offset is None:
-            self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_offset_parse_failed"))
+            self.output_widget.append_text(
+                i18n.t(f"{I18N_Prefix}.notice_offset_parse_failed")
+            )
             self._offset_action = None
             self._offset_value_sec = None
             self.edit_target_button.hide()
@@ -414,9 +434,6 @@ class ArcadeTimingPage(BaseOutputPage):
         self.offset_help_icon.show()
         self.edit_target_button.show()
 
-
-
-
     def on_edit_target_clicked(self) -> None:
         if self._active_runner_id or self._active_media_runner_id:
             return
@@ -426,8 +443,11 @@ class ArcadeTimingPage(BaseOutputPage):
         target_duration = self.target_media_input.selected_file_duration
 
         data_res = build_edit_media_raw_data(
-            target_file, target_media_type, target_duration,
-            self._offset_action, self._offset_value_sec,
+            target_file,
+            target_media_type,
+            target_duration,
+            self._offset_action,
+            self._offset_value_sec,
         )
         if not data_res.is_ok:
             show_notify_dialog(
@@ -440,29 +460,40 @@ class ArcadeTimingPage(BaseOutputPage):
         self.edit_target_button.setEnabled(False)
         self.video_align_button.hide()
         self._media_output_path = output_path
-        self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.notice_edit_target_start"))
-        
+        self.output_widget.append_text(
+            i18n.t(f"{I18N_Prefix}.notice_edit_target_start")
+        )
+
         try:
-            result = MediaPipeline.submit_task(raw_data, f"arcade_timing {Path(target_file).name}")
+            result = MediaPipeline.submit_task(
+                raw_data, f"arcade_timing {Path(target_file).name}"
+            )
             if not result.is_ok:
                 show_notify_dialog(
                     i18n.t(f"{I18N_Prefix}.dialog_title"),
-                    i18n.t(f"{I18N_Prefix}.warning_edit_target_failed", error=print_op_result(result)),
+                    i18n.t(
+                        f"{I18N_Prefix}.warning_edit_target_failed",
+                        error=print_op_result(result),
+                    ),
                 )
-                self.output_widget.append_text(i18n.t(f"{I18N_Prefix}.warning_edit_target_failed_log"))
+                self.output_widget.append_text(
+                    i18n.t(f"{I18N_Prefix}.warning_edit_target_failed_log")
+                )
                 return
 
             runner_id, cmd_list = result.value
             self._active_media_runner_id = runner_id
             self.output_widget.bind_current_runner_id(runner_id)
 
-            message = i18n.t("app.tools_subpages.run_ffmpeg.notice_task_submit_success", task_id=runner_id)
+            message = i18n.t(
+                "app.tools_subpages.run_ffmpeg.notice_task_submit_success",
+                task_id=runner_id,
+            )
             create_floating_notification(message, self.window())
 
         finally:
             if not self._active_media_runner_id:
                 self.edit_target_button.setEnabled(True)
-
 
     def on_video_align_clicked(self) -> None:
         """一键对齐视频：跳转到 Simply Align 页面，自动填充文件并开始分析"""

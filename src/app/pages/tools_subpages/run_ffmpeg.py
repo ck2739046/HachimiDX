@@ -1,57 +1,34 @@
-import os
 import traceback
+
+import i18n
 from PyQt6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 
-from ..base_output_page import BaseOutputPage
+from src.core.schemas.media_config import MediaConfig_Definition, MediaType
+from src.core.schemas.media_config import MediaConfig_Definitions as M_Defs
+from src.core.schemas.op_result import OpResult, err, ok, print_op_result
+from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
+from src.core.tools import show_notify_dialog
+from src.services import MediaPipeline, SettingsManage, process_manager_api
+
 from ...ui_style import UI_Style
 from ...widgets import (
     MediaInputProbeWidget,
-    OutputLogWidget,
     OverlayWidget,
-    PointerCursorButton,
-    RangeVisualizer,
-    ScrollableImageLabel,
-    SegmentedNavBar,
-    SplitDropButton,
-    SplitDropLineEdit,
-    SquareWidget,
-    StatedButton,
-    StyledCheckBox,
-    StyledComboBox,
-    StyledLineEdit,
-    ToolTipComboBox,
-    create_button,
     create_check_box,
-    create_clickable_label,
     create_combo_box,
-    create_directory_selection_row,
     create_divider,
-    create_file_selection_row,
     create_floating_notification,
     create_help_icon,
     create_label,
     create_line_edit,
     create_path_display,
-    create_slider,
-    create_split_drop_button,
-    create_split_drop_line_edit,
     create_stated_button,
     create_vertical_divider,
-    widget_utils,
 )
-
-from src.services import MediaPipeline, SettingsManage, process_manager_api
-from src.core.tools import show_notify_dialog
-from src.core.schemas.op_result import OpResult, ok, err, print_op_result
-from src.core.schemas.media_config import MediaType, MediaConfig_Definition
-from src.core.schemas.media_config import MediaConfig_Definitions as M_Defs
-from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
-import i18n
-
+from ..base_output_page import BaseOutputPage
 
 
 class RunFFmpegPage(BaseOutputPage):
-
     def setup_content(self):
 
         self.content_layout = QVBoxLayout(self.content_area)
@@ -91,28 +68,22 @@ class RunFFmpegPage(BaseOutputPage):
         # 参数区所有行的左侧 label，宽度统一取其中最宽的一个
         self._param_row_labels = []
 
-
-
-
-
         # 第一/第二行: 输入文件选择与信息显示
-        file_select_divider = create_divider(i18n.t("app.tools_subpages.run_ffmpeg.ui_select_file_divider"))
+        file_select_divider = create_divider(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_select_file_divider")
+        )
         self.content_layout.addWidget(file_select_divider)
-        
+
         self.media_input = MediaInputProbeWidget()
         self.media_input.media_loaded.connect(self.on_input_file_selected)
         self.content_layout.addWidget(self.media_input)
-        
 
-
-
-        self.init_ffmpeg_widgets() # 3-5行: 参数调整区域
-        
-
-
+        self.init_ffmpeg_widgets()  # 3-5行: 参数调整区域
 
         # 第三-五行: 视频 / 音频 / 通用 三列并列
-        params_divider = create_divider(i18n.t("app.tools_subpages.run_ffmpeg.ui_params_divider"))
+        params_divider = create_divider(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_params_divider")
+        )
         self.content_layout.addWidget(params_divider)
 
         params_row = QWidget()
@@ -130,122 +101,247 @@ class RunFFmpegPage(BaseOutputPage):
         self.content_layout.addWidget(params_row)
 
         # video labels
-        video_quality_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_quality_label"))
-        video_resolution_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_resolution_label"))
-        video_center_crop_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_center_crop_label"))
-        video_fps_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_fps_label"))
-        video_gop_optimize_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_gop_optimize_label"))
-        delete_audio_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_delete_audio_label"))
+        video_quality_label = create_label(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_video_quality_label")
+        )
+        video_resolution_label = create_label(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_video_resolution_label")
+        )
+        video_center_crop_label = create_label(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_video_center_crop_label")
+        )
+        video_fps_label = create_label(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_video_fps_label")
+        )
+        video_gop_optimize_label = create_label(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_video_gop_optimize_label")
+        )
+        delete_audio_label = create_label(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_delete_audio_label")
+        )
         # video help icons
-        video_quality_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_quality_help"))
-        video_resolution_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_resolution_help"))
-        video_center_crop_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_center_crop_help"))
+        video_quality_help = create_help_icon(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_video_quality_help")
+        )
+        video_resolution_help = create_help_icon(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_video_resolution_help")
+        )
+        video_center_crop_help = create_help_icon(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_video_center_crop_help")
+        )
         self.video_center_crop_label = video_center_crop_label
         self.video_center_crop_help = video_center_crop_help
-        video_fps_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_fps_help"))
-        video_gop_optimize_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_video_gop_optimize_help"))
-        delete_audio_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_delete_audio_help"))
+        video_fps_help = create_help_icon(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_video_fps_help")
+        )
+        video_gop_optimize_help = create_help_icon(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_video_gop_optimize_help")
+        )
+        delete_audio_help = create_help_icon(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_delete_audio_help")
+        )
         # video rows
-        self._add_column_row(video_body, video_quality_label, self.video_quality_combo_box, video_quality_help)
-        self._add_column_row(video_body, video_resolution_label, self.video_resolution_combo_box, video_resolution_help)
-        self._add_column_row(video_body, video_center_crop_label, self.video_center_crop_check_box, video_center_crop_help)
-        self._add_column_row(video_body, video_fps_label, self.video_fps_combo_box, video_fps_help)
-        self._add_column_row(video_body, video_gop_optimize_label, self.video_gop_optimize_check_box, video_gop_optimize_help)
-        self._add_column_row(video_body, delete_audio_label, self.delete_audio_check_box, delete_audio_help)
+        self._add_column_row(
+            video_body,
+            video_quality_label,
+            self.video_quality_combo_box,
+            video_quality_help,
+        )
+        self._add_column_row(
+            video_body,
+            video_resolution_label,
+            self.video_resolution_combo_box,
+            video_resolution_help,
+        )
+        self._add_column_row(
+            video_body,
+            video_center_crop_label,
+            self.video_center_crop_check_box,
+            video_center_crop_help,
+        )
+        self._add_column_row(
+            video_body, video_fps_label, self.video_fps_combo_box, video_fps_help
+        )
+        self._add_column_row(
+            video_body,
+            video_gop_optimize_label,
+            self.video_gop_optimize_check_box,
+            video_gop_optimize_help,
+        )
+        self._add_column_row(
+            video_body,
+            delete_audio_label,
+            self.delete_audio_check_box,
+            delete_audio_help,
+        )
         self._update_center_crop_visibility()
         self.video_overlay = OverlayWidget(video_panel)
         self.video_overlay.show()
-        
+
         # audio labels
-        audio_format_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_format_label"))
-        audio_bitrate_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_bitrate_label"))
-        audio_sample_rate_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_sample_rate_label"))
-        audio_volume_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_volume_label"))
-        delete_video_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_delete_video_label"))
+        audio_format_label = create_label(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_format_label")
+        )
+        audio_bitrate_label = create_label(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_bitrate_label")
+        )
+        audio_sample_rate_label = create_label(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_sample_rate_label")
+        )
+        audio_volume_label = create_label(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_volume_label")
+        )
+        delete_video_label = create_label(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_delete_video_label")
+        )
         # audio help icons
-        audio_format_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_format_help"))
-        audio_bitrate_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_bitrate_help"))
-        audio_sample_rate_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_sample_rate_help"))
-        audio_volume_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_volume_help"))
-        delete_video_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_delete_video_help"))
+        audio_format_help = create_help_icon(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_format_help")
+        )
+        audio_bitrate_help = create_help_icon(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_bitrate_help")
+        )
+        audio_sample_rate_help = create_help_icon(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_sample_rate_help")
+        )
+        audio_volume_help = create_help_icon(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_audio_volume_help")
+        )
+        delete_video_help = create_help_icon(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_delete_video_help")
+        )
         # audio rows
-        self._add_column_row(audio_body, audio_format_label, self.audio_format_combo_box, audio_format_help)
-        self._add_column_row(audio_body, audio_bitrate_label, self.audio_bitrate_combo_box, audio_bitrate_help)
-        self._add_column_row(audio_body, audio_sample_rate_label, self.audio_sample_rate_combo_box, audio_sample_rate_help)
-        self._add_column_row(audio_body, audio_volume_label, self.audio_volume_line_edit, audio_volume_help)
-        self._add_column_row(audio_body, delete_video_label, self.delete_video_check_box, delete_video_help)
+        self._add_column_row(
+            audio_body,
+            audio_format_label,
+            self.audio_format_combo_box,
+            audio_format_help,
+        )
+        self._add_column_row(
+            audio_body,
+            audio_bitrate_label,
+            self.audio_bitrate_combo_box,
+            audio_bitrate_help,
+        )
+        self._add_column_row(
+            audio_body,
+            audio_sample_rate_label,
+            self.audio_sample_rate_combo_box,
+            audio_sample_rate_help,
+        )
+        self._add_column_row(
+            audio_body,
+            audio_volume_label,
+            self.audio_volume_line_edit,
+            audio_volume_help,
+        )
+        self._add_column_row(
+            audio_body,
+            delete_video_label,
+            self.delete_video_check_box,
+            delete_video_help,
+        )
         self.audio_overlay = OverlayWidget(audio_panel)
         self.audio_overlay.show()
-        
+
         # common labels
-        adjust_start_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_adjust_start_label"))
-        trim_end_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_trim_end_label"))
-        clear_metadata_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_clear_metadata_label"))
+        adjust_start_label = create_label(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_adjust_start_label")
+        )
+        trim_end_label = create_label(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_trim_end_label")
+        )
+        clear_metadata_label = create_label(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_clear_metadata_label")
+        )
         # common help icons
-        adjust_start_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_adjust_start_help"))
-        trim_end_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_trim_end_help"))
-        clear_metadata_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_clear_metadata_help"))
+        adjust_start_help = create_help_icon(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_adjust_start_help")
+        )
+        trim_end_help = create_help_icon(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_trim_end_help")
+        )
+        clear_metadata_help = create_help_icon(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_clear_metadata_help")
+        )
         # common rows
-        self._add_column_row(common_body, adjust_start_label, self.common_adjust_start_line_edit, adjust_start_help)
-        self._add_column_row(common_body, trim_end_label, self.common_end_line_edit, trim_end_help)
-        self._add_column_row(common_body, clear_metadata_label, self.common_clear_metadata_check_box, clear_metadata_help)
+        self._add_column_row(
+            common_body,
+            adjust_start_label,
+            self.common_adjust_start_line_edit,
+            adjust_start_help,
+        )
+        self._add_column_row(
+            common_body, trim_end_label, self.common_end_line_edit, trim_end_help
+        )
+        self._add_column_row(
+            common_body,
+            clear_metadata_label,
+            self.common_clear_metadata_check_box,
+            clear_metadata_help,
+        )
 
         self._apply_param_label_width()
-
-
-
 
         # 导出设置固定在最底部
         self.content_layout.addStretch()
 
-        export_divider = create_divider(i18n.t("app.tools_subpages.run_ffmpeg.ui_export_divider"))
+        export_divider = create_divider(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_export_divider")
+        )
         self.content_layout.addWidget(export_divider)
 
         # 第六行: 输出文件名+完整输出路径显示
-        output_filename_label = create_label(i18n.t("app.tools_subpages.run_ffmpeg.ui_output_filename_label"))
+        output_filename_label = create_label(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_output_filename_label")
+        )
         self.output_filename_line_edit = create_line_edit(length=280)
-        output_filename_help = create_help_icon(i18n.t("app.tools_subpages.run_ffmpeg.ui_output_filename_help"))
+        output_filename_help = create_help_icon(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_output_filename_help")
+        )
         self.output_full_path_display = create_path_display()
-        self.create_row(output_filename_label,
-                        self.output_filename_line_edit,
-                        output_filename_help,
-                        self.output_full_path_display)
-
-
-
+        self.create_row(
+            output_filename_label,
+            self.output_filename_line_edit,
+            output_filename_help,
+            self.output_full_path_display,
+        )
 
         # 第七行：submit按钮 + taskname输入框
         self.taskname_line_edit = create_line_edit(
-            length=200, placeholder=i18n.t("app.tools_subpages.run_ffmpeg.ui_taskname_placeholder"))
-        self.submit_button = create_stated_button(i18n.t("app.tools_subpages.run_ffmpeg.ui_submit_button"), isbig=True)
+            length=200,
+            placeholder=i18n.t("app.tools_subpages.run_ffmpeg.ui_taskname_placeholder"),
+        )
+        self.submit_button = create_stated_button(
+            i18n.t("app.tools_subpages.run_ffmpeg.ui_submit_button"), isbig=True
+        )
         self.content_layout.addSpacing(UI_Style.widget_spacing)
         self.create_row(self.submit_button, self.taskname_line_edit, add_stretch=True)
 
-
-
-        
         self.delete_audio_check_box.toggled.connect(self._on_delete_option_toggled)
         self.delete_video_check_box.toggled.connect(self._on_delete_option_toggled)
 
-        self.video_resolution_combo_box.currentTextChanged.connect(self._update_center_crop_visibility)
+        self.video_resolution_combo_box.currentTextChanged.connect(
+            self._update_center_crop_visibility
+        )
 
-        self.output_filename_line_edit.textChanged.connect(self.update_output_full_path_display)
+        self.output_filename_line_edit.textChanged.connect(
+            self.update_output_full_path_display
+        )
 
-        self.audio_format_combo_box.currentTextChanged.connect(self.update_output_full_path_display)
+        self.audio_format_combo_box.currentTextChanged.connect(
+            self.update_output_full_path_display
+        )
 
         self.submit_button.clicked.connect(self.on_submit_clicked)
-        
+
         # Connect runner output signals to our output widget
-        process_manager_api.get_signals().runner_output.connect(self.output_widget.handle_process_output)
-        process_manager_api.get_signals().runner_ended.connect(self.output_widget.handle_process_ended)
-
-
-
-
-
-
-
-
+        process_manager_api.get_signals().runner_output.connect(
+            self.output_widget.handle_process_output
+        )
+        process_manager_api.get_signals().runner_ended.connect(
+            self.output_widget.handle_process_ended
+        )
 
     def on_input_file_selected(self, err_msg: str) -> None:
         """
@@ -254,7 +350,9 @@ class RunFFmpegPage(BaseOutputPage):
         """
 
         if len(err_msg) > 0:
-            show_notify_dialog(i18n.t("app.tools_subpages.run_ffmpeg.dialog_title"), err_msg)
+            show_notify_dialog(
+                i18n.t("app.tools_subpages.run_ffmpeg.dialog_title"), err_msg
+            )
 
         # reset first
         self.delete_audio_check_box.blockSignals(True)
@@ -271,20 +369,21 @@ class RunFFmpegPage(BaseOutputPage):
         # 更新音频codec/bitrate可选项
         self.update_audio_format_combo_box()
         # 更新完整输出路径显示
-        res = self.update_output_full_path_display(use_empty=True) # reset
+        res = self.update_output_full_path_display(use_empty=True)  # reset
         # 因为默认输出文件名输入框是空的，更换文件后要更新一下提示用户
         if res.is_ok:
             final_output_filename = res.value
             self.output_filename_line_edit.setText(final_output_filename)
-
-
 
     def update_media_panel_state(self) -> None:
         """根据 media_type 和 delete_audio/delete_video 刷新 video/audio 参数区可用状态。"""
 
         media_type = self.media_input.selected_file_type
 
-        enable_video = media_type in (MediaType.VIDEO_WITH_AUDIO, MediaType.VIDEO_WITHOUT_AUDIO)
+        enable_video = media_type in (
+            MediaType.VIDEO_WITH_AUDIO,
+            MediaType.VIDEO_WITHOUT_AUDIO,
+        )
         enable_audio = media_type in (MediaType.VIDEO_WITH_AUDIO, MediaType.AUDIO)
 
         # 删除音频时禁用 audio 参数区
@@ -305,20 +404,23 @@ class RunFFmpegPage(BaseOutputPage):
         else:
             self.audio_overlay.show()
 
-
     def _update_center_crop_visibility(self, *_) -> None:
         """分辨率为 original 时居中裁剪不生效，隐藏对应控件。"""
 
-        is_original = str(self.video_resolution_combo_box.currentText()).strip().lower() == "original"
+        is_original = (
+            str(self.video_resolution_combo_box.currentText()).strip().lower()
+            == "original"
+        )
 
-        for widget in (self.video_center_crop_label,
-                       self.video_center_crop_check_box,
-                       self.video_center_crop_help):
+        for widget in (
+            self.video_center_crop_label,
+            self.video_center_crop_check_box,
+            self.video_center_crop_help,
+        ):
             widget.setVisible(not is_original)
 
         # 整行一起隐藏，否则布局会留下空行间距
         self.video_center_crop_label.parentWidget().setVisible(not is_original)
-
 
     def _on_delete_option_toggled(self) -> None:
         """delete_audio / delete_video 互斥联动，并刷新受影响的 UI 状态。"""
@@ -326,11 +428,17 @@ class RunFFmpegPage(BaseOutputPage):
         sender = self.sender()
 
         # 互斥：勾选一方时取消另一方
-        if sender is self.delete_video_check_box and self.delete_video_check_box.isChecked():
+        if (
+            sender is self.delete_video_check_box
+            and self.delete_video_check_box.isChecked()
+        ):
             self.delete_audio_check_box.blockSignals(True)
             self.delete_audio_check_box.setChecked(False)
             self.delete_audio_check_box.blockSignals(False)
-        elif sender is self.delete_audio_check_box and self.delete_audio_check_box.isChecked():
+        elif (
+            sender is self.delete_audio_check_box
+            and self.delete_audio_check_box.isChecked()
+        ):
             self.delete_video_check_box.blockSignals(True)
             self.delete_video_check_box.setChecked(False)
             self.delete_video_check_box.blockSignals(False)
@@ -338,14 +446,6 @@ class RunFFmpegPage(BaseOutputPage):
         self.update_media_panel_state()
         # 删除视频会改变音频格式可选项 (aac -> mp3/ogg)
         self.update_audio_format_combo_box()
-
-
-
-
-
-
-            
-
 
     def _create_param_column(self):
         """创建参数列: 纵向内容区。返回 (列容器, 内容控件, 内容布局)。"""
@@ -364,92 +464,114 @@ class RunFFmpegPage(BaseOutputPage):
 
         return column, body, body_layout
 
-
     def _add_column_row(self, body_layout, label, *widgets) -> None:
         """把一行参数加入列内容区。"""
 
         self._param_row_labels.append(label)
-        body_layout.addWidget(self.create_row(label, *widgets, add_stretch=True, add_to_layout=False))
-
+        body_layout.addWidget(
+            self.create_row(label, *widgets, add_stretch=True, add_to_layout=False)
+        )
 
     def _apply_param_label_width(self) -> None:
         """取所有行 label 中最宽的文本宽度，使三列右侧控件左对齐。"""
 
         widths = []
         for label in self._param_row_labels:
-            label.ensurePolished() # 否则 sizeHint 还是样式表生效前的默认字体宽度
+            label.ensurePolished()  # 否则 sizeHint 还是样式表生效前的默认字体宽度
             widths.append(label.sizeHint().width())
 
         width = max(widths)
         for label in self._param_row_labels:
             label.setFixedWidth(width)
 
-
     def init_ffmpeg_widgets(self):
 
         # video quality combo box
         # 根据编码器覆盖默认值
         encoder_res = SettingsManage.get(S_Defs.ffmpeg_hw_encoder.key)
-        default_quality = M_Defs.get_default_video_quality_by_encoder(
-            str(encoder_res.value).strip()) if encoder_res.is_ok else ""
+        default_quality = (
+            M_Defs.get_default_video_quality_by_encoder(str(encoder_res.value).strip())
+            if encoder_res.is_ok
+            else ""
+        )
         options = M_Defs.video_quality.constraints["options"]
         default_index = options.index(default_quality)
         self.video_quality_combo_box = create_combo_box(
-            length=55, items=options, default_index=default_index)
+            length=55, items=options, default_index=default_index
+        )
 
         # video resolution combo box
         self.video_resolution_combo_box = self._create_ffmpeg_widget(
-            widget_type="combo_box", param=M_Defs.video_side_resolution, length=110, transfer_fn=self.transfer_res)
+            widget_type="combo_box",
+            param=M_Defs.video_side_resolution,
+            length=110,
+            transfer_fn=self.transfer_res,
+        )
         # center crop check box
         self.video_center_crop_check_box = self._create_ffmpeg_widget(
-            widget_type="check_box", param=M_Defs.video_center_crop)
+            widget_type="check_box", param=M_Defs.video_center_crop
+        )
         # video fps combo box
         self.video_fps_combo_box = self._create_ffmpeg_widget(
-            widget_type="combo_box", param=M_Defs.video_fps, length=90, transfer_fn=self.transfer_fps)
+            widget_type="combo_box",
+            param=M_Defs.video_fps,
+            length=90,
+            transfer_fn=self.transfer_fps,
+        )
         # gop_optimize check box
         self.video_gop_optimize_check_box = self._create_ffmpeg_widget(
-            widget_type="check_box", param=M_Defs.video_gop_optimize)
+            widget_type="check_box", param=M_Defs.video_gop_optimize
+        )
         # delete audio check box
         self.delete_audio_check_box = self._create_ffmpeg_widget(
-            widget_type="check_box", param=M_Defs.delete_audio)
-        
+            widget_type="check_box", param=M_Defs.delete_audio
+        )
 
         # audio format combo box
         self.audio_format_combo_box = create_combo_box(length=65)
         # audio bitrate combo box
         self.audio_bitrate_combo_box = self._create_ffmpeg_widget(
-            widget_type="combo_box", param=M_Defs.audio_bitrate, length=70)
+            widget_type="combo_box", param=M_Defs.audio_bitrate, length=70
+        )
         # audio sample_rate combo box
         self.audio_sample_rate_combo_box = self._create_ffmpeg_widget(
-            widget_type="combo_box", param=M_Defs.audio_sample_rate, length=80)
+            widget_type="combo_box", param=M_Defs.audio_sample_rate, length=80
+        )
         # audio volume line edit
         min, max, default = (
             M_Defs.audio_volume.constraints["ge"],
             M_Defs.audio_volume.constraints["le"],
-            M_Defs.audio_volume.default)
+            M_Defs.audio_volume.default,
+        )
         self.audio_volume_line_edit = create_line_edit(
-            default_text=str(default), placeholder=f"{min}~{max}", length=60, validator='int')
+            default_text=str(default),
+            placeholder=f"{min}~{max}",
+            length=60,
+            validator="int",
+        )
         # delete video check box
         self.delete_video_check_box = self._create_ffmpeg_widget(
-            widget_type="check_box", param=M_Defs.delete_video)
-
+            widget_type="check_box", param=M_Defs.delete_video
+        )
 
         # common adjust_start line edit (正数=trim_start, 负数=pad_start)
         self.common_adjust_start_line_edit = create_line_edit(
-            length=70, validator='float')
+            length=70, validator="float"
+        )
         # common end line edit
-        self.common_end_line_edit = create_line_edit(
-            length=70, validator='float')
+        self.common_end_line_edit = create_line_edit(length=70, validator="float")
         # common clear_metadata check box
         self.common_clear_metadata_check_box = self._create_ffmpeg_widget(
-            widget_type="check_box", param=M_Defs.clear_metadata)
-        
+            widget_type="check_box", param=M_Defs.clear_metadata
+        )
 
-    def _create_ffmpeg_widget(self,
-                           widget_type: str,
-                           param: MediaConfig_Definition,
-                           length: int = None,
-                           transfer_fn = None):
+    def _create_ffmpeg_widget(
+        self,
+        widget_type: str,
+        param: MediaConfig_Definition,
+        length: int = None,
+        transfer_fn=None,
+    ):
 
         if widget_type == "combo_box":
             options = param.constraints["options"]
@@ -458,23 +580,17 @@ class RunFFmpegPage(BaseOutputPage):
             if transfer_fn:
                 options = transfer_fn(options)
                 default = transfer_fn(default)
-            combo_box = create_combo_box(length = length,
-                                         items = options,
-                                         default_index = default_index)
+            combo_box = create_combo_box(
+                length=length, items=options, default_index=default_index
+            )
             return combo_box
-        
+
         elif widget_type == "check_box":
             default = param.default
-            check_box = create_check_box(default_checked = default)
+            check_box = create_check_box(default_checked=default)
             return check_box
-        
-        return None # 不应该发生
-        
 
-
-
-
-
+        return None  # 不应该发生
 
     def update_audio_format_combo_box(self) -> None:
         """根据媒体类型，更新音频格式"""
@@ -482,7 +598,10 @@ class RunFFmpegPage(BaseOutputPage):
         media_type = self.media_input.selected_file_type
         # 删除视频时按音频输出处理（aac → ogg/mp3）
         effective_type = media_type
-        if media_type == MediaType.VIDEO_WITH_AUDIO and self.delete_video_check_box.isChecked():
+        if (
+            media_type == MediaType.VIDEO_WITH_AUDIO
+            and self.delete_video_check_box.isChecked()
+        ):
             effective_type = MediaType.AUDIO
 
         self.audio_format_combo_box.blockSignals(True)
@@ -490,10 +609,12 @@ class RunFFmpegPage(BaseOutputPage):
 
         result = M_Defs.get_audio_format_by_media_type(effective_type)
         if not result.is_ok:
-            show_notify_dialog(i18n.t("app.tools_subpages.run_ffmpeg.dialog_title"), result.error_msg)
+            show_notify_dialog(
+                i18n.t("app.tools_subpages.run_ffmpeg.dialog_title"), result.error_msg
+            )
             self.audio_format_combo_box.blockSignals(False)
             return
-        
+
         default, options = result.value
         self.audio_format_combo_box.addItems(options)
         self.audio_format_combo_box.setCurrentText(default)
@@ -501,8 +622,6 @@ class RunFFmpegPage(BaseOutputPage):
 
         # audio_format 决定输出扩展名，变化后自动同步输出路径
         self.update_output_full_path_display()
-
-
 
     def update_output_full_path_display(self, use_empty: bool = False) -> OpResult[str]:
         """
@@ -516,65 +635,60 @@ class RunFFmpegPage(BaseOutputPage):
             output_filename = self.output_filename_line_edit.text().strip()
 
         result = M_Defs.build_full_output_path(
-            input_path = self.media_input.get_path(),
-            output_filename = output_filename,
-            audio_format = self.audio_format_combo_box.currentText()
+            input_path=self.media_input.get_path(),
+            output_filename=output_filename,
+            audio_format=self.audio_format_combo_box.currentText(),
         )
         if not result.is_ok:
-            show_notify_dialog(i18n.t("app.tools_subpages.run_ffmpeg.dialog_title"), result.error_msg)
+            show_notify_dialog(
+                i18n.t("app.tools_subpages.run_ffmpeg.dialog_title"), result.error_msg
+            )
             self.output_full_path_display.setText("")
-            return err(result.error_msg, inner = result)
-        
+            return err(result.error_msg, inner=result)
+
         final_output_path, final_output_filename = result.value
         self.output_full_path_display.setText(final_output_path)
         return ok(final_output_filename)
 
-
     def transfer_res(self, input_data):
 
-        if str(input_data) == '0':
+        if str(input_data) == "0":
             return "original"
         if str(input_data) == "original":
             return 0
         if "×" in str(input_data):
             return str(input_data).split("×")[0]
-        
+
         if isinstance(input_data, list):
             output_data = []
             for text in input_data:
-                if str(text) == '0':
+                if str(text) == "0":
                     output_data.append("original")
                 else:
                     output_data.append(f"{text}×{text}")
-            
+
             return output_data
-        
+
         return input_data
-    
 
     def transfer_fps(self, input_data):
 
-        if str(input_data) == '0':
+        if str(input_data) == "0":
             return "original"
         if str(input_data) == "original":
             return 0
-        
+
         if isinstance(input_data, list):
             output_data = []
             for text in input_data:
-                if str(text) == '0':
+                if str(text) == "0":
                     output_data.append("original")
                 else:
                     output_data.append(str(text))
 
             return output_data
-        
+
         return input_data
-                
-
-
-
-
 
     def _resolve_adjust_start_trim(self) -> float | None:
         """正数 → start (trim), 其他 → None"""
@@ -601,14 +715,20 @@ class RunFFmpegPage(BaseOutputPage):
         """
 
         def try_int(value) -> int | None:
-            if value is None: return None
-            try: return int(round(float(value)))
-            except: return None
-            
+            if value is None:
+                return None
+            try:
+                return int(round(float(value)))
+            except:
+                return None
+
         def try_float(value) -> float | None:
-            if value is None: return None
-            try: return float(value)
-            except: return None
+            if value is None:
+                return None
+            try:
+                return float(value)
+            except:
+                return None
 
         try:
             self.submit_button.setEnabled(False)
@@ -622,22 +742,33 @@ class RunFFmpegPage(BaseOutputPage):
                 # common
                 M_Defs.media_type.key: self.media_input.selected_file_type,
                 M_Defs.input_path.key: self.media_input.get_path() or "",
-                M_Defs.output_path.key: self.output_full_path_display.text().strip() or "",
+                M_Defs.output_path.key: self.output_full_path_display.text().strip()
+                or "",
                 # video stream
-                M_Defs.video_quality.key: try_int(self.video_quality_combo_box.currentText().strip()),
-                M_Defs.video_side_resolution.key: self.transfer_res(self.video_resolution_combo_box.currentText().strip()),
+                M_Defs.video_quality.key: try_int(
+                    self.video_quality_combo_box.currentText().strip()
+                ),
+                M_Defs.video_side_resolution.key: self.transfer_res(
+                    self.video_resolution_combo_box.currentText().strip()
+                ),
                 # 分辨率选 original 时控件被隐藏，但勾选状态会残留，此处照常提交；
                 # 后端 build_ffmpeg_cmd 只在设置了目标分辨率时生成滤镜，故 original 下该参数自然无效
                 M_Defs.video_center_crop.key: self.video_center_crop_check_box.isChecked(),
-                M_Defs.video_fps.key: self.transfer_fps(self.video_fps_combo_box.currentText().strip()),
+                M_Defs.video_fps.key: self.transfer_fps(
+                    self.video_fps_combo_box.currentText().strip()
+                ),
                 M_Defs.video_gop_optimize.key: self.video_gop_optimize_check_box.isChecked(),
                 M_Defs.delete_audio.key: self.delete_audio_check_box.isChecked(),
                 M_Defs.delete_video.key: self.delete_video_check_box.isChecked(),
                 # audio stream
                 M_Defs.audio_format.key: self.audio_format_combo_box.currentText().strip(),
                 M_Defs.audio_bitrate.key: self.audio_bitrate_combo_box.currentText().strip(),
-                M_Defs.audio_sample_rate.key: try_int(self.audio_sample_rate_combo_box.currentText().strip()),
-                M_Defs.audio_volume.key: try_int(self.audio_volume_line_edit.text().strip()),
+                M_Defs.audio_sample_rate.key: try_int(
+                    self.audio_sample_rate_combo_box.currentText().strip()
+                ),
+                M_Defs.audio_volume.key: try_int(
+                    self.audio_volume_line_edit.text().strip()
+                ),
                 # common
                 M_Defs.clear_metadata.key: self.common_clear_metadata_check_box.isChecked(),
                 M_Defs.duration.key: try_float(self.media_input.selected_file_duration),
@@ -649,29 +780,44 @@ class RunFFmpegPage(BaseOutputPage):
             task_name = self.taskname_line_edit.text().strip()
             result = MediaPipeline.submit_task(raw_data, task_name)
             if not result.is_ok:
-                reason = print_op_result(result) # 保底
+                reason = print_op_result(result)  # 保底
                 # 尝试直接访问普通 pydantic 错误
                 try:
                     root_result = result.inner.inner
-                    if "validate_pydantic()" in root_result.source.lower() and \
-                       "pydantic validation failed" in root_result.error_msg.lower():
+                    if (
+                        "validate_pydantic()" in root_result.source.lower()
+                        and "pydantic validation failed"
+                        in root_result.error_msg.lower()
+                    ):
                         reason = root_result.error_raw
                 except Exception:
                     pass
-                error_msg = i18n.t("app.tools_subpages.run_ffmpeg.warning_task_submit_failed", error = reason)
-                show_notify_dialog(i18n.t("app.tools_subpages.run_ffmpeg.dialog_title"), error_msg)
+                error_msg = i18n.t(
+                    "app.tools_subpages.run_ffmpeg.warning_task_submit_failed",
+                    error=reason,
+                )
+                show_notify_dialog(
+                    i18n.t("app.tools_subpages.run_ffmpeg.dialog_title"), error_msg
+                )
                 return
-            
+
             runner_id, cmd_list = result.value
             self.output_widget.bind_current_runner_id(runner_id)
-            
+
             # 显示悬浮通知
-            message = i18n.t("app.tools_subpages.run_ffmpeg.notice_task_submit_success", task_id=runner_id)
+            message = i18n.t(
+                "app.tools_subpages.run_ffmpeg.notice_task_submit_success",
+                task_id=runner_id,
+            )
             create_floating_notification(message, self.window())
 
-
-        except Exception as e:
-            show_notify_dialog(i18n.t("app.tools_subpages.run_ffmpeg.dialog_title"),
-                i18n.t("app.tools_subpages.run_ffmpeg.warning_unexpected_submit_error", error=traceback.format_exc()))
+        except Exception:
+            show_notify_dialog(
+                i18n.t("app.tools_subpages.run_ffmpeg.dialog_title"),
+                i18n.t(
+                    "app.tools_subpages.run_ffmpeg.warning_unexpected_submit_error",
+                    error=traceback.format_exc(),
+                ),
+            )
         finally:
             self.submit_button.setEnabled(True)

@@ -1,5 +1,5 @@
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
 
 from src.core.schemas.model_inference_config import (
     INFERENCE_DEVICE_RESULT_PREFIX,
@@ -27,7 +27,9 @@ class ModelInferenceView:
     detail: str | None = None
 
 
-def parse_inference_device_results(recent_output: str, backend: str) -> list[InferenceDeviceItem]:
+def parse_inference_device_results(
+    recent_output: str, backend: str
+) -> list[InferenceDeviceItem]:
     prefix = INFERENCE_DEVICE_RESULT_PREFIX
     results: list[InferenceDeviceItem] = []
     seen_device_ids: set[str] = set()
@@ -38,7 +40,7 @@ def parse_inference_device_results(recent_output: str, backend: str) -> list[Inf
             continue
 
         try:
-            devices = json.loads(line[len(prefix):].strip())
+            devices = json.loads(line[len(prefix) :].strip())
         except json.JSONDecodeError:
             continue
 
@@ -53,25 +55,35 @@ def parse_inference_device_results(recent_output: str, backend: str) -> list[Inf
             device_id = device.get("device_id")
             name = device.get("name")
             half = device.get("half")
-            if not isinstance(device_id, str) or not isinstance(name, str) or type(half) is not bool:
+            if (
+                not isinstance(device_id, str)
+                or not isinstance(name, str)
+                or type(half) is not bool
+            ):
                 continue
             device_id = device_id.strip()
             name = name.strip()
             if not device_id or not name:
                 continue
-            if not ModelInferenceManage.is_inference_device_supported_by_backend(backend, device_id):
+            if not ModelInferenceManage.is_inference_device_supported_by_backend(
+                backend, device_id
+            ):
                 continue
 
-            normalized_id = ModelInferenceManage.normalize_inference_device_id(device_id)
+            normalized_id = ModelInferenceManage.normalize_inference_device_id(
+                device_id
+            )
             if normalized_id is None or normalized_id in seen_device_ids:
                 continue
 
             seen_device_ids.add(normalized_id)
-            results.append(InferenceDeviceItem(
-                device_id=normalized_id,
-                name=name,
-                half_supported=half,
-            ))
+            results.append(
+                InferenceDeviceItem(
+                    device_id=normalized_id,
+                    name=name,
+                    half_supported=half,
+                )
+            )
 
     return results
 

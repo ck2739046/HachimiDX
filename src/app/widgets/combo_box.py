@@ -1,6 +1,6 @@
-from PyQt6.QtWidgets import QComboBox, QSizePolicy
 from PyQt6.QtCore import QEvent, Qt
-from PyQt6.QtGui import QPainter, QPen, QColor
+from PyQt6.QtGui import QColor, QPainter, QPen
+from PyQt6.QtWidgets import QComboBox, QSizePolicy
 
 from ..ui_style import UI_Style
 from .dropdown_widget import open_combo_popup
@@ -8,8 +8,6 @@ from .widget_utils import set_pointer_cursor
 
 c = UI_Style.COLORS
 BORDER_R = 5
-
-
 
 
 class StyledComboBox(QComboBox):
@@ -81,7 +79,7 @@ class StyledComboBox(QComboBox):
         super().paintEvent(event)
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        pen = QPen(QColor(c['text_primary']), 1.2)
+        pen = QPen(QColor(c["text_primary"]), 1.2)
         painter.setPen(pen)
 
         cx = self.width() - 12
@@ -91,10 +89,6 @@ class StyledComboBox(QComboBox):
 
         painter.drawLine(int(cx - w), int(cy - half_h), int(cx), int(cy + half_h))
         painter.drawLine(int(cx + w), int(cy - half_h), int(cx), int(cy + half_h))
-
-
-
-
 
 
 class ToolTipComboBox(StyledComboBox):
@@ -118,11 +112,9 @@ class ToolTipComboBox(StyledComboBox):
         )
 
 
-
-
-
-
-def create_combo_box(length=None, items=None, default_index=0, show_tooltip=False, item_tooltips=None):
+def create_combo_box(
+    length=None, items=None, default_index=0, show_tooltip=False, item_tooltips=None
+):
     """
     创建带悬停提示的下拉选择框
 

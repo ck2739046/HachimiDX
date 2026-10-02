@@ -1,10 +1,9 @@
-from PyQt6.QtWidgets import QSlider, QStyle, QStyleOptionSlider
 from PyQt6.QtCore import QPointF, Qt
 from PyQt6.QtGui import QCursor, QMouseEvent
+from PyQt6.QtWidgets import QSlider, QStyle, QStyleOptionSlider
 
 from ..ui_style import UI_Style
 from .label import create_label
-
 
 # 滑条（横条）的可点击区域在上下各外扩 2px，即总高度 +4px
 # 视觉粗细仍由样式表里的 height 决定，保持不变。
@@ -40,7 +39,9 @@ class _SnapSlider(QSlider):
     def _sub_control_rect(self, sub_control):
         opt = QStyleOptionSlider()
         self.initStyleOption(opt)
-        return self.style().subControlRect(QStyle.ComplexControl.CC_Slider, opt, sub_control, self)
+        return self.style().subControlRect(
+            QStyle.ComplexControl.CC_Slider, opt, sub_control, self
+        )
 
     def _handle_rect(self):
         """滑块本体（小方块）的矩形"""
@@ -52,7 +53,9 @@ class _SnapSlider(QSlider):
 
     def _groove_hit_rect(self):
         """滑条的可点击区域：上下各外扩，比视觉横条高"""
-        return self._groove_rect().adjusted(0, -_GROOVE_HIT_PADDING, 0, _GROOVE_HIT_PADDING)
+        return self._groove_rect().adjusted(
+            0, -_GROOVE_HIT_PADDING, 0, _GROOVE_HIT_PADDING
+        )
 
     # ── 光标 ──────────────────────────────────────────────────────
     def _refresh_cursor(self, pos):
@@ -76,7 +79,9 @@ class _SnapSlider(QSlider):
             pos = event.position().toPoint()
             if self._handle_rect().contains(pos):
                 self._dragging_handle = True
-            elif self._groove_hit_rect().contains(pos) and not self._groove_rect().contains(pos):
+            elif self._groove_hit_rect().contains(
+                pos
+            ) and not self._groove_rect().contains(pos):
                 # 落在滑条的扩展可点击区（视觉横条之外的区域）：把纵坐标折算进滑条，
                 # 复用 Qt 原生的“点击滑条跳转”逻辑
                 event = self._clamped_to_groove(event)
@@ -106,7 +111,9 @@ class _SnapSlider(QSlider):
         )
 
 
-def create_slider(min_val, max_val, step, default_value, slider_length=200, text_transform=None):
+def create_slider(
+    min_val, max_val, step, default_value, slider_length=200, text_transform=None
+):
     """创建带档位吸附的滑块和数值标签。
 
     Args:
@@ -124,7 +131,7 @@ def create_slider(min_val, max_val, step, default_value, slider_length=200, text
     slider.setMinimum(min_val)
     slider.setMaximum(max_val)
     slider.setSingleStep(step)  # 键盘上下左右方向键
-    slider.setPageStep(step)    # 鼠标滚轮/PageUp/PageDown
+    slider.setPageStep(step)  # 鼠标滚轮/PageUp/PageDown
     slider.setValue(default_value)
     slider.setFixedWidth(slider_length)
     _apply_style(slider)
@@ -150,19 +157,19 @@ def _apply_style(slider):
         
         /* 滑条右侧 */
         QSlider::groove:horizontal {{
-            background: {c['light_grey']};
+            background: {c["light_grey"]};
             height: 3px;
         }}
 
         /* 滑条左侧 */
         QSlider::sub-page:horizontal {{
-            background: {c['accent']};
+            background: {c["accent"]};
             height: 3px;
         }}
 
         /* 滑块本体, margin = -1/2 * (长宽 - 滑条高度) */
         QSlider::handle:horizontal {{
-            background: {c['accent']};
+            background: {c["accent"]};
             width: 13px;
             height: 13px;
             margin: -5px 0;
@@ -171,6 +178,6 @@ def _apply_style(slider):
         
         /* 滑块 hover 颜色 */
         QSlider::handle:horizontal:hover {{
-            background: {c['accent_hover']};
+            background: {c["accent_hover"]};
         }}
     """)

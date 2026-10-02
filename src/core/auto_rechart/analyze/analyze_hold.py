@@ -1,43 +1,25 @@
 import numpy as np
 
-from .shared_context import (
-    SharedContext,
-    create_shared_context,
-    get_a_zone_endpoint,
-    get_max_track_id,
-    get_touch_areas,
+from ..detect.note_definition import (
+    NoteVariant,
 )
 from .analyze_tap import predict_tap_reach_end_time
-from ..detect.note_definition import (
-    NoteType,
-    NoteVariant,
-    Note_Geometry,
-    get_imgsz,
-    is_obb,
-    map_model_class_to_note_type,
-    map_note_type_to_class_id,
-    need_cls,
-)
-
 
 
 def get_suffix(note_variant: NoteVariant):
 
     if note_variant == NoteVariant.NORMAL:
-        suffix = 'h'
+        suffix = "h"
     elif note_variant == NoteVariant.BREAK:
-        suffix = 'bh'
+        suffix = "bh"
     elif note_variant == NoteVariant.EX:
-        suffix = 'xh'
+        suffix = "xh"
     elif note_variant == NoteVariant.BREAK_EX:
-        suffix = 'bxh'
+        suffix = "bxh"
     else:
-        suffix = '?'
-    
+        suffix = "?"
+
     return suffix
-
-
-
 
 
 def analyze_hold_time(shared_context, hold_data):
@@ -57,31 +39,34 @@ def analyze_hold_time(shared_context, hold_data):
     valid_judgeline_end = shared_context.judgeline_end - end_tolerance
 
     for key, path in hold_data.items():
-
         head_times = []
         tail_times = []
 
         # 平均所有轨迹的到达时间
         for point in path:
-            frame_num = point['frame']
-            dist_head = point['dist-head']
-            dist_tail = point['dist-tail']
+            frame_num = point["frame"]
+            dist_head = point["dist-head"]
+            dist_tail = point["dist-tail"]
 
             # 再次过滤 head 和 tail (10%-90%)
             if valid_judgeline_start <= dist_head <= valid_judgeline_end:
-                reach_end_Msec_head = predict_tap_reach_end_time(shared_context, dist_head, frame_num)
+                reach_end_Msec_head = predict_tap_reach_end_time(
+                    shared_context, dist_head, frame_num
+                )
                 head_times.append(reach_end_Msec_head)
 
             if valid_judgeline_start <= dist_tail <= valid_judgeline_end:
-                reach_end_Msec_tail = predict_tap_reach_end_time(shared_context, dist_tail, frame_num)
+                reach_end_Msec_tail = predict_tap_reach_end_time(
+                    shared_context, dist_tail, frame_num
+                )
                 tail_times.append(reach_end_Msec_tail)
-        
+
         # 计算平均时间
         mean_head = np.mean(head_times)
         mean_tail = np.mean(tail_times)
 
         duration = max(0, mean_tail - mean_head)
-        
+
         track_id, note_type, note_variant, position = key
         new_position = f"{position}{get_suffix(note_variant)}"
         new_key = (track_id, note_type, note_variant, new_position)

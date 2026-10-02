@@ -1,31 +1,28 @@
-from pathlib import Path
 import shutil
 import time
+from pathlib import Path
 
-from ...schemas.op_result import OpResult, ok, err, print_op_result
-from ...schemas.media_model import MediaType
 import i18n
 
-from . import detect_circle
+from ...schemas.media_model import MediaType
+from ...schemas.op_result import OpResult, err, ok
+from . import detect_circle, process_video
 from .perspective_correction import PerspectiveCorrection
-from . import process_video
 
 
-
-
-def main(input_video: Path,
-         temp_output_path: Path,
-         final_output_path: Path,
-         video_mode: str,
-         media_type: MediaType,
-         duration: float,
-         start_sec: float,
-         end_sec: float,
-         need_screen_rectification: bool,
-         target_res: int,
-         ui_scale: int
-        ) -> OpResult[None]:
-
+def main(
+    input_video: Path,
+    temp_output_path: Path,
+    final_output_path: Path,
+    video_mode: str,
+    media_type: MediaType,
+    duration: float,
+    start_sec: float,
+    end_sec: float,
+    need_screen_rectification: bool,
+    target_res: int,
+    ui_scale: int,
+) -> OpResult[None]:
     """
     规范化视频 主入口
 
@@ -45,7 +42,7 @@ def main(input_video: Path,
     Returns:
         OpResult[None]
     """
-    
+
     try:
         print("Standardize...")
         start_time = time.time()
@@ -77,7 +74,14 @@ def main(input_video: Path,
             ).main()
             if not result.is_ok:
                 return err("Failed to manual adjust circle.", inner=result)
-            circle_center, circle_radius, scale_x, scale_y, perspective_points, brightness = result.value
+            (
+                circle_center,
+                circle_radius,
+                scale_x,
+                scale_y,
+                perspective_points,
+                brightness,
+            ) = result.value
 
         # 第三步：处理视频
         result = process_video.main(
@@ -87,13 +91,13 @@ def main(input_video: Path,
             circle_radius=circle_radius,
             scale_x=scale_x,
             scale_y=scale_y,
-            perspective_points = perspective_points,
+            perspective_points=perspective_points,
             brightness=brightness,
             media_type=media_type,
             duration=duration,
             start_sec=start_sec,
             end_sec=end_sec,
-            target_res=target_res
+            target_res=target_res,
         )
         if not result.is_ok:
             return err("Failed to process video.", inner=result)
@@ -104,10 +108,18 @@ def main(input_video: Path,
                 final_output_path.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(temp_output_path), str(final_output_path))
             except Exception as e:
-                return err(f"Failed to move output video from temp dir to main output dir.", error_raw=e)
+                return err(
+                    "Failed to move output video from temp dir to main output dir.",
+                    error_raw=e,
+                )
 
-        print(i18n.t("standardize_main.notice_module_finished", seconds=f"{time.time() - start_time:.1f}"))
+        print(
+            i18n.t(
+                "standardize_main.notice_module_finished",
+                seconds=f"{time.time() - start_time:.1f}",
+            )
+        )
         return ok()
-        
+
     except Exception as e:
-        return err(f"Unexcepted error in Standardize.main().", error_raw = e)
+        return err("Unexcepted error in Standardize.main().", error_raw=e)
