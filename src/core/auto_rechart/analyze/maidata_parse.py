@@ -12,6 +12,7 @@ from ..detect.note_definition import (
 )
 
 
+from .maidata_fraction_utils import get_fraction
 
 
 _WIFI_ENDPOINT_SEQ = {
@@ -119,8 +120,6 @@ def _snap_note_time_to_bpm_segment(note_time, timing_points,
         如果需要吸附，返回 BPM 段的起始时间，视为新的 note_time
     """
 
-    from .maidata_generate import get_fraction  # 避免循环导入
-
     # 单段 BPM，无需吸附
     if len(timing_points) <= 1:
         return note_time
@@ -191,8 +190,6 @@ def _get_note_reach_time(time, track_id):
 
 
 def _parse_note_duration(one_bar_Msec, note_type, note_duration, base_denominator, duration_denominator) -> str:
-
-    from .maidata_generate import get_fraction  # 避免循环导入
 
     duration_in_bar = note_duration / one_bar_Msec
 
