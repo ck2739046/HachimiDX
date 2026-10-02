@@ -242,7 +242,12 @@ def generate_maidata(
             time = passed_bar_tracker.get_total_elapsed_bar()
             items.append(MaidataItem(time, cur_position))
             # 控制台打印
-            print(f"first note appear at {cur_note_time:.1f} ms")
+            print(
+                i18n.t(
+                    "maidata_generate.notice_first_note",
+                    msec=f"{cur_note_time:.1f}",
+                )
+            )
             continue
 
         # 计算当前音符的时间差
@@ -286,10 +291,18 @@ def generate_maidata(
         median = np.median(time_deviations)
         std_dev = np.std(time_deviations)
         print(
-            f"\nTime deviations of {length} notes: Median {median:.3f}, Min {min:.3f}, Max {max:.3f}, Mean {mean:.3f}, Std Dev {std_dev:.3f}"
+            i18n.t(
+                "maidata_generate.notice_time_deviation",
+                count=length,
+                median=f"{median:.3f}",
+                min=f"{min:.3f}",
+                max=f"{max:.3f}",
+                mean=f"{mean:.3f}",
+                std_dev=f"{std_dev:.3f}",
+            )
         )
     else:
-        print("\nNot enough notes detected, no time deviation statistics available.")
+        print(i18n.t("maidata_generate.notice_not_enough_notes"))
 
     # 打印吸附（snap）统计信息
     if snap_deltas:
@@ -302,7 +315,13 @@ def generate_maidata(
             1 for d in snap_deltas if d < 0
         )  # 前向吸附：吸附到下一段起点
         print(
-            f"\nSnap deltas of {snap_count} notes (backward {backward_count} / forward {forward_count}): Mean {snap_mean:.3f}"
+            i18n.t(
+                "maidata_generate.notice_snap_delta",
+                count=snap_count,
+                backward=backward_count,
+                forward=forward_count,
+                mean=f"{snap_mean:.3f}",
+            )
         )
 
     # 创建 BPM 变化点 item

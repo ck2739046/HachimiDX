@@ -171,7 +171,7 @@ zh_CN:
 
   auto_rechart_tool:
     # 串尾 5 个空格用于覆盖上一行 (\r) 的残留, 请勿删除
-    progress_line: "%{name} 进度: %{counter}/%{total} (%{percent}%)     "
+    progress_line: "%{name}进度: %{counter}/%{total} (%{percent}%)     "
 
   detect_click_start:
     error_audio_not_found: "未找到音频文件：%{path}"
@@ -194,9 +194,32 @@ zh_CN:
 
   maidata_generate:
     error_previous_bpm_segment: "无法把音符 %{track_id} 加入更早的 BPM 段：index %{index} < %{current_index}"
+    notice_first_note: "首个音符出现在 %{msec} ms"
+    notice_time_deviation: "\n共 %{count} 个音符的时间偏差: 中位数 %{median}, 最小 %{min}, 最大 %{max}, 均值 %{mean}, 标准差 %{std_dev}"
+    notice_not_enough_notes: "\n检测到的音符不足，无法统计时间偏差。"
+    notice_snap_delta: "\n共 %{count} 个音符的吸附偏差 (向后 %{backward} / 向前 %{forward}): 均值 %{mean}"
+
+  maidata_write:
+    notice_generated: "已生成 maidata.txt：%{path}\n"
+
+  estimate_tap_speed:
+    notice_no_data: "未能估计 tap 流速 (无数据)"
+    notice_speed_stat: "共 %{count} 个 tap 音符的流速: [中位数 %{median}], 最小 %{min}, 最大 %{max}, 均值 %{mean}, 标准差 %{std_dev}"
+    notice_estimate: "估计音符流速: %{index} - %{msec}ms (实测 %{detected}ms)"
+
+  estimate_touch_speed:
+    notice_no_data: "未能估计 touch 流速 (无数据)"
+    notice_no_valid_data: "estimate_touch_DefaultMsec: 无有效数据"
+    notice_speed_stat: "共 %{count} 个 touch 音符的流速: [中位数 %{median}], 最小 %{min}, 最大 %{max}, 均值 %{mean}, 标准差 %{std_dev}"
+    notice_estimate: "估计 touch 流速: %{index} - %{msec}ms (实测 %{detected}ms)"
+
+  preprocess_touch_hold:
+    notice_inference_finished: "touch-hold 推理完成，共处理 %{processed}/%{total} 个样本，耗时 %{seconds}s。"
 
   detect:
+    notice_module_started: "开始检测模块..."
     notice_module_finished: "检测模块完成, 耗时%{seconds}s"
+    progress_line: "检测 %{detect}/%{total} (%{pct_d}%) | obb %{obb}/%{total} (%{pct_o}%)"
     notice_result_saved: "检测结果已保存到：%{path}"
     error_read_video_width_failed: "[detect] 无法读取视频宽度：%{path}"
     error_progress_stalled: "进度超过 %{timeout}s 无推进, 可能程序卡住了"
@@ -213,6 +236,7 @@ zh_CN:
     error_model_not_found: "模型不存在：%{path}"
     error_read_total_frames_failed: "读取视频总帧数失败：%{detail}"
     error_batch_invalid: "batch_detect 或 batch_cls 参数无效（必须大于 0）：batch_detect=%{batch_detect}, batch_cls=%{batch_cls}"
+    notice_interrupted: "已中断"
 
   classify:
     notice_module_started: "开始分类模块..."
@@ -233,16 +257,35 @@ zh_CN:
     notice_result_saved: "%{prefix}追踪结果已保存到 %{path}"
     progress_label: "追踪"
 
+  post_track:
+    notice_split_slide: "post_track: 分割 slide 轨迹 %{track_id} 为 %{head_id} 和 %{tail_id}"
+    notice_split_touch: "post_track: 分割 %{note_type} 轨迹 %{track_id} 为 %{ids}"
+
   export_track_video:
     notice_module_started: "开始导出视频模块..."
+    progress_label: "导出"
     # 串尾空格用于覆盖进度行 (\r) 残留: 进度行最长为 name+32 字符 (counter/total 各 6 位), 请勿删除
     notice_export_finished: "追踪视频导出完成，耗时%{seconds}s, 平均%{fps}fps               "
     notice_video_saved: "追踪视频已保存到：%{path}"
     error_ffmpeg_failed: "FFmpeg 处理失败，返回码 %{code}：%{error}"
 
   standardize_main:
+    notice_module_started: "开始标准化模块..."
     # 串尾空格用于覆盖进度行 (\r) 残留: 进度行最长为 name+32 字符 (counter/total 各 6 位), 请勿删除
     notice_module_finished: "标准化模块完成, 耗时%{seconds}s                       "
+
+  process_video:
+    notice_started: "处理视频..."
+    notice_finished: "处理视频...ok"
+    notice_input_already_standardized: "输入视频已是标准化视频，直接复制到输出路径。"
+    notice_no_changes_needed: "视频无需改动，已是标准化视频。"
+    notice_changes_header: "视频将有以下改动:"
+    hint_crop: "  裁剪至 %{w}:%{h}:%{x}:%{y} (w:h:x:y)"
+    hint_resize: "  缩放至 %{w}x%{h}"
+    hint_trim_start: "  起始时间裁剪至 %{seconds}s"
+    hint_trim_end: "  截止时间裁剪至 %{seconds}s"
+    hint_perspective: "  应用透视校正"
+    hint_brightness: "  应用亮度: %{brightness}"
 
   model_convert_worker:
     error_trt_export_incomplete: "TensorRT 引擎导出不完整，缺少：%{path}"
@@ -254,14 +297,23 @@ zh_CN:
     error_onnx_export_incomplete: "ONNX 导出不完整：%{path}"
     error_invalid_half: "无效的 half 值：%{value}"
 
+  auto_rechart_worker:
+    notice_dml_device: "ONNX DML 推理设备: \"dml:%{index}\""
+
   detect_inference:
     error_batch_size_invalid: "[inferencer] batch_size 必须为正整数, got %{value}"
     error_imgsz_mismatch: "detect/obb imgsz 不一致, 两者必须相同"
 
   analyze_main:
     notice_module_started: "开始音符分析..."
+    notice_no_notes: "未检测到任何音符，跳过 maidata.txt 生成"
+    notice_preprocess_saved: "音符预处理数据已保存到 %{path}"
 
   detect_circle:
+    notice_fallback: "初始圆检测...回退"
+    notice_skip: "初始圆检测...skip"
+    notice_ok: "初始圆检测...ok            "
+    notice_center: "  圆心: %{center}, 半径: %{radius}"
     progress_label: "初始圆检测"
 
   # ---- app ----

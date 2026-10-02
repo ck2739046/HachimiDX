@@ -39,7 +39,7 @@ def main(
 
         # 如果跳过检测，直接返回屏幕中心点
         if not need_screen_rectification:
-            print("Detect circle...skip")
+            print(i18n.t("detect_circle.notice_skip"))
             # 默认已经全屏并且在屏幕中心
             circle_center = (video_width // 2, video_height // 2)
             circle_radius = min(video_width, video_height) // 2
@@ -64,8 +64,14 @@ def main(
         if search_start_frame >= total_frames or search_end_frame <= search_start_frame:
             circle_center = (video_width // 2, video_height // 2)
             circle_radius = min(video_width, video_height) // 2 - 2
-            print("Initial detection...fallback")
-            print(f"  Circle center: {circle_center}, radius: {circle_radius}")
+            print(i18n.t("detect_circle.notice_fallback"))
+            print(
+                i18n.t(
+                    "detect_circle.notice_center",
+                    center=circle_center,
+                    radius=circle_radius,
+                )
+            )
             return ok((circle_center, circle_radius))
 
         cap.set(cv2.CAP_PROP_POS_FRAMES, search_start_frame)
@@ -104,8 +110,14 @@ def main(
         if len(circles_detected) < target_circles_quantity:
             circle_center = (video_width // 2, video_height // 2)
             circle_radius = min(video_width, video_height) // 2 - 2
-            print("Initial detection...fallback")
-            print(f"  Circle center: {circle_center}, radius: {circle_radius}")
+            print(i18n.t("detect_circle.notice_fallback"))
+            print(
+                i18n.t(
+                    "detect_circle.notice_center",
+                    center=circle_center,
+                    radius=circle_radius,
+                )
+            )
             return ok((circle_center, circle_radius))
 
         # 取出现次数最多的圆
@@ -117,8 +129,14 @@ def main(
         circle_center = (circle_center[0] + 1, circle_center[1])  # x轴左移1像素
         circle_radius -= int(video_size / 800)  # 半径减掉一点以避免边缘误差
 
-        print(f"Initial detection...ok{' ' * 12}")
-        print(f"  Circle center: {circle_center}, radius: {circle_radius}")
+        print(i18n.t("detect_circle.notice_ok"))
+        print(
+            i18n.t(
+                "detect_circle.notice_fallback_center",
+                center=circle_center,
+                radius=circle_radius,
+            )
+        )
 
         return ok((circle_center, circle_radius))
 

@@ -1,3 +1,4 @@
+import i18n
 import numpy as np
 
 
@@ -66,7 +67,7 @@ def estimate_touch_DefaultMsec(shared_context, touch_data, touch_hold_data):
     touch_paths = collect_touch_paths(shared_context, touch_data, touch_hold_data)
 
     if not touch_paths:
-        print_info = "touch speed not estimated (no data)"
+        print_info = i18n.t("estimate_touch_speed.notice_no_data")
         return None, None, None, print_info
 
     def reverse_function(y, tolerance=0.001):
@@ -120,7 +121,7 @@ def estimate_touch_DefaultMsec(shared_context, touch_data, touch_hold_data):
                 DefaultMsecs.append(default_msec_estimate)
 
     if not DefaultMsecs:
-        print_info = "estimate_touch_DefaultMsec: no valid data"
+        print_info = i18n.t("estimate_touch_speed.notice_no_valid_data")
         return 0, 0, 0, print_info
 
     length = len(DefaultMsecs)
@@ -129,7 +130,15 @@ def estimate_touch_DefaultMsec(shared_context, touch_data, touch_hold_data):
     max = np.max(DefaultMsecs)
     median = np.median(DefaultMsecs)
     std_dev = np.std(DefaultMsecs)
-    print_info1 = f"speed of {length} touch notes: [Median {median:.3f}], Min {min:.3f}, Max {max:.3f}, Mean {mean:.3f}, Std Dev {std_dev:.3f}"
+    print_info1 = i18n.t(
+        "estimate_touch_speed.notice_speed_stat",
+        count=length,
+        median=f"{median:.3f}",
+        min=f"{min:.3f}",
+        max=f"{max:.3f}",
+        mean=f"{mean:.3f}",
+        std_dev=f"{std_dev:.3f}",
+    )
 
     touch_DefaultMsec, touch_OptionNotespeed, touch_SpeedIndex, print_info2 = (
         get_touch_DefaultMsec(median)
@@ -207,6 +216,11 @@ def get_touch_DefaultMsec(detected_touch_DefaultMsec):
             cloest_OptionNotespeed = OptionNotespeed
         i += 0.25
 
-    print_info = f"estimate touch speed: {cloest_i:.2f} - {cloest_DefaultMsec:.3f}ms (detect {detected_touch_DefaultMsec:.3f}ms)"
+    print_info = i18n.t(
+        "estimate_touch_speed.notice_estimate",
+        index=f"{cloest_i:.2f}",
+        msec=f"{cloest_DefaultMsec:.3f}",
+        detected=f"{detected_touch_DefaultMsec:.3f}",
+    )
 
     return cloest_DefaultMsec, cloest_OptionNotespeed, cloest_i, print_info

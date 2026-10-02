@@ -2,6 +2,7 @@ import shutil
 from pathlib import Path
 
 import cv2
+import i18n
 
 from src.services import MediaPipeline
 
@@ -49,7 +50,7 @@ def main(
     """
 
     try:
-        print("Process video...")
+        print(i18n.t("process_video.notice_started"))
 
         start_sec = start_sec if start_sec is not None else 0.0
         end_sec = end_sec if end_sec is not None else 0.0
@@ -90,7 +91,7 @@ def main(
         )
         if is_input_std:
             # 如果输入已经标准了，直接复制到输出路径
-            print("Input video already standardized, copy to output path.")
+            print(i18n.t("process_video.notice_input_already_standardized"))
             try:
                 # 如果输出文件已存在，先删除
                 if output_path.exists():
@@ -165,27 +166,43 @@ def main(
         change_hint = ""
 
         if need_crop:
-            change_hint += f"  crop to {crop_w}:{crop_h}:{crop_x}:{crop_y} (w:h:x:y)\n"
+            change_hint += (
+                i18n.t(
+                    "process_video.hint_crop",
+                    w=crop_w,
+                    h=crop_h,
+                    x=crop_x,
+                    y=crop_y,
+                )
+                + "\n"
+            )
         if need_resize:
-            change_hint += f"  resize to {target_res}x{target_res}\n"
+            change_hint += (
+                i18n.t("process_video.hint_resize", w=target_res, h=target_res) + "\n"
+            )
         if need_trim_start:
-            change_hint += f"  trim start to {start_sec}s\n"
+            change_hint += (
+                i18n.t("process_video.hint_trim_start", seconds=start_sec) + "\n"
+            )
         if need_trim_end:
-            change_hint += f"  trim end to {end_sec}s\n"
+            change_hint += i18n.t("process_video.hint_trim_end", seconds=end_sec) + "\n"
         if need_perspective_correction:
-            change_hint += "  apply perspective correction\n"
+            change_hint += i18n.t("process_video.hint_perspective") + "\n"
         if need_brightness:
-            change_hint += f"  apply brightness: {brightness:+.2f}\n"
+            change_hint += (
+                i18n.t("process_video.hint_brightness", brightness=f"{brightness:+.2f}")
+                + "\n"
+            )
 
         if change_hint:
-            print(f"Process video with changes:\n{change_hint}")
+            print(f"{i18n.t('process_video.notice_changes_header')}\n{change_hint}")
 
         # 实际运行 ffmpeg
         run_res = MediaPipeline.run_now(params)
         if not run_res.is_ok:
             return err("Standardize video process failed.", inner=run_res)
 
-        print("Process video...Ok")
+        print(i18n.t("process_video.notice_finished"))
 
         return ok()
 
@@ -274,7 +291,7 @@ def is_input_already_standardized(
         and not need_perspective_correction
         and not need_brightness
     ):
-        print("Video already standardized.")
+        print(i18n.t("process_video.notice_no_changes_needed"))
         return True, False, False, False, False, False, False
 
     return (

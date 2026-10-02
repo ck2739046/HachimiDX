@@ -195,9 +195,32 @@ en_US:
 
   maidata_generate:
     error_previous_bpm_segment: "Cannot add note %{track_id} to a previous BPM segment: index %{index} < %{current_index}"
+    notice_first_note: "first note appear at %{msec} ms"
+    notice_time_deviation: "\nTime deviations of %{count} notes: Median %{median}, Min %{min}, Max %{max}, Mean %{mean}, Std Dev %{std_dev}"
+    notice_not_enough_notes: "\nNot enough notes detected, no time deviation statistics available."
+    notice_snap_delta: "\nSnap deltas of %{count} notes (backward %{backward} / forward %{forward}): Mean %{mean}"
+
+  maidata_write:
+    notice_generated: "generate maidata.txt at %{path}\n"
+
+  estimate_tap_speed:
+    notice_no_data: "tap speed not estimated (no data)"
+    notice_speed_stat: "speed of %{count} tap notes: [Median %{median}], Min %{min}, Max %{max}, Mean %{mean}, Std Dev %{std_dev}"
+    notice_estimate: "estimate note speed: %{index} - %{msec}ms (detect %{detected}ms)"
+
+  estimate_touch_speed:
+    notice_no_data: "touch speed not estimated (no data)"
+    notice_no_valid_data: "estimate_touch_DefaultMsec: no valid data"
+    notice_speed_stat: "speed of %{count} touch notes: [Median %{median}], Min %{min}, Max %{max}, Mean %{mean}, Std Dev %{std_dev}"
+    notice_estimate: "estimate touch speed: %{index} - %{msec}ms (detect %{detected}ms)"
+
+  preprocess_touch_hold:
+    notice_inference_finished: "touch-hold inference complete, processed %{processed}/%{total} samples, cost %{seconds}s."
 
   detect:
+    notice_module_started: "Detection module started..."
     notice_module_finished: "Detection module finished, elapsed %{seconds}s"
+    progress_line: "detect %{detect}/%{total} (%{pct_d}%) | obb %{obb}/%{total} (%{pct_o}%)"
     notice_result_saved: "detection result saved to: %{path}"
     error_read_video_width_failed: "[detect] failed to read video width: %{path}"
     error_progress_stalled: "No progress for over %{timeout}s, the program may be stuck"
@@ -214,6 +237,7 @@ en_US:
     error_model_not_found: "Model not found: %{path}"
     error_read_total_frames_failed: "Failed to read total frame count: %{detail}"
     error_batch_invalid: "Invalid batch_detect or batch_cls (must be > 0): batch_detect=%{batch_detect}, batch_cls=%{batch_cls}"
+    notice_interrupted: "Interrupted"
 
   classify:
     notice_module_started: "Classification module started..."
@@ -234,16 +258,35 @@ en_US:
     notice_result_saved: "%{prefix}track result saved to %{path}"
     progress_label: "track"
 
+  post_track:
+    notice_split_slide: "post_track: split slide track_id %{track_id} into %{head_id} and %{tail_id}"
+    notice_split_touch: "post_track: split %{note_type} track_id %{track_id} into %{ids}"
+
   export_track_video:
     notice_module_started: "Export track video module started..."
+    progress_label: "export"
     # 串尾空格用于覆盖进度行 (\r) 残留: 进度行最长为 name+38 字符 (counter/total 各 6 位), 请勿删除
     notice_export_finished: "Track video export finished, elapsed %{seconds}s, average %{fps}fps               "
     notice_video_saved: "Track video saved to: %{path}"
     error_ffmpeg_failed: "FFmpeg processing failed with code %{code}: %{error}"
 
   standardize_main:
+    notice_module_started: "Standardization module started..."
     # 串尾空格用于覆盖进度行 (\r) 残留: 进度行最长为 name+38 字符 (counter/total 各 6 位), 请勿删除
     notice_module_finished: "Standardization module finished, elapsed %{seconds}s                       "
+
+  process_video:
+    notice_started: "Process video..."
+    notice_finished: "Process video...Ok"
+    notice_input_already_standardized: "Input video already standardized, copy to output path."
+    notice_no_changes_needed: "Video already standardized."
+    notice_changes_header: "Process video with changes:"
+    hint_crop: "  crop to %{w}:%{h}:%{x}:%{y} (w:h:x:y)"
+    hint_resize: "  resize to %{w}x%{h}"
+    hint_trim_start: "  trim start to %{seconds}s"
+    hint_trim_end: "  trim end to %{seconds}s"
+    hint_perspective: "  apply perspective correction"
+    hint_brightness: "  apply brightness: %{brightness}"
 
   model_convert_worker:
     error_trt_export_incomplete: "TensorRT engine export is incomplete, missing: %{path}"
@@ -255,14 +298,23 @@ en_US:
     error_onnx_export_incomplete: "ONNX export is incomplete: %{path}"
     error_invalid_half: "Invalid half value: %{value}"
 
+  auto_rechart_worker:
+    notice_dml_device: "ONNX DML inference device: \"dml:%{index}\""
+
   detect_inference:
     error_batch_size_invalid: "[inferencer] batch_size must be a positive integer, got %{value}"
     error_imgsz_mismatch: "detect/obb imgsz mismatch, they must be the same"
 
   analyze_main:
     notice_module_started: "Analyze module started..."
+    notice_no_notes: "No notes detected, skipping maidata.txt generation"
+    notice_preprocess_saved: "note preprocess data saved to %{path}"
 
   detect_circle:
+    notice_skip: "Detect circle...skip"
+    notice_fallback: "Initial detection...fallback"
+    notice_ok: "Initial detection...ok            "
+    notice_center: "  Circle center: %{center}, radius: %{radius}"
     progress_label: "initial circle detection"
 
   # ---- app ----

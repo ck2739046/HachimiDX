@@ -145,7 +145,7 @@ def main(
         )
         # 如果没有检测到任何音符，提前返回
         if not final_note_info:
-            print("No notes detected, skipping maidata.txt generation")
+            print(i18n.t("analyze_main.notice_no_notes"))
             return ok()
 
         # generate maidata
@@ -206,6 +206,11 @@ def merge_preprocess_info(
             # 写入格式：track_id, note_type, note_variant, position, time
             f.write(f"{track_id}, {note_type}, {note_variant}, {position}, {time}\n")
 
-    print(f"note preprocess data saved to {note_preprocess_result_path}")
+    print(
+        i18n.t(
+            "analyze_main.notice_preprocess_saved",
+            path=str(note_preprocess_result_path),
+        )
+    )
 
     return sorted_notes

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import cv2
+import i18n
 
 from ...schemas.op_result import OpResult, err, ok
 from ..analyze.analyze_slide_movement import is_line_pass_a_zone_endpoint
@@ -124,7 +125,12 @@ def _split_touch_notes(tracks: dict, context: _PostTrackContext, next_track_id: 
             new_tracks[new_key].extend(segment)
 
         print(
-            f"post_track: split {note_type.value} track_id {track_id} into {assigned_track_ids}"
+            i18n.t(
+                "post_track.notice_split_touch",
+                note_type=note_type.value,
+                track_id=track_id,
+                ids=assigned_track_ids,
+            )
         )
 
     return new_tracks, next_track_id
@@ -207,7 +213,12 @@ def _split_slide_notes(tracks: dict, context: _PostTrackContext, next_track_id: 
             next_track_id += 1
             new_tracks[new_key].extend(tail_segment)
             print(
-                f"post_track: split slide track_id {track_id} into {track_id} and {new_key[0]}"
+                i18n.t(
+                    "post_track.notice_split_slide",
+                    track_id=track_id,
+                    head_id=track_id,
+                    tail_id=new_key[0],
+                )
             )
             continue
 

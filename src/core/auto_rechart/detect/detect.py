@@ -41,7 +41,7 @@ def main(
     raw_results = []
     try:
         start_time = time.time()
-        print("Start detection...")
+        print(i18n.t("detect.notice_module_started"))
 
         # 1. 前置计算: decode_imgsz + coord_scale
         #    decoder 会把帧 resize 到 decode_imgsz
@@ -188,7 +188,15 @@ class _ProgressMonitor:
         pct_d = min(pd / total * 100, 100.0) if total else 0.0
         pct_o = min(po / total * 100, 100.0) if total else 0.0
         print(
-            f"\rdetect {pd}/{total} ({pct_d:.1f}%) | obb {po}/{total} ({pct_o:.1f}%)",
+            "\r"
+            + i18n.t(
+                "detect.progress_line",
+                detect=pd,
+                obb=po,
+                total=total,
+                pct_d=f"{pct_d:.1f}",
+                pct_o=f"{pct_o:.1f}",
+            ),
             end="    ",
             flush=True,
         )

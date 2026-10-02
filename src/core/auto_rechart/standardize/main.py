@@ -44,7 +44,7 @@ def main(
     """
 
     try:
-        print("Standardize...")
+        print(i18n.t("standardize_main.notice_module_started"))
         start_time = time.time()
 
         # 第一步：检测圆形判定线

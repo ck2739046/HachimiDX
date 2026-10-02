@@ -145,7 +145,7 @@ def main(
         return ok()
 
     except KeyboardInterrupt:
-        print("\nInterrupted")
+        print("\n" + i18n.t("detect_main.notice_interrupted"))
         return err("Interrupted by user (KeyboardInterrupt)")
     except Exception as e:
         return err("Unexcepted error in auto_rechart > detect > main", e)

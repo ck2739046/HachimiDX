@@ -7,6 +7,8 @@ import os
 from fractions import Fraction
 from itertools import groupby, tee
 
+import i18n
+
 from .maidata_generate import MaidataItem
 
 # 分音策略常量
@@ -521,4 +523,4 @@ def write_maidata(
         f.write(f"|| note speed: {note_speed_str}, touch speed: {touch_speed_str}\n")
         f.write(body)
 
-    print(f"generate maidata.txt at {txt_path}\n")
+    print(i18n.t("maidata_write.notice_generated", path=str(txt_path)))

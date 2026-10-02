@@ -242,7 +242,11 @@ class ExportConsumer(Consumer):
             # 将这一批缓冲写入 FFmpeg stdin
             self.stdin.write(self.batch_mv[: self.off])
             # 打印进度
-            print_progress("export", frame_number + 1, self.total_frames)
+            print_progress(
+                i18n.t("export_track_video.progress_label"),
+                frame_number + 1,
+                self.total_frames,
+            )
             self.off = 0
             self.count_in_batch = 0
 
@@ -705,7 +709,12 @@ def main(std_video_path: Path, total_frames: int) -> OpResult[Path]:
             return err("[export_track_video] pipeline failed", inner=pipeline_r)
 
         # 最后再打印一次进度
-        print_progress("export", consumer.processed_frames, total_frames, final=True)
+        print_progress(
+            i18n.t("export_track_video.progress_label"),
+            consumer.processed_frames,
+            total_frames,
+            final=True,
+        )
 
         # 正常结束: 打印耗时
         average_fps = (

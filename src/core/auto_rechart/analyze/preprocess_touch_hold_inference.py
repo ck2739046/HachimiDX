@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import cv2
+import i18n
 import numpy as np
 from ultralytics import YOLO
 
@@ -99,7 +100,12 @@ def run_touch_hold_inference(
 
     elapsed = time.time() - start_time
     print(
-        f"touch-hold inference complete, processed {consumer.processed_samples}/{total_samples} samples, cost {elapsed:.1f}s."
+        i18n.t(
+            "preprocess_touch_hold.notice_inference_finished",
+            processed=consumer.processed_samples,
+            total=total_samples,
+            seconds=f"{elapsed:.1f}",
+        )
     )
     return ok((consumer.light_results, track_meta))
 

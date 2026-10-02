@@ -25,6 +25,8 @@ if root not in sys.path:
 
 # 2026.03.20
 
+import i18n
+
 # see https://github.com/pytorch/pytorch/issues/166628
 # 当前最新版 pytorch + pyqt6 在一起使用时有问题
 # 如果 pyqt6 比 torch 先导入，会产生 winerror1114 (dll加载失败)
@@ -91,7 +93,12 @@ def main(args: list[str]) -> bool:
             if model_backend == "ONNX DML":
                 directml_device_index = int(cfg["directml_device_index"])
                 os.environ["HACHIMIDX_DML_DEVICE_ID"] = str(directml_device_index)
-                print(f"ONNX DML inference device: dml:{directml_device_index}")
+                print(
+                    i18n.t(
+                        "auto_rechart_worker.notice_dml_device",
+                        index=directml_device_index,
+                    )
+                )
             else:
                 os.environ.pop("HACHIMIDX_DML_DEVICE_ID", None)
             model_paths_result = PathManage.resolve_model_paths(model_backend, _half)

@@ -1,3 +1,4 @@
+import i18n
 import numpy as np
 
 
@@ -44,7 +45,7 @@ def estimate_tap_DefaultMsec(shared_context, tap_data, slide_head_data, hold_dat
     )
 
     if not note_paths:
-        print_info = "tap speed not estimated (no data)"
+        print_info = i18n.t("estimate_tap_speed.notice_no_data")
         return None, None, None, print_info
 
     note_speeds = []
@@ -85,7 +86,15 @@ def estimate_tap_DefaultMsec(shared_context, tap_data, slide_head_data, hold_dat
     max = np.max(note_speeds)
     median = np.median(note_speeds)
     std_dev = np.std(note_speeds)
-    print_info1 = f"speed of {length} tap notes: [Median {median:.3f}], Min {min:.3f}, Max {max:.3f}, Mean {mean:.3f}, Std Dev {std_dev:.3f}"
+    print_info1 = i18n.t(
+        "estimate_tap_speed.notice_speed_stat",
+        count=length,
+        median=f"{median:.3f}",
+        min=f"{min:.3f}",
+        max=f"{max:.3f}",
+        mean=f"{mean:.3f}",
+        std_dev=f"{std_dev:.3f}",
+    )
 
     note_DefaultMsec, note_OptionNotespeed, note_SpeedIndex, print_info2 = (
         get_note_DefaultMsec(shared_context, median)
@@ -128,6 +137,11 @@ def get_note_DefaultMsec(shared_context, detected_note_speed):
             cloest_OptionNotespeed = OptionNotespeed
         i += 0.25
 
-    print_info = f"estimate note speed: {cloest_i:.2f} - {cloest_DefaultMsec:.3f}ms (detect {detected_note_DefaultMsec:.3f}ms)"
+    print_info = i18n.t(
+        "estimate_tap_speed.notice_estimate",
+        index=f"{cloest_i:.2f}",
+        msec=f"{cloest_DefaultMsec:.3f}",
+        detected=f"{detected_note_DefaultMsec:.3f}",
+    )
 
     return cloest_DefaultMsec, cloest_OptionNotespeed, cloest_i, print_info
