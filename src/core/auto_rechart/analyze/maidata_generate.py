@@ -3,8 +3,23 @@ import math
 from dataclasses import dataclass
 from fractions import Fraction
 
-from .shared_context import *
-from ..detect.note_definition import *
+from .shared_context import (
+    SharedContext,
+    create_shared_context,
+    get_a_zone_endpoint,
+    get_max_track_id,
+    get_touch_areas,
+)
+from ..detect.note_definition import (
+    NoteType,
+    NoteVariant,
+    Note_Geometry,
+    get_imgsz,
+    is_obb,
+    map_model_class_to_note_type,
+    map_note_type_to_class_id,
+    need_cls,
+)
 from .maidata_parse import parse_note_info, calculate_one_bar_ms
 import i18n
 

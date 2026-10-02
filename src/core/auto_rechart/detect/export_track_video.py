@@ -12,7 +12,16 @@ from pathlib import Path
 
 from ...schemas.op_result import OpResult, ok, err
 from ..pipeline import Producer, Consumer, Pipeline
-from .note_definition import *
+from .note_definition import (
+    NoteType,
+    NoteVariant,
+    Note_Geometry,
+    get_imgsz,
+    is_obb,
+    map_model_class_to_note_type,
+    map_note_type_to_class_id,
+    need_cls,
+)
 from .track import _load_track_results
 from ..tool import catmull_rom_spline, print_progress
 from .custom_oc_sort.oc_sort import _KalmanBoxTracker

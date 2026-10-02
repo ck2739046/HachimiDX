@@ -1,6 +1,15 @@
 import math
 
-from ..detect.note_definition import *
+from ..detect.note_definition import (
+    NoteType,
+    NoteVariant,
+    Note_Geometry,
+    get_imgsz,
+    is_obb,
+    map_model_class_to_note_type,
+    map_note_type_to_class_id,
+    need_cls,
+)
 
 
 

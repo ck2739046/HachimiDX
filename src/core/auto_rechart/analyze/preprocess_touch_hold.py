@@ -3,7 +3,13 @@ from pathlib import Path
 import numpy as np
 
 from ...schemas.op_result import OpResult, err, ok
-from .shared_context import *
+from .shared_context import (
+    SharedContext,
+    create_shared_context,
+    get_a_zone_endpoint,
+    get_max_track_id,
+    get_touch_areas,
+)
 from .preprocess_touch_hold_inference import run_touch_hold_inference, calc_touch_hold_crop_size
 
 

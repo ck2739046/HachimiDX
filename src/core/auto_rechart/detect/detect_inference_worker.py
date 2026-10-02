@@ -4,7 +4,16 @@ import time
 from queue import Full
 
 from ...schemas.op_result import OpResult, ok, err
-from .note_definition import *
+from .note_definition import (
+    NoteType,
+    NoteVariant,
+    Note_Geometry,
+    get_imgsz,
+    is_obb,
+    map_model_class_to_note_type,
+    map_note_type_to_class_id,
+    need_cls,
+)
 from ..tool import release_ncnn_vulkan, install_ort_cpu_thread_tuning
 from src.core.tools import describe_exception, find_native_message, redirect_native_stderr
 

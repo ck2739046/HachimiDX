@@ -8,7 +8,16 @@ from collections import defaultdict
 
 from ...schemas.op_result import OpResult, ok, err
 import i18n
-from .note_definition import *
+from .note_definition import (
+    NoteType,
+    NoteVariant,
+    Note_Geometry,
+    get_imgsz,
+    is_obb,
+    map_model_class_to_note_type,
+    map_note_type_to_class_id,
+    need_cls,
+)
 from .detect_decode import Decoder
 from .detect_inference import create_inferencer
 

@@ -10,7 +10,16 @@ from pathlib import Path
 
 from ...schemas.op_result import OpResult, ok, err
 # from src.services import PathManage
-from .note_definition import *
+from .note_definition import (
+    NoteType,
+    NoteVariant,
+    Note_Geometry,
+    get_imgsz,
+    is_obb,
+    map_model_class_to_note_type,
+    map_note_type_to_class_id,
+    need_cls,
+)
 from .detect import _load_detect_results
 from ..tool import print_progress
 import i18n

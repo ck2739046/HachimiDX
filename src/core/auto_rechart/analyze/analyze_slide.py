@@ -3,10 +3,25 @@ from collections import defaultdict
 
 from ultralytics import YOLO
 
-from ..detect.note_definition import *
+from ..detect.note_definition import (
+    NoteType,
+    NoteVariant,
+    Note_Geometry,
+    get_imgsz,
+    is_obb,
+    map_model_class_to_note_type,
+    map_note_type_to_class_id,
+    need_cls,
+)
 from ..detect.classify import ClassificationInferenceError, classify_note_path
 from ..tool import release_ncnn_vulkan
-from .shared_context import *
+from .shared_context import (
+    SharedContext,
+    create_shared_context,
+    get_a_zone_endpoint,
+    get_max_track_id,
+    get_touch_areas,
+)
 from .analyze_tap import analyze_tap_time
 
 from .analyze_slide_time import analyze_slide_tail_start_end_time

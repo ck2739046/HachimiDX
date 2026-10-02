@@ -5,7 +5,41 @@ from PyQt6.QtWidgets import QVBoxLayout
 from PyQt6.QtCore import pyqtSignal
 
 from ..base_output_page import BaseOutputPage
-from ...widgets import *
+from ...widgets import (
+    MediaInputProbeWidget,
+    OutputLogWidget,
+    OverlayWidget,
+    PointerCursorButton,
+    RangeVisualizer,
+    ScrollableImageLabel,
+    SegmentedNavBar,
+    SplitDropButton,
+    SplitDropLineEdit,
+    SquareWidget,
+    StatedButton,
+    StyledCheckBox,
+    StyledComboBox,
+    StyledLineEdit,
+    ToolTipComboBox,
+    create_button,
+    create_check_box,
+    create_clickable_label,
+    create_combo_box,
+    create_directory_selection_row,
+    create_divider,
+    create_file_selection_row,
+    create_floating_notification,
+    create_help_icon,
+    create_label,
+    create_line_edit,
+    create_path_display,
+    create_slider,
+    create_split_drop_button,
+    create_split_drop_line_edit,
+    create_stated_button,
+    create_vertical_divider,
+    widget_utils,
+)
 
 from src.services import PathManage, process_manager_api
 from src.core.schemas.op_result import print_op_result

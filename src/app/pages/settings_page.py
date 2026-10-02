@@ -12,7 +12,41 @@ from .settings_page_sub_model_infer import (
     inspect_model,
     parse_inference_device_results,
 )
-from ..widgets import *
+from ..widgets import (
+    MediaInputProbeWidget,
+    OutputLogWidget,
+    OverlayWidget,
+    PointerCursorButton,
+    RangeVisualizer,
+    ScrollableImageLabel,
+    SegmentedNavBar,
+    SplitDropButton,
+    SplitDropLineEdit,
+    SquareWidget,
+    StatedButton,
+    StyledCheckBox,
+    StyledComboBox,
+    StyledLineEdit,
+    ToolTipComboBox,
+    create_button,
+    create_check_box,
+    create_clickable_label,
+    create_combo_box,
+    create_directory_selection_row,
+    create_divider,
+    create_file_selection_row,
+    create_floating_notification,
+    create_help_icon,
+    create_label,
+    create_line_edit,
+    create_path_display,
+    create_slider,
+    create_split_drop_button,
+    create_split_drop_line_edit,
+    create_stated_button,
+    create_vertical_divider,
+    widget_utils,
+)
 from ..ui_style import UI_Style
 from src.core.schemas.settings_config import SettingsConfig_Definitions as S_Defs
 from src.services import ModelInferenceManage

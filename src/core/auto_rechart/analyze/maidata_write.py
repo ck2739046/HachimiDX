@@ -7,7 +7,13 @@ import os
 from fractions import Fraction
 from itertools import groupby, tee
 
-from .shared_context import *
+from .shared_context import (
+    SharedContext,
+    create_shared_context,
+    get_a_zone_endpoint,
+    get_max_track_id,
+    get_touch_areas,
+)
 from .maidata_generate import MaidataItem
 
 
