@@ -8,6 +8,14 @@ from ...tools import FFprobeInspect
 from ...schemas.op_result import print_op_result
 import i18n
 
+__all__ = [
+    "SharedContext",
+    "create_shared_context",
+    "get_a_zone_endpoint",
+    "get_max_track_id",
+    "get_touch_areas",
+]
+
 
 
 
