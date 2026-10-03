@@ -1,23 +1,28 @@
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, fields
-from typing import Any, Callable
+from typing import Any
 
-from .detect_onnx_dml import detect_dml_availability
+from .color import cyan, hint, note_on_hint, red, yellow
+from .console_input import ask
 from .detect_ncnn import detect_ncnn_availability
 from .detect_nvidia import get_nvidia_gpu_info
 from .detect_onnx_cuda import (
     OnnxCudaGpuDetection,
     detect_onnx_cuda_availability,
+)
+from .detect_onnx_cuda import (
     onnx_cuda_config as OnnxCudaConfig,
 )
+from .detect_onnx_dml import detect_dml_availability
 from .detect_trt import (
     TensorRTGpuDetection,
     detect_trt_availability,
+)
+from .detect_trt import (
     tensorrt_config as TensorRTConfig,
 )
 from .op_result import OpResult, err, ok
-from .console_input import ask
-from .color import red, cyan, yellow, hint, note_on_hint
 
 
 @dataclass(slots=True, frozen=True)
@@ -107,10 +112,7 @@ def choose_backend(T) -> OpResult[BackendChoice]:
     if not config_result.is_ok:
         return err(T.choose_backend.trt_selection_failed, inner=config_result)
 
-    return ok(BackendChoice(backend="trt",
-                            tensorrt_config=config_result.value))
-
-
+    return ok(BackendChoice(backend="trt", tensorrt_config=config_result.value))
 
 
 def _safe_detect(
@@ -204,8 +206,12 @@ def _print_summary(
     )
 
 
-def _print_backend_status(T, backend_name: str, is_available: bool, reason: str | None) -> None:
-    status = T.choose_backend.available if is_available else T.choose_backend.unavailable
+def _print_backend_status(
+    T, backend_name: str, is_available: bool, reason: str | None
+) -> None:
+    status = (
+        T.choose_backend.available if is_available else T.choose_backend.unavailable
+    )
     print(T.choose_backend.backend_status.format(backend=backend_name, status=status))
     if reason:
         print(T.choose_backend.backend_reason.format(reason=reason))
@@ -240,7 +246,7 @@ def _print_gpu_results(T, result: OpResult[Any], backend: str) -> None:
 
 def _format_vram(vram_mib: int) -> str:
     text = f"{vram_mib / 1024:.1f}"
-    return text[:-2] if text.endswith(".0") else text
+    return text.removesuffix(".0")
 
 
 def _format_compute_cap(compute_capability: tuple[int, int]) -> str:
@@ -264,7 +270,9 @@ def _ask_backend(
         "ncnn": T.choose_backend.ncnn_backend,
         "onnx_cpu": T.choose_backend.onnx_cpu_backend,
     }
-    default_backend = next(backend for backend in backend_order if availability[backend])
+    default_backend = next(
+        backend for backend in backend_order if availability[backend]
+    )
 
     print("\n-----\n")
     print(T.choose_backend.backend_menu_title)
@@ -286,7 +294,9 @@ def _ask_backend(
         )
     print(T.choose_backend.exit_option)
     print()
-    print(T.choose_backend.backend_recommendation.format(backend=labels[default_backend]))
+    print(
+        T.choose_backend.backend_recommendation.format(backend=labels[default_backend])
+    )
 
     while True:
         content = ask(hint(T.input_hint))
@@ -319,8 +329,7 @@ def _choose_tensorrt_config(
         return err(T.choose_backend.trt_not_available)
 
     candidates: list[TensorRTGpuDetection] = [
-        gpu for gpu in result.value
-        if gpu.is_available and gpu.config is not None
+        gpu for gpu in result.value if gpu.is_available and gpu.config is not None
     ]
     if not candidates:
         return err(T.choose_backend.trt_not_available)
@@ -371,18 +380,14 @@ def _choose_onnx_cuda_config(
         return err(T.choose_backend.onnx_cuda_not_available)
 
     candidates: list[OnnxCudaGpuDetection] = [
-        gpu for gpu in result.value
-        if gpu.is_available and gpu.config is not None
+        gpu for gpu in result.value if gpu.is_available and gpu.config is not None
     ]
     if not candidates:
         return err(T.choose_backend.onnx_cuda_not_available)
 
     config_groups: dict[tuple[Any, ...], list[OnnxCudaGpuDetection]] = {}
     for gpu in candidates:
-        key = tuple(
-            getattr(gpu.config, field.name)
-            for field in fields(OnnxCudaConfig)
-        )
+        key = tuple(getattr(gpu.config, field.name) for field in fields(OnnxCudaConfig))
         config_groups.setdefault(key, []).append(gpu)
 
     if len(config_groups) == 1:

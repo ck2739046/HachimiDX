@@ -1,12 +1,11 @@
 from types import SimpleNamespace as SN
 
-
 # 输入提示行前缀
 input_hint = "请选择 -> "
 
 
 ask_language = SN(
-    prompt = """
+    prompt="""
 Please select your language:
 1. Simplified Chinese (Default)
 2. English
@@ -17,15 +16,13 @@ Please select your language:
 2. 英语
 3. 退出
 """,
-    input_hint = "Please select / 请选择 -> ",
-
-    defaulting = "默认选择简体中文。",
+    input_hint="Please select / 请选择 -> ",
+    defaulting="默认选择简体中文。",
 )
 
 
-
 main_menu = SN(
-    prompt = """
+    prompt="""
 请选择：
 
 1. 安装 HachimiDX (默认)
@@ -34,72 +31,62 @@ main_menu = SN(
 
 如果你不清楚选项 2 是什么，请不要选择此选项。
 """,
-
-    defaulting = "默认选择安装 HachimiDX。",
+    defaulting="默认选择安装 HachimiDX。",
 )
 
 
-
 reinstall_backend = SN(
-    prompt = """
+    prompt="""
 即将卸载当前已安装的后端，再重新进入安装流程。
 你确定要继续吗？
 
 1. 否 (默认)
 2. 是
 """,
-
-    abort = "已取消，未做任何更改。",
-
-    start_uninstall = "正在卸载当前后端...",
-    uninstall_done = "卸载完成。",
+    abort="已取消，未做任何更改。",
+    start_uninstall="正在卸载当前后端...",
+    uninstall_done="卸载完成。",
 )
 
 
-
 install = SN(
-    start = "开始安装 HachimiDX...",
-    detect_trt_failed = "检测到 TensorRT 不可用。",
-    detect_dml_failed = "检测到 ONNX DML 不可用。",
-    detect_ncnn_failed = "检测到 NCNN 不可用。",
-    done = "HachimiDX 安装完成。",
+    start="开始安装 HachimiDX...",
+    detect_trt_failed="检测到 TensorRT 不可用。",
+    detect_dml_failed="检测到 ONNX DML 不可用。",
+    detect_ncnn_failed="检测到 NCNN 不可用。",
+    done="HachimiDX 安装完成。",
 )
 
 
 model_backend_reminder = SN(
-    title = "重要：还需要在应用内设置模型后端！",
-
-    step1 = "1. 打开 HachimiDX 后，进入「应用设置」页面。",
-    step2 = "2. 在「模型推理」分区中，把「模型后端」选择为「{backend}」。",
-    step2_again = "2. 在「模型推理」分区中，「重新」把「模型后端」选择为「{backend}」。",
-    step3 = "3. 点击「检测」按钮。",
-    step4 = "4. 如果出现「转换模型」按钮，点击它并等待转换完成。",
-    step4_again = "4. 如果出现「转换模型」按钮，「重新」点击它并重新等待转换完成。",
-    step5 = "5. 点击页面最底部的「保存」按钮。",
-
-    footnote = "未完成以上步骤前，模型推理功能无法正常使用！",
+    title="重要：还需要在应用内设置模型后端！",
+    step1="1. 打开 HachimiDX 后，进入「应用设置」页面。",
+    step2="2. 在「模型推理」分区中，把「模型后端」选择为「{backend}」。",
+    step2_again="2. 在「模型推理」分区中，「重新」把「模型后端」选择为「{backend}」。",
+    step3="3. 点击「检测」按钮。",
+    step4="4. 如果出现「转换模型」按钮，点击它并等待转换完成。",
+    step4_again="4. 如果出现「转换模型」按钮，「重新」点击它并重新等待转换完成。",
+    step5="5. 点击页面最底部的「保存」按钮。",
+    footnote="未完成以上步骤前，模型推理功能无法正常使用！",
 )
 
 
-
 open_hachimidx = SN(
-    prompt = """
+    prompt="""
 是否立即启动 HachimiDX?
 
 1. 是 (默认)
 2. 否
 3. 退出
 """,
-
-    defaulting = "默认选择「是」。",
-    launching = "正在启动 HachimiDX...",
-    not_found = "未找到 HachimiDX.exe，启动失败。",
+    defaulting="默认选择「是」。",
+    launching="正在启动 HachimiDX...",
+    not_found="未找到 HachimiDX.exe，启动失败。",
 )
 
 
-
 ask_use_pypi_mirror = SN(
-    prompt = """
+    prompt="""
 PyPI 镜像可以显著加速国内的下载和安装。
 你是否想使用 PyPI 镜像?
 
@@ -110,55 +97,52 @@ PyPI 镜像可以显著加速国内的下载和安装。
 2. 否
 3. 退出
 """,
-
-    defaulting = "默认选择「是」。",
+    defaulting="默认选择「是」。",
 )
-
 
 
 choose_backend = SN(
-    detect_start = "正在检测所有推理后端和显卡...",
-    summary_title = "推理后端检测结果：",
-    available = "可用",
-    unavailable = "不可用",
-    unavailable_with_reason = "不可用：{reason}",
-    backend_status = "{backend}：{status}",
-    backend_reason = "  原因：{reason}",
-    gpu_status = "  GPU {index}：{gpu_name}{details} —— {status}",
-    gpu_unavailable = "不可用：{reason}",
-    nvidia_gpu_details = "，显存 {vram} GB，SM {compute_cap}，驱动 {driver}",
-    onnx_cpu_backend = "ONNX CPU",
-    trt_backend = "TensorRT",
-    onnx_cuda_backend = "ONNX CUDA",
-    onnx_dml_backend = "ONNX DML",
-    ncnn_backend = "NCNN",
-    no_available_gpu = "没有可用的 GPU。",
-    no_gpu_detected = "没有检测到目标 GPU。",
-    unknown_detection_error = "检测失败。",
-    detection_exception = "{backend} 检测时发生异常：{error}",
-    backend_menu_title = "请选择要安装的推理后端：",
-    backend_option = "{index}. {backend} [{status}]",
-    backend_recommendation = "推荐安装 {backend}（此为默认选项）",
-    defaulting = "默认选择推荐后端。",
-    exit_option = "6. 退出",
-    invalid_backend_choice = "输入无效，请重新输入。",
-    backend_not_available = "该后端不可用，请选择可用后端。",
-    backend_selection_failed = "后端选择失败。",
-    trt_not_available = "没有可用的 NVIDIA 显卡。",
-    trt_selection_failed = "TensorRT 显卡配置选择失败。",
-    trt_gpu_menu_title = "检测到多张配置不同的可用 NVIDIA 显卡，请选择显卡：",
-    trt_gpu_option = "{index}. {gpu_name}，显存 {vram} GB，SM {compute_cap}，驱动 {driver}",
-    onnx_cuda_not_available = "没有可用于 ONNX CUDA 的 NVIDIA 显卡。",
-    onnx_cuda_selection_failed = "ONNX CUDA 显卡配置选择失败。",
-    onnx_cuda_gpu_menu_title = "检测到多张配置不同的可用 NVIDIA 显卡，请选择 ONNX CUDA 使用的安装配置：",
-    onnx_cuda_gpu_option = "{index}. {gpu_name}，显存 {vram} GB，SM {compute_cap}，驱动 {driver}",
-    invalid_gpu_choice = "输入无效，请重新输入。",
+    detect_start="正在检测所有推理后端和显卡...",
+    summary_title="推理后端检测结果：",
+    available="可用",
+    unavailable="不可用",
+    unavailable_with_reason="不可用：{reason}",
+    backend_status="{backend}：{status}",
+    backend_reason="  原因：{reason}",
+    gpu_status="  GPU {index}：{gpu_name}{details} —— {status}",
+    gpu_unavailable="不可用：{reason}",
+    nvidia_gpu_details="，显存 {vram} GB，SM {compute_cap}，驱动 {driver}",
+    onnx_cpu_backend="ONNX CPU",
+    trt_backend="TensorRT",
+    onnx_cuda_backend="ONNX CUDA",
+    onnx_dml_backend="ONNX DML",
+    ncnn_backend="NCNN",
+    no_available_gpu="没有可用的 GPU。",
+    no_gpu_detected="没有检测到目标 GPU。",
+    unknown_detection_error="检测失败。",
+    detection_exception="{backend} 检测时发生异常：{error}",
+    backend_menu_title="请选择要安装的推理后端：",
+    backend_option="{index}. {backend} [{status}]",
+    backend_recommendation="推荐安装 {backend}（此为默认选项）",
+    defaulting="默认选择推荐后端。",
+    exit_option="6. 退出",
+    invalid_backend_choice="输入无效，请重新输入。",
+    backend_not_available="该后端不可用，请选择可用后端。",
+    backend_selection_failed="后端选择失败。",
+    trt_not_available="没有可用的 NVIDIA 显卡。",
+    trt_selection_failed="TensorRT 显卡配置选择失败。",
+    trt_gpu_menu_title="检测到多张配置不同的可用 NVIDIA 显卡，请选择显卡：",
+    trt_gpu_option="{index}. {gpu_name}，显存 {vram} GB，SM {compute_cap}，驱动 {driver}",
+    onnx_cuda_not_available="没有可用于 ONNX CUDA 的 NVIDIA 显卡。",
+    onnx_cuda_selection_failed="ONNX CUDA 显卡配置选择失败。",
+    onnx_cuda_gpu_menu_title="检测到多张配置不同的可用 NVIDIA 显卡，请选择 ONNX CUDA 使用的安装配置：",
+    onnx_cuda_gpu_option="{index}. {gpu_name}，显存 {vram} GB，SM {compute_cap}，驱动 {driver}",
+    invalid_gpu_choice="输入无效，请重新输入。",
 )
 
 
-
 pip_install = SN(
-    mirror_names = {
+    mirror_names={
         "thu": "清华大学",
         "tencent": "腾讯云",
         "huawei": "华为云",
@@ -169,31 +153,29 @@ pip_install = SN(
         "aliyun_pytorch": "阿里云 (PyTorch)",
         "pytorch_official": "PyTorch 官方源",
     },
-    start = "正在安装 {package_name}...",
-    success = "{package_name} 安装完成。",
-    error = "安装 {package_name} 时发生错误: {e}",
-    mirror_switching = "镜像「{old}」安装失败，正在切换到镜像「{new}」重试...",
-    mirror_exhausted = "所有镜像均无法安装 {package_name}。",
+    start="正在安装 {package_name}...",
+    success="{package_name} 安装完成。",
+    error="安装 {package_name} 时发生错误: {e}",
+    mirror_switching="镜像「{old}」安装失败，正在切换到镜像「{new}」重试...",
+    mirror_exhausted="所有镜像均无法安装 {package_name}。",
 )
-
 
 
 legacy_trt = SN(
-    unsupported_version = "不支持通过 ZIP 安装 TensorRT {version}。",
-    download_start = "正在从 NVIDIA 官网下载 {filename}...",
-    download_progress = "已下载 {downloaded:.1f}/{total:.1f} MB ({percent:.1f}%)",
-    download_progress_unknown = "已下载 {downloaded:.1f} MB",
-    download_failed = "下载 TensorRT ZIP 时发生错误: {e}",
-    invalid_archive = "下载的 TensorRT 文件不是有效的 ZIP 归档。",
-    install_wheel = "正在安装 TensorRT Python wheel: {filename}",
-    invalid_version = "TensorRT 版本格式无效: {version}",
-    runtime_install_failed = "部署 TensorRT DLL 时发生错误: {e}",
-    verify_success = "TensorRT {version} 加载验证成功。",
-    verify_failed = "TensorRT 安装验证失败: {e}",
-    success = "TensorRT {version} 安装完成。",
-    install_failed = "安装旧版 TensorRT 时发生错误: {e}",
+    unsupported_version="不支持通过 ZIP 安装 TensorRT {version}。",
+    download_start="正在从 NVIDIA 官网下载 {filename}...",
+    download_progress="已下载 {downloaded:.1f}/{total:.1f} MB ({percent:.1f}%)",
+    download_progress_unknown="已下载 {downloaded:.1f} MB",
+    download_failed="下载 TensorRT ZIP 时发生错误: {e}",
+    invalid_archive="下载的 TensorRT 文件不是有效的 ZIP 归档。",
+    install_wheel="正在安装 TensorRT Python wheel: {filename}",
+    invalid_version="TensorRT 版本格式无效: {version}",
+    runtime_install_failed="部署 TensorRT DLL 时发生错误: {e}",
+    verify_success="TensorRT {version} 加载验证成功。",
+    verify_failed="TensorRT 安装验证失败: {e}",
+    success="TensorRT {version} 安装完成。",
+    install_failed="安装旧版 TensorRT 时发生错误: {e}",
 )
-
 
 
 detect_trt = SN(
@@ -207,41 +189,37 @@ detect_trt = SN(
 )
 
 
-
 detect_onnx_cuda = SN(
-    low_compute_cap = "显卡的计算能力 {compute_cap} 低于最低要求 {min_compute_cap}，请升级显卡或使用其他后端。",
-    invalid_driver_version = "显卡的驱动版本 {driver_version} 低于最低要求 {min_driver_version}，请升级显卡驱动或使用其他后端。",
+    low_compute_cap="显卡的计算能力 {compute_cap} 低于最低要求 {min_compute_cap}，请升级显卡或使用其他后端。",
+    invalid_driver_version="显卡的驱动版本 {driver_version} 低于最低要求 {min_driver_version}，请升级显卡驱动或使用其他后端。",
 )
-
 
 
 detect_ncnn = SN(
-    start = "正在检测 NCNN 是否可用...",
-    loader_unavailable = "未找到系统 Vulkan Loader，请安装或升级显卡驱动。",
-    api_unavailable = "系统 Vulkan Loader 缺少必要的 Vulkan 1.0 API。",
-    no_compute_gpu = "未检测到具有 Vulkan 计算队列的独立或集成 GPU。",
-    no_compute_queue = "没有 Vulkan 计算队列。",
-    check_failed = "检测 Vulkan GPU 时发生错误。",
-    gpu_detected_title = "检测到可用于 NCNN 的 GPU:",
-    gpu_info = "{index}. {gpu_name}",
+    start="正在检测 NCNN 是否可用...",
+    loader_unavailable="未找到系统 Vulkan Loader，请安装或升级显卡驱动。",
+    api_unavailable="系统 Vulkan Loader 缺少必要的 Vulkan 1.0 API。",
+    no_compute_gpu="未检测到具有 Vulkan 计算队列的独立或集成 GPU。",
+    no_compute_queue="没有 Vulkan 计算队列。",
+    check_failed="检测 Vulkan GPU 时发生错误。",
+    gpu_detected_title="检测到可用于 NCNN 的 GPU:",
+    gpu_info="{index}. {gpu_name}",
 )
-
 
 
 detect_dml = SN(
-    start = "正在检测 ONNX DML 所需的 DirectX 12 GPU...",
-    loader_unavailable = "未找到系统 DXGI 或 Direct3D 12 运行库，请更新 Windows 和显卡驱动。",
-    api_unavailable = "系统缺少所需的 DXGI 或 Direct3D 12 API。",
-    no_d3d12_gpu = "未检测到支持 Direct3D 12 Feature Level 12_0 的硬件 GPU，请更新显卡驱动或使用其他后端。",
-    device_unavailable = "无法创建支持 Direct3D 12 Feature Level 12_0 的设备。",
-    check_failed = "检测 DirectX 12 GPU 时发生错误。",
-    gpu_detected_title = "检测到可用于 ONNX DML 的 DirectX 12 GPU:",
-    gpu_info = "{index}. {gpu_name}",
+    start="正在检测 ONNX DML 所需的 DirectX 12 GPU...",
+    loader_unavailable="未找到系统 DXGI 或 Direct3D 12 运行库，请更新 Windows 和显卡驱动。",
+    api_unavailable="系统缺少所需的 DXGI 或 Direct3D 12 API。",
+    no_d3d12_gpu="未检测到支持 Direct3D 12 Feature Level 12_0 的硬件 GPU，请更新显卡驱动或使用其他后端。",
+    device_unavailable="无法创建支持 Direct3D 12 Feature Level 12_0 的设备。",
+    check_failed="检测 DirectX 12 GPU 时发生错误。",
+    gpu_detected_title="检测到可用于 ONNX DML 的 DirectX 12 GPU:",
+    gpu_info="{index}. {gpu_name}",
 )
 
 
-
 modify_ultralytics_for_dml = SN(
-    file_not_exist = "目标文件 {file} 不存在。",
-    modify_failed = "替换文件时发生错误: {e}",
+    file_not_exist="目标文件 {file} 不存在。",
+    modify_failed="替换文件时发生错误: {e}",
 )

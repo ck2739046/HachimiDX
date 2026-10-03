@@ -11,23 +11,23 @@
 用法:
     python test/bench_seek_vs_grab.py "<video_path>"
 """
-import sys
-import time
+
 import statistics
 import subprocess
+import sys
+import time
 from pathlib import Path
 
 import cv2
-
 
 VIDEO_DEFAULT = (
     r"C:\Users\ck273\Desktop\[maimai谱面确认] Absolute Queen MASTER-p01-120"
     r"\[maimai谱面确认] Absolute Queen MASTER-p01-120_std.mp4"
 )
 
-GRAB_SAMPLE = 800                 # 连续 grab/read 的采样帧数
+GRAB_SAMPLE = 800  # 连续 grab/read 的采样帧数
 SEEK_DISTANCES = [1, 2, 5, 10, 25, 50, 100, 200, 300, 400, 600, 1000, 2000, 4000]
-SEEK_REPEATS = 7                  # 每个 (distance, base) 组合重复次数
+SEEK_REPEATS = 7  # 每个 (distance, base) 组合重复次数
 BASE_FRAMES = [50, 500, 1500, 4000, 8000, 12000]  # 多个起点覆盖不同 GOP 位置
 WARMUP_GRABS = 50
 
@@ -36,12 +36,20 @@ def get_keyframes(path: str) -> list[int]:
     try:
         out = subprocess.run(
             [
-                "ffprobe", "-loglevel", "error",
-                "-select_streams", "v:0",
-                "-show_entries", "packet=flags",
-                "-of", "csv", str(path),
+                "ffprobe",
+                "-loglevel",
+                "error",
+                "-select_streams",
+                "v:0",
+                "-show_entries",
+                "packet=flags",
+                "-of",
+                "csv",
+                str(path),
             ],
-            capture_output=True, text=True, check=True,
+            capture_output=True,
+            text=True,
+            check=True,
         )
     except Exception:
         return []
@@ -136,13 +144,17 @@ def main():
     kfs = get_keyframes(video)
     if len(kfs) >= 2:
         gaps = [kfs[i + 1] - kfs[i] for i in range(len(kfs) - 1)]
-        print(f"关键帧 {len(kfs)} 个 | GOP gap min={min(gaps)} "
-              f"median={int(statistics.median(gaps))} max={max(gaps)}\n")
+        print(
+            f"关键帧 {len(kfs)} 个 | GOP gap min={min(gaps)} "
+            f"median={int(statistics.median(gaps))} max={max(gaps)}\n"
+        )
 
     grab_unit = measure_grab_unit(cap)
     read_unit = measure_read_unit(cap)
     print(f"grab 单价: {grab_unit * 1e6:8.1f} us/帧")
-    print(f"read 单价: {read_unit * 1e6:8.1f} us/帧  (read/grab = {read_unit / grab_unit:.2f}x)\n")
+    print(
+        f"read 单价: {read_unit * 1e6:8.1f} us/帧  (read/grab = {read_unit / grab_unit:.2f}x)\n"
+    )
 
     # 汇总 seek 成本分布 (折算成等效 grab 次数)
     print(f"{'distance':>9} | {'p50':>7} {'p90':>7} {'max':>7}  (单位: 等效 grab 次数)")
@@ -169,9 +181,11 @@ def main():
     print("=== 候选阈值对比 ===")
     for cand in [300, 400, 600]:
         if cand in p90_by_dist:
-            print(f"  SEEK_THRESHOLD={cand}: gap={cand} 走 grab 成本={cand} grabs, "
-                  f"同点 seek p90={p90_by_dist[cand]:.0f} / max={max_by_dist[cand]:.0f} grabs "
-                  f"-> {'grab 更稳' if cand < p90_by_dist[cand] else 'seek 更划算'}")
+            print(
+                f"  SEEK_THRESHOLD={cand}: gap={cand} 走 grab 成本={cand} grabs, "
+                f"同点 seek p90={p90_by_dist[cand]:.0f} / max={max_by_dist[cand]:.0f} grabs "
+                f"-> {'grab 更稳' if cand < p90_by_dist[cand] else 'seek 更划算'}"
+            )
 
     cap.release()
 

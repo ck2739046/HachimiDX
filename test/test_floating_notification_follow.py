@@ -35,14 +35,14 @@ _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from PyQt6.QtCore import QEvent, QRect  # noqa: E402
-from PyQt6.QtTest import QTest  # noqa: E402
-from PyQt6.QtWidgets import QApplication, QFrame, QMainWindow, QWidget  # noqa: E402
+from PyQt6.QtCore import QEvent, QRect
+from PyQt6.QtTest import QTest
+from PyQt6.QtWidgets import QApplication, QFrame, QMainWindow, QWidget
 
 # 部分 widget 在 import 期就会构造 QPixmap，必须先有 QApplication
 _app = QApplication.instance() or QApplication(sys.argv[:1])
 
-from src.app.widgets.floating_notification import (  # noqa: E402
+from src.app.widgets.floating_notification import (
     FloatingNotificationManager,
 )
 
@@ -75,7 +75,6 @@ class _FakeAnchor:
 
 
 class FloatingNotificationFollowTest(unittest.TestCase):
-
     def setUp(self) -> None:
         self.manager = FloatingNotificationManager.get_instance()
         self._reset_manager()
@@ -107,10 +106,16 @@ class FloatingNotificationFollowTest(unittest.TestCase):
 
     def _assert_at(self, notification, anchor, index: int) -> None:
         exp_x, exp_y = expected_pos(anchor, index)
-        self.assertLessEqual(abs(notification.x() - exp_x), TOLERANCE,
-                             f"x: 实际 {notification.x()}，期望 {exp_x}")
-        self.assertLessEqual(abs(notification.y() - exp_y), TOLERANCE,
-                             f"y: 实际 {notification.y()}，期望 {exp_y}")
+        self.assertLessEqual(
+            abs(notification.x() - exp_x),
+            TOLERANCE,
+            f"x: 实际 {notification.x()}，期望 {exp_x}",
+        )
+        self.assertLessEqual(
+            abs(notification.y() - exp_y),
+            TOLERANCE,
+            f"y: 实际 {notification.y()}，期望 {exp_y}",
+        )
 
     # ---------------------------------------------------------------- 锚点归一化
 
@@ -195,7 +200,7 @@ class FloatingNotificationFollowTest(unittest.TestCase):
         notification = self.manager.create_notification("fast", self.window)
         self.assertIn(id(self.window), self.manager._hooked_anchors)
 
-        self.manager._follow_timer.stop()          # 只留事件快速路径
+        self.manager._follow_timer.stop()  # 只留事件快速路径
 
         self.window.move(500, 380)
         QTest.qWait(80)
@@ -224,7 +229,7 @@ class FloatingNotificationFollowTest(unittest.TestCase):
         self.assertIn(id(self.window), self.manager._hooked_anchors)  # 还有第二条
 
         self.manager._close_notification(second)
-        self.assertEqual(self.manager._hooked_anchors, {})            # 全关了 → 摘钩
+        self.assertEqual(self.manager._hooked_anchors, {})  # 全关了 → 摘钩
         self.assertFalse(self.manager._follow_timer.isActive())
 
     def test_non_widget_anchor_is_not_hooked(self) -> None:
@@ -242,17 +247,17 @@ class FloatingNotificationFollowTest(unittest.TestCase):
 
     def test_invalid_color_shows_obvious_anomaly(self) -> None:
         """配色配置非法时不能崩，且要用显眼的异常色（纯黑），不能悄悄回退成正常配色"""
-        from src.app.ui_style import UI_Style  # noqa: PLC0415
+        from src.app.ui_style import UI_Style
 
-        original = UI_Style.COLORS['task_running']
-        UI_Style.COLORS['task_running'] = "not-a-color"
+        original = UI_Style.COLORS["task_running"]
+        UI_Style.COLORS["task_running"] = "not-a-color"
         try:
             notification = self.manager.create_notification("bad-color", self.window)
             frame = notification.findChild(QFrame)
-            self.assertIn("rgba(0,0,0,204)", frame.styleSheet())         # 异常色：黑
-            self.assertNotIn("rgba(31,111,61,", frame.styleSheet())      # 不是正常配色
+            self.assertIn("rgba(0,0,0,204)", frame.styleSheet())  # 异常色：黑
+            self.assertNotIn("rgba(31,111,61,", frame.styleSheet())  # 不是正常配色
         finally:
-            UI_Style.COLORS['task_running'] = original
+            UI_Style.COLORS["task_running"] = original
 
     # ---------------------------------------------------------------- 最小化 / 恢复
 
@@ -325,14 +330,18 @@ class FloatingNotificationFollowTest(unittest.TestCase):
         self.assertFalse(notification.isVisible())
 
         QTest.qWait(500)  # 已超过原剩余倒计时，但不该被关掉（倒计时已暂停）
-        self.assertTrue(any(n is notification for n in self.manager._active_notifications))
+        self.assertTrue(
+            any(n is notification for n in self.manager._active_notifications)
+        )
 
         self.window.showNormal()
         QTest.qWait(FOLLOW_WAIT)
         self.assertTrue(notification.isVisible())  # 恢复后通知还在
 
         QTest.qWait(500)  # 剩余倒计时走完 → 自动关闭
-        self.assertFalse(any(n is notification for n in self.manager._active_notifications))
+        self.assertFalse(
+            any(n is notification for n in self.manager._active_notifications)
+        )
 
     # ---------------------------------------------------------------- 定时器生命周期
 

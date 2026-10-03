@@ -18,7 +18,7 @@ def calc_iou(w: float, d: float) -> float:
 
 def calc_enclosing_diag2(w: float, d: float) -> float:
     """最小包围框对角线平方（框高=框宽=w 归一化为 1）。"""
-    return (w + d) ** 2 + w ** 2
+    return (w + d) ** 2 + w**2
 
 
 def calc_diou_rescaled(w: float, d: float) -> float:
@@ -28,7 +28,7 @@ def calc_diou_rescaled(w: float, d: float) -> float:
     else:
         iou = calc_iou(w, d)
     c2 = calc_enclosing_diag2(w, d)
-    raw = iou - (d ** 2) / c2
+    raw = iou - (d**2) / c2
     return (raw + 1.0) / 2.0
 
 
@@ -52,7 +52,9 @@ def main():
     print("=" * 55)
 
     while True:
-        user_input = input("\n请输入 DIoU 阈值 (逗号分隔，如 0.99, 0.98, 0.975): ").strip()
+        user_input = input(
+            "\n请输入 DIoU 阈值 (逗号分隔，如 0.99, 0.98, 0.975): "
+        ).strip()
         if not user_input:
             print("退出。")
             return
@@ -63,7 +65,7 @@ def main():
             return
 
         print(f"\n  {'DIoU 阈值':>10}  {'最大中心距离 / 框宽':>22}")
-        print(f"  {'-'*10}  {'-'*22}")
+        print(f"  {'-' * 10}  {'-' * 22}")
 
         for t in sorted(thresholds, reverse=True):
             ratio = max_distance_ratio_for_diou(t)
@@ -75,4 +77,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

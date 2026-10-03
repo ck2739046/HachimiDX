@@ -1,6 +1,7 @@
 from dataclasses import dataclass
+
 from .detect_nvidia import NvidiaGpuInfo, get_nvidia_gpu_info
-from .op_result import OpResult, ok, err
+from .op_result import OpResult, err, ok
 
 # 最低显存需要 3GB
 MIN_TRT_VRAM_MIB = 3 * 1024
@@ -9,20 +10,21 @@ MIN_TRT_VRAM_MIB = 3 * 1024
 def _format_mb_to_gb(mib: int) -> str:
     # 最多 1 位小数，整数时去掉 ".0"
     text = f"{mib / 1024:.1f}"
-    return text[:-2] if text.endswith(".0") else text
+    return text.removesuffix(".0")
+
 
 @dataclass
 class tensorrt_config:
-    compute_capability:  tuple[int, int] 
-    win_driver_ver:      tuple[int, int]
-    torch_ver:           str
-    torch_cuda_ver:      str
-    torchvision_ver:     str
+    compute_capability: tuple[int, int]
+    win_driver_ver: tuple[int, int]
+    torch_ver: str
+    torch_cuda_ver: str
+    torchvision_ver: str
     onnxruntime_gpu_ver: str
-    tensorRT_ver:        str
-    is_trt_legacy:       bool
-    numpy_ver:           str
-    opencv_ver:          str
+    tensorRT_ver: str
+    is_trt_legacy: bool
+    numpy_ver: str
+    opencv_ver: str
 
 
 @dataclass
@@ -38,41 +40,37 @@ class TensorRTGpuDetection:
 
 # 以 sm 从高到低排序
 tensorrt_config_list: list[tensorrt_config] = [
-
     # sm7.5 Turing and later
-    tensorrt_config( 
-        compute_capability= (7, 5),
-        win_driver_ver=     (580, 65),
-        torch_ver=          "2.11.0",     # 首个正式支持 cu130 的版本
-        torch_cuda_ver=     "cu130",
-        torchvision_ver=    "0.26.0",
+    tensorrt_config(
+        compute_capability=(7, 5),
+        win_driver_ver=(580, 65),
+        torch_ver="2.11.0",  # 首个正式支持 cu130 的版本
+        torch_cuda_ver="cu130",
+        torchvision_ver="0.26.0",
         onnxruntime_gpu_ver="1.28.0",
-        tensorRT_ver=       "10.16.1.11", # 最后 10.x 版本
-        is_trt_legacy=      False,
-        numpy_ver=          "2.4.6",      # 最后支持 py 3.11 的版本
-        opencv_ver=         "5.0.0.93",
+        tensorRT_ver="10.16.1.11",  # 最后 10.x 版本
+        is_trt_legacy=False,
+        numpy_ver="2.4.6",  # 最后支持 py 3.11 的版本
+        opencv_ver="5.0.0.93",
     ),
-
     # sm6.0 Pascal ~ sm7.0 Volta
-    tensorrt_config( 
-        compute_capability= (6, 0),
-        win_driver_ver=     (520, 6),
-        torch_ver=          "2.3.1",      # 最后 cudnn 8 的版本，旧版 onnxruntime-gpu 不支持 cudnn 9
-        torch_cuda_ver=     "cu118",
-        torchvision_ver=    "0.18.1",
-        onnxruntime_gpu_ver="1.18.1",     # 最后默认 cuda 11 的版本
-        tensorRT_ver=       "8.6.1",      # 最后支持 sm6.0 的版本
-        is_trt_legacy=      True,
-        numpy_ver=          "1.26.4",     # 最后 1.x 版本，旧版 onnxruntime-gpu 需要
-        opencv_ver=         "4.11.0.86",  # 最后符合 numpy < 2.0 的 opencv
+    tensorrt_config(
+        compute_capability=(6, 0),
+        win_driver_ver=(520, 6),
+        torch_ver="2.3.1",  # 最后 cudnn 8 的版本，旧版 onnxruntime-gpu 不支持 cudnn 9
+        torch_cuda_ver="cu118",
+        torchvision_ver="0.18.1",
+        onnxruntime_gpu_ver="1.18.1",  # 最后默认 cuda 11 的版本
+        tensorRT_ver="8.6.1",  # 最后支持 sm6.0 的版本
+        is_trt_legacy=True,
+        numpy_ver="1.26.4",  # 最后 1.x 版本，旧版 onnxruntime-gpu 需要
+        opencv_ver="4.11.0.86",  # 最后符合 numpy < 2.0 的 opencv
     ),
-
     # 已禁用 trt 8.5.3
     # 1. zip 需要登录英伟达账户才能下载
     # 2. 此版本不支持 python 3.11
-
     # # sm5.0 Maxwell
-    # tensorrt_config( 
+    # tensorrt_config(
     #     compute_capability= (5, 0),
     #     win_driver_ver=     (520, 6),
     #     torch_ver=          "2.3.1",      # 最后 cudnn 8 的版本，旧版 onnxruntime-gpu 不支持 cudnn 9
@@ -85,8 +83,6 @@ tensorrt_config_list: list[tensorrt_config] = [
     #     opencv_ver=         "4.11.0.86",  # 最后符合 numpy < 2.0 的 opencv
     # ),
 ]
-
-
 
 
 def detect_trt_availability(
@@ -126,7 +122,6 @@ def detect_trt_availability(
     return ok(detections)
 
 
-
 def _check_gpu(
     T,
     compute_cap: tuple[int, int],
@@ -151,7 +146,10 @@ def _check_gpu(
     # 计算输入的 compute_cap 属于哪一个配置
     for config in tensorrt_config_list:
         if compute_cap >= config.compute_capability:
-            if target_config is None or config.compute_capability > target_config.compute_capability:
+            if (
+                target_config is None
+                or config.compute_capability > target_config.compute_capability
+            ):
                 target_config = config
     if target_config is None:
         # 计算能力低于最低配置

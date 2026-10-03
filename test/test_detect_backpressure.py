@@ -1,4 +1,5 @@
 """detect 推理队列反压处理的隔离测试。"""
+
 import os
 import sys
 import unittest
@@ -11,8 +12,7 @@ _WS_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 if _WS_ROOT not in sys.path:
     sys.path.insert(0, _WS_ROOT)
 
-from src.core.auto_rechart.detect import detect
-from src.core.auto_rechart.detect import detect_inference
+from src.core.auto_rechart.detect import detect, detect_inference
 
 
 class _FakeProcess:
@@ -160,7 +160,9 @@ class TestMainLoopOrder(unittest.TestCase):
         with (
             patch.object(detect.cv2, "VideoCapture") as video_capture,
             patch.object(detect, "Decoder", side_effect=create_decoder),
-            patch.object(detect, "create_inferencer", return_value=detect.ok(inferencer)),
+            patch.object(
+                detect, "create_inferencer", return_value=detect.ok(inferencer)
+            ),
             patch.object(detect, "_postprocess_results", return_value=[]),
             patch.object(detect, "_save_detect_results"),
         ):

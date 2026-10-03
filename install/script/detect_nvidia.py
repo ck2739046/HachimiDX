@@ -1,5 +1,5 @@
-from dataclasses import dataclass
 import subprocess
+from dataclasses import dataclass
 
 from .op_result import OpResult, err, ok
 

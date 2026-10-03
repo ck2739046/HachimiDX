@@ -1,8 +1,9 @@
-import cv2
-from ultralytics import YOLO
 import os
-import numpy as np
 import time
+
+import cv2
+import numpy as np
+from ultralytics import YOLO
 
 
 def detect_video(
@@ -12,7 +13,7 @@ def detect_video(
     device: str,
     show_progress: bool,
     task: str,
-    batch: int
+    batch: int,
 ):
     """
     使用YOLO模型对视频进行目标检测，并在原始视频上绘制检测框后输出新视频。
@@ -68,7 +69,7 @@ def detect_video(
         os.makedirs(output_dir)
 
     # 5. 创建视频写入器
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # MP4编码
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # MP4编码
     out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
     if not out.isOpened():
         raise RuntimeError(f"无法创建输出视频文件: {output_path}")
@@ -89,7 +90,7 @@ def detect_video(
             imgsz=960,
             device=device,
             verbose=False,
-            half=True
+            half=True,
         )
 
         for result in yolo_results_generator:
@@ -105,10 +106,12 @@ def detect_video(
                 if result.obb is not None and len(result.obb) > 0:
                     # 转换为numpy批量获取数据
                     obb = result.obb.cpu().numpy()
-                    xyxyxyxy = obb.xyxyxyxy  # (N, 4, 2) -> N个框，每个框4个点，每个点(x,y)
-                    confs = obb.conf          # (N, 1)
-                    cls_ids = obb.cls        # (N, 1)
-                    
+                    xyxyxyxy = (
+                        obb.xyxyxyxy
+                    )  # (N, 4, 2) -> N个框，每个框4个点，每个点(x,y)
+                    confs = obb.conf  # (N, 1)
+                    cls_ids = obb.cls  # (N, 1)
+
                     # 绘制四边形
                     for i in range(len(obb)):
                         # 获取四个点的坐标并提取出明确的 x1,y1~x4,y4
@@ -116,17 +119,14 @@ def detect_video(
                         x2, y2 = float(xyxyxyxy[i, 1, 0]), float(xyxyxyxy[i, 1, 1])
                         x3, y3 = float(xyxyxyxy[i, 2, 0]), float(xyxyxyxy[i, 2, 1])
                         x4, y4 = float(xyxyxyxy[i, 3, 0]), float(xyxyxyxy[i, 3, 1])
-                        
-                        points = np.array([
-                            [x1, y1],
-                            [x2, y2],
-                            [x3, y3],
-                            [x4, y4]
-                        ], dtype=np.int32)
-                        
+
+                        points = np.array(
+                            [[x1, y1], [x2, y2], [x3, y3], [x4, y4]], dtype=np.int32
+                        )
+
                         conf = float(confs[i])
                         cls_id = int(cls_ids[i])
-                        
+
                         # 根据类别ID选择颜色
                         color = (0, 255, 0)  # 绿色
                         # 绘制多边形
@@ -135,46 +135,63 @@ def detect_video(
                         label = f"{model.names[cls_id]} {conf:.2f}"
                         # 找到多边形最上方的点作为标签位置
                         label_x, label_y = min(points, key=lambda p: (p[1], p[0]))
-                        cv2.putText(frame, label, (int(label_x), int(label_y) - 10),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                        cv2.putText(
+                            frame,
+                            label,
+                            (int(label_x), int(label_y) - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.5,
+                            color,
+                            2,
+                        )
             else:
                 # 标准检测模型结果（矩形框）
                 if result.boxes is not None and len(result.boxes) > 0:
                     # 转换为numpy批量获取数据
                     boxes = result.boxes.cpu().numpy()
-                    xyxy = boxes.xyxy    # shape: (N, 4)
-                    confs = boxes.conf    # shape: (N, 1)
+                    xyxy = boxes.xyxy  # shape: (N, 4)
+                    confs = boxes.conf  # shape: (N, 1)
                     cls_ids = boxes.cls  # shape: (N, 1)
-                    
+
                     # 绘制矩形框（转换为四个点）
                     for i in range(len(boxes)):
                         # 提取明确的 bbox 边界坐标构建四点
                         bx1, by1, bx2, by2 = map(float, xyxy[i])
-                        
+
                         x1, y1 = bx1, by1
                         x2, y2 = bx2, by1
                         x3, y3 = bx2, by2
                         x4, y4 = bx1, by2
-                        
+
                         # 将矩形转换为四个点
-                        points = np.array([
-                            [x1, y1],  # 左上角
-                            [x2, y2],  # 右上角
-                            [x3, y3],  # 右下角
-                            [x4, y4]   # 左下角
-                        ], dtype=np.int32)
-                        
+                        points = np.array(
+                            [
+                                [x1, y1],  # 左上角
+                                [x2, y2],  # 右上角
+                                [x3, y3],  # 右下角
+                                [x4, y4],  # 左下角
+                            ],
+                            dtype=np.int32,
+                        )
+
                         conf = float(confs[i])
                         cls_id = int(cls_ids[i])
-                        
+
                         # 根据类别ID选择颜色
                         color = (0, 255, 0)  # 绿色
                         # 绘制多边形（四边形）
                         cv2.polylines(frame, [points], True, color, 2)
                         # 添加标签（类别和置信度）
                         label = f"{model.names[cls_id]} {conf:.2f}"
-                        cv2.putText(frame, label, (int(x1), int(y1) - 10),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                        cv2.putText(
+                            frame,
+                            label,
+                            (int(x1), int(y1) - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.5,
+                            color,
+                            2,
+                        )
 
             # 写入输出视频
             out.write(frame)
@@ -183,7 +200,10 @@ def detect_video(
             if show_progress and frame_count % 30 == 0:
                 elapsed_time = time.time() - start_time
                 current_fps = frame_count / elapsed_time if elapsed_time > 0 else 0
-                print(f"已处理 {frame_count}/{total_frames} 帧 ({frame_count/total_frames*100:.1f}%) | 速度: {current_fps:.1f} FPS", end='\r')
+                print(
+                    f"已处理 {frame_count}/{total_frames} 帧 ({frame_count / total_frames * 100:.1f}%) | 速度: {current_fps:.1f} FPS",
+                    end="\r",
+                )
 
     except Exception as e:
         raise RuntimeError(f"视频处理过程中出现错误: {e.__str__()}")
@@ -201,7 +221,6 @@ def detect_video(
 
 
 if __name__ == "__main__":
-
     try:
         output_path = detect_video(
             model_path=r"D:\git\aaa-HachimiDX-Convert\src\resources\models\detect1.onnx",
@@ -210,13 +229,12 @@ if __name__ == "__main__":
             device="0",
             show_progress=True,
             task="detect",
-            batch=2
+            batch=2,
         )
         print(f"检测完成，输出视频: {output_path}")
     except Exception as e:
         print(f"错误: {e}")
         exit(1)
-
 
 
 # 笔记本 12700h + rtx 3060 6g, 处理进度20%
@@ -245,4 +263,3 @@ if __name__ == "__main__":
 # 结论
 # detect/obb 在 pt/engine 下都使用 batch 2
 # export 需求显存 4g
-

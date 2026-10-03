@@ -1,4 +1,5 @@
 """在提问前清空 stdin 缓冲区，避免历史按键被误当作下一次 input() 的答案。"""
+
 import sys
 
 
@@ -7,6 +8,7 @@ def flush_stdin() -> None:
     # Windows: 用 msvcrt 抽干控制台输入队列
     try:
         import msvcrt
+
         while msvcrt.kbhit():
             msvcrt.getch()
         return
@@ -16,6 +18,7 @@ def flush_stdin() -> None:
     # POSIX: 直接刷掉输入队列
     try:
         import termios
+
         termios.tcflush(sys.stdin, termios.TCIFLUSH)
     except (ImportError, OSError):
         # 非 TTY（重定向/管道）时无需处理

@@ -29,7 +29,6 @@ YELLOW = "\x1b[93m"
 CYAN = "\x1b[96m"
 
 
-
 def green(s: str) -> str:
     """绿色：表示成功/完成的提示（安装完成、卸载完成等）"""
     return f"{GREEN}{s}{RESET}"
@@ -66,7 +65,7 @@ def note_on_hint(hint_colored: str, note: str) -> str:
 
 
 def get_separator(text: str) -> str:
-    """获取分隔线：与文本等宽的一行 === """
+    """获取分隔线：与文本等宽的一行 ==="""
     width = 0
     for c in text:
         if unicodedata.east_asian_width(c) in "WF":

@@ -1,10 +1,9 @@
 import ctypes
 import uuid
-from dataclasses import dataclass
 from ctypes import wintypes
+from dataclasses import dataclass
 
 from .op_result import OpResult, err, ok
-
 
 D3D_FEATURE_LEVEL_12_0 = 0xC000
 DXGI_ADAPTER_FLAG_SOFTWARE = 0x00000002

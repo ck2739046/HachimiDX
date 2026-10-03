@@ -2,8 +2,8 @@
 诊断 audioread / librosa 的 ffmpeg 后端是否可用。
 """
 
-import sys
 import shutil
+import sys
 from pathlib import Path
 
 # --- 注入项目根目录到 sys.path（与 worker 逻辑一致） ---
@@ -39,9 +39,9 @@ import audioread
 # ============================================================
 # [2] 注入前：COMMANDS、PATH 解析
 # ============================================================
-print(f"\n[2] 注入前")
+print("\n[2] 注入前")
 print(f"    audioread.ffdec.COMMANDS: {audioread.ffdec.COMMANDS}")
-print(f"    PATH 解析（shutil.which）：")
+print("    PATH 解析（shutil.which）：")
 for cmd in audioread.ffdec.COMMANDS:
     resolved = shutil.which(cmd)
     if resolved:
@@ -52,32 +52,34 @@ for cmd in audioread.ffdec.COMMANDS:
 # ============================================================
 # [3] 注入前测试：audio_open 打开测试文件
 # ============================================================
-print(f"\n[3] 注入前测试")
-print(f"    audioread.audio_open() 测试：")
+print("\n[3] 注入前测试")
+print("    audioread.audio_open() 测试：")
 try:
     with audioread.audio_open(_test_audio) as f:
-        print(f"      [OK] sr={f.samplerate}, ch={f.channels}, duration={f.duration:.3f}s")
+        print(
+            f"      [OK] sr={f.samplerate}, ch={f.channels}, duration={f.duration:.3f}s"
+        )
 except audioread.exceptions.NoBackendError:
-    print(f"      [预期] NoBackendError —— 系统 PATH 中没有 ffmpeg，mp4 无法解码")
+    print("      [预期] NoBackendError —— 系统 PATH 中没有 ffmpeg，mp4 无法解码")
 except Exception as e:
     print(f"      [异常] {type(e).__name__}: {e}")
 
 # ============================================================
 # [4] 注入（与 audio_align_worker.py L25-30 完全一致）
 # ============================================================
-print(f"\n[4] 注入")
+print("\n[4] 注入")
 if _ffmpeg_str not in audioread.ffdec.COMMANDS:
     audioread.ffdec.COMMANDS = (_ffmpeg_str,) + audioread.ffdec.COMMANDS
     print(f"    已写入: {_ffmpeg_str}")
 else:
-    print(f"    已在列表中，跳过")
+    print("    已在列表中，跳过")
 
 # ============================================================
 # [5] 注入后：COMMANDS、PATH 解析
 # ============================================================
-print(f"\n[5] 注入后")
+print("\n[5] 注入后")
 print(f"    audioread.ffdec.COMMANDS: {audioread.ffdec.COMMANDS}")
-print(f"    PATH 解析（shutil.which）：")
+print("    PATH 解析（shutil.which）：")
 for cmd in audioread.ffdec.COMMANDS:
     resolved = shutil.which(cmd)
     if resolved:
@@ -91,23 +93,25 @@ for cmd in audioread.ffdec.COMMANDS:
 audioread.available_backends(flush_cache=True)
 backends = audioread.available_backends()
 
-print(f"\n[6] 注入后测试")
+print("\n[6] 注入后测试")
 print(f"    audioread 可用后端: {backends}")
-print(f"    audioread.audio_open() 测试：")
+print("    audioread.audio_open() 测试：")
 try:
     with audioread.audio_open(_test_audio) as f:
-        print(f"      [OK] sr={f.samplerate}, ch={f.channels}, duration={f.duration:.3f}s")
+        print(
+            f"      [OK] sr={f.samplerate}, ch={f.channels}, duration={f.duration:.3f}s"
+        )
 except audioread.exceptions.NoBackendError:
-    print(f"      [FAIL] NoBackendError —— 注入后仍失败！")
+    print("      [FAIL] NoBackendError —— 注入后仍失败！")
 except Exception as e:
     print(f"      [异常] {type(e).__name__}: {e}")
 
 import librosa
 
-print(f"    librosa.load() 测试：")
+print("    librosa.load() 测试：")
 try:
     y, sr = librosa.load(_test_audio, sr=None, duration=1.0)
-    print(f"      [OK] sr={sr}, samples={len(y)}, duration={len(y)/sr:.3f}s")
+    print(f"      [OK] sr={sr}, samples={len(y)}, duration={len(y) / sr:.3f}s")
 except audioread.exceptions.NoBackendError as e:
     print(f"      [FAIL] NoBackendError: {e}")
 except Exception as e:

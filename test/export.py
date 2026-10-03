@@ -1,33 +1,32 @@
 from ultralytics import YOLO
-import sys
-import os
 
 
 def convert_to_tensorRT(model_path, task, batch):
-    
+
     try:
         batch = int(batch)
         if batch < 1:
             print("Batch size must be at least 1.")
             return
-        
+
         print(f"Converting to TensorRT with batch size {batch}...")
 
         model = YOLO(model_path, task=task)
-        model.export(format="engine",
-                    imgsz=960,
-                    half=True,
-                    dynamic=True,
-                    simplify=True,
-                    workspace=None,
-                    batch=batch)
-        
+        model.export(
+            format="engine",
+            imgsz=960,
+            half=True,
+            dynamic=True,
+            simplify=True,
+            workspace=None,
+            batch=batch,
+        )
+
         return True
-        
+
     except Exception as e:
         print(f"Error during TensorRT conversion: {e}")
         return False
-
 
 
 def convert_to_onnx(model_path, task, batch):
@@ -37,37 +36,41 @@ def convert_to_onnx(model_path, task, batch):
         if batch < 1:
             print("Batch size must be at least 1.")
             return
-        
+
         print(f"Converting to ONNX with batch size {batch}...")
 
         # 智能选择 opset 版本
         default_opset = 17
         try:
             from torch.onnx import _constants
-            max_opset = int(getattr(_constants, "ONNX_TORCHSCRIPT_EXPORTER_MAX_OPSET", default_opset))
+
+            max_opset = int(
+                getattr(
+                    _constants, "ONNX_TORCHSCRIPT_EXPORTER_MAX_OPSET", default_opset
+                )
+            )
             opset = 18 if max_opset >= 18 else default_opset
         except Exception:
             opset = default_opset
 
         model = YOLO(model_path, task=task)
-        model.export(format="onnx",
-                    opset=opset,
-                    half=True,
-                    dynamic=True,
-                    simplify=True,
-                    batch=batch)
-        
+        model.export(
+            format="onnx",
+            opset=opset,
+            half=True,
+            dynamic=True,
+            simplify=True,
+            batch=batch,
+        )
+
         return True
-        
+
     except Exception as e:
         print(f"Error during ONNX conversion: {e}")
-        return False        
-    
-        
+        return False
 
 
 if __name__ == "__main__":
-    
     model_path = r"D:\git\aaa-HachimiDX-Convert\src\resources\models\detect.pt"
     task = "detect"
     batch = 4
@@ -86,14 +89,13 @@ if __name__ == "__main__":
     # batch 4 2.8g 2.8g
     # batch 6 3.8g 3.6g
 
-
     convert_to_onnx(model_path, task, batch)
 
 
 # [03/13/2026-13:17:50] [TRT] [W] Requested amount of GPU memory (2833252352 bytes) could not be allocated. There may not be enough free memory for allocation to succeed.
 # [03/13/2026-13:17:50] [TRT] [W] UNSUPPORTED_STATE: Skipping tactic 28 due to insufficient memory on requested size of 2833252352 detected for tactic 0x0000000204040736.
 # [03/13/2026-13:17:50] [TRT] [E] [virtualMemoryBuffer.cpp::nvinfer1::StdVirtualMemoryBufferImpl::resizePhysical::154] Error Code 2: OutOfMemory (Requested size was 2833252352 bytes.)
-# [03/13/2026-13:17:50] [TRT] [E] [virtualMemoryBuffer.cpp::nvinfer1::StdVirtualMemoryBufferImpl::resizePhysical::154] Error Code 2: OutOfMemory (Requested size was 2833252352 bytes.)       
+# [03/13/2026-13:17:50] [TRT] [E] [virtualMemoryBuffer.cpp::nvinfer1::StdVirtualMemoryBufferImpl::resizePhysical::154] Error Code 2: OutOfMemory (Requested size was 2833252352 bytes.)
 
 # [03/13/2026-13:19:13] [TRT] [W] Requested amount of GPU memory (3541041152 bytes) could not be allocated. There may not be enough free memory for allocation to succeed.
 # [03/13/2026-13:19:13] [TRT] [W] UNSUPPORTED_STATE: Skipping tactic 233 due to insufficient memory on requested size of 3541041152 detected for tactic 0x000000020a0a02c0.
@@ -101,7 +103,7 @@ if __name__ == "__main__":
 # [03/13/2026-13:19:13] [TRT] [E] [virtualMemoryBuffer.cpp::nvinfer1::StdVirtualMemoryBufferImpl::resizePhysical::141] Error Code 1: Cuda Driver (In nvinfer1::StdVirtualMemoryBufferImpl::resizePhysical at optimizer/builder/virtualMemoryBuffer.cpp:141)
 
 
-'''
+"""
 [03/24/2026-21:58:56] [TRT] [I] Loaded engine size: 14 MiB
 
 [03/24/2026-21:58:56] [TRT] [I] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +0, GPU +116, now: CPU 0, GPU 126 (MiB)
@@ -111,4 +113,4 @@ if __name__ == "__main__":
 [03/24/2026-21:58:57] [TRT] [I] Loaded engine size: 14 MiB
 
 [03/24/2026-21:58:57] [TRT] [I] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +0, GPU +121, now: CPU 0, GPU 258 (MiB)
-'''
+"""

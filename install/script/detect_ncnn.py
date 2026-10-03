@@ -3,7 +3,6 @@ from dataclasses import dataclass
 
 from .op_result import OpResult, err, ok
 
-
 VK_SUCCESS = 0
 VK_INCOMPLETE = 5
 VK_STRUCTURE_TYPE_APPLICATION_INFO = 0
@@ -135,7 +134,9 @@ def _create_instance(vulkan) -> VkInstance:
         ppEnabledExtensionNames=None,
     )
     instance = VkInstance()
-    result = vulkan.vkCreateInstance(ctypes.byref(create_info), None, ctypes.byref(instance))
+    result = vulkan.vkCreateInstance(
+        ctypes.byref(create_info), None, ctypes.byref(instance)
+    )
     if result != VK_SUCCESS or not instance:
         raise RuntimeError(f"vkCreateInstance failed with VkResult {result}")
     return instance
@@ -146,17 +147,23 @@ def _enumerate_physical_devices(vulkan, instance: VkInstance) -> list[VkPhysical
         count = ctypes.c_uint32(0)
         result = vulkan.vkEnumeratePhysicalDevices(instance, ctypes.byref(count), None)
         if result != VK_SUCCESS:
-            raise RuntimeError(f"vkEnumeratePhysicalDevices(count) failed with VkResult {result}")
+            raise RuntimeError(
+                f"vkEnumeratePhysicalDevices(count) failed with VkResult {result}"
+            )
         if count.value == 0:
             return []
 
         devices = (VkPhysicalDevice * count.value)()
         actual_count = ctypes.c_uint32(count.value)
-        result = vulkan.vkEnumeratePhysicalDevices(instance, ctypes.byref(actual_count), devices)
+        result = vulkan.vkEnumeratePhysicalDevices(
+            instance, ctypes.byref(actual_count), devices
+        )
         if result == VK_SUCCESS:
-            return list(devices[:actual_count.value])
+            return list(devices[: actual_count.value])
         if result != VK_INCOMPLETE:
-            raise RuntimeError(f"vkEnumeratePhysicalDevices(list) failed with VkResult {result}")
+            raise RuntimeError(
+                f"vkEnumeratePhysicalDevices(list) failed with VkResult {result}"
+            )
 
     raise RuntimeError("Vulkan physical device list kept changing during enumeration")
 
@@ -168,10 +175,12 @@ def _has_compute_queue(vulkan, device: VkPhysicalDevice) -> bool:
         return False
 
     properties = (_VkQueueFamilyProperties * count.value)()
-    vulkan.vkGetPhysicalDeviceQueueFamilyProperties(device, ctypes.byref(count), properties)
+    vulkan.vkGetPhysicalDeviceQueueFamilyProperties(
+        device, ctypes.byref(count), properties
+    )
     return any(
         queue.queueCount > 0 and queue.queueFlags & VK_QUEUE_COMPUTE_BIT
-        for queue in properties[:count.value]
+        for queue in properties[: count.value]
     )
 
 
@@ -201,7 +210,11 @@ def _get_vulkan_gpus(T) -> OpResult[list[NcnnGpuDetection]]:
                 VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU,
             }:
                 continue
-            gpu_name = bytes(properties.deviceName).split(b"\0", 1)[0].decode("utf-8", errors="replace")
+            gpu_name = (
+                bytes(properties.deviceName)
+                .split(b"\0", 1)[0]
+                .decode("utf-8", errors="replace")
+            )
             if _has_compute_queue(vulkan, device):
                 gpus.append(NcnnGpuDetection(gpu_name, True))
             else:

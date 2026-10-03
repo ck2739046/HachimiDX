@@ -1,12 +1,11 @@
 import datetime
-import sys
-import subprocess
-from pathlib import Path
 import shutil
+import subprocess
+import sys
+from pathlib import Path
 
 from . import console_journal, en_us, zh_cn
-from .op_result import OpResult, ok, err, print_op_result
-from .console_input import ask
+from .choose_backend import choose_backend
 from .color import (
     cyan,
     get_separator,
@@ -14,17 +13,15 @@ from .color import (
     hint,
     note_on_hint,
     red,
-    reverse,
     yellow,
 )
-
-from .choose_backend import choose_backend
+from .console_input import ask
 from .detect_onnx_cuda import onnx_cuda_config
 from .detect_trt import tensorrt_config
 from .download_legacy_trt import install_legacy_tensorrt, remove_legacy_tensorrt_runtime
+from .op_result import OpResult, err, ok, print_op_result
 
-
-ROOT = Path(__file__).resolve().parents[2] # 往上三级目录
+ROOT = Path(__file__).resolve().parents[2]  # 往上三级目录
 
 # 在 ask_language() 中赋值
 T = en_us
@@ -57,11 +54,9 @@ FULL_ONLY_DEPENDENCIES = [
 LITE_ONLY_DEPENDENCIES = [
     "numpy==2.4.6",
     "psutil==7.2.2",
-    "pyyaml==6.0.3",       # python-i18n 读 locales/*.yaml 必需
+    "pyyaml==6.0.3",  # python-i18n 读 locales/*.yaml 必需
     "matplotlib==3.11.1",  # draw_audio_wave 绘制波形图必需
 ]
-
-
 
 
 def main():
@@ -105,16 +100,30 @@ def main():
         elif language == "3":
             sys.exit(0)
         else:
-            print(note_on_hint(yellow(en_us.ask_language.input_hint), zh_cn.ask_language.defaulting))
+            print(
+                note_on_hint(
+                    yellow(en_us.ask_language.input_hint), zh_cn.ask_language.defaulting
+                )
+            )
             T = zh_cn
 
         # ask whether to use PyPI mirror
         ask_use_pypi_mirror()
 
         # 预先更新 pip 与 wheel 确保安装流程稳定
-        general_pip_install("pip & wheel", [sys.executable, "-m", "pip", "install",
-                                            "--upgrade", "pip", "wheel",
-                                            "--no-warn-script-location"])
+        general_pip_install(
+            "pip & wheel",
+            [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "--upgrade",
+                "pip",
+                "wheel",
+                "--no-warn-script-location",
+            ],
+        )
 
         # main menu
         if IS_LITE:
@@ -156,10 +165,6 @@ def main():
         console_journal.finish()
 
 
-
-
-
-
 def reinstall_backend() -> OpResult[None]:
 
     # 确认
@@ -172,19 +177,33 @@ def reinstall_backend() -> OpResult[None]:
     # 1. 撤销 Ultralytics DirectML 修改
     result = modify_ultralytics_for_dml(recover=True)
     if not result.is_ok:
-        msg = f"Failed to recover Ultralytics from DirectML modification."
+        msg = "Failed to recover Ultralytics from DirectML modification."
         return err(msg, inner=result)
 
     # 2. 删除相关库
     print(f"\n-----\n\n{cyan(T.reinstall_backend.start_uninstall)}\n")
-    cmd = [sys.executable, "-m", "pip", "uninstall", "-y",
-        "onnxruntime", "onnxruntime-gpu", "onnxruntime-directml",
-        "torch", "torchvision",
-        "tensorrt", "opencv-python",
-        "tensorrt_cu12", "tensorrt_cu12_bindings", "tensorrt_cu12_libs",
-        "tensorrt_cu13", "tensorrt_cu13_bindings", "tensorrt_cu13_libs",
-        "ncnn", "pnnx",
-        ]
+    cmd = [
+        sys.executable,
+        "-m",
+        "pip",
+        "uninstall",
+        "-y",
+        "onnxruntime",
+        "onnxruntime-gpu",
+        "onnxruntime-directml",
+        "torch",
+        "torchvision",
+        "tensorrt",
+        "opencv-python",
+        "tensorrt_cu12",
+        "tensorrt_cu12_bindings",
+        "tensorrt_cu12_libs",
+        "tensorrt_cu13",
+        "tensorrt_cu13_bindings",
+        "tensorrt_cu13_libs",
+        "ncnn",
+        "pnnx",
+    ]
     try:
         subprocess.run(cmd, check=True)
     except Exception as e:
@@ -193,23 +212,17 @@ def reinstall_backend() -> OpResult[None]:
     result = remove_legacy_tensorrt_runtime(ROOT)
     if not result.is_ok:
         return err("failed to remove legacy TensorRT runtime.", inner=result)
-    
+
     print("\n-----\n")
     print(green(T.reinstall_backend.uninstall_done))
 
     # 3. 进入安装流程
     result = install(is_reinstall=True)
     if not result.is_ok:
-        msg = f"Failed to reinstall."
+        msg = "Failed to reinstall."
         return err(msg, inner=result)
 
     return ok()
-
-
-
-
-
-
 
 
 def install_lite() -> OpResult[None]:
@@ -218,8 +231,15 @@ def install_lite() -> OpResult[None]:
     print("\n-----\n")
     print(cyan(T.install.start))
 
-    cmd = [sys.executable, "-m", "pip", "install",
-           *GENERAL_DEPENDENCIES, *LITE_ONLY_DEPENDENCIES, "--no-warn-script-location"]
+    cmd = [
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        *GENERAL_DEPENDENCIES,
+        *LITE_ONLY_DEPENDENCIES,
+        "--no-warn-script-location",
+    ]
     is_success = general_pip_install("Dependencies", cmd)
     if not is_success:
         return err("Failed to install dependencies.")
@@ -232,9 +252,6 @@ def install_lite() -> OpResult[None]:
     ask_open_hachimidx()
 
     return ok()
-
-
-
 
 
 def install(is_reinstall: bool = False) -> OpResult[None]:
@@ -273,7 +290,8 @@ def install(is_reinstall: bool = False) -> OpResult[None]:
     if backend == "trt" and tensorrt_gpu_config is not None:
         # install TensorRT
         is_success = install_tensorrt(tensorrt_gpu_config)
-        if not is_success: sys.exit(1)
+        if not is_success:
+            sys.exit(1)
     elif install_dml:
         # modify ultralytics for DirectML
         result = modify_ultralytics_for_dml()
@@ -283,14 +301,23 @@ def install(is_reinstall: bool = False) -> OpResult[None]:
     elif install_ncnn_:
         # install NCNN
         is_success = install_ncnn()
-        if not is_success: sys.exit(1)
+        if not is_success:
+            sys.exit(1)
 
     # install others
-    cmd = [sys.executable, "-m", "pip", "install",
-           *GENERAL_DEPENDENCIES, *FULL_ONLY_DEPENDENCIES, "--no-warn-script-location"]
+    cmd = [
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        *GENERAL_DEPENDENCIES,
+        *FULL_ONLY_DEPENDENCIES,
+        "--no-warn-script-location",
+    ]
     is_success = general_pip_install("Other dependencies", cmd)
-    if not is_success: sys.exit(1)
-        
+    if not is_success:
+        sys.exit(1)
+
     # 结束
     print("\n-----\n")
     print(green(T.install.done))
@@ -302,9 +329,6 @@ def install(is_reinstall: bool = False) -> OpResult[None]:
     ask_open_hachimidx()
 
     return ok()
-
-
-
 
 
 def ask_use_pypi_mirror():
@@ -322,11 +346,10 @@ def ask_use_pypi_mirror():
         USE_PyPI_Mirror = True
 
 
-
-
-def install_pytorch(tensorrt_gpu_config: tensorrt_config | None,
-                    onnx_cuda_gpu_config: onnx_cuda_config | None,
-                   ) -> bool:
+def install_pytorch(
+    tensorrt_gpu_config: tensorrt_config | None,
+    onnx_cuda_gpu_config: onnx_cuda_config | None,
+) -> bool:
 
     if tensorrt_gpu_config is not None:
         # 使用配置指定的版本
@@ -346,16 +369,24 @@ def install_pytorch(tensorrt_gpu_config: tensorrt_config | None,
 
     # 包含 PyTorch Cuda 本体的镜像列表，官方源保底
     pytorch_mirrors = [
-        ("nju",  ["-i", f"https://mirrors.nju.edu.cn/pytorch/whl/{target}"]),
+        ("nju", ["-i", f"https://mirrors.nju.edu.cn/pytorch/whl/{target}"]),
         ("sjtu", ["-i", f"https://mirror.sjtu.edu.cn/pytorch-wheels/{target}"]),
-        ("aliyun_pytorch", ["-f", f"https://mirrors.aliyun.com/pytorch-wheels/{target}"]),
+        (
+            "aliyun_pytorch",
+            ["-f", f"https://mirrors.aliyun.com/pytorch-wheels/{target}"],
+        ),
         ("pytorch_official", ["-i", f"https://download.pytorch.org/whl/{target}"]),
     ]
 
-    cmd = [sys.executable, "-m", "pip", "install",
-           f"torch=={torch_ver}",
-           f"torchvision=={torchvision_ver}",
-           "--no-warn-script-location"]
+    cmd = [
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        f"torch=={torch_ver}",
+        f"torchvision=={torchvision_ver}",
+        "--no-warn-script-location",
+    ]
     if not USE_PyPI_Mirror:
         # 不使用镜像时, 附加官方 whl 地址
         cmd.append("-i")
@@ -364,14 +395,11 @@ def install_pytorch(tensorrt_gpu_config: tensorrt_config | None,
     return general_pip_install(f"PyTorch ({target})", cmd, pypi_mirrors=pytorch_mirrors)
 
 
-
-
-
-
-def install_ultralytics_onnx(backend: str,
-                             tensorrt_gpu_config: tensorrt_config | None,
-                             onnx_cuda_gpu_config: onnx_cuda_config | None,
-                            ) -> bool:
+def install_ultralytics_onnx(
+    backend: str,
+    tensorrt_gpu_config: tensorrt_config | None,
+    onnx_cuda_gpu_config: onnx_cuda_config | None,
+) -> bool:
 
     # 检查 gpu_config 是否为 None
     if backend == "trt":
@@ -381,7 +409,9 @@ def install_ultralytics_onnx(backend: str,
         gpu_config = tensorrt_gpu_config
     elif backend == "onnx_cuda":
         if onnx_cuda_gpu_config is None:
-            print(red("Error: onnx_cuda_gpu_config is None while backend is 'onnx_cuda'."))
+            print(
+                red("Error: onnx_cuda_gpu_config is None while backend is 'onnx_cuda'.")
+            )
             return False
         gpu_config = onnx_cuda_gpu_config
     else:
@@ -403,8 +433,7 @@ def install_ultralytics_onnx(backend: str,
     else:
         libs += ["onnxruntime==1.20.1"]
 
-    cmd = [sys.executable, "-m", "pip", "install",
-           *libs, "--no-warn-script-location"]
+    cmd = [sys.executable, "-m", "pip", "install", *libs, "--no-warn-script-location"]
     is_success = general_pip_install("ONNX Runtime", cmd)
     if not is_success:
         return False
@@ -416,24 +445,19 @@ def install_ultralytics_onnx(backend: str,
     if gpu_config is not None:
         libs += [f"opencv-python=={gpu_config.opencv_ver}"]
 
-    cmd = [sys.executable, "-m", "pip", "install",
-           *libs, "--no-warn-script-location"]
+    cmd = [sys.executable, "-m", "pip", "install", *libs, "--no-warn-script-location"]
     is_success = general_pip_install("Ultralytics", cmd)
     if not is_success:
         return False
-    
+
     return True
-
-
-
 
 
 def install_tensorrt(config: tensorrt_config) -> bool:
 
     if config.is_trt_legacy:
-        print(f"\n-----\n")
-        result = install_legacy_tensorrt(T, ROOT, sys.executable,
-                                         config.tensorRT_ver)
+        print("\n-----\n")
+        result = install_legacy_tensorrt(T, ROOT, sys.executable, config.tensorRT_ver)
         if not result.is_ok:
             print(red(print_op_result(result)))
             return False
@@ -442,21 +466,33 @@ def install_tensorrt(config: tensorrt_config) -> bool:
     # 以下是 not trt legacy 安装
 
     # 先安装 wheel-stub
-    cmd = [sys.executable, "-m", "pip", "install",
-           "wheel-stub==0.5.0", "--no-warn-script-location"]
+    cmd = [
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        "wheel-stub==0.5.0",
+        "--no-warn-script-location",
+    ]
     is_success = general_pip_install("wheel-stub", cmd)
     if not is_success:
         return False
 
     # 再安装 NVIDIA TensorRT
-    cmd = [sys.executable, "-m", "pip", "install",
-           f"tensorrt=={config.tensorRT_ver}",
-           "--no-warn-script-location",
-           "--extra-index-url", "https://pypi.nvidia.com"]
+    cmd = [
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        f"tensorrt=={config.tensorRT_ver}",
+        "--no-warn-script-location",
+        "--extra-index-url",
+        "https://pypi.nvidia.com",
+    ]
     is_success = general_pip_install("TensorRT", cmd)
     if not is_success:
         return False
-    
+
     # 最后删除临时文件
     tmp_dir = ROOT / "_tmp_trt"
     if tmp_dir.exists() and tmp_dir.is_dir():
@@ -468,16 +504,17 @@ def install_tensorrt(config: tensorrt_config) -> bool:
     return True
 
 
-
-
-
 def install_ncnn() -> bool:
-    cmd = [sys.executable, "-m", "pip", "install",
-           "ncnn==1.0.20260526", "pnnx==20260526",
-           "--no-warn-script-location"]
+    cmd = [
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        "ncnn==1.0.20260526",
+        "pnnx==20260526",
+        "--no-warn-script-location",
+    ]
     return general_pip_install("NCNN", cmd)
-
-
 
 
 def modify_ultralytics_for_dml(recover: bool = False) -> OpResult[None]:
@@ -493,9 +530,14 @@ def modify_ultralytics_for_dml(recover: bool = False) -> OpResult[None]:
     original_exporter = dml_support_dir / "original" / "exporter.py"
 
     # ckech file exists
-    for file in [target_path_onnx, target_path_exporter,
-                 modified_onnx, modified_exporter,
-                 original_onnx, original_exporter]:
+    for file in [
+        target_path_onnx,
+        target_path_exporter,
+        modified_onnx,
+        modified_exporter,
+        original_onnx,
+        original_exporter,
+    ]:
         if not file.exists() or not file.is_file():
             msg = T.modify_ultralytics_for_dml.file_not_exist.format(file=file)
             return err(msg)
@@ -515,9 +557,6 @@ def modify_ultralytics_for_dml(recover: bool = False) -> OpResult[None]:
         return err(msg, error_raw=e)
 
     return ok()
-
-
-
 
 
 def print_model_backend_reminder(backend: str, is_reinstall: bool) -> None:
@@ -561,8 +600,6 @@ def print_model_backend_reminder(backend: str, is_reinstall: bool) -> None:
     print(red(get_separator(reminder.footnote)))
 
 
-
-
 def ask_open_hachimidx() -> None:
     print("\n-----")
     is_launch = ask(T.open_hachimidx.prompt + hint(T.input_hint))
@@ -585,12 +622,12 @@ def ask_open_hachimidx() -> None:
     sys.exit(EXIT_LAUNCH_HACHIMIDX)
 
 
-
-
-
-def general_pip_install(package_name, cmd: list[str],
-                        add_pypi_mirror: bool | None = None,
-                        pypi_mirrors: list[tuple[str, list[str]]] | None = None) -> bool:
+def general_pip_install(
+    package_name,
+    cmd: list[str],
+    add_pypi_mirror: bool | None = None,
+    pypi_mirrors: list[tuple[str, list[str]]] | None = None,
+) -> bool:
     """
     执行一次 pip 安装，自动处理镜像切换。
 
@@ -604,10 +641,10 @@ def general_pip_install(package_name, cmd: list[str],
 
     # PyPI 镜像列表（key, args_list）优先级从上到下，首选清华源，官方源保底
     PYPI_MIRRORS = [
-        ("thu",     ["-i", "https://pypi.tuna.tsinghua.edu.cn/simple"]),
+        ("thu", ["-i", "https://pypi.tuna.tsinghua.edu.cn/simple"]),
         ("tencent", ["-i", "https://mirrors.cloud.tencent.com/pypi/simple"]),
-        ("huawei",  ["-i", "https://repo.huaweicloud.com/repository/pypi/simple"]),
-        ("aliyun",  ["-i", "https://mirrors.aliyun.com/pypi/simple"]),
+        ("huawei", ["-i", "https://repo.huaweicloud.com/repository/pypi/simple"]),
+        ("aliyun", ["-i", "https://mirrors.aliyun.com/pypi/simple"]),
         ("official", ["-i", "https://pypi.org/simple"]),
     ]
 
@@ -617,8 +654,7 @@ def general_pip_install(package_name, cmd: list[str],
     if use_mirror:
         # 优先使用自定义镜像列表，否则使用默认 PYPI_MIRRORS
         mirror_list = pypi_mirrors if pypi_mirrors is not None else PYPI_MIRRORS
-        attempts = [(name, cmd + mirror_args)
-                    for name, mirror_args in mirror_list]
+        attempts = [(name, cmd + mirror_args) for name, mirror_args in mirror_list]
     else:
         attempts = [("None", cmd)]
 
@@ -644,17 +680,22 @@ def general_pip_install(package_name, cmd: list[str],
             # 如果启用镜像, 尝试切换到下一个镜像
             if use_mirror and idx < len(attempts) - 1:
                 # 显示名按 key 从当前 locale 的 mirror_names 查表
-                current_name = T.pip_install.mirror_names.get(mirror_key, mirror_key) 
+                current_name = T.pip_install.mirror_names.get(mirror_key, mirror_key)
                 next_key = attempts[idx + 1][0]
                 next_name = T.pip_install.mirror_names.get(next_key, next_key)
-                print('\n' + yellow(T.pip_install.mirror_switching.format(old=current_name, new=next_name)))
+                print(
+                    "\n"
+                    + yellow(
+                        T.pip_install.mirror_switching.format(
+                            old=current_name, new=next_name
+                        )
+                    )
+                )
 
     # 全部失败
     if use_mirror:
         print(red(T.pip_install.mirror_exhausted.format(package_name=package_name)))
     return False
-
-
 
 
 if __name__ == "__main__":

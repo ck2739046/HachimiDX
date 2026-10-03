@@ -32,14 +32,22 @@ class _COORD(ctypes.Structure):
 
 
 class _SMALL_RECT(ctypes.Structure):
-    _fields_ = [("Left", ctypes.c_short), ("Top", ctypes.c_short),
-                ("Right", ctypes.c_short), ("Bottom", ctypes.c_short)]
+    _fields_ = [
+        ("Left", ctypes.c_short),
+        ("Top", ctypes.c_short),
+        ("Right", ctypes.c_short),
+        ("Bottom", ctypes.c_short),
+    ]
 
 
 class _SCREEN_BUFFER_INFO(ctypes.Structure):
-    _fields_ = [("dwSize", _COORD), ("dwCursorPosition", _COORD),
-                ("wAttributes", ctypes.c_ushort), ("srWindow", _SMALL_RECT),
-                ("dwMaximumWindowSize", _COORD)]
+    _fields_ = [
+        ("dwSize", _COORD),
+        ("dwCursorPosition", _COORD),
+        ("wAttributes", ctypes.c_ushort),
+        ("srWindow", _SMALL_RECT),
+        ("dwMaximumWindowSize", _COORD),
+    ]
 
 
 class ConsoleJournal:
@@ -64,7 +72,8 @@ class ConsoleJournal:
         if not self._attach():
             raise RuntimeError(
                 "安装日志需要真实控制台才能记录，请不要重定向输出"
-                "（直接运行 install.bat 或 install\\install.bat）。")
+                "（直接运行 install.bat 或 install\\install.bat）。"
+            )
 
         self._log_path.parent.mkdir(parents=True, exist_ok=True)
         self._log = open(self._log_path, "w", encoding="utf-8", newline="\n")
@@ -75,8 +84,8 @@ class ConsoleJournal:
             raise RuntimeError("无法读取控制台屏幕缓冲区，安装日志不可用。")
         if self._needs_growth(info) and not self._grow_buffer(info):
             raise RuntimeError(
-                "无法扩大控制台屏幕缓冲区，安装日志会丢行；"
-                "请把窗口放在前台并重新运行。")
+                "无法扩大控制台屏幕缓冲区，安装日志会丢行；请把窗口放在前台并重新运行。"
+            )
         # 光标所在行就是本次安装的第一行输出；
         # 它上面的内容（用户敲的命令、上一个命令的输出）不属于本次安装
         self._next_row = info.dwCursorPosition.Y
@@ -106,34 +115,42 @@ class ConsoleJournal:
 
         k32 = ctypes.WinDLL("kernel32", use_last_error=True)
         k32.GetStdHandle.restype = ctypes.c_void_p
-        k32.GetConsoleMode.argtypes = [ctypes.c_void_p,
-                                       ctypes.POINTER(ctypes.c_uint32)]
+        k32.GetConsoleMode.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint32)]
         k32.SetConsoleMode.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
         k32.GetConsoleScreenBufferInfo.argtypes = [
-            ctypes.c_void_p, ctypes.POINTER(_SCREEN_BUFFER_INFO)]
+            ctypes.c_void_p,
+            ctypes.POINTER(_SCREEN_BUFFER_INFO),
+        ]
         k32.SetConsoleScreenBufferSize.argtypes = [ctypes.c_void_p, _COORD]
         k32.ReadConsoleOutputCharacterW.argtypes = [
-            ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint32, _COORD,
-            ctypes.POINTER(ctypes.c_uint32)]
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+            ctypes.c_uint32,
+            _COORD,
+            ctypes.POINTER(ctypes.c_uint32),
+        ]
 
         stdout_handle = k32.GetStdHandle(_STD_OUTPUT_HANDLE)
         mode = ctypes.c_uint32()
         if not k32.GetConsoleMode(stdout_handle, ctypes.byref(mode)):
             return False
         # 让 pip / rich 直接走 ANSI 渲染（彩色、正确宽度、原地刷新）
-        k32.SetConsoleMode(stdout_handle, mode.value
-                           | _ENABLE_PROCESSED_OUTPUT
-                           | _ENABLE_VIRTUAL_TERMINAL_PROCESSING)
+        k32.SetConsoleMode(
+            stdout_handle,
+            mode.value | _ENABLE_PROCESSED_OUTPUT | _ENABLE_VIRTUAL_TERMINAL_PROCESSING,
+        )
 
         # 快速编辑会让"用户选中文本"暂停所有控制台写入，装依赖时 pip 会因此卡死；
         # 鼠标输入会让终端把滚轮/触摸板事件转发给应用，应用不读就导致滚轮彻底失效，所以也要关
         stdin_handle = k32.GetStdHandle(_STD_INPUT_HANDLE)
         stdin_mode = ctypes.c_uint32()
         if k32.GetConsoleMode(stdin_handle, ctypes.byref(stdin_mode)):
-            k32.SetConsoleMode(stdin_handle,
-                               (stdin_mode.value | _ENABLE_EXTENDED_FLAGS)
-                               & ~_ENABLE_QUICK_EDIT_MODE
-                               & ~_ENABLE_MOUSE_INPUT)
+            k32.SetConsoleMode(
+                stdin_handle,
+                (stdin_mode.value | _ENABLE_EXTENDED_FLAGS)
+                & ~_ENABLE_QUICK_EDIT_MODE
+                & ~_ENABLE_MOUSE_INPUT,
+            )
 
         # 标准输出句柄同时带读写权限，读回与调整缓冲区都靠它；
         # 只读打开的 CONOUT$ 会让 SetConsoleScreenBufferSize 报 ACCESS_DENIED
@@ -143,8 +160,7 @@ class ConsoleJournal:
 
     def _screen_info(self):
         info = _SCREEN_BUFFER_INFO()
-        if not self._k32.GetConsoleScreenBufferInfo(self._handle,
-                                                    ctypes.byref(info)):
+        if not self._k32.GetConsoleScreenBufferInfo(self._handle, ctypes.byref(info)):
             return None
         if info.dwSize.X != self._width:
             self._width = info.dwSize.X
@@ -157,26 +173,37 @@ class ConsoleJournal:
         height = info.dwSize.Y
         if height >= _MAX_BUFFER_HEIGHT:
             return False
-        if height >= _MIN_BUFFER_HEIGHT and height - info.dwCursorPosition.Y > _GROW_MARGIN:
+        if (
+            height >= _MIN_BUFFER_HEIGHT
+            and height - info.dwCursorPosition.Y > _GROW_MARGIN
+        ):
             return False
         return True
 
     def _grow_buffer(self, info) -> bool:
         """给缓冲区留出回滚空间，让光标始终远离缓冲区底部。"""
-        target = min(max(_MIN_BUFFER_HEIGHT, info.dwSize.Y + _BUFFER_GROWTH),
-                     _MAX_BUFFER_HEIGHT)
+        target = min(
+            max(_MIN_BUFFER_HEIGHT, info.dwSize.Y + _BUFFER_GROWTH), _MAX_BUFFER_HEIGHT
+        )
         # 加高失败会让输出滚出缓冲区、日志静默丢行，所以必须把结果报上去
-        return bool(self._k32.SetConsoleScreenBufferSize(
-            self._handle, _COORD(info.dwSize.X, target)))
+        return bool(
+            self._k32.SetConsoleScreenBufferSize(
+                self._handle, _COORD(info.dwSize.X, target)
+            )
+        )
 
     def _read_row(self, row: int) -> str:
         ok = self._k32.ReadConsoleOutputCharacterW(
-            self._handle, ctypes.cast(self._cell, ctypes.c_void_p),
-            self._width, _COORD(0, row), ctypes.byref(self._read))
+            self._handle,
+            ctypes.cast(self._cell, ctypes.c_void_p),
+            self._width,
+            _COORD(0, row),
+            ctypes.byref(self._read),
+        )
         if not ok:
             raise OSError("ReadConsoleOutputCharacterW failed")
         # 没写过的单元格可能是 \x00，先当空格再清尾
-        return self._cell[:self._read.value].replace("\x00", " ").rstrip()
+        return self._cell[: self._read.value].replace("\x00", " ").rstrip()
 
     def _drain(self, final: bool = False) -> None:
         """把光标已经离开的行按行号顺序落盘。"""

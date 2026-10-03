@@ -1,13 +1,13 @@
-from dataclasses import dataclass
 import os
-from pathlib import Path, PurePosixPath
 import shutil
 import subprocess
 import urllib.request
 import zipfile
+from dataclasses import dataclass
+from pathlib import Path, PurePosixPath
 
+from .color import cyan, green
 from .op_result import OpResult, err, ok
-from .color import green, cyan
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,9 +79,12 @@ def install_legacy_tensorrt(
         subprocess.run(
             [
                 python_executable,
-                "-m", "pip", "install",
+                "-m",
+                "pip",
+                "install",
                 str(wheel_path),
-                "--no-deps", "--force-reinstall",
+                "--no-deps",
+                "--force-reinstall",
                 "--no-warn-script-location",
             ],
             check=True,
@@ -131,7 +134,9 @@ def _download_archive(
             headers={"User-Agent": "HachimiDX-Installer/1.0"},
         )
         with (
-            urllib.request.urlopen(request, timeout=_DOWNLOAD_TIMEOUT_SECONDS) as response,
+            urllib.request.urlopen(
+                request, timeout=_DOWNLOAD_TIMEOUT_SECONDS
+            ) as response,
             archive_path.open("wb") as output,
         ):
             try:
@@ -160,7 +165,9 @@ def _print_download_progress(downloaded: int, total: int, T) -> None:
             percent=percent,
         )
     else:
-        message = T.legacy_trt.download_progress_unknown.format(downloaded=downloaded_mib)
+        message = T.legacy_trt.download_progress_unknown.format(
+            downloaded=downloaded_mib
+        )
     print(f"\r{message}", end="", flush=True)
 
 
@@ -192,7 +199,10 @@ def _prepare_archive(
                 if PurePosixPath(info.filename).suffix.lower() != ".dll":
                     continue
                 filename = PurePosixPath(info.filename).name
-                with archive.open(info) as source, (staged_lib_dir / filename).open("wb") as target:
+                with (
+                    archive.open(info) as source,
+                    (staged_lib_dir / filename).open("wb") as target,
+                ):
                     shutil.copyfileobj(source, target)
 
             return ok((wheel_path, staged_runtime_dir))
@@ -277,7 +287,9 @@ def _prepend_to_path(env: dict[str, str], directory: Path) -> None:
         if entry
     }
     if normalized_directory not in normalized_entries:
-        env["PATH"] = directory_text + (os.pathsep + current_path if current_path else "")
+        env["PATH"] = directory_text + (
+            os.pathsep + current_path if current_path else ""
+        )
 
 
 def _uninstall_tensorrt_wheel(python_executable: str) -> None:

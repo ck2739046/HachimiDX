@@ -22,7 +22,7 @@ _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from src.core.auto_rechart.pipeline import (  # noqa: E402
+from src.core.auto_rechart.pipeline import (
     Consumer,
     Pipeline,
     Producer,
@@ -42,6 +42,7 @@ def _result_text(result):
 
 
 # ---- 测试用业务桩 ----
+
 
 class _ListProducer(Producer):
     """把一个列表依次入队，正常返回后由框架发送 DONE。"""
@@ -125,8 +126,8 @@ class _TrackingConsumer(_TrackingMixin, _ListConsumer):
 
 # ---- 单测用例 ----
 
-class PipelineTests(unittest.TestCase):
 
+class PipelineTests(unittest.TestCase):
     # 1. 正常流程
     def test_normal_flow(self):
         producer = _ListProducer([1, 2, 3, 4, 5])
