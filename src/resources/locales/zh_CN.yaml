@@ -690,7 +690,7 @@ zh_CN:
         1. 谱面文件 (*.txt)
         2. 音频文件 (*.mp3, *.ogg)
         3. 视频文件 (*.mp4)
-      ui_view_label: "视图: "
+      ui_view_label: "MajView: "
 
 
 

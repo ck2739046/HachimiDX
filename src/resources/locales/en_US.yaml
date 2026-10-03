@@ -701,7 +701,7 @@ en_US:
         1. Chart files (*.txt)
         2. Audio files (*.mp3, *.ogg)
         3. Video files (*.mp4)
-      ui_view_label: "View:"
+      ui_view_label: "MajView:"
 
 
 
