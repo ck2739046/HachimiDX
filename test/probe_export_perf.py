@@ -97,7 +97,7 @@ def probe(
             "警告: 未找到 track_result.txt, 使用空追踪结果 (仅可测 FFmpeg baseline / 无绘制路径)"
         )
 
-    timeout_frames = max(1, int(round(fps_for_calc / 2.0)))
+    timeout_frames = max(1, round(fps_for_calc / 2.0))
 
     # 预扫描
     t0 = time.perf_counter()

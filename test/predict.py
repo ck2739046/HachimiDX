@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 
 import cv2
@@ -234,7 +235,7 @@ if __name__ == "__main__":
         print(f"检测完成，输出视频: {output_path}")
     except Exception as e:
         print(f"错误: {e}")
-        exit(1)
+        sys.exit(1)
 
 
 # 笔记本 12700h + rtx 3060 6g, 处理进度20%

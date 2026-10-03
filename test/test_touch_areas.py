@@ -214,7 +214,8 @@ def main():
     touch_areas = get_touch_areas(canvas_size, center, center)
 
     # 提取点坐标和标签
-    labels = list(touch_areas.keys())
+    # labels 目前用不到，特意保留给以后用，所以不要删
+    labels = list(touch_areas.keys())  # noqa: F841
     points = list(touch_areas.values())
 
     # 尝试使用scipy绘制Voronoi图（中垂线网格）

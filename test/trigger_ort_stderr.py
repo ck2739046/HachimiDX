@@ -162,6 +162,7 @@ def _capture(out: list[str]) -> dict[str, bytes]:
         result = subprocess.run(
             [sys.executable, str(Path(__file__).resolve()), "--child", mode],
             capture_output=True,
+            check=False,
             cwd=str(ROOT),
         )
         out.append(f"########## mode={mode} exit={result.returncode} ##########")
@@ -180,7 +181,8 @@ def _replay(out: list[str], captures: dict[str, bytes]) -> None:
 
     from src.app.widgets import OutputLogWidget
 
-    app = QApplication.instance() or QApplication([])
+    # 保留引用：QApplication 被回收后，随后创建的 widget 会直接崩溃
+    _app = QApplication.instance() or QApplication([])
     widget = OutputLogWidget()
     runner_id = "ort-stderr-test"
     log_path = CAPTURE_DIR / "replay_output_log.txt"
@@ -271,7 +273,8 @@ def _chunk_mix(out: list[str]) -> None:
 
     from src.app.widgets import OutputLogWidget
 
-    app = QApplication.instance() or QApplication([])
+    # 保留引用：QApplication 被回收后，随后创建的 widget 会直接崩溃
+    _app = QApplication.instance() or QApplication([])
     # 与 HachimiDX_log.txt 里那条真实记录一致的 57 字节 utf-8 前缀(奇数长度)
     prefix = "[ort-trigger] native 触发后, stderr 上的 utf-8 行\r\n".encode()
     chunk = _build_mixed_chunk(prefix)
