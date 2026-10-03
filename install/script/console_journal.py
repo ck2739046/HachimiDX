@@ -76,7 +76,9 @@ class ConsoleJournal:
             )
 
         self._log_path.parent.mkdir(parents=True, exist_ok=True)
-        self._log = open(self._log_path, "w", encoding="utf-8", newline="\n")
+        # 句柄生命周期是整个安装流程（跟随线程持续写入），由 finish() 关闭，
+        # 无法用 with 包住，因此显式豁免 SIM115
+        self._log = open(self._log_path, "w", encoding="utf-8", newline="\n")  # noqa: SIM115
 
         # 跟随线程此刻还没创建，不存在并发，这里无需加锁
         info = self._screen_info()
@@ -173,12 +175,10 @@ class ConsoleJournal:
         height = info.dwSize.Y
         if height >= _MAX_BUFFER_HEIGHT:
             return False
-        if (
+        return not (
             height >= _MIN_BUFFER_HEIGHT
             and height - info.dwCursorPosition.Y > _GROW_MARGIN
-        ):
-            return False
-        return True
+        )
 
     def _grow_buffer(self, info) -> bool:
         """给缓冲区留出回滚空间，让光标始终远离缓冲区底部。"""

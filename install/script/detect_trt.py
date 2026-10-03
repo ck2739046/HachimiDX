@@ -145,12 +145,11 @@ def _check_gpu(
 
     # 计算输入的 compute_cap 属于哪一个配置
     for config in tensorrt_config_list:
-        if compute_cap >= config.compute_capability:
-            if (
-                target_config is None
-                or config.compute_capability > target_config.compute_capability
-            ):
-                target_config = config
+        if compute_cap >= config.compute_capability and (
+            target_config is None
+            or config.compute_capability > target_config.compute_capability
+        ):
+            target_config = config
     if target_config is None:
         # 计算能力低于最低配置
         return None, T.detect_trt.low_compute_cap.format(

@@ -8,3 +8,6 @@ extend-exclude = [
 ]
 
 target-version = "py311"
+[lint]
+# 刻意用 except Exception 兜底，属于有意设计而非缺陷。
+ignore = ["BLE001"]

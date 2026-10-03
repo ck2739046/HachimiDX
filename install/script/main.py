@@ -72,7 +72,7 @@ def main():
 
     # 必须在任何输出之前接手控制台，日志靠跟随屏幕缓冲区产生
     console_journal.start(Path(sys.argv[1]))
-    print(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S") + "\n")
+    print(datetime.datetime.now().astimezone().strftime("%Y/%m/%d %H:%M:%S") + "\n")
 
     # generate by https://patorjk.com/software/taag using font "Terrace"
     title = """
@@ -447,10 +447,7 @@ def install_ultralytics_onnx(
 
     cmd = [sys.executable, "-m", "pip", "install", *libs, "--no-warn-script-location"]
     is_success = general_pip_install("Ultralytics", cmd)
-    if not is_success:
-        return False
-
-    return True
+    return is_success
 
 
 def install_tensorrt(config: tensorrt_config) -> bool:
@@ -672,7 +669,7 @@ def general_pip_install(
             # 安装成功
             print("\n-----\n")
             print(green(T.pip_install.success.format(package_name=package_name)))
-            return ok()
+            return True
         except Exception as e:
             # 安装失败
             print("\n-----\n")
