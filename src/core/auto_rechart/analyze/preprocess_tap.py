@@ -1,3 +1,5 @@
+import itertools
+
 import numpy as np
 
 from ..detect.note_definition import (
@@ -94,7 +96,7 @@ def preprocess_tap_data(shared_context: SharedContext):
         dists = [x[1] for x in valid_path]
         if not all(
             later - earlier > -0.05 * shared_context.note_travel_dist
-            for earlier, later in zip(dists, dists[1:])
+            for earlier, later in itertools.pairwise(dists)
         ):
             print(f"preprocess_tap_data: dist not increasing for track_id {track_id}")
             continue

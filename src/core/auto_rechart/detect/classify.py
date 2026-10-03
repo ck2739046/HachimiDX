@@ -172,9 +172,8 @@ class ClassifyProducer(Producer):
                 buffer = buffer[self.batch_cls :]
 
         # 发送剩余 buffer
-        if buffer:
-            if not self._put_or_stop(q, buffer, stop):
-                return
+        if buffer and not self._put_or_stop(q, buffer, stop):
+            return
 
 
 class ClassifyConsumer(Consumer):

@@ -116,7 +116,7 @@ class PerspectiveCorrection(DrawingMixin, TransformMixin, InteractionMixin):
         self.output_brightness_percent = self.BRIGHTNESS_DEFAULT_PERCENT
 
     def _scale_ui_coord(self, value: float) -> int:
-        return int(round(float(value) * self.ui_scale_factor))
+        return round(float(value) * self.ui_scale_factor)
 
     def _scale_ui_length(self, value: float) -> int:
         return max(1, self._scale_ui_coord(value))

@@ -26,7 +26,6 @@ class OverlayWidget(QWidget):
         painter.fillRect(self.rect(), QColor(60, 60, 60, 170))
 
     def eventFilter(self, obj, event):
-        if obj == self.parent():
-            if event.type() == QEvent.Type.Resize:
-                self.resize(event.size())
+        if obj == self.parent() and event.type() == QEvent.Type.Resize:
+            self.resize(event.size())
         return super().eventFilter(obj, event)

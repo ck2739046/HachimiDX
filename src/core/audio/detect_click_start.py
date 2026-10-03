@@ -124,9 +124,9 @@ def _load_audio_file(path):
     except NoBackendError:
         raise NoBackendError(f"NoBackendError: {path!s}")
     except Exception as e:
-        raise Exception(
+        raise RuntimeError(
             i18n.t("detect_click_start.error_audio_load_error", path=str(path), error=e)
-        )
+        ) from e
 
 
 def _extract_segment(audio_data, sr, start_time_sec, duration_sec):
@@ -140,8 +140,8 @@ def _extract_segment(audio_data, sr, start_time_sec, duration_sec):
             i18n.t("detect_click_start.error_start_time_negative", value=start_time_sec)
         )
 
-    start_sample = int(round(start_time_sec * sr))
-    duration_samples = int(round(float(duration_sec) * sr))
+    start_sample = round(start_time_sec * sr)
+    duration_samples = round(float(duration_sec) * sr)
     end_sample = start_sample + duration_samples
 
     if start_sample >= len(audio_data):
@@ -245,7 +245,7 @@ def match_sliding_window(target_env, template_env, sr, step_ms):
     template_len = len(template_env)
 
     max_start = len(target_env) - template_len
-    step_samples = max(1, int(round(step_ms * sr / 1000.0)))
+    step_samples = max(1, round(step_ms * sr / 1000.0))
 
     best_score = -np.inf
     best_start = 0
@@ -269,7 +269,7 @@ def compute_energy_envelope(y, sr, smooth_ms=8.0):
     if y is None or len(y) == 0:
         raise ValueError(i18n.t("detect_click_start.error_audio_empty"))
 
-    win_len = max(1, int(round(smooth_ms * sr / 1000.0)))
+    win_len = max(1, round(smooth_ms * sr / 1000.0))
     kernel = np.ones(win_len, dtype=np.float64) / float(win_len)
 
     energy = np.asarray(y, dtype=np.float64) ** 2

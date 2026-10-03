@@ -645,7 +645,7 @@ class AutoRechartPage(BaseOutputPage):
             if value is None:
                 return None
             try:
-                return int(round(float(value)))
+                return round(float(value))
             except:
                 return None
 
@@ -796,7 +796,7 @@ class AutoRechartPage(BaseOutputPage):
                 show_notify_dialog("AutoRechartPipeline error", error_msg)
                 return
 
-            runner_id, cmd_list = result.value
+            runner_id, _cmd_list = result.value
             self.output_widget.bind_current_runner_id(
                 runner_id,
                 log_enabled=True,

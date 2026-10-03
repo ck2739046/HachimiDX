@@ -1,3 +1,4 @@
+import itertools
 import math
 
 import numpy as np
@@ -124,7 +125,7 @@ def preprocess_hold_data(shared_context: SharedContext):
         dists = [(x[2] + x[3]) / 2 for x in valid_track_path]
         if not all(
             later - earlier > -3 * start_tolerance
-            for earlier, later in zip(dists, dists[1:])
+            for earlier, later in itertools.pairwise(dists)
         ):
             print(f"preprocess_hold_data: dist not increasing for track_id {track_id}")
             continue

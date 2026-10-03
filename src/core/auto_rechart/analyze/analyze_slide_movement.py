@@ -1294,7 +1294,8 @@ def _get_arc_syntax(start_position: int, next_position: int, end_position: int) 
         if start_position == 1:
             if next_position in [6, 7, 8]:
                 next_position -= 8
-        elif start_position == 8:
+        # 嵌套写法比合并成一个条件更好懂，故豁免 SIM102
+        elif start_position == 8:  # noqa: SIM102
             if next_position in [1, 2, 3]:
                 next_position += 8
         # 判断方向

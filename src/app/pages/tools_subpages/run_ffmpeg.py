@@ -93,7 +93,7 @@ class RunFFmpegPage(BaseOutputPage):
 
         video_col, video_panel, video_body = self._create_param_column()
         audio_col, audio_panel, audio_body = self._create_param_column()
-        common_col, common_panel, common_body = self._create_param_column()
+        common_col, _common_panel, common_body = self._create_param_column()
         for index, column in enumerate((video_col, audio_col, common_col)):
             if index:
                 params_layout.addWidget(create_vertical_divider())
@@ -569,7 +569,7 @@ class RunFFmpegPage(BaseOutputPage):
         self,
         widget_type: str,
         param: MediaConfig_Definition,
-        length: int = None,
+        length: int | None = None,
         transfer_fn=None,
     ):
 
@@ -718,7 +718,7 @@ class RunFFmpegPage(BaseOutputPage):
             if value is None:
                 return None
             try:
-                return int(round(float(value)))
+                return round(float(value))
             except:
                 return None
 
@@ -801,7 +801,7 @@ class RunFFmpegPage(BaseOutputPage):
                 )
                 return
 
-            runner_id, cmd_list = result.value
+            runner_id, _cmd_list = result.value
             self.output_widget.bind_current_runner_id(runner_id)
 
             # 显示悬浮通知

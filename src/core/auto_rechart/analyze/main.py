@@ -35,10 +35,10 @@ def main(
     touch_hold_model_path: Path,
     half: bool = False,
     batch_cls: int = 16,
-    cls_break_model_path: Path = None,
-    cls_ex_model_path: Path = None,
-    static_bpm: float = None,
-    bpm_config: Path = None,
+    cls_break_model_path: Path | None = None,
+    cls_ex_model_path: Path | None = None,
+    static_bpm: float | None = None,
+    bpm_config: Path | None = None,
     app_version: str = "",
 ) -> OpResult[None]:
 

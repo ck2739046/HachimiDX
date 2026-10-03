@@ -161,7 +161,7 @@ class ExportConsumer(Consumer):
             bufsize=_BATCH_FRAMES * self.frame_size,
         )
         if self.ffmpeg_process.stdin is None:
-            raise Exception("FFmpeg stdin pipe is unavailable")
+            raise RuntimeError("FFmpeg stdin pipe is unavailable")
         atexit.register(_terminate_ffmpeg_on_exit, self.ffmpeg_process)
         self.stdin = self.ffmpeg_process.stdin
 
@@ -302,7 +302,7 @@ class ExportConsumer(Consumer):
 
         # 正常路径下 ffmpeg 失败要抛出 (异常路径不再追加错误)
         if is_normal and ffmpeg_return_code is not None and ffmpeg_return_code != 0:
-            raise Exception(
+            raise RuntimeError(
                 i18n.t(
                     "export_track_video.error_ffmpeg_failed",
                     code=ffmpeg_return_code,
@@ -373,7 +373,7 @@ class _TrailBuilder:
         self._overflow = False
 
     def add_point(self, cx: float, cy: float) -> None:
-        pt = (int(round(cx)), int(round(cy)))
+        pt = (round(cx), round(cy))
         pts = self.pts
         pts.append(pt)
         if self.start_pt is None:
@@ -505,13 +505,13 @@ def _build_note_draw(
 def _compute_center(note: "Note_Geometry", is_obb_note: bool) -> tuple:
     if is_obb_note:
         return (
-            int(round((note.x1 + note.x2 + note.x3 + note.x4) / 4.0)),
-            int(round((note.y1 + note.y2 + note.y3 + note.y4) / 4.0)),
+            round((note.x1 + note.x2 + note.x3 + note.x4) / 4.0),
+            round((note.y1 + note.y2 + note.y3 + note.y4) / 4.0),
         )
     else:
         return (
-            int(round((note.x1 + note.x3) / 2.0)),
-            int(round((note.y1 + note.y3) / 2.0)),
+            round((note.x1 + note.x3) / 2.0),
+            round((note.y1 + note.y3) / 2.0),
         )
 
 
@@ -635,7 +635,7 @@ def main(std_video_path: Path, total_frames: int) -> OpResult[Path]:
             cap.release()
 
         fps_for_calc = float(fps) if fps and fps > 0 else 30.0
-        timeout_frames = max(1, int(round(fps_for_calc / 2.0)))
+        timeout_frames = max(1, round(fps_for_calc / 2.0))
 
         # 预计算 manifests (主循环只读 blit)
         note_manifest, center_manifest = _build_manifests(track_results, total_frames)

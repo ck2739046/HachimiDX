@@ -159,7 +159,7 @@ def slide_head_tail_match_by_time(
     # 这样后续tail查找head时，只会在对应位置的head中查找，减少计算量
     head_by_position = defaultdict(list)
     for head_key, head_value in slide_head_info.items():
-        head_track_id, note_type, note_variant, head_position = head_key
+        _head_track_id, note_type, note_variant, head_position = head_key
         head_end_time = head_value
         # 此处 head_position 是带有 variant 后缀的，如 1bx，需要去除后缀
         pos_id = str(head_position[0])
@@ -173,16 +173,16 @@ def slide_head_tail_match_by_time(
     for tail_key, tail_value in slide_tail_info.items():
         (
             tail_track_id,
-            note_type,
-            note_variant,
+            _note_type,
+            _note_variant,
             tail_start_position_id,
-            tail_end_position_id,
+            _tail_end_position_id,
         ) = tail_key
-        tail_start_time, tail_end_time, note_path = tail_value
+        tail_start_time, tail_end_time, _note_path = tail_value
 
         # 匹配规则2: head_position = tail_start_position
         tail_start_position = str(tail_start_position_id)
-        if tail_start_position not in head_by_position.keys():
+        if tail_start_position not in head_by_position:
             print(
                 f"slide_head_tail_match: Tail {tail_track_id} not match: No heads at position {tail_start_position}"
             )
@@ -292,7 +292,7 @@ def try_split_slide_tail(
     unmatched_heads = sorted(unmatched_heads, key=lambda x: x[1], reverse=True)
 
     for unmatched_head_key, unmatched_head_value in list(unmatched_heads):
-        head_track_id, note_type, note_variant, head_position = unmatched_head_key
+        head_track_id, _note_type, _note_variant, head_position = unmatched_head_key
         head_end_time = unmatched_head_value
 
         head_position_A_zone = f"A{head_position[0]}"
@@ -312,7 +312,7 @@ def try_split_slide_tail(
                     tail_start_position_id,
                     tail_end_position_id,
                 ) = matched_tail_key
-                tail_start_time, tail_end_time, note_path = matched_tail_value
+                _tail_start_time, tail_end_time, note_path = matched_tail_value
 
                 # delay / split 容差以 tail_end_time 所在时间段 bpm 计算
                 # 因每个候选 tail 的 tail_end_time 不同，需要在循环内逐个计算
@@ -606,7 +606,7 @@ def merge_slide_info(
         for tail_key, tail_value in tail_list:
             (
                 tail_track_id,
-                tail_note_type,
+                _tail_note_type,
                 tail_note_variant,
                 tail_start_position_id,
                 tail_end_position_id,

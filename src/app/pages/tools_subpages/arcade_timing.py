@@ -481,7 +481,7 @@ class ArcadeTimingPage(BaseOutputPage):
                 )
                 return
 
-            runner_id, cmd_list = result.value
+            runner_id, _cmd_list = result.value
             self._active_media_runner_id = runner_id
             self.output_widget.bind_current_runner_id(runner_id)
 

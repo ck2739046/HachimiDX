@@ -260,7 +260,7 @@ class MergeChartsPage(BaseOutputPage):
         return f"{path.parent.name}\\{path.name}"
 
     def _log(self, marker: str | None, key: str, **kwargs) -> None:
-        timestamp = datetime.now().strftime(_TIMESTAMP_FORMAT)
+        timestamp = datetime.now().astimezone().strftime(_TIMESTAMP_FORMAT)
         prefix = f"[{timestamp}]" if marker is None else f"[{timestamp}] {marker}"
         self.output_widget.append_text(f"{prefix} {_t(key, **kwargs)}")
 

@@ -31,8 +31,8 @@ class InteractionMixin:
 
         self._center_drag_mouse = (px, py)
         sx, sy = self._center_drag_start_mouse  # type: ignore[misc]
-        delta_x = int(round(px - sx))
-        delta_y = int(round(py - sy))
+        delta_x = round(px - sx)
+        delta_y = round(py - sy)
 
         new_offset_x = self._center_drag_start_offset_x + delta_x
         new_offset_y = self._center_drag_start_offset_y + delta_y
@@ -219,7 +219,7 @@ class InteractionMixin:
         """把鼠标像素 x 反算为滑块百分比 (用于拖拽写入)"""
         ratio = (x - track_x1) / float(max(1, track_x2 - track_x1))
         percent = min_percent + ratio * (max_percent - min_percent)
-        return self._clamp_value(int(round(percent)), min_percent, max_percent)
+        return self._clamp_value(round(percent), min_percent, max_percent)
 
     def _clamp_value(self, value: int, min_value: int, max_value: int) -> int:
         """把 value 限制到 [min_value, max_value] 区间"""

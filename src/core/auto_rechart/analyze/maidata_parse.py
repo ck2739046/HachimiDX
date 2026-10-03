@@ -289,9 +289,7 @@ def _try_compress_wifi_slide(slide_position: str) -> str:
         if not syntax[0].isdigit():
             return False
         varient = syntax[1:] if len(syntax) > 1 else ""
-        if varient not in ("", "b", "x", "bx"):
-            return False
-        return True
+        return varient in ("", "b", "x", "bx")
 
     if "*" not in slide_position:
         return slide_position

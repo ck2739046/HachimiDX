@@ -595,9 +595,8 @@ class OutputLogWidget(QWidget):
             if "\n" in text_buffer:
                 # 有换行符，处理到换行符为止的内容
                 line, text_buffer = text_buffer.split("\n", 1)
-                if line.endswith("\r"):
-                    # 只剥 CRLF 自带的那个 '\r'
-                    line = line[:-1]
+                # 只剥 CRLF 自带的那个 '\r'
+                line = line.removesuffix("\r")
 
                 # 处理 \\r（回车符）
                 if "\r" in line:

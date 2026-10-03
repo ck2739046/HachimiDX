@@ -83,17 +83,17 @@ class DrawingMixin:
         )
 
         frame_h, frame_w = frame.shape[:2]
-        logical_scaled_w = max(1, int(round(frame_w * zoom_percent / 100)))
-        logical_scaled_h = max(1, int(round(frame_h * zoom_percent / 100)))
+        logical_scaled_w = max(1, round(frame_w * zoom_percent / 100))
+        logical_scaled_h = max(1, round(frame_h * zoom_percent / 100))
         scaled_w = self._scale_ui_length(logical_scaled_w)
         scaled_h = self._scale_ui_length(logical_scaled_h)
         scaled = cv2.resize(frame, (scaled_w, scaled_h), interpolation=cv2.INTER_LINEAR)
 
-        logical_top_left_x = int(
-            round((self.FRAME_PREVIEW_SIZE - logical_scaled_w) * 0.5 + offset_x)
+        logical_top_left_x = round(
+            (self.FRAME_PREVIEW_SIZE - logical_scaled_w) * 0.5 + offset_x
         )
-        logical_top_left_y = int(
-            round((self.FRAME_PREVIEW_SIZE - logical_scaled_h) * 0.5 + offset_y)
+        logical_top_left_y = round(
+            (self.FRAME_PREVIEW_SIZE - logical_scaled_h) * 0.5 + offset_y
         )
         top_left_x = self._scale_ui_coord(logical_top_left_x)
         top_left_y = self._scale_ui_coord(logical_top_left_y)
@@ -169,8 +169,8 @@ class DrawingMixin:
         # 内圈上 8 个红色判定点
         for deg in (22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5):
             rad = np.deg2rad(deg)
-            px = int(round(inner_cx + inner_r * np.cos(rad)))
-            py = int(round(inner_cy + inner_r * np.sin(rad)))
+            px = round(inner_cx + inner_r * np.cos(rad))
+            py = round(inner_cy + inner_r * np.sin(rad))
             self._draw_circle(panel, (px, py), 9, (0, 0, 255), 2)
 
         # 外圆 屏幕边缘
@@ -179,7 +179,7 @@ class DrawingMixin:
 
         # 垂直/水平线 穿过内圈上的 8 个参考点
         # 每条线距圆心 = inner_r * sin(22.5°) 恰好经过参考点
-        line_offset = int(round(inner_r * np.sin(np.deg2rad(22.5))))
+        line_offset = round(inner_r * np.sin(np.deg2rad(22.5)))
         v_line1_x = inner_cx - line_offset
         v_line2_x = inner_cx + line_offset
         self._draw_line(panel, (v_line1_x, 0), (v_line1_x, height), (0, 255, 0), 1)
@@ -196,8 +196,8 @@ class DrawingMixin:
         fixed_cy = self.FRAME_PREVIEW_SIZE // 2
 
         if self.center_drag_panel == panel_side and self._center_drag_mouse is not None:
-            cx = int(round(self._center_drag_mouse[0]))
-            cy = int(round(self._center_drag_mouse[1]))
+            cx = round(self._center_drag_mouse[0])
+            cy = round(self._center_drag_mouse[1])
         else:
             cx = fixed_cx
             cy = fixed_cy
@@ -531,11 +531,9 @@ class DrawingMixin:
         )
 
         # 滑块
-        knob_x = int(
-            round(
-                self._slider_percent_to_x(
-                    percent_value, track_x1, track_x2, min_percent, max_percent
-                )
+        knob_x = round(
+            self._slider_percent_to_x(
+                percent_value, track_x1, track_x2, min_percent, max_percent
             )
         )
         knob_color = self.POINT_COLOR if not is_selected else (0, 200, 255)

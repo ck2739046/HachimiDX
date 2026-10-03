@@ -102,7 +102,7 @@ def _gap_configs(g: Fraction, R: int):
 
     # 2. DP 状态: dp[t] = dict[int_key] -> (sw, commas, parent)
     #    parent = (prev_t, prev_key_int, N, k) 指向前驱状态, 末尾回溯重建 segs
-    dp = [dict() for _ in range(tau + 1)]
+    dp = [{} for _ in range(tau + 1)]
     dp[0][0] = (0, 0, None)  # key 0 = first_idx=0, last_idx=0 = (None, None)
 
     # 3. DP 状态转移
@@ -354,7 +354,7 @@ class _LayoutEngine:
             return []
 
         # dp[i] = {last_div: (cost, prev_last_div, segs)}
-        first_idx, first_cfg = active[0]
+        _first_idx, first_cfg = active[0]
         dp: list[dict] = [{}]
         for (fd, ld), (sw, segs) in first_cfg.items():
             commas = sum(k for (_, k) in segs)
@@ -363,7 +363,7 @@ class _LayoutEngine:
                 dp[0][ld] = (cost, None, segs)
 
         for a_idx in range(1, len(active)):
-            gi, cfg = active[a_idx]
+            _gi, cfg = active[a_idx]
             prev_layer = dp[a_idx - 1]
             cur_layer: dict = {}
             for (fd, ld), (sw, segs) in cfg.items():

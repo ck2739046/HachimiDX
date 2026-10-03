@@ -78,7 +78,7 @@ class VideoSyncServer:
         def run_server():
             while self.running:
                 try:
-                    data, addr = self.udp_socket.recvfrom(65535)
+                    data, _addr = self.udp_socket.recvfrom(65535)
                     message = json.loads(data.decode("utf-8"))
                     self.handle_message(message)
 

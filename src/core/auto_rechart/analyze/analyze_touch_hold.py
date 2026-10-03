@@ -62,7 +62,7 @@ def analyze_touch_hold_time(shared_context, touch_hold_data):
             print(f"analyze_touch_hold_time: no valid dist data for track_id {key[0]}")
             continue
 
-        percent_times, percent_speeds = predict_touch_hold_percent_reach_end_time(
+        percent_times, _percent_speeds = predict_touch_hold_percent_reach_end_time(
             percent_data
         )
         if not percent_times:

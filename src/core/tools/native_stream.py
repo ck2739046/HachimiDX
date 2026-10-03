@@ -17,6 +17,7 @@ import re
 import sys
 import threading
 import traceback
+from typing import Self
 
 _READ_CHUNK_BYTES = 65536
 
@@ -389,7 +390,7 @@ class NativeStderrRedirect:
             self._thread.join(timeout=1.0)
             self._thread = None
 
-    def __enter__(self) -> "NativeStderrRedirect":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, *exc_info) -> bool:

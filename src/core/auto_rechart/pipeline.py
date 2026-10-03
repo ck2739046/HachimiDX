@@ -296,7 +296,7 @@ class Pipeline:
                         continue
 
                     if not isinstance(message, _Message):
-                        raise RuntimeError("pipeline queue received an invalid message")
+                        raise TypeError("pipeline queue received an invalid message")
                     if message.kind == _MessageKind.ITEM:
                         self.consumer.consume(message.value, stop, self.ctx)
                     elif message.kind == _MessageKind.DONE:

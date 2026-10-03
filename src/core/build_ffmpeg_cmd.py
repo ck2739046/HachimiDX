@@ -326,10 +326,9 @@ def _build_audio_args(data: MediaModel) -> OpResult[list[str]]:
         args.extend(["-vn", "-sn", "-dn", "-map", "0:a:0"])
 
     # 有音频时考虑删除音频
-    if data.media_type == MediaType.VIDEO_WITH_AUDIO:
-        if data.delete_audio:
-            args.extend(["-an"])  # 无音频输出
-            return ok(args)
+    if data.media_type == MediaType.VIDEO_WITH_AUDIO and data.delete_audio:
+        args.extend(["-an"])  # 无音频输出
+        return ok(args)
 
     # 没音频直接静音
     if data.media_type in [MediaType.VIDEO_WITHOUT_AUDIO]:
@@ -395,7 +394,7 @@ def _build_audio_filters(
 
     # pad start
     if pad:
-        pad_ms = int(round(pad * 1000.0))
+        pad_ms = round(pad * 1000.0)
         filters.append(f"adelay={pad_ms}|{pad_ms}")  # "ms|ms" for stereo
 
     # volume

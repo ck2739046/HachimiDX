@@ -350,7 +350,7 @@ def main(
         # 对每条 slide track 尝试反向追踪
         reverse_count = 0
         for key, track_geos in final_tracked_results.items():
-            track_id, note_type = key
+            _track_id, note_type = key
             if note_type != NoteType.SLIDE:
                 continue
 

@@ -98,7 +98,7 @@ class TransformMixin:
             m_warp = np.eye(3, dtype=np.float32)
         else:
             src_quad = self.quad_points.astype(np.float32)
-            default_quad = self._build_default_quad(int(round(fw)), int(round(fh)))
+            default_quad = self._build_default_quad(round(fw), round(fh))
             if np.array_equal(src_quad, default_quad):
                 m_warp = np.eye(3, dtype=np.float32)
             else:

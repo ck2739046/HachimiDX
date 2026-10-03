@@ -13,7 +13,7 @@ site.ENABLE_USER_SITE = False
 
 # remove site.USER_SITE and the realpath variation from sys.path
 # XXX: somewhat time consuming to do on every startup but thorough
-__sys_path_index_del = list()
+__sys_path_index_del = []
 """index to delete from sys.path"""
 __user_site_resolve = os.path.realpath(site.USER_SITE)
 for __i, __path in enumerate(sys.path):

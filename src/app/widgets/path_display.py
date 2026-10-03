@@ -6,8 +6,8 @@ from ..ui_style import UI_Style
 
 
 def create_path_display(
-    default_text: str = None,
-    length: int = None,
+    default_text: str | None = None,
+    length: int | None = None,
     font_color=UI_Style.COLORS["text_secondary"],
     font_bold: bool = False,
 ) -> QLineEdit:

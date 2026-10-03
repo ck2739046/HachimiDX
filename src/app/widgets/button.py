@@ -49,8 +49,8 @@ class StatedButton(PointerCursorButton):
         self,
         text: str,
         isbig: bool = False,
-        width: int = None,
-        height: int = None,
+        width: int | None = None,
+        height: int | None = None,
         parent=None,
     ):
         super().__init__(text, parent)
@@ -77,7 +77,7 @@ class StatedButton(PointerCursorButton):
 
 
 def create_stated_button(
-    text: str, isbig: bool = False, width: int = None
+    text: str, isbig: bool = False, width: int | None = None
 ) -> StatedButton:
     """
     创建大按钮，带启用/禁用状态切换
@@ -112,7 +112,7 @@ def create_stated_button(
     return StatedButton(text, isbig=isbig, width=width, height=height)
 
 
-def create_button(text: str, width: int = None, color="accent") -> QPushButton:
+def create_button(text: str, width: int | None = None, color="accent") -> QPushButton:
     """
     创建普通按钮
 

@@ -182,9 +182,8 @@ class TouchHoldProducer(Producer):
                 buffer = buffer[self.touch_hold_batch_number :]
 
         # 发送剩余 buffer
-        if buffer:
-            if not self._put_or_stop(q, buffer, stop):
-                return
+        if buffer and not self._put_or_stop(q, buffer, stop):
+            return
 
 
 class TouchHoldConsumer(Consumer):
@@ -339,7 +338,7 @@ def calc_touch_hold_crop_size(std_video_size: int, is_big_touch: bool) -> int:
     crop_size = std_video_size * 210 / 1080  # 与 label_notes.py 一致
     if is_big_touch:
         crop_size *= 1.3
-    return max(1, int(round(crop_size)))
+    return max(1, round(crop_size))
 
 
 def _crop_with_black_padding(frame, center_x, center_y, crop_width, crop_height):
@@ -350,8 +349,8 @@ def _crop_with_black_padding(frame, center_x, center_y, crop_width, crop_height)
     crop_width = max(1, int(crop_width))
     crop_height = max(1, int(crop_height))
 
-    x1 = int(round(center_x - crop_width / 2))
-    y1 = int(round(center_y - crop_height / 2))
+    x1 = round(center_x - crop_width / 2)
+    y1 = round(center_y - crop_height / 2)
     x2 = x1 + crop_width
     y2 = y1 + crop_height
 

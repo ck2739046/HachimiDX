@@ -38,10 +38,10 @@ _FILTER_MAP = {
 
 def create_file_selection_row(
     button_text: str,
-    button_length: int = None,
-    help_text: str = None,
+    button_length: int | None = None,
+    help_text: str | None = None,
     on_button_clicked_handler=None,
-    name_filter: str = None,
+    name_filter: str | None = None,
 ):
     """
     创建文件选择行UI组件
@@ -110,7 +110,7 @@ def create_file_selection_row(
 
 def create_directory_selection_row(
     button_text: str,
-    help_text: str = None,
+    help_text: str | None = None,
     button_length=None,
     on_button_clicked_handler=None,
 ):

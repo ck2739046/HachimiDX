@@ -112,7 +112,7 @@ class TaskScheduler(QObject):
             runner_id=rid,
             task_type=task_type,
             task_name=str(task_name or "").strip(),
-            accepted_at=datetime.now(),
+            accepted_at=datetime.now().astimezone(),
             status=TaskStatus.PENDING,
             cmd=cmd,
         )
@@ -289,7 +289,7 @@ class TaskScheduler(QObject):
     def _emit_snapshot(self) -> None:
         try:
             snapshot: dict[str, list[TaskInfo]] = {}
-            for ttype in self._registry.keys():
+            for ttype in self._registry:
                 # Collect running/pending/done, then stably sort by accepted_at.
                 by_id: dict[str, TaskInfo] = {}
                 for rid in self._running.get(ttype, set()):

@@ -625,7 +625,7 @@ class SettingsPage(BaseOutputPage):
                         ),
                     )
                     self.output_widget.append_text(
-                        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
+                        f"[{datetime.now().astimezone().strftime('%Y-%m-%d %H:%M:%S')}] "
                         + i18n.t(f"{I18N_Prefix}.notice_save_failed")
                     )
                     return
@@ -642,7 +642,7 @@ class SettingsPage(BaseOutputPage):
                 )
 
             self.output_widget.append_text(
-                f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
+                f"[{datetime.now().astimezone().strftime('%Y-%m-%d %H:%M:%S')}] "
                 + i18n.t(f"{I18N_Prefix}.notice_save_success")
             )
             self._load_settings_to_ui()
@@ -678,7 +678,7 @@ class SettingsPage(BaseOutputPage):
                 return
 
             self.output_widget.append_text(
-                f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
+                f"[{datetime.now().astimezone().strftime('%Y-%m-%d %H:%M:%S')}] "
                 + i18n.t(f"{I18N_Prefix}.notice_reset_success")
             )
             self._load_settings_to_ui()

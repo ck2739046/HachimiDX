@@ -1,3 +1,5 @@
+import itertools
+
 import numpy as np
 
 from ..detect.note_definition import (
@@ -224,7 +226,7 @@ def preprocess_slide_head_data(
         # 检查dist是否递增 (允许微小回退 -0.5* start_tolerance)
         if not all(
             later - earlier > -0.5 * start_tolerance
-            for earlier, later in zip(dists, dists[1:])
+            for earlier, later in itertools.pairwise(dists)
         ):
             print(
                 f"preprocess_slide_head_data: dist not increasing for track_id {track_id}"

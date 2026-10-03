@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import i18n
@@ -290,7 +290,7 @@ class TasksPage(BaseOutputPage):
         ended = [t for t in visible if t.status == TaskStatus.ENDED]
 
         def key(t: TaskInfo) -> datetime:
-            return t.accepted_at or datetime.min
+            return t.accepted_at or datetime.min.replace(tzinfo=UTC)
 
         running.sort(key=key)  # 越早接受的任务在上面
         pending.sort(key=key)  # 越早接受的任务在上面
@@ -303,11 +303,7 @@ class TasksPage(BaseOutputPage):
     # -------------------
 
     def _task_fingerprint(self, task: TaskInfo) -> tuple[Any, ...]:
-        accepted = (
-            task.accepted_at.isoformat(sep=" ", timespec="seconds")
-            if task.accepted_at
-            else None
-        )
+        accepted = self._format_local(task.accepted_at) if task.accepted_at else None
         return (
             task.runner_id,
             getattr(task.task_type, "value", task.task_type),
@@ -374,10 +370,16 @@ class TasksPage(BaseOutputPage):
     # Formatting / colors
     # -------------------
 
+    @staticmethod
+    def _format_local(accepted_at: datetime) -> str:
+        """按本机墙钟渲染，不显示时区偏移（与历史显示保持一致）"""
+        local = accepted_at.astimezone().replace(tzinfo=None)
+        return local.isoformat(sep=" ", timespec="seconds")
+
     def _format_accepted(self, accepted_at: datetime | None) -> str:
         if accepted_at is None:
             return ""
-        return accepted_at.isoformat(sep=" ", timespec="seconds")
+        return self._format_local(accepted_at)
 
     def _on_cancel_task(self, runner_id: str) -> None:
         """处理取消任务操作，并在失败时显示错误信息"""

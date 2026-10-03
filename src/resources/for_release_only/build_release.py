@@ -201,7 +201,7 @@ def extract_with_bandizip(archive_path: Path, extract_path: Path, mode: str):
         print(f"extract_with_bandizip: Invalid mode: {mode}")
 
 
-def copy_to_release(input_path: Path, target_path: Path = None):
+def copy_to_release(input_path: Path, target_path: Path | None = None):
 
     if input_path.is_dir():
         # 先删除文件夹内的 __pychache___
