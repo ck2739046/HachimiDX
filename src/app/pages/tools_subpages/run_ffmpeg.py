@@ -719,7 +719,7 @@ class RunFFmpegPage(BaseOutputPage):
                 return None
             try:
                 return round(float(value))
-            except:
+            except (ValueError, TypeError):
                 return None
 
         def try_float(value) -> float | None:
@@ -727,7 +727,7 @@ class RunFFmpegPage(BaseOutputPage):
                 return None
             try:
                 return float(value)
-            except:
+            except (ValueError, TypeError):
                 return None
 
         try:

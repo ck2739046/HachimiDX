@@ -2,7 +2,7 @@
 
 import json
 import re
-from datetime import date
+from datetime import datetime
 
 import i18n
 from PyQt6.QtCore import QUrl
@@ -76,14 +76,17 @@ def check_update(force: bool = False) -> None:
                 return
 
             # 检查今天是否已经检查过更新
-            today_str = date.today().isoformat()
+            today_str = datetime.now().astimezone().date().isoformat()
             last_result = SettingsManage.get(S_Defs.last_check_update_time.key)
-            if last_result.is_ok and last_result.value:
-                if str(last_result.value) >= today_str:
-                    print(i18n.t("check_update.notice_already_checked_today"))
-                    return
+            if (
+                last_result.is_ok
+                and last_result.value
+                and str(last_result.value) >= today_str
+            ):
+                print(i18n.t("check_update.notice_already_checked_today"))
+                return
         else:
-            today_str = date.today().isoformat()
+            today_str = datetime.now().astimezone().date().isoformat()
 
         from src.main import API_RELEASE_LATEST  # 避免循环依赖
 

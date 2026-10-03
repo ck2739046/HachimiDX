@@ -1,6 +1,7 @@
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import ClassVar
 
 from src.core.schemas.op_result import OpResult, err, ok
 
@@ -98,7 +99,7 @@ class PathManage:
     TEMP_TRT_CLS_EX_ONNX_PATH: Path = MODELS_DIR / "cls-ex.onnx"
     TEMP_TRT_TOUCH_HOLD_ONNX_PATH: Path = MODELS_DIR / "detect-touch-hold.onnx"
 
-    _MODEL_STEMS = {
+    _MODEL_STEMS: ClassVar[dict[str, str]] = {
         "detect": "detect",
         "obb": "obb",
         "cls_break": "cls-break",

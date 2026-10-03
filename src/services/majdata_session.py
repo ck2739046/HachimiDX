@@ -194,12 +194,11 @@ class MajdataSession(QObject):
             def _enum_cb(hwnd, _):
                 if win32gui.IsWindowVisible(hwnd):
                     title = win32gui.GetWindowText(hwnd)
-                    if mode == "exact":
-                        if title == keyword:
-                            found.append(int(hwnd))
-                    elif mode == "startswith":
-                        if title.startswith(keyword):
-                            found.append(int(hwnd))
+                    matched = (mode == "exact" and title == keyword) or (
+                        mode == "startswith" and title.startswith(keyword)
+                    )
+                    if matched:
+                        found.append(int(hwnd))
                 return True
 
             win32gui.EnumWindows(_enum_cb, None)

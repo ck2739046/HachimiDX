@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Literal
+from typing import ClassVar, Literal
 
 from .media_config import MediaType
 from .settings_config import SettingsConfig_Definitions as S_Defs
@@ -231,7 +231,7 @@ class AutoRechartConfig_Definitions:
         },
     )
 
-    CHART_LV_PRESETS = {
+    CHART_LV_PRESETS: ClassVar[dict[int, dict[str, object]]] = {
         2: {
             is_big_touch.key: True,
             base_denominator.key: 8,

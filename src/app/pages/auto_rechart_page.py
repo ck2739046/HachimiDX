@@ -646,7 +646,7 @@ class AutoRechartPage(BaseOutputPage):
                 return None
             try:
                 return round(float(value))
-            except:
+            except (ValueError, TypeError):
                 return None
 
         def try_float(value) -> float | None:
@@ -654,7 +654,7 @@ class AutoRechartPage(BaseOutputPage):
                 return None
             try:
                 return float(value)
-            except:
+            except (ValueError, TypeError):
                 return None
 
         try:
@@ -755,11 +755,12 @@ class AutoRechartPage(BaseOutputPage):
 
             # 如果启用音符分析模组，并且处于非高级模式下
             # 高等级谱面 + 低帧率视频 弹警告
-            if raw_data[AC_Defs.is_analyze_enabled.key]:
+            if raw_data[AC_Defs.is_analyze_enabled.key]:  # noqa: SIM102
                 if not self.advanced_mode_check_box.isChecked():
                     chart_lv = try_int(self.chart_lv_combo_box.currentText())
                     fps = try_float(self.chart_confirm_video_input.selected_video_fps)
-                    if chart_lv is not None and fps is not None:
+                    # 先判可用性再判阈值，比四条件长链更好懂，故豁免 SIM102
+                    if chart_lv is not None and fps is not None:  # noqa: SIM102
                         if chart_lv >= 4 and fps < 58:
                             title = i18n.t(f"{I18N_Prefix}.ui_low_fps_warning_title")
                             text = i18n.t(
@@ -835,7 +836,7 @@ class AutoRechartPage(BaseOutputPage):
     def _on_chart_lv_changed(self, text: str):
         try:
             chart_lv = int(text)
-        except:
+        except (ValueError, TypeError):
             return
         preset = AC_Defs.CHART_LV_PRESETS.get(chart_lv, None)
         if preset is None:

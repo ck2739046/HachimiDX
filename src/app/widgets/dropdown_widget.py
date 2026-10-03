@@ -243,7 +243,7 @@ class _ComboPopup(QFrame):
             if rect.isValid() and not rect.isEmpty():
                 # 允许 tooltip 部分超出窗口
                 over_w = tip_w * OVERFLOW_RATIO
-                if (x_right + tip_w) - rect.right() > over_w:
+                if (x_right + tip_w) - rect.right() > over_w:  # noqa: SIM102
                     # 右侧超出过多，尝试显示在左侧
                     if x_left >= rect.left() - over_w:
                         tooltip_pos = QPoint(x_left, y)

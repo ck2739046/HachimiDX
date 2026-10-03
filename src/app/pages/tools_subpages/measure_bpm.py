@@ -310,25 +310,24 @@ class MeasureBpmPage(BaseOutputPage):
     def _on_runner_ended(self, runner_id: str, ended) -> None:
 
         # ---- BPM-Measurer ----
-        if self._bpm_measurer_runner_id:
-            if runner_id == self._bpm_measurer_runner_id:
-                # 重置状态
-                self._bpm_measurer_runner_id = None
-                self.enable_bpm_measurer_check_box.setEnabled(True)
-                self.open_bpm_measurer_button.setEnabled(True)
-                # 0 = 已导出；1 = 用户未导出即关闭；其它/2 = 异常
-                exit_code = getattr(ended, "exit_code", None)
-                if exit_code == 0:
-                    # 解析 BPM-Measurer 回传信息
-                    self._parse_bpm_measurer_manifest()
-                elif exit_code == 1:
-                    self.output_widget.append_text(_t("notice_bpm_measurer_cancelled"))
-                    return
-                else:
-                    self.output_widget.append_text(
-                        _t("warning_bpm_measurer_failed", code=exit_code)
-                    )
-                    return
+        if self._bpm_measurer_runner_id and runner_id == self._bpm_measurer_runner_id:
+            # 重置状态
+            self._bpm_measurer_runner_id = None
+            self.enable_bpm_measurer_check_box.setEnabled(True)
+            self.open_bpm_measurer_button.setEnabled(True)
+            # 0 = 已导出；1 = 用户未导出即关闭；其它/2 = 异常
+            exit_code = getattr(ended, "exit_code", None)
+            if exit_code == 0:
+                # 解析 BPM-Measurer 回传信息
+                self._parse_bpm_measurer_manifest()
+            elif exit_code == 1:
+                self.output_widget.append_text(_t("notice_bpm_measurer_cancelled"))
+                return
+            else:
+                self.output_widget.append_text(
+                    _t("warning_bpm_measurer_failed", code=exit_code)
+                )
+                return
 
     def _parse_bpm_measurer_manifest(self) -> None:
         if not self._notify_path or not self._notify_path.is_file():

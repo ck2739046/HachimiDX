@@ -52,4 +52,4 @@ def __getattr__(name: str):
 
 
 # 从 _LAZY_MAP 派生，避免新增符号时漏改 __all__
-__all__ = [*_LAZY_MAP, *_SUBMODULE_NAMES]
+__all__ = list(_LAZY_MAP) + list(_SUBMODULE_NAMES)

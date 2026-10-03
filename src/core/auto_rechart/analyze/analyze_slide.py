@@ -159,7 +159,7 @@ def slide_head_tail_match_by_time(
     # 这样后续tail查找head时，只会在对应位置的head中查找，减少计算量
     head_by_position = defaultdict(list)
     for head_key, head_value in slide_head_info.items():
-        _head_track_id, note_type, note_variant, head_position = head_key
+        _head_track_id, _note_type, _note_variant, head_position = head_key
         head_end_time = head_value
         # 此处 head_position 是带有 variant 后缀的，如 1bx，需要去除后缀
         pos_id = str(head_position[0])
@@ -365,10 +365,10 @@ def try_split_slide_tail(
                 ]
 
                 # 检查分割: 两个路径必须都离开当前 A 区
-                def is_valid_split(path):
+                def is_valid_split(path, a_zone=head_position_A_zone):
                     has_left_a_zone = False
                     for note in path:
-                        if note["position"] != head_position_A_zone:
+                        if note["position"] != a_zone:
                             has_left_a_zone = True
                             break
                     return has_left_a_zone

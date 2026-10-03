@@ -116,7 +116,7 @@ class MediaPipeline:
 
         try:
             result = subprocess.run(
-                cmd, capture_output=False, text=True, encoding="utf-8"
+                cmd, capture_output=False, check=False, text=True, encoding="utf-8"
             )
         except Exception as e:
             return err("Failed to run ffmpeg process", error_raw=e)

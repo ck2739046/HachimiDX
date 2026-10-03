@@ -14,8 +14,7 @@ def _collect_note_approach_paths(shared_context, tap_data, slide_head_data, hold
     final_paths = []
 
     for data in (tap_data, slide_head_data):
-        for path in data.values():
-            final_paths.append(path)
+        final_paths.extend(data.values())
 
     # hold 头尾可能长时间停在判定线，导致流速计算异常
     tolerance = shared_context.note_travel_dist * 0.1

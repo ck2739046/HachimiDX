@@ -146,7 +146,7 @@ def main(
     finally:
         try:
             cap.release()
-        except:
+        except Exception:
             pass
 
 

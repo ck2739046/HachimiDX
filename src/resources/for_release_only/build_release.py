@@ -182,19 +182,21 @@ def extract_with_bandizip(archive_path: Path, extract_path: Path, mode: str):
             "-target:auto",
             str(archive_path),
         ]
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=True, check=False, text=True)
         if result.returncode != 0:
             raise RuntimeError(f"Bandizip 解压失败: {result.stderr}")
         # 智能解压会剥掉唯一的顶层同名文件夹
         # 解压结果可能就是 extract_path, 仅在需要时才重命名
         real_extracted_dir = extract_path.parent / archive_path.stem
-        if real_extracted_dir.is_dir():
-            if real_extracted_dir.resolve() != extract_path.resolve():
-                os.rename(real_extracted_dir, extract_path)
+        if (
+            real_extracted_dir.is_dir()
+            and real_extracted_dir.resolve() != extract_path.resolve()
+        ):
+            os.rename(real_extracted_dir, extract_path)
     elif mode == "file":
         # 解压到目标路径时不创建压缩包同名文件夹
         cmd = ["bandizip", "x", f"-o:{extract_path}", str(archive_path)]
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=True, check=False, text=True)
         if result.returncode != 0:
             raise RuntimeError(f"Bandizip 解压失败: {result.stderr}")
     else:
@@ -259,7 +261,8 @@ def upgrade_pip(python_exe: Path):
                 "--no-warn-script-location",
                 "-i",
                 index,
-            ]
+            ],
+            check=False,
         )
         if result.returncode == 0:
             return

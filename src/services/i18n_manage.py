@@ -34,11 +34,10 @@ class I18nManage:
         fallback_file = os.path.join(LOCALES_DIR, f"{fallback_language}.yaml")
         selected_file = os.path.join(LOCALES_DIR, f"{language}.yaml")
 
-        if language != fallback_language:
-            if not os.path.isfile(selected_file):
-                print(
-                    f"--Warning: I18nInit: Language file for '{language}' not found, falling back to '{fallback_language}'."
-                )
+        if language != fallback_language and not os.path.isfile(selected_file):
+            print(
+                f"--Warning: I18nInit: Language file for '{language}' not found, falling back to '{fallback_language}'."
+            )
 
         if not os.path.isfile(fallback_file):
             return err(

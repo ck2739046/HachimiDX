@@ -60,7 +60,7 @@ def main(
                 # 清理 notify 文件
                 try:
                     Path(bpm_config).unlink(missing_ok=True)
-                except:
+                except OSError:
                     pass
         elif static_bpm is not None:
             timing_points = [(0.0, static_bpm, 0.0)]

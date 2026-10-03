@@ -109,7 +109,7 @@ def main(is_lite: bool = False) -> int:
     # 依赖缺失时弹窗引导用户跑安装脚本
     try:
         from PyQt6.QtCore import QSharedMemory
-        from PyQt6.QtWidgets import QApplication, QStyleFactory
+        from PyQt6.QtWidgets import QApplication
     except ModuleNotFoundError:
         prompt_missing_dependencies()
         return 0

@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 import numpy as np
 
 from ..tool import calculate_all_position, catmull_rom_spline
@@ -977,9 +979,9 @@ def _next_DE_zone_id(A_zone_id: int) -> int:
 
 def _ckeck_zones(
     note_positions: list[str],
-    required: list[str] = [],
-    optional: list[str] = [],
-    banned: list[str] = [],
+    required: Sequence[str] = (),
+    optional: Sequence[str] = (),
+    banned: Sequence[str] = (),
     required_sort: bool = False,
 ) -> bool:
     # banned

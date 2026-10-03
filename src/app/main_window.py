@@ -306,7 +306,8 @@ class MainWindow(QMainWindow):
         # 启动 MajdataSession
         self._majdata_session = MajdataSession(self)
         self._majdata_session.ready.connect(self._on_majdata_ready)
-        result = self._majdata_session.start()
+        # 结果刻意不处理，但保留变量：下面注释掉的检查要用它
+        result = self._majdata_session.start()  # noqa: F841
         # if not result.is_ok:
         #     print(f"--Warning: MajdataSession.start failed: {result.error_msg}")
 

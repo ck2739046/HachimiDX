@@ -419,7 +419,7 @@ class _LayoutEngine:
             buf: list[str] = []
             cur_div: int | None = None
 
-            def emit_div(D):
+            def emit_div(D, buf=buf):
                 nonlocal cur_div
                 if D != cur_div:
                     buf.append(f"{{{D}}}")

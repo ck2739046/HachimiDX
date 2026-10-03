@@ -101,7 +101,7 @@ def export_aligned_config(
         # 删除 notify JSON 文件
         try:
             notify_path.unlink(missing_ok=True)
-        except:
+        except OSError:
             pass
 
     if not compute_res.is_ok:

@@ -157,7 +157,8 @@ def main(args: list[str]) -> bool:
             print(print_op_result(res))
             return False
 
-        audio_wave_image_path = res.value
+        # 路径刻意不处理，但保留变量：下面注释掉的打印要用它
+        audio_wave_image_path = res.value  # noqa: F841
         # print(f"Audio wave image saved at: {str(audio_wave_image_path)}")
         return True
 

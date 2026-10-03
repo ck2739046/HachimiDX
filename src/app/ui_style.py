@@ -3,10 +3,12 @@ UI Style Configuration
 提供统一的ui风格
 """
 
+from typing import ClassVar
+
 
 class UI_Style:
     # 配色方案
-    COLORS = {
+    COLORS: ClassVar[dict[str, str]] = {
         "bg": "#303030",
         "text_primary": "#E8E8E8",
         "text_secondary": "#8D99AE",

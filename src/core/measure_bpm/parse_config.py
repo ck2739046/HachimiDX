@@ -60,7 +60,7 @@ def parse_config(
 
     cmd = build_parse_config_cmd(notify_path, cfg)
     try:
-        proc = subprocess.run(cmd, capture_output=True, timeout=timeout)
+        proc = subprocess.run(cmd, capture_output=True, check=False, timeout=timeout)
     except (OSError, subprocess.SubprocessError) as e:
         return err(f"failed to launch BPM-Measurer: {e}", error_raw=e)
 

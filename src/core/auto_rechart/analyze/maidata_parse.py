@@ -24,7 +24,7 @@ def parse_note_info(
     return: raw_cur_note_time, cur_note_time, cur_position, cur_bpm_segment_index, cur_note_track_id
     """
 
-    (track_id, note_type, note_variant, cur_position), time = key, value
+    (track_id, note_type, _note_variant, cur_position), time = key, value
 
     raw_cur_note_time = _get_note_reach_time(time, track_id)
     if raw_cur_note_time is None:

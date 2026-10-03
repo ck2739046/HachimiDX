@@ -350,6 +350,7 @@ class FFprobeInspect:
             result = subprocess.run(
                 [ffprobe_exe] + args,
                 capture_output=True,
+                check=False,
                 text=True,
                 encoding="utf-8",
                 errors="replace",
@@ -416,7 +417,8 @@ class FFprobeInspect:
                 fps = s.get("avg_frame_rate", "N/A")
                 duration_stream = s.get("duration", "N/A")
                 bit_rate = s.get("bit_rate", "N/A")
-                frames = s.get("nb_frames", "N/A")
+                # frames 目前只取不校验，保留给以后展示
+                frames = s.get("nb_frames", "N/A")  # noqa: F841
                 duration_tag = (
                     s.get("tags").get("DURATION", "N/A") if s.get("tags") else "N/A"
                 )
@@ -462,9 +464,10 @@ class FFprobeInspect:
                 codec_name = s.get("codec_name", "N/A")
                 sample_rate = s.get("sample_rate", "N/A")
                 channels = s.get("channels", "N/A")
-                channel_layout = s.get("channel_layout", "N/A")
+                # channel_layout / bit_rate 目前只取不校验，保留给以后展示
+                channel_layout = s.get("channel_layout", "N/A")  # noqa: F841
                 duration_stream = s.get("duration", "N/A")
-                bit_rate = s.get("bit_rate", "N/A")
+                bit_rate = s.get("bit_rate", "N/A")  # noqa: F841
                 duration_tag = (
                     s.get("tags").get("DURATION", "N/A") if s.get("tags") else "N/A"
                 )
@@ -524,7 +527,7 @@ class FFprobeInspect:
                 try:
                     index = int(s.get("index"))
                     target_streams[index] = s
-                except:
+                except (ValueError, TypeError):
                     pass
 
         if len(target_streams) == 0:

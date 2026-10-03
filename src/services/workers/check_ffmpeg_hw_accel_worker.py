@@ -45,6 +45,7 @@ def _run_ffmpeg(args: list[str]) -> bool:
         cmd = [FFMPEG, "-hide_banner", "-loglevel", "error"] + args
         result = subprocess.run(
             cmd,
+            check=False,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
             text=True,
