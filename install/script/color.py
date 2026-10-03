@@ -6,6 +6,19 @@ ANSI 彩色文本辅助。
 
 import unicodedata
 
+__all__ = [
+    "cyan",
+    "get_separator",
+    "green",
+    "hint",
+    "note_on_hint",
+    "red",
+    "reverse",
+    "yellow",
+]
+
+
+# 这些不是公共变量
 
 RESET = "\x1b[0m"
 REVERSE = "\x1b[7m"

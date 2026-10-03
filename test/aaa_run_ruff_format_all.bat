@@ -1,5 +1,7 @@
 @echo off
-rem Full ruff pass over src/: format, autofix, format again.
+rem Full ruff pass over the repository: format, autofix, format again.
+rem Applies to src/, install/, test/ and any other .py outside the directories
+rem excluded by .ruff.toml (archive, python, data, install/dml_support, .venv).
 rem   aaa_run_ruff_format_all.bat           format + autofix
 rem   aaa_run_ruff_format_all.bat --check   check only, for CI
 setlocal enabledelayedexpansion
@@ -28,30 +30,31 @@ if not defined RUFF (
 
 echo repo: %CD%
 echo ruff: !RUFF!
+echo scope: whole repo (.ruff.toml excludes archive / python / data / install\dml_support / .venv)
 echo.
 
 if /i "%~1"=="--check" goto :check
 
-echo [1/3] ruff format
-!RUFF! format src || goto :fail
-echo [2/3] ruff check --fix
-!RUFF! check --fix src
-echo [3/3] ruff format  (check --fix can leave files unformatted)
-!RUFF! format src || goto :fail
+echo [1/3] ruff format .
+!RUFF! format . || goto :fail
+echo [2/3] ruff check --fix .
+!RUFF! check --fix .
+echo [3/3] ruff format .  (check --fix can leave files unformatted)
+!RUFF! format . || goto :fail
 
 echo.
 echo --- remaining issues ---
-!RUFF! check src --statistics
+!RUFF! check . --statistics
 echo.
 echo done.
 pause & popd & exit /b 0
 
 :check
-echo [1/2] ruff format --check
-!RUFF! format src --check
+echo [1/2] ruff format --check .
+!RUFF! format . --check
 if errorlevel 1 (set "FAILED=1") else (echo [OK] formatting clean)
-echo [2/2] ruff check
-!RUFF! check src
+echo [2/2] ruff check .
+!RUFF! check .
 if errorlevel 1 (set "FAILED=1") else (echo [OK] lint clean)
 echo.
 if defined FAILED (

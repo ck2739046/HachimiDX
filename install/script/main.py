@@ -7,7 +7,16 @@ import shutil
 from . import console_journal, en_us, zh_cn
 from .op_result import OpResult, ok, err, print_op_result
 from .console_input import ask
-from .color import *
+from .color import (
+    cyan,
+    get_separator,
+    green,
+    hint,
+    note_on_hint,
+    red,
+    reverse,
+    yellow,
+)
 
 from .choose_backend import choose_backend
 from .detect_onnx_cuda import onnx_cuda_config

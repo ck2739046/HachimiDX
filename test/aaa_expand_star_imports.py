@@ -16,7 +16,7 @@ import pathlib
 import sys
 
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent
-SRC_DIR = PROJECT_ROOT / "src"
+SCAN_DIRS = ["test", "src", "install"]
 
 
 def module_to_path(mod: str, importer: pathlib.Path) -> pathlib.Path | None:
@@ -101,47 +101,57 @@ def expand(apply: bool) -> int:
     sites = 0
     changed_files = 0
 
-    for path in sorted(SRC_DIR.rglob("*.py")):
-        source = path.read_text(encoding="utf-8")
-        try:
-            tree = ast.parse(source)
-        except SyntaxError as exc:
-            print(f"  跳过（语法错误）{path}: {exc}")
+    for scan_dir in SCAN_DIRS:
+        root = PROJECT_ROOT / scan_dir
+        if not root.is_dir():
+            print(f"跳过（目录不存在）: {scan_dir}")
             continue
-
-        star_nodes = [
-            n
-            for n in tree.body
-            if isinstance(n, ast.ImportFrom) and any(a.name == "*" for a in n.names)
-        ]
-        if not star_nodes:
-            continue
-
-        lines = source.splitlines(keepends=True)
-        edits: list[tuple[int, int, str]] = []
-        rel = path.relative_to(PROJECT_ROOT)
-
-        for node in star_nodes:
-            mod = ("." * node.level) + (node.module or "")
-            target = module_to_path(mod, path)
-            names = public_names(target) if target else []
-            if not names:
-                print(f"  {rel}:{node.lineno}  {mod}  !! 无法解析出名字，跳过")
+        print(f"扫描目录: {scan_dir}/")
+        for path in sorted(root.rglob("*.py")):
+            source = path.read_text(encoding="utf-8")
+            try:
+                tree = ast.parse(source)
+            except SyntaxError as exc:
+                print(f"  跳过（语法错误）{path}: {exc}")
                 continue
-            body = ",\n".join(f"    {n}" for n in names)
-            edits.append(
-                (node.lineno - 1, node.end_lineno, f"from {mod} import (\n{body},\n)\n")
-            )
-            sites += 1
-            print(f"  {rel}:{node.lineno}  {mod}  -> {len(names)} names")
 
-        if edits and apply:
-            for start, end, new in sorted(edits, key=lambda e: -e[0]):
-                lines[start:end] = [new]
-            path.write_text("".join(lines), encoding="utf-8")
-            changed_files += 1
+            star_nodes = [
+                n
+                for n in tree.body
+                if isinstance(n, ast.ImportFrom) and any(a.name == "*" for a in n.names)
+            ]
+            if not star_nodes:
+                continue
 
-    print()
+            lines = source.splitlines(keepends=True)
+            edits: list[tuple[int, int, str]] = []
+            rel = path.relative_to(PROJECT_ROOT)
+
+            for node in star_nodes:
+                mod = ("." * node.level) + (node.module or "")
+                target = module_to_path(mod, path)
+                names = public_names(target) if target else []
+                if not names:
+                    print(f"  {rel}:{node.lineno}  {mod}  !! 无法解析出名字，跳过")
+                    continue
+                body = ",\n".join(f"    {n}" for n in names)
+                edits.append(
+                    (
+                        node.lineno - 1,
+                        node.end_lineno,
+                        f"from {mod} import (\n{body},\n)\n",
+                    )
+                )
+                sites += 1
+                print(f"  {rel}:{node.lineno}  {mod}  -> {len(names)} names")
+
+            if edits and apply:
+                for start, end, new in sorted(edits, key=lambda e: -e[0]):
+                    lines[start:end] = [new]
+                path.write_text("".join(lines), encoding="utf-8")
+                changed_files += 1
+        print()
+
     print(f"星号导入处数: {sites}")
     if apply:
         print(f"改写文件数  : {changed_files}")
