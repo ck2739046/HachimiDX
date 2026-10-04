@@ -163,6 +163,22 @@ def _gap_configs(g: Fraction, R: int):
     return configs
 
 
+def _format_bar_position(pos: Fraction) -> str:
+    """
+    把绝对小节位置格式化为行首拍号注释文本
+
+    pos 为绝对小节位置 (小节数, 可为分数):
+        23      -> "23.0"    (整数行首按 "xxx.0" 打印)
+        23+4/384-> "23+1/96" (Fraction 已约分)
+        3/2     -> "1+1/2"
+    """
+    whole = pos.numerator // pos.denominator
+    frac = pos - whole
+    if frac == 0:
+        return f"{whole}.0"
+    return f"{whole}+{frac.numerator}/{frac.denominator}"
+
+
 class _LayoutEngine:
     """
     simai 谱面排版引擎
@@ -218,6 +234,8 @@ class _LayoutEngine:
                 gap_configs[idx] = self._resolve_gap(start, start + g)
 
         line_ranges = self._plan_lines(gap_list, n)
+        # 每行的行首绝对小节位置 (行首 anchor 的时间), 供行首拍号注释使用
+        line_starts = [anchors[anchor_start][0] for anchor_start, _ in line_ranges]
 
         # --- 每行独立 DP, 行内 BPM 前后分别计算 ---
         block_starts = {
@@ -235,7 +253,7 @@ class _LayoutEngine:
             seg_map.update(self._optimize_line(active, block_starts))
 
         # --- 输出 ---
-        return self._emit(anchors, gap_list, seg_map, line_ranges)
+        return self._emit(anchors, gap_list, seg_map, line_ranges, line_starts)
 
     @staticmethod
     def _plan_lines(
@@ -404,6 +422,7 @@ class _LayoutEngine:
         gap_list: list[Fraction],
         seg_map: dict,
         line_ranges: list[tuple[int, int]],
+        line_starts: list[Fraction],
     ) -> str:
         """
         按预先规划的行输出
@@ -412,6 +431,7 @@ class _LayoutEngine:
         gap_list:  [leading, after_anchor_0, ..., trailing]
         seg_map:   {gap_idx: [(N, k), ...]}
         line_ranges: [(首 anchor 索引, 末 anchor 索引), ...]
+        line_starts: 每行的行首绝对小节位置 (行首 anchor 的时间)
         """
         lines: list[str] = []
 
@@ -449,9 +469,40 @@ class _LayoutEngine:
                         emit_div(N)
                         buf.append("," * k)
 
-            lines.append("".join(buf) + "\n")
+            lines.append("".join(buf))
 
-        return "".join(lines) + "{1},,,E"
+        # --- 行首拍号注释 ---
+        # 空行与注释行 ("||" 开头) 跳过: 不写注释, 也不参与"连续同小数"判定
+        # 规则:
+        #   1. 第一行永远不写注释
+        #   2. 谱面各行行首全是整数 -> 一条注释都不写
+        #   3. 出现首个小数行首之后, 行首小数部分与上一行不同就写注释
+        #   4. 连续多行小数部分完全一致时, 只有第一行写
+        # 末尾追加的 "{1},,,E" 终止行不参与判定
+        body_lines = [
+            (idx, text)
+            for idx, text in enumerate(lines)
+            if text and not text.startswith("||")
+        ]
+        # 上一行行首的小数部分; 首行只用于建立基准, 自身永远不写注释
+        prev_pos = line_starts[body_lines[0][0]]
+        prev_frac = prev_pos - prev_pos.numerator // prev_pos.denominator
+        # 是否已经出现过小数行首: 全整数谱面永远为 False, 从而一条注释都不写
+        saw_frac = prev_frac != 0
+        out: list[str] = []
+        for pos_in_body, (line_idx, text) in enumerate(body_lines):
+            pos = line_starts[line_idx]
+            frac = pos - pos.numerator // pos.denominator
+            if frac != 0:
+                saw_frac = True
+            if pos_in_body != 0 and saw_frac and frac != prev_frac:
+                # 小数部分与上一行不同就写
+                # (整数行的小数部分为 0, 同样参与比较, 写作 "xxx.0")
+                out.append(f"|| {_format_bar_position(pos)}\n")
+            prev_frac = frac
+            out.append(text + "\n")
+
+        return "".join(out) + "{1},,,E"
 
     def _gap_configs_cached(self, g: Fraction, R: int):
         """
