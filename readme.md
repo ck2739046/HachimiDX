@@ -18,7 +18,7 @@ A tool that converts maimai gameplay videos into a simai chart (`maidata.txt`).
 ![](https://img.shields.io/github/stars/ck2739046/HachimiDX?label=Stars)
 ![](https://img.shields.io/github/downloads/ck2739046/HachimiDX/total?label=Downloads)
 
-📥︎ [**App Download**](https://github.com/ck2739046/HachimiDX/releases/latest)
+⬇️ [**App Download**](https://github.com/ck2739046/HachimiDX/releases/latest)
 &nbsp;•&nbsp;
 ▶️ [**Demo Video**](https://www.bilibili.com/video/BV1Rz5c6vEQH)
 
@@ -34,28 +34,28 @@ A tool that converts maimai gameplay videos into a simai chart (`maidata.txt`).
 
 > Two editions: **Full** and **Lite**. The **Lite** edition ships without the auto-rechart engine.
 
-- 💪 **Powerful auto-rechart engine**
-    - Supports all note types: `tap` `slide` `touch` `hold` `touch-hold` — including duration inference.
-    - Supports all note variants: `ex` `break` `ex-break`.
-    - Supports all slide syntax: `-` `V` `><` `pq` `ppqq` `sz` `v`.
+### 💪💪💪 **Powerful auto-rechart engine**
+- Supports all note types: `tap` `slide` `touch` `hold` `touch-hold` — including duration inference.
+- Supports all note variants: `ex` `break` `ex-break`.
+- Supports all slide syntax: `-` `V` `><` `pq` `ppqq` `sz` `v`.
 
-- 🔍 **Custom AI vision models**
-    - Trained specifically on maimai gameplay; performs reliably even in complex scenes.
+### 🌟 **Custom AI models**
+- Trained specifically on maimai gameplay.
 
-- ⚙️ **Broad hardware support**
-    - Supports the ONNX, NCNN, and TensorRT inference backends.
+### ✅ **Broad hardware support**
+- Supports the ONNX, NCNN, and TensorRT inference backends.
 
-- 🪄 **Lots of handy tools**
-    - Media transcoding, audio alignment, chart merging, arcade timing calibration, and more.
+### 🛠️ **Lots of handy tools**
+- Media transcoding, audio alignment, chart merging, arcade timing calibration, and more.
 
-- 🖥️ **GUI-first design**
-    - Everything can be done through the GUI; no command line is required.
+### 🖥️ **GUI-first design**
+- Everything can be done through the GUI; no command line is required.
 
-- ✏️ **Built-in editor & viewer**
-    - Integrates [`MajdataEdit-Neo`](https://github.com/re-poem/MajdataEdit-Neo) and [`MajdataViewX`](https://github.com/re-poem/MajdataViewX), so results can be previewed and edited in a single place.
+### ✏️ **Built-in editor & viewer**
+- Integrates [`MajdataEdit-Neo`](https://github.com/re-poem/MajdataEdit-Neo) and [`MajdataViewX`](https://github.com/re-poem/MajdataViewX), so results can be previewed and edited in a single place.
 
-- 🎵 **Built-in BPM measurement tool**
-    - Integrates [`BPM-Measurer`](https://github.com/ck2739046/BPM-Measurer) for measuring a song's BPM.
+### 🎵 **Built-in BPM measurer**
+- Integrates [`BPM-Measurer`](https://github.com/ck2739046/BPM-Measurer) for measuring a song's BPM.
 
 
 

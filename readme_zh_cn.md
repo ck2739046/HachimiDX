@@ -13,14 +13,14 @@
 
 **小团体不拉我，拿不到最新最热，所以自己抄谱** 😡😡😡😭😭😭🤔🤔🤔😋😋😋
 
-本工具可将谱面确认视频转换为 simai 格式 (`maidata.txt`)
+本工具可将谱面确认视频转换为 simai 谱面 (`maidata.txt`)
 
 <br>
 
 ![](https://img.shields.io/github/stars/ck2739046/HachimiDX?label=Stars)
 ![](https://img.shields.io/github/downloads/ck2739046/HachimiDX/total?label=下载次数)
 
-📥︎ [**软件下载**](https://github.com/ck2739046/HachimiDX/releases/latest)
+⬇️ [**软件下载**](https://github.com/ck2739046/HachimiDX/releases/latest)
 &nbsp;•&nbsp;
 ▶️ [**演示视频**](https://www.bilibili.com/video/BV1Rz5c6vEQH)
 
@@ -36,28 +36,28 @@
 
 > 分为 **完整版** 与 **精简版**，**精简版** 不含自动抄谱引擎。
 
-- 💪 **强大的自动抄谱引擎**
-    - 支持所有音符类型：`tap` `slide` `touch` `hold` `touch-hold` —— 包含时值推理。
-    - 支持所有音符变体：`ex` `break` `ex-break`。
-    - 支持所有星星语法：`-` `V` `><` `pq` `ppqq` `sz` `v`。
+### 💪💪💪 **强大的自动抄谱引擎**
+- 支持所有音符类型：`tap` `slide` `touch` `hold` `touch-hold` —— 包含时值推理。
+- 支持所有音符变体：`ex` `break` `ex-break`。
+- 支持所有星星语法：`-` `V` `><` `pq` `ppqq` `sz` `v`。
 
-- 🔍 **定制 AI 视觉模型**
-    - 专门针对游戏画面训练，复杂场景下也能稳定识别。
+### 🌟 **定制 AI 模型**
+- 专门针对游戏画面训练。
 
-- ⚙️ **兼容各类硬件**
-    - 支持 ONNX、NCNN、TensorRT 多种模型推理后端。
+### ✅ **兼容各类硬件**
+- 支持 ONNX、NCNN、TensorRT 多种模型推理后端。
 
-- 🪄 **超多实用工具**
-    - 素材转码、快速对音、谱面合并、街机开头延时校准等。
+### 🛠️ **超多实用工具**
+- 素材转码、快速对音、谱面合并、街机开头延时校准等。
 
-- 🖥️ **图形界面优先**
-    - 全程在图形界面操作，无需命令行。
+### 🖥️ **图形界面优先**
+- 全程在图形界面操作，无需命令行。
 
-- ✏️ **内置谱面编辑器**
-    - 内嵌 [`MajdataEdit-Neo`](https://github.com/re-poem/MajdataEdit-Neo) 和 [`MajdataViewX`](https://github.com/re-poem/MajdataViewX)，抄谱结果一站式预览与修改。
+### ✏️ **内置谱面编辑器**
+- 内嵌 [`MajdataEdit-Neo`](https://github.com/re-poem/MajdataEdit-Neo) 和 [`MajdataViewX`](https://github.com/re-poem/MajdataViewX)，抄谱结果一站式预览与修改。
 
-- 🎵 **内置 BPM 测速工具**
-    - 集成 [`BPM-Measurer`](https://github.com/ck2739046/BPM-Measurer)，用于测量乐曲 BPM。
+### 🎵 **内置 BPM 测速工具**
+- 集成 [`BPM-Measurer`](https://github.com/ck2739046/BPM-Measurer)，用于测量乐曲 BPM。
 
 
 
@@ -125,7 +125,7 @@
 
 - 将 [`models/`](src/resources/for_release_only/models/) 下的所有 `.zip` 解压到 `data/models/`。
 - 将 [`ffmpeg`](src/resources/for_release_only/ffmpeg-8.0.1-essentials_build.7z) 压缩包解压到 `src/resources/ffmpeg/`。
-- （可选）自行编译 [`启动器`](src/resources/for_release_only/launcher) 并放到项目根目录。
+- （可选）编译 [`启动器`](src/resources/for_release_only/launcher) 并放到项目根目录。
 
 ### 3. 获取 MajdataX
 
