@@ -30,33 +30,21 @@ A tool that converts maimai gameplay videos into a simai chart (`maidata.txt`).
 
 
 
+
+
 ## ✨ Highlights
 
-> Two editions: **Full** and **Lite**. The **Lite** edition ships without the auto-rechart engine.
+> Available in **Full** and **Lite** editions — the **Lite** edition ships without the auto-rechart engine.
 
-### 💪💪💪 **Powerful auto-rechart engine**
-- Supports all note types: `tap` `slide` `touch` `hold` `touch-hold` — including duration inference.
-- Supports all note variants: `ex` `break` `ex-break`.
-- Supports all slide syntax: `-` `V` `><` `pq` `ppqq` `sz` `v`.
-
-### 🌟 **Custom AI models**
-- Trained specifically on maimai gameplay.
-
-### ✅ **Broad hardware support**
-- Supports the ONNX, NCNN, and TensorRT inference backends.
-
-### 🛠️ **Lots of handy tools**
-- Media transcoding, audio alignment, chart merging, arcade timing calibration, and more.
-
-### 🖥️ **GUI-first design**
-- Everything can be done through the GUI; no command line is required.
-
-### ✏️ **Built-in editor & viewer**
-- Integrates [`MajdataEdit-Neo`](https://github.com/re-poem/MajdataEdit-Neo) and [`MajdataViewX`](https://github.com/re-poem/MajdataViewX), so results can be previewed and edited in a single place.
-
-### 🎵 **Built-in BPM measurer**
-- Integrates [`BPM-Measurer`](https://github.com/ck2739046/BPM-Measurer) for measuring a song's BPM.
-
+| | | |
+|:--:|---|---|
+| 💪 | **Powerful auto-rechart engine**| All note types ✅ <br> All note variants ✅ <br> All slide syntax ✅ |
+| 🚀 | **Custom AI models** | Trained specifically on maimai |
+| 🛠️ | **Lots of tools** | Handy tools across the entire workflow |
+| 🖥️ | **GUI-first design** | Simple and intuitive |
+| 🌟 | **Universal hardware compatibility** | ONNX, TensorRT, NCNN |
+| ✏️ | **Built-in chart editor** | Integrates [`MajdataX`](https://github.com/re-poem/MajdataViewX) |
+| 🎵 | **Built-in BPM measurer** | Integrates [`BPM-Measurer`](https://github.com/ck2739046/BPM-Measurer) |
 
 
 
@@ -65,30 +53,19 @@ A tool that converts maimai gameplay videos into a simai chart (`maidata.txt`).
 ## 💻 Minimum System Requirements
 
 | | **OS** | **Memory** | **Storage** |
-|---|---|---|---|
+|:--:|:--:|:--:|:--:|
 | **Lite** | Win10 x64 | 0.5 GB | 1.5 GB |
 | **Full** | Win10 x64 | 4 GB | 6 GB |
 
 
 
 
-## 🚧 Known Issues
-
-- Touch / Touch-Hold fireworks effects (`f`) are not supported.
-
-- Fake jumps (`` ` ``) are not supported.
-
-- Video captured by filming the screen with a camera may be skewed, color-shifted, or abnormally exposed, or may show ghosting; this can reduce charting accuracy.
-
-- When several slides appear at the same time and their trajectories overlap or intersect, those slides may not be recognized (e.g., `1v6[8:1]/3v6[8:1]`).
-
-- Slide notes whose startup delay is non-standard are not supported.
-
-
 
 ## 🎯 Data Collection
 
 All training data was collected in-house: a [Mod](archive/yolo-train/mod_dump_notes/Dump_Notes.cs) captures raw in-game data, and a [script](archive/yolo-train/label_notes.py) generates annotations automatically. The resulting coordinates and labels are highly accurate, which makes dataset construction efficient and scalable and allows large volumes of high-quality samples to be produced on demand.
+
+
 
 
 
@@ -107,6 +84,23 @@ All training data was collected in-house: a [Mod](archive/yolo-train/mod_dump_no
 - **Matplotlib**: waveform plotting
 - **.NET**: launcher, MajdataEdit
 - **Unity (MelonLoader)**: game mod, MajdataView
+
+
+
+
+
+## 🚧 Known Issues
+
+- Touch / Touch-Hold fireworks effects (`f`) are not supported.
+
+- Fake jumps (`` ` ``) are not supported.
+
+- Video captured by filming the screen with a camera may be skewed, color-shifted, or abnormally exposed, or may show ghosting; this can reduce charting accuracy.
+
+- When several slides appear at the same time and their trajectories overlap or intersect, those slides may not be recognized (e.g., `1v6[8:1]/3v6[8:1]`).
+
+- Slide notes whose startup delay is non-standard are not supported.
+
 
 
 
@@ -137,6 +131,7 @@ Compile [BPM-Measurer](https://github.com/ck2739046/BPM-Measurer) and place the 
 
 Run `install/script/main.py` to install the dependencies.<br>
 Run `src/main.py` to launch the application.
+
 
 
 
