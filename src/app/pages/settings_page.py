@@ -33,6 +33,7 @@ from ..widgets import (
     create_slider,
     create_stated_button,
 )
+from .about_dialog import show_about_dialog
 from .base_output_page import BaseOutputPage
 from .settings_page_sub_model_infer import (
     InferenceDeviceItem,
@@ -370,18 +371,16 @@ class SettingsPage(BaseOutputPage):
         self.reset_button.clicked.connect(self.on_reset_clicked)
 
     def build_bottom_section(self) -> None:
-        from src.main import REPO, VERSION  # 避免循环依赖
-
-        # 版本号（右下角灰色小字，点击可跳转仓库）
-        version_label = create_clickable_label(
-            label_text=f"v{VERSION}",
-            tooltip_text=REPO,
-            url=REPO,
+        about_label = create_clickable_label(
+            label_text=i18n.t(f"{I18N_Prefix}.ui_about_label"),
+            tooltip_text=i18n.t(f"{I18N_Prefix}.ui_about_tooltip"),
+            on_click=lambda: show_about_dialog(self.window()),
             label_color=UI_Style.COLORS["text_secondary"],
             label_bold=True,
+            underline=True,
         )
         self.content_layout.addWidget(
-            version_label, alignment=Qt.AlignmentFlag.AlignRight
+            about_label, alignment=Qt.AlignmentFlag.AlignRight
         )
 
     def _create_combo_from_definition(self, definition, length: int):

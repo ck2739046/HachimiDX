@@ -15,13 +15,14 @@ if str(project_root) not in sys.path:
 # 2. app already running
 # 3. initialization error
 
-author = "ck2739046"
-repo_name = "HachimiDX"
+AUTHOR = "ck2739046"
+REPO_NAME = "HachimiDX"
+QQ_GROUP = "868888361"
 
 VERSION = "1.6.5"
-REPO = f"https://github.com/{author}/{repo_name}"
+REPO = f"https://github.com/{AUTHOR}/{REPO_NAME}"
 API_RELEASE_LATEST = (
-    f"https://api.github.com/repos/{author}/{repo_name}/releases/latest"
+    f"https://api.github.com/repos/{AUTHOR}/{REPO_NAME}/releases/latest"
 )
 
 # generate by https://patorjk.com/software/taag using font "Terrace"

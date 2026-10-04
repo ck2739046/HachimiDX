@@ -320,6 +320,14 @@ zh_CN:
 
   app:
 
+    about:
+      window_title: "关于…"
+      ui_close_button: "关闭"
+      label_author: "作者"
+      label_repo: "GitHub"
+      label_qq_group: "QQ 群"
+      tooltip_repo: "在浏览器打开"
+
     nav_bar:
       majdata_label: "MajdataX"
       auto_rechart_label: "自动抄谱"
@@ -842,6 +850,8 @@ zh_CN:
 
     settings_page:
       dialog_title: "设置"
+      ui_about_label: "关于…"
+      ui_about_tooltip: "点击以打开\"关于\""
 
       ui_model_divider: "模型推理"
       ui_model_backend_label: "模型后端: "

@@ -321,6 +321,14 @@ en_US:
 
   app:
 
+    about:
+      window_title: "About…"
+      ui_close_button: "Close"
+      label_author: "Author"
+      label_repo: "GitHub"
+      label_qq_group: "QQ Group Chat"
+      tooltip_repo: "Open in browser"
+
     nav_bar:
       majdata_label: "MajdataX"
       auto_rechart_label: "Auto Rechart"
@@ -855,6 +863,8 @@ en_US:
 
     settings_page:
       dialog_title: "Settings"
+      ui_about_label: "About…"
+      ui_about_tooltip: "Click to open \"About\""
 
       ui_model_divider: "Model Inference"
       ui_model_backend_label: "Model Backend: "
