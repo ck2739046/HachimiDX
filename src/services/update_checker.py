@@ -3,6 +3,7 @@
 import json
 import re
 from datetime import datetime
+from typing import NamedTuple
 
 import i18n
 from PyQt6.QtCore import QUrl
@@ -19,20 +20,81 @@ from .settings_manage import SettingsManage
 REQUEST_TIMEOUT_MS = 10_000
 
 
-def _parse_semver(raw: str) -> tuple[int, ...] | None:
-    """Parse a version string into a comparable tuple of ints.
+# ---------------------------------------------------------------------------
+# version model
+# ---------------------------------------------------------------------------
+# 版本号 "x.x.x" 后面可选追加 dev / beta / rc 三种预发布后缀
+# 优先级为 dev < beta < rc < 正式版（无后缀）
 
-    Handles: "1.2.1", "v1.2.1", "v1.2.1-beta", etc.
+# 版本号的数值段必须严格为 3 位 (x.x.x)，不足或超出都判为无法解析。
+
+# 预发布后缀的语法: <连接符><种类><自然数?><数字之后的任何字符一律忽略>
+#   "1.6.6.dev"    -> dev0     （没跟数字时视为 0）
+#   "1.6.6.beta1"  -> beta1
+#   "1.6.6.beta2a" -> beta2    （数字之后的内容被忽略）
+#   "1.6.6.rc-1"   -> rc0      （"-1" 不是自然数，忽略）
+#   "1.6.6.foo"    -> 无法解析 （只允许 dev / beta / rc）
+
+# 版本号与预发布后缀之间的连接符有 4 个可选项 . - _ +
+# 连接符必须存在，且只能有一个
+#   "1.6.6.beta1" == "1.6.6-beta1" == "1.6.6_beta1" == "1.6.6+beta1"
+#   "1.6.6beta1"   -> 无法解析 （缺连接符）
+#   "1.6.6..beta1" -> 无法解析 （多个连接符）
+
+
+_SUFFIX_RANK = {"dev": 0, "beta": 1, "rc": 2}
+_RELEASE_RANK = 3  # 无后缀的正式版比同数值段的所有预发布版都新
+
+# 连接符
+_SEPARATORS = "._-+"
+
+# 数值段固定 3 位（x.x.x）
+_NUMERIC_FIELDS = 3
+
+_VERSION_RE = re.compile(r"\s*v?([0-9]+(?:\.[0-9]+)*)(.*)", re.IGNORECASE)
+_SUFFIX_RE = re.compile(r"(dev|beta|rc)([0-9]*)", re.IGNORECASE)
+
+
+class _VersionKey(NamedTuple):
+    """可比较的版本键: (数值段, 后缀种类优先级, 后缀数字)。"""
+
+    numbers: tuple[int, ...]
+    rank: int
+    suffix_number: int
+
+
+def _parse_version(raw: str) -> _VersionKey | None:
+    """Parse a version string into a comparable key.
     Returns None when the version cannot be parsed.
     """
-    m = re.search(r"(\d+(?:\.\d+)*)", raw)
-    if not m:
+    match = _VERSION_RE.match(raw.strip())
+    if match is None:
         return None
-    parts = m.group(1).split(".")
-    try:
-        return tuple(int(p) for p in parts)
-    except ValueError:
-        return None
+
+    parts = match.group(1).split(".")
+    if len(parts) != _NUMERIC_FIELDS:
+        return None  # 数值段只能是 x.x.x
+    numbers = tuple(int(part) for part in parts)
+
+    rest = match.group(2)
+    if not rest:
+        return _VersionKey(numbers, _RELEASE_RANK, 0)  # 无后缀: 正式版
+    if rest[0] not in _SEPARATORS:
+        return None  # 缺连接符: "1.6.6beta1" 不合法
+
+    suffix = rest[1:]
+    if not suffix or suffix[0] in _SEPARATORS:
+        return None  # 一个连接符后必须有内容, 且不能再有连接符
+
+    suffix_match = _SUFFIX_RE.match(suffix)
+    if suffix_match is None:
+        return None  # 只允许 dev / beta / rc 三种后缀
+
+    kind = suffix_match.group(1).lower()
+    digits_str = suffix_match.group(2)
+    digits = int(digits_str) if digits_str else 0
+
+    return _VersionKey(numbers, _SUFFIX_RANK[kind], digits)
 
 
 def _extract_tag_name(reply: QNetworkReply) -> OpResult[str]:
@@ -140,8 +202,8 @@ def check_update(force: bool = False) -> None:
                 latest_tag = tag_result.value
 
                 # 4. Compare versions
-                latest_ver = _parse_semver(latest_tag)
-                current_ver = _parse_semver(VERSION)
+                latest_ver = _parse_version(latest_tag)
+                current_ver = _parse_version(VERSION)
 
                 if latest_ver is None or current_ver is None:
                     msg = i18n.t(
