@@ -22,10 +22,10 @@ A tool that converts maimai gameplay videos into a simai chart (`maidata.txt`).
 &nbsp;•&nbsp;
 ▶️ [**Demo Video**](https://www.bilibili.com/video/BV1Rz5c6vEQH)
 
+> Run into issues, share feedback, or discuss development? <br>
+> Join our QQ group chat <img src="src/resources/doc/images/qq_icon.svg" width="14px" style="vertical-align: middle;"> **`868888361`**.
+
 </div>
-
-> <img src="src/resources/doc/images/qq_icon.svg" width="14px" style="vertical-align: middle;"> Run into issues, share feedback, or discuss development? Join our QQ group chat **`868888361`**.
-
 <br>
 
 

@@ -24,10 +24,10 @@
 &nbsp;•&nbsp;
 ▶️ [**演示视频**](https://www.bilibili.com/video/BV1Rz5c6vEQH)
 
+> 如果要反馈问题、分享建议，或参与开发讨论，<br>
+> 欢迎加入 QQ 交流群 <img src="src/resources/doc/images/qq_icon.svg" width="14px" style="vertical-align: middle;"> **`868888361`**。
+
 </div>
-
-> <img src="src/resources/doc/images/qq_icon.svg" width="14px" style="vertical-align: middle;"> 如果要反馈问题、分享建议，或参与开发讨论，欢迎加入 QQ 交流群 **`868888361`**
-
 <br>
 
 
