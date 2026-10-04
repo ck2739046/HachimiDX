@@ -1,7 +1,7 @@
 环境创建于 2026.07.29, 使用 python 3.11.15
 
 https://archive.docs.nvidia.com/tensorrt/tensorrt-861/release-notes/index.html
-为了兼容 gtx1000 系显卡 tensorRT 8.6.1 最高仅支持到 py 3.11
+为了兼容 gtx1000 系显卡, tensorRT 8.6.1 最高仅支持到 py 3.11
 
 
 1. 下载 micromamba 本体，放到项目根目录
@@ -18,8 +18,8 @@ https://github.com/mamba-org/micromamba-releases/releases/download/2.8.1-0/micro
 解释
 --prefix: 指定 python 环境的绝对安装路径
 --root-prefix: 指令 mamba 自身的根目录 (放下载缓存、mantadata等)
---override-channels: 禁用所有默认 channel 只走清华源
---channel: 指定从中科大镜像源下载
+--override-channels: 禁用所有默认 channel, 只走镜像源
+--channel: 指定镜像源
 python=3.11: 安装 python 3.11 本体
 
 
@@ -27,9 +27,7 @@ python=3.11: 安装 python 3.11 本体
 
 运行完毕后, 应该会出现 .mamba/ 和 python/ 两个文件夹
 
-删除 .mamba/ 和 micromamba-win-64.exe 本体
-删除 python/conda-meta/ 这个文件夹
+删除 .mamba/文件夹 和 micromamba-win-64.exe 本体
+删除 python/conda-meta/ 文件夹
 
-将本文档同位置的 sitecustomize.py 和 pip.ini 放入 python/ 内
-
-可选：将整个 python 文件夹打包成 zip 放到 for_release_only 内
+将本文档同位置的 sitecustomize.py 和 pip.ini 放入 python/ 文件夹内
