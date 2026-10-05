@@ -79,6 +79,17 @@ def build_auto_rechart_cmd(data: AutoRechartModel) -> OpResult[list[str]]:
         # add detect args
         if data.is_detect_enabled:
             cmd.extend(_parse_fields(data, "detect"))
+            # 额外添加 encoder 参数
+            encoder_key = SC_Defs.ffmpeg_hw_encoder.key
+            encoder_result = SettingsManage.get(encoder_key)
+            if not encoder_result.is_ok:
+                return err(
+                    "Failed to build detect args: cannot get the encoder param",
+                    inner=encoder_result,
+                )
+            encoder_value = str(encoder_result.value).strip()
+            cmd.append(f"--{encoder_key}")
+            cmd.append(encoder_value)
 
         # add analyze args
         if data.is_analyze_enabled:

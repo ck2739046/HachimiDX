@@ -610,8 +610,34 @@ def _build_manifests(track_results: dict, total_frames: int) -> tuple:
     return note_manifest, center_manifest
 
 
+# 导出视频使用的编码器参数表
+# 本表由本文件独立维护, 与 media_config 的设置无关。
+# 取向: 编码速度优先(要快), 画质允许略低, 体积不要太大。
+# fmt: off
+_EXPORT_ENCODER_ARGS: dict[str, tuple[str, ...]] = {
+    "CPU": (
+        "-c:v", "libx264",
+        "-preset", "veryfast",
+        "-crf", "26",
+        "-pix_fmt", "yuv420p",
+    ),
+    "Nvidia": (
+        "-c:v", "h264_nvenc",
+        "-preset", "p1",
+        "-cq", "38",
+        "-pix_fmt", "nv12"),
+    "Intel": (
+        "-c:v", "h264_qsv",
+        "-preset", "veryfast",
+        "-global_quality", "32",
+        "-pix_fmt", "nv12",
+    ),
+}
+# fmt: on
+
+
 # 主入口
-def main(std_video_path: Path, total_frames: int) -> OpResult[Path]:
+def main(std_video_path: Path, total_frames: int, video_encoder: str) -> OpResult[Path]:
 
     print(i18n.t("export_track_video.notice_module_started"))
 
@@ -647,46 +673,38 @@ def main(std_video_path: Path, total_frames: int) -> OpResult[Path]:
         if os.path.exists(final_track_video_path):
             os.remove(final_track_video_path)
 
+        # 获取编码参数
+        args = _EXPORT_ENCODER_ARGS.get(str(video_encoder).strip())
+        if args is None:
+            return err(
+                f"[export_track_video] Unknown ffmpeg_hw_encoder: {video_encoder}"
+            )
+        venc_args = list(args)
+
         # FFmpeg 管道命令
         ffmpeg_exe = str(PathManage.FFMPEG_EXE_PATH)
         frame_size = video_width * video_height * 3
+        # fmt: off
         ffmpeg_cmd = [
-            ffmpeg_exe,
-            "-y",
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-f",
-            "rawvideo",
-            "-pix_fmt",
-            "bgr24",
-            "-s",
-            f"{video_width}x{video_height}",
-            "-r",
-            str(fps_for_calc),
-            "-i",
-            "-",
-            "-i",
-            str(std_video_path),
-            "-c:v",
-            "libx264",
-            "-preset",
-            "veryfast",
-            "-crf",
-            "23",
-            "-pix_fmt",
-            "yuv420p",
-            "-c:a",
-            "aac",
-            "-b:a",
-            "192k",
-            "-map",
-            "0:v:0",
-            "-map",
-            "1:a:0?",
-            "-shortest",
+            ffmpeg_exe, "-y", "-hide_banner", "-loglevel", "error",
+            # 输入 0: Python 管道喂入的绘制帧 (rawvideo bgr24)
+            "-f", "rawvideo",
+            "-pix_fmt", "bgr24",
+            "-s", f"{video_width}x{video_height}",
+            "-r", str(fps_for_calc),
+            "-i", "-",
+            # 输入 1: 原视频 (只取音轨)
+            "-i", str(std_video_path),
+            # 视频编码参数
+            *venc_args,
+            # 音频参数
+            "-c:a", "aac", "-b:a", "192k",
+            # 映射视频和音频流
+            "-map", "0:v:0", "-map", "1:a:0?", "-shortest",
+            # 输出路径
             final_track_video_path,
         ]
+        # fmt: on
 
         # producer: 视频解码
         producer = ExportProducer(std_video_path)

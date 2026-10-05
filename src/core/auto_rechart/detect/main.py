@@ -39,6 +39,7 @@ def main(
     cls_ex_model_path,
     cls_break_model_path,
     model_backend,
+    video_encoder: str,
     half=False,
     skip_detect=False,
     skip_cls=False,
@@ -136,7 +137,7 @@ def main(
 
         # 导出追踪视频模块
         if not skip_export_tracked_video:
-            result = export_video_module(std_video_path, total_frames)
+            result = export_video_module(std_video_path, total_frames, video_encoder)
             if not result.is_ok:
                 return err("export track video module failed", inner=result)
         else:

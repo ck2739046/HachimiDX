@@ -18,7 +18,8 @@ export_track_video 性能探针: 分段计时主循环, 定位瓶颈所在。
               若大很多 -> 瓶颈在 Python 绘制。
 
 用法:
-  python test/probe_export_perf.py <std_video_path> [--no-draw] [--preset veryfast]
+  python test/probe_export_perf.py <std_video_path> [--no-draw] [--encoder CPU|Nvidia|Intel]
+                                   [--real-main] [--parallel] [--preset veryfast]
 """
 
 import argparse
@@ -36,6 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 # 私有函数仅供诊断用
 from src.core.auto_rechart.detect.export_track_video import (
     _BATCH_FRAMES,
+    _EXPORT_ENCODER_ARGS,
     _build_manifests,
     _color_for_id,
     _load_track_results,
@@ -51,12 +53,30 @@ def _fmt_pct(v: float, total: float) -> str:
     return f"{v:7.2f}s ({v / total * 100:5.1f}%)" if total > 0 else f"{v:7.2f}s (  -  )"
 
 
+def _venc_args(encoder: str, preset_override: str | None = None) -> list[str]:
+    """取编码参数: 与正式导出一共用 _EXPORT_ENCODER_ARGS 这张表。
+
+    preset_override 只覆盖表里的 -preset 值, 方便做 preset 对照实验。
+    """
+
+    if encoder not in _EXPORT_ENCODER_ARGS:
+        raise SystemExit(
+            f"未知编码器 {encoder!r}, 可选: {', '.join(_EXPORT_ENCODER_ARGS)}"
+        )
+
+    args = list(_EXPORT_ENCODER_ARGS[encoder])
+    if preset_override and "-preset" in args:
+        args[args.index("-preset") + 1] = preset_override
+    return args
+
+
 def probe(
     std_video_path: Path,
     no_draw: bool,
-    preset: str,
+    preset: str | None,
     parallel: bool = False,
     synthetic_draw: int = 0,
+    encoder: str = "CPU",
 ) -> None:
     cap = cv2.VideoCapture(str(std_video_path))
     video_width = round(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -110,8 +130,8 @@ def probe(
         tag += "_noaudio"
     if parallel:
         tag += "_par"
-    if args.hwenc:
-        tag += "_nvenc"
+    if encoder != "CPU":
+        tag += {"Nvidia": "_nvenc", "Intel": "_qsv"}.get(encoder, f"_{encoder}")
     if args.yuv:
         tag += "_yuv"
     if synthetic_draw:
@@ -137,29 +157,9 @@ def probe(
         "-i",
         "-",
     ]
-    # 视频编码器: hwenc=True 用 h264_nvenc (GPU), 否则 libx264 (CPU, 按 preset)
-    if args.hwenc:
-        venc = [
-            "-c:v",
-            "h264_nvenc",
-            "-preset",
-            "p4",
-            "-cq",
-            "23",
-            "-pix_fmt",
-            "yuv420p",
-        ]
-    else:
-        venc = [
-            "-c:v",
-            "libx264",
-            "-preset",
-            preset,
-            "-crf",
-            "23",
-            "-pix_fmt",
-            "yuv420p",
-        ]
+    # 视频编码参数: 与正式导出同一份表 (preset 可覆盖, 方便对照)
+    venc = _venc_args(encoder, preset)
+    print(f"编码参数: {' '.join(venc)}")
 
     if args.no_audio:
         # 无音频对照: 去掉第二个输入, 隔离音频解复用/解码开销
@@ -352,7 +352,7 @@ def probe(
         mode += f" +合成绘制x{synthetic_draw}"
     if yuv:
         mode += " +yuv420p直传"
-    print(f"\n===== {mode}  preset={preset} =====")
+    print(f"\n===== {mode}  encoder={encoder} =====")
     print(f"总耗时(主循环+wait): {t_total:.2f}s   平均 {fps:.1f} fps")
     print(
         f"  T_get    (取帧/阻塞): {_fmt_pct(t_decode, t_total)}  <- 并行模式下接近0=解码跑赢, 大=解码是瓶颈"
@@ -365,7 +365,7 @@ def probe(
     print(f"输出: {out_path}")
 
 
-def run_real_main(std_video_path: Path) -> None:
+def run_real_main(std_video_path: Path, encoder: str = "CPU") -> None:
     """直接调用真实 export_track_video.main(), 端到端计时 (含并行解码)。"""
     import cv2
 
@@ -373,10 +373,10 @@ def run_real_main(std_video_path: Path) -> None:
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     cap.release()
     t0 = time.perf_counter()
-    result = export_main(std_video_path, total_frames)
+    result = export_main(std_video_path, total_frames, encoder)
     dt = time.perf_counter() - t0
     fps = total_frames / dt if dt > 0 else 0
-    print("\n===== REAL-MAIN (改后的真实 main, 含并行解码) =====")
+    print(f"\n===== REAL-MAIN (真实 main, encoder={encoder}) =====")
     print(f"总耗时: {dt:.2f}s   平均 {fps:.1f} fps   结果 is_ok={result.is_ok}")
     if not result.is_ok:
         print(f"错误: {result.error_msg} | {result.error_raw}")
@@ -411,7 +411,10 @@ if __name__ == "__main__":
         help="每帧合成绘制 N 个框+标签, 模拟真实绘制负载",
     )
     ap.add_argument(
-        "--hwenc", action="store_true", help="用 h264_nvenc 硬件编码 (GPU) 代替 libx264"
+        "--encoder",
+        default="CPU",
+        choices=("CPU", "Nvidia", "Intel"),
+        help="视频编码器, 参数取自 export_track_video 的表 (同设置项 ffmpeg_hw_encoder)",
     )
     ap.add_argument(
         "--yuv",
@@ -419,11 +422,13 @@ if __name__ == "__main__":
         help="直传 yuv420p (Python 侧 cvtColor, 数据量减半)",
     )
     ap.add_argument(
-        "--preset", default="veryfast", help="x264 preset (veryfast/fast/ultrafast...)"
+        "--preset",
+        default=None,
+        help="覆盖表里的 -preset (ultrafast/fast/veryfast...), 默认用表内值",
     )
     args = ap.parse_args()
     if args.real_main:
-        run_real_main(args.std_video_path)
+        run_real_main(args.std_video_path, args.encoder)
     else:
         probe(
             args.std_video_path,
@@ -431,4 +436,5 @@ if __name__ == "__main__":
             args.preset,
             parallel=args.parallel,
             synthetic_draw=args.synthetic_draw,
+            encoder=args.encoder,
         )

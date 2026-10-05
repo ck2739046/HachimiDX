@@ -137,6 +137,7 @@ def main(args: list[str]) -> bool:
                 cls_ex_model_path=model_paths.cls_ex,
                 cls_break_model_path=model_paths.cls_break,
                 model_backend=model_backend,
+                video_encoder=_get_cfg(cfg, "ffmpeg_hw_encoder") or "CPU",
                 half=_half,
                 skip_detect=_get_cfg(cfg, "skip_detect", _as_bool),
                 skip_cls=_get_cfg(cfg, "skip_cls", _as_bool),
