@@ -171,8 +171,8 @@ class MediaConfig_Definitions:
 
     @staticmethod
     def get_default_video_quality_by_encoder(encoder: str) -> int:
-        dict = {"CPU": 23, "Nvidia": 28, "Intel": 23}
-        return dict.get(encoder, 23)  # fallback
+        defaults = {"CPU": 23, "Nvidia": 34, "Intel": 29}
+        return defaults.get(encoder, 23)  # fallback
 
     video_side_resolution = MediaConfig_Definition(
         key="video_side_resolution",
