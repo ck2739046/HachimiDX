@@ -547,6 +547,8 @@ en_US:
           Control the output video quality
 
           Lower value = higher quality and larger file size.
+
+          Note: the same value means different quality on different encoders.
         ui_video_resolution_label: "Resolution: "
         ui_video_resolution_help: |
           Sets output resolution

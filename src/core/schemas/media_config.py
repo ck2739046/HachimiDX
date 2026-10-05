@@ -166,7 +166,7 @@ class MediaConfig_Definitions:
         type="int",
         group="video",
         default=None,  # auto
-        constraints={"ge": 20, "le": 28, "options": list(range(20, 28 + 1))},
+        constraints={"ge": 20, "le": 36, "options": list(range(20, 36 + 1))},
     )
 
     @staticmethod

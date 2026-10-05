@@ -543,6 +543,8 @@ zh_CN:
           控制输出视频的质量
 
           数值越低，质量越高，文件越大。
+
+          注意：同一数值在不同编码器上代表的质量不同。
         ui_video_resolution_label: "视频分辨率: "
         ui_video_resolution_help: |
           设置输出视频的分辨率

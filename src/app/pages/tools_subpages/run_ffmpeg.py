@@ -39,6 +39,7 @@ class RunFFmpegPage(BaseOutputPage):
 
         # video widgets
         self.video_quality_combo_box = None
+        self._video_quality_encoder = None  # 质量下拉框当前默认值对应的编码器
         self.video_resolution_combo_box = None
         self.video_center_crop_check_box = None
         self.video_center_crop_label = None
@@ -368,6 +369,8 @@ class RunFFmpegPage(BaseOutputPage):
 
         # 更新音频codec/bitrate可选项
         self.update_audio_format_combo_box()
+        # 编码器可能被改过, 加载新文件时重新对齐视频质量默认值
+        self._sync_video_quality_combo()
         # 更新完整输出路径显示
         res = self.update_output_full_path_display(use_empty=True)  # reset
         # 因为默认输出文件名输入框是空的，更换文件后要更新一下提示用户
@@ -487,18 +490,8 @@ class RunFFmpegPage(BaseOutputPage):
     def init_ffmpeg_widgets(self):
 
         # video quality combo box
-        # 根据编码器覆盖默认值
-        encoder_res = SettingsManage.get(S_Defs.ffmpeg_hw_encoder.key)
-        default_quality = (
-            M_Defs.get_default_video_quality_by_encoder(str(encoder_res.value).strip())
-            if encoder_res.is_ok
-            else ""
-        )
-        options = M_Defs.video_quality.constraints["options"]
-        default_index = options.index(default_quality)
-        self.video_quality_combo_box = create_combo_box(
-            length=55, items=options, default_index=default_index
-        )
+        # 选项与默认值都跟随当前视频编码器
+        self._sync_video_quality_combo()
 
         # video resolution combo box
         self.video_resolution_combo_box = self._create_ffmpeg_widget(
@@ -591,6 +584,41 @@ class RunFFmpegPage(BaseOutputPage):
             return check_box
 
         return None  # 不应该发生
+
+    def _sync_video_quality_combo(self) -> None:
+        """按当前视频编码器刷新质量下拉框。
+
+        在首次构造控件、以及每次加载新视频文件时调用：
+        - 编码器与上次不同 -> 切到该编码器的默认档位；
+        - 编码器与上次相同 -> 不做修改（保留用户当前选择）。
+        """
+
+        encoder_res = SettingsManage.get(S_Defs.ffmpeg_hw_encoder.key)
+        encoder = str(encoder_res.value).strip() if encoder_res.is_ok else ""
+        options = M_Defs.video_quality.constraints["options"]
+        default_quality = M_Defs.get_default_video_quality_by_encoder(encoder)
+
+        if self.video_quality_combo_box is None:
+            # 首次调用: 创建控件, 选中该编码器的默认档位
+            default_index = (
+                options.index(default_quality) if default_quality in options else 0
+            )
+            self.video_quality_combo_box = create_combo_box(
+                length=55, items=options, default_index=default_index
+            )
+            self._video_quality_encoder = encoder
+            return
+
+        # 设置读取失败或编码器没变: 保持现状
+        if not encoder_res.is_ok or encoder == self._video_quality_encoder:
+            return
+
+        target = str(default_quality)
+        if self.video_quality_combo_box.findText(target) < 0:
+            return  # 兜底: 默认值不在选项内时保持原值
+
+        self.video_quality_combo_box.setCurrentText(target)
+        self._video_quality_encoder = encoder
 
     def update_audio_format_combo_box(self) -> None:
         """根据媒体类型，更新音频格式"""
