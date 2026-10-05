@@ -412,30 +412,24 @@ class MediaModel(BaseModel):
         set_br_x = self.video_perspective_br_x is not None
         set_br_y = self.video_perspective_br_y is not None
 
+        # fmt: off
         all_set = all(
             [
-                set_tl_x,
-                set_tl_y,
-                set_tr_x,
-                set_tr_y,
-                set_bl_x,
-                set_bl_y,
-                set_br_x,
-                set_br_y,
+                set_tl_x, set_tl_y,
+                set_tr_x, set_tr_y,
+                set_bl_x, set_bl_y,
+                set_br_x, set_br_y,
             ]
         )
         all_unset = not any(
             [
-                set_tl_x,
-                set_tl_y,
-                set_tr_x,
-                set_tr_y,
-                set_bl_x,
-                set_bl_y,
-                set_br_x,
-                set_br_y,
+                set_tl_x, set_tl_y,
+                set_tr_x, set_tr_y,
+                set_bl_x, set_bl_y,
+                set_br_x, set_br_y,
             ]
         )
+        # fmt: on
 
         if not (all_set or all_unset):
             raise ValueError(i18n.t("media_model.error_video_perspective_params"))

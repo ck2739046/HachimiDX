@@ -80,15 +80,14 @@ class FFprobeInspect:
         input_path, ffprobe_exe = precheck_res.value
 
         # run ffprobe、
+        # fmt: off
         args = [
-            "-v",
-            "error",
-            "-show_entries",
-            _STREAM_ENTRIES,
-            "-of",
-            "json",
+            "-v", "error",
+            "-show_entries", _STREAM_ENTRIES,
+            "-of", "json",
             input_path,
         ]
+        # fmt: on
         result = cls._run_ffprobe(ffprobe_exe, args, parse_json=True)
         if not result.is_ok:
             return result
@@ -187,17 +186,15 @@ class FFprobeInspect:
 
         # 如果 CFR 解析失败, 或者解析成功但视频为 VFR, 精确解析每帧时间戳
         print(i18n.t("media_ffprobe_inspect.notice_start_precise_timestamps"))
+        # fmt: off
         args = [
-            "-v",
-            "error",
-            "-select_streams",
-            "v:0",
-            "-show_entries",
-            "frame=best_effort_timestamp_time,pkt_pts_time",
-            "-of",
-            "csv=p=0",
+            "-v", "error",
+            "-select_streams", "v:0",
+            "-show_entries", "frame=best_effort_timestamp_time,pkt_pts_time",
+            "-of", "csv=p=0",
             input_path,
         ]
+        # fmt: on
         frame_result = cls._run_ffprobe(ffprobe_exe, args, parse_json=False)
         if not frame_result.is_ok:
             return err("ffprobe frame timestamp inspect failed", inner=frame_result)
@@ -264,15 +261,14 @@ class FFprobeInspect:
             except Exception:
                 return None
 
+        # fmt: off
         args = [
-            "-v",
-            "error",
-            "-show_entries",
-            "stream=avg_frame_rate,r_frame_rate,nb_frames",
-            "-of",
-            "json",
+            "-v", "error",
+            "-show_entries", "stream=avg_frame_rate,r_frame_rate,nb_frames",
+            "-of", "json",
             input_path,
         ]
+        # fmt: on
         result = cls._run_ffprobe(ffprobe_exe, args, parse_json=True)
         if not result.is_ok:
             return err("CFR detection failed", inner=result)

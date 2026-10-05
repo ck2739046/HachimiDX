@@ -140,23 +140,17 @@ def probe(
     if out_path.exists():
         os.remove(out_path)
 
+    # fmt: off
     ffmpeg_cmd = [
         str(PathManage.FFMPEG_EXE_PATH),
-        "-y",
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-f",
-        "rawvideo",
-        "-pix_fmt",
-        "yuv420p" if yuv else "bgr24",
-        "-s",
-        f"{video_width}x{video_height}",
-        "-r",
-        str(fps_for_calc),
-        "-i",
-        "-",
+        "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "rawvideo",
+        "-pix_fmt", "yuv420p" if yuv else "bgr24",
+        "-s", f"{video_width}x{video_height}",
+        "-r", str(fps_for_calc),
+        "-i", "-",
     ]
+    # fmt: on
     # 视频编码参数: 与正式导出同一份表 (preset 可覆盖, 方便对照)
     venc = _venc_args(encoder, preset)
     print(f"编码参数: {' '.join(venc)}")
@@ -165,25 +159,15 @@ def probe(
         # 无音频对照: 去掉第二个输入, 隔离音频解复用/解码开销
         ffmpeg_cmd += venc + ["-map", "0:v:0", str(out_path)]
     else:
-        ffmpeg_cmd += (
-            [
-                "-i",
-                str(std_video_path),
-            ]
-            + venc
-            + [
-                "-c:a",
-                "aac",
-                "-b:a",
-                "192k",
-                "-map",
-                "0:v:0",
-                "-map",
-                "1:a:0?",
-                "-shortest",
-                str(out_path),
-            ]
-        )
+        ffmpeg_cmd += ["-i", str(std_video_path)]
+        ffmpeg_cmd += venc
+        # fmt: off
+        ffmpeg_cmd += [
+            "-c:a", "aac", "-b:a", "192k",
+            "-map", "0:v:0", "-map", "1:a:0?", "-shortest",
+            str(out_path),
+        ]
+        # fmt: on
     proc = subprocess.Popen(
         ffmpeg_cmd,
         stdin=subprocess.PIPE,

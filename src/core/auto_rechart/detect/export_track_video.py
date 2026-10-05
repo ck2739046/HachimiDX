@@ -534,16 +534,14 @@ def _dedup_slide_notes(current_tracks: list) -> list:
     other: list = []
     for track_id, note_type, note in current_tracks:
         if note_type == NoteType.SLIDE:
+            # fmt: off
             key = (
-                round(note.x1, _BOX_KEY_PRECISION),
-                round(note.y1, _BOX_KEY_PRECISION),
-                round(note.x2, _BOX_KEY_PRECISION),
-                round(note.y2, _BOX_KEY_PRECISION),
-                round(note.x3, _BOX_KEY_PRECISION),
-                round(note.y3, _BOX_KEY_PRECISION),
-                round(note.x4, _BOX_KEY_PRECISION),
-                round(note.y4, _BOX_KEY_PRECISION),
+                round(note.x1, _BOX_KEY_PRECISION), round(note.y1, _BOX_KEY_PRECISION),
+                round(note.x2, _BOX_KEY_PRECISION), round(note.y2, _BOX_KEY_PRECISION),
+                round(note.x3, _BOX_KEY_PRECISION), round(note.y3, _BOX_KEY_PRECISION),
+                round(note.x4, _BOX_KEY_PRECISION), round(note.y4, _BOX_KEY_PRECISION),
             )
+            # fmt: on
             slide_groups.setdefault(key, []).append((track_id, note_type, note))
         else:
             other.append((track_id, note_type, note))

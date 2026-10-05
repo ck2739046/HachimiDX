@@ -477,25 +477,21 @@ def _save_track_results(tracks, output_dir, call_fn=None):
                 f.write(f"track_id: {track_id}, note_type: {note_type.value}\n")
                 # 写入轨迹路径
                 for note in note_geometry_list:
+                    # fmt: off
                     data = [
                         f"{note.frame}",
                         f"{note.note_type.value}",
                         f"{note.note_variant.value}",
                         f"{note.conf:.4f}",
-                        f"{note.x1:.4f}",
-                        f"{note.y1:.4f}",
-                        f"{note.x2:.4f}",
-                        f"{note.y2:.4f}",
-                        f"{note.x3:.4f}",
-                        f"{note.y3:.4f}",
-                        f"{note.x4:.4f}",
-                        f"{note.y4:.4f}",
-                        f"{note.cx:.4f}",
-                        f"{note.cy:.4f}",
-                        f"{note.w:.4f}",
-                        f"{note.h:.4f}",
+                        f"{note.x1:.4f}", f"{note.y1:.4f}",
+                        f"{note.x2:.4f}", f"{note.y2:.4f}",
+                        f"{note.x3:.4f}", f"{note.y3:.4f}",
+                        f"{note.x4:.4f}", f"{note.y4:.4f}",
+                        f"{note.cx:.4f}", f"{note.cy:.4f}",
+                        f"{note.w:.4f}", f"{note.h:.4f}",
                         f"{note.r:.4f}",
                     ]
+                    # fmt: on
                     f.write(", ".join(data) + "\n")
 
                 f.write("\n")  # track_id 之间空行分隔

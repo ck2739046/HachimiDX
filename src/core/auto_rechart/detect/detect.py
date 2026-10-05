@@ -363,25 +363,21 @@ def _save_detect_results(detections, output_dir):
                 f.write(f"frame: {detection.frame}\n")
                 current_frame = detection.frame
             # 写入音符数据
+            # fmt: off
             data = [
                 f"{detection.frame}",
                 f"{detection.note_type.value}",
                 f"{detection.note_variant.value}",
                 f"{detection.conf:.4f}",
-                f"{detection.x1:.4f}",
-                f"{detection.y1:.4f}",
-                f"{detection.x2:.4f}",
-                f"{detection.y2:.4f}",
-                f"{detection.x3:.4f}",
-                f"{detection.y3:.4f}",
-                f"{detection.x4:.4f}",
-                f"{detection.y4:.4f}",
-                f"{detection.cx:.4f}",
-                f"{detection.cy:.4f}",
-                f"{detection.w:.4f}",
-                f"{detection.h:.4f}",
+                f"{detection.x1:.4f}", f"{detection.y1:.4f}",
+                f"{detection.x2:.4f}", f"{detection.y2:.4f}",
+                f"{detection.x3:.4f}", f"{detection.y3:.4f}",
+                f"{detection.x4:.4f}", f"{detection.y4:.4f}",
+                f"{detection.cx:.4f}", f"{detection.cy:.4f}",
+                f"{detection.w:.4f}", f"{detection.h:.4f}",
                 f"{detection.r:.4f}",
             ]
+            # fmt: on
             f.write(", ".join(data) + "\n")
 
     print(i18n.t("detect.notice_result_saved", path=str(detect_result_path)))

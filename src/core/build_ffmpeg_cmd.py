@@ -9,15 +9,25 @@ from .schemas.media_model import MediaModel
 
 # 编解码映射
 
+# fmt: off
 ENCODER_MAP = {
-    "CPU": {"codec": "libx264", "quality_param": "-crf", "pix_fmt": "yuv420p"},
-    "Nvidia": {"codec": "h264_nvenc", "quality_param": "-cq", "pix_fmt": "nv12"},
+    "CPU": {
+        "codec": "libx264",
+        "quality_param": "-crf",
+        "pix_fmt": "yuv420p",
+    },
+    "Nvidia": {
+        "codec": "h264_nvenc",
+        "quality_param": "-cq",
+        "pix_fmt": "nv12",
+    },
     "Intel": {
         "codec": "h264_qsv",
         "quality_param": "-global_quality",
         "pix_fmt": "nv12",
     },
 }
+# fmt: on
 
 
 def _resolve_video_encoder() -> OpResult[dict]:

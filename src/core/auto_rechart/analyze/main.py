@@ -114,13 +114,11 @@ def main(
         ) = estimate_touch_DefaultMsec(shared_context, touch_data, touch_hold_data)
 
         # 分析音符时间
+        # fmt: off
         tap_info, slide_info, touch_info, hold_info, touch_hold_info = (
-            {},
-            {},
-            {},
-            {},
-            {},
+            {}, {}, {}, {}, {},
         )
+        # fmt: on
         if shared_context.touch_DefaultMsec is not None:
             touch_info = analyze_touch_time(shared_context, touch_data)
             touch_hold_info = analyze_touch_hold_time(shared_context, touch_hold_data)

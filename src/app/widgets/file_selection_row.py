@@ -8,23 +8,16 @@ from .path_display import create_path_display
 
 # --- File filter constants (Qt setNameFilter format) ---
 
+# fmt: off
 _SUPPORTED_AUDIO = [
-    "*.mp3",
-    "*.m4a",
-    "*.aac",
-    "*.wav",
-    "*.mka",
-    "*.flac",
-    "*.ogg",
-    "*.oga",
-    "*.opus",
+    "*.mp3", "*.m4a", "*.aac",
+    "*.wav", "*.mka", "*.flac",
+    "*.ogg", "*.oga", "*.opus",
 ]
 _SUPPORTED_VIDEO = [
-    "*.mov",
-    "*.mkv",
-    "*.mp4",
-    "*.webm",
+    "*.mov", "*.mkv", "*.mp4", "*.webm",
 ]
+# fmt: on
 
 AUDIO_FILTER = f"audio ({' '.join(_SUPPORTED_AUDIO)})"
 VIDEO_FILTER = f"video ({' '.join(_SUPPORTED_VIDEO)})"

@@ -24,14 +24,12 @@ def main():
 
 
 # 每次运行会构建出这两个版本
+# fmt: off
 VARIANTS = (
     {"dir_name": "HachimiDX", "LAUNCHER_exe_name": "HachimiDX.exe", "is_lite": False},
-    {
-        "dir_name": "HachimiDX-Lite",
-        "LAUNCHER_exe_name": "HachimiDX-Lite.exe",
-        "is_lite": True,
-    },
+    {"dir_name": "HachimiDX-Lite", "LAUNCHER_exe_name": "HachimiDX-Lite.exe", "is_lite": True},
 )
+# fmt: on
 
 # 由 set_variant() 设置
 RELEASE_DIR = None
@@ -249,21 +247,17 @@ def upgrade_pip(python_exe: Path):
     )
     for name, index in PIP_MIRRORS:
         print(f"update pip & wheel (mirror: {name})")
+        # fmt: off
         result = subprocess.run(
             [
-                str(python_exe),
-                "-m",
-                "pip",
-                "install",
-                "--upgrade",
-                "pip",
-                "wheel",
+                str(python_exe), "-m", "pip", "install",
+                "--upgrade", "pip", "wheel",
                 "--no-warn-script-location",
-                "-i",
-                index,
+                "-i", index,
             ],
             check=False,
         )
+        # fmt: on
         if result.returncode == 0:
             return
         print(f"mirror「{name}」installation failed, switching to the next mirror...")

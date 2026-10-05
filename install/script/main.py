@@ -111,19 +111,16 @@ def main():
         ask_use_pypi_mirror()
 
         # 预先更新 pip 与 wheel 确保安装流程稳定
+        # fmt: off
         general_pip_install(
             "pip & wheel",
             [
-                sys.executable,
-                "-m",
-                "pip",
-                "install",
-                "--upgrade",
-                "pip",
-                "wheel",
+                sys.executable, "-m", "pip", "install",
+                "--upgrade", "pip", "wheel",
                 "--no-warn-script-location",
             ],
         )
+        # fmt: on
 
         # main menu
         if IS_LITE:
@@ -182,28 +179,17 @@ def reinstall_backend() -> OpResult[None]:
 
     # 2. 删除相关库
     print(f"\n-----\n\n{cyan(T.reinstall_backend.start_uninstall)}\n")
+    # fmt: off
     cmd = [
-        sys.executable,
-        "-m",
-        "pip",
-        "uninstall",
-        "-y",
-        "onnxruntime",
-        "onnxruntime-gpu",
-        "onnxruntime-directml",
-        "torch",
-        "torchvision",
-        "tensorrt",
-        "opencv-python",
-        "tensorrt_cu12",
-        "tensorrt_cu12_bindings",
-        "tensorrt_cu12_libs",
-        "tensorrt_cu13",
-        "tensorrt_cu13_bindings",
-        "tensorrt_cu13_libs",
-        "ncnn",
-        "pnnx",
+        sys.executable, "-m", "pip", "uninstall", "-y",
+        "onnxruntime", "onnxruntime-gpu", "onnxruntime-directml",
+        "torch", "torchvision",
+        "tensorrt", "opencv-python",
+        "tensorrt_cu12", "tensorrt_cu12_bindings", "tensorrt_cu12_libs",
+        "tensorrt_cu13", "tensorrt_cu13_bindings", "tensorrt_cu13_libs",
+        "ncnn", "pnnx",
     ]
+    # fmt: on
     try:
         subprocess.run(cmd, check=True)
     except Exception as e:
@@ -231,15 +217,14 @@ def install_lite() -> OpResult[None]:
     print("\n-----\n")
     print(cyan(T.install.start))
 
+    # fmt: off
     cmd = [
-        sys.executable,
-        "-m",
-        "pip",
-        "install",
+        sys.executable, "-m", "pip", "install",
         *GENERAL_DEPENDENCIES,
         *LITE_ONLY_DEPENDENCIES,
         "--no-warn-script-location",
     ]
+    # fmt: on
     is_success = general_pip_install("Dependencies", cmd)
     if not is_success:
         return err("Failed to install dependencies.")
@@ -305,15 +290,14 @@ def install(is_reinstall: bool = False) -> OpResult[None]:
             sys.exit(1)
 
     # install others
+    # fmt: off
     cmd = [
-        sys.executable,
-        "-m",
-        "pip",
-        "install",
+        sys.executable, "-m", "pip", "install",
         *GENERAL_DEPENDENCIES,
         *FULL_ONLY_DEPENDENCIES,
         "--no-warn-script-location",
     ]
+    # fmt: on
     is_success = general_pip_install("Other dependencies", cmd)
     if not is_success:
         sys.exit(1)
@@ -502,15 +486,13 @@ def install_tensorrt(config: tensorrt_config) -> bool:
 
 
 def install_ncnn() -> bool:
+    # fmt: off
     cmd = [
-        sys.executable,
-        "-m",
-        "pip",
-        "install",
-        "ncnn==1.0.20260526",
-        "pnnx==20260526",
+        sys.executable, "-m", "pip", "install",
+        "ncnn==1.0.20260526", "pnnx==20260526",
         "--no-warn-script-location",
     ]
+    # fmt: on
     return general_pip_install("NCNN", cmd)
 
 
@@ -527,14 +509,13 @@ def modify_ultralytics_for_dml(recover: bool = False) -> OpResult[None]:
     original_exporter = dml_support_dir / "original" / "exporter.py"
 
     # ckech file exists
+    # fmt: off
     for file in [
-        target_path_onnx,
-        target_path_exporter,
-        modified_onnx,
-        modified_exporter,
-        original_onnx,
-        original_exporter,
+        target_path_onnx, target_path_exporter,
+        modified_onnx, modified_exporter,
+        original_onnx, original_exporter,
     ]:
+        # fmt: on
         if not file.exists() or not file.is_file():
             msg = T.modify_ultralytics_for_dml.file_not_exist.format(file=file)
             return err(msg)

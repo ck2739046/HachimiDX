@@ -378,16 +378,14 @@ class PerspectiveCorrection(DrawingMixin, TransformMixin, InteractionMixin):
                     tr = projected_corners[1]
                     bl = projected_corners[2]
                     br = projected_corners[3]
+                    # fmt: off
                     perspective_points = (
-                        float(tl[0]),
-                        float(tl[1]),
-                        float(tr[0]),
-                        float(tr[1]),
-                        float(bl[0]),
-                        float(bl[1]),
-                        float(br[0]),
-                        float(br[1]),
+                        float(tl[0]), float(tl[1]),
+                        float(tr[0]), float(tr[1]),
+                        float(bl[0]), float(bl[1]),
+                        float(br[0]), float(br[1]),
                     )
+                    # fmt: on
             else:
                 perspective_points = None
 

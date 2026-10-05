@@ -34,23 +34,21 @@ WARMUP_GRABS = 50
 
 def get_keyframes(path: str) -> list[int]:
     try:
+        # fmt: off
         out = subprocess.run(
             [
                 "ffprobe",
-                "-loglevel",
-                "error",
-                "-select_streams",
-                "v:0",
-                "-show_entries",
-                "packet=flags",
-                "-of",
-                "csv",
+                "-loglevel", "error",
+                "-select_streams", "v:0",
+                "-show_entries", "packet=flags",
+                "-of", "csv",
                 str(path),
             ],
             capture_output=True,
             text=True,
             check=True,
         )
+        # fmt: on
     except Exception:
         return []
     kfs: list[int] = []

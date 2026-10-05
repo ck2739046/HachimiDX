@@ -10,25 +10,26 @@ def launch_console_script(script: Path, work_dir: Path | None = None) -> bool:
     因此这里经 `cmd /c start` 转手：脚本的父进程是包装 cmd 而非本进程，
     包装 cmd 退出后 psutil 的祖先链即断裂，脚本不再被视为后代。
     """
+    # fmt: off
     wrapper = subprocess.Popen(
-        # 标题传空串：start 只在标题被引号包裹时才识别它，否则会当成要执行的命令。
-        # 显式 cmd /c 承载脚本，否则 start 会用 cmd /K 拉起 .bat，脚本结束后窗口不关。
         [
-            "cmd",
-            "/c",
-            "start",
+            # 在新控制台窗口中启动，显式 cmd /c 执行完就关闭控制台
+            "cmd", "/c", "start",
+            # start 把紧跟其后的第一个带引号参数当作窗口标题
+            # 标题传空串，让它跳过标题位
+            # 若省略，脚本路径会被当成标题
             "",
-            "/d",
-            str(work_dir or script.parent),
-            "cmd",
-            "/c",
-            str(script),
+            # 指定新窗口的工作目录
+            "/d", str(work_dir or script.parent),
+            # 真正要执行的命令，显式 cmd /c 承载脚本
+            "cmd", "/c", str(script),
         ],
         creationflags=subprocess.CREATE_NO_WINDOW,
         stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
+    # fmt: on
     # 必须等包装 cmd 退出，否则脚本仍是本进程的后代，会被 watchdog 杀掉
     try:
         wrapper.wait(timeout=10)

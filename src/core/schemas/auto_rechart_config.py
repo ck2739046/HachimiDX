@@ -231,38 +231,16 @@ class AutoRechartConfig_Definitions:
         },
     )
 
+    # fmt: off
     CHART_LV_PRESETS: ClassVar[dict[int, dict[str, object]]] = {
-        2: {
-            is_big_touch.key: True,
-            base_denominator.key: 8,
-            duration_denominator.key: 8,
-        },
-        3: {
-            is_big_touch.key: True,
-            base_denominator.key: 8,
-            duration_denominator.key: 8,
-        },
-        4: {
-            is_big_touch.key: False,
-            base_denominator.key: 16,
-            duration_denominator.key: 16,
-        },
-        5: {
-            is_big_touch.key: False,
-            base_denominator.key: 32,
-            duration_denominator.key: 32,
-        },
-        6: {
-            is_big_touch.key: False,
-            base_denominator.key: 32,
-            duration_denominator.key: 32,
-        },
-        7: {
-            is_big_touch.key: False,
-            base_denominator.key: 32,
-            duration_denominator.key: 32,
-        },
+        2: {is_big_touch.key: True,  base_denominator.key: 8,  duration_denominator.key: 8},
+        3: {is_big_touch.key: True,  base_denominator.key: 8,  duration_denominator.key: 8},
+        4: {is_big_touch.key: False, base_denominator.key: 16, duration_denominator.key: 16},
+        5: {is_big_touch.key: False, base_denominator.key: 32, duration_denominator.key: 32},
+        6: {is_big_touch.key: False, base_denominator.key: 32, duration_denominator.key: 32},
+        7: {is_big_touch.key: False, base_denominator.key: 32, duration_denominator.key: 32},
     }
+    # fmt: on
 
     # 其他分类
 

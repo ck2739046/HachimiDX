@@ -76,19 +76,18 @@ def install_legacy_tensorrt(
         wheel_path, staged_runtime_dir = result.value
 
         print(cyan(T.legacy_trt.install_wheel.format(filename=wheel_path.name)))
+        # fmt: off
         subprocess.run(
             [
                 python_executable,
-                "-m",
-                "pip",
-                "install",
+                "-m", "pip", "install",
                 str(wheel_path),
-                "--no-deps",
-                "--force-reinstall",
+                "--no-deps", "--force-reinstall",
                 "--no-warn-script-location",
             ],
             check=True,
         )
+        # fmt: on
 
         result = _commit_runtime(root, staged_runtime_dir, package.archive_version, T)
         if not result.is_ok:
