@@ -219,7 +219,7 @@ zh_CN:
   detect:
     notice_module_started: "开始检测模块..."
     notice_module_finished: "检测模块完成, 耗时%{seconds}s"
-    progress_line: "检测 %{detect}/%{total} (%{pct_d}%) | obb %{obb}/%{total} (%{pct_o}%)"
+    progress_line: "detect %{detect}/%{total} (%{pct_d}%) | obb %{obb}/%{total} (%{pct_o}%)"
     notice_result_saved: "检测结果已保存到：%{path}"
     error_read_video_width_failed: "[detect] 无法读取视频宽度：%{path}"
     error_progress_stalled: "进度超过 %{timeout}s 无推进, 可能程序卡住了"
