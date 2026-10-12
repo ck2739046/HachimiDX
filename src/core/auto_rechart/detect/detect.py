@@ -8,7 +8,6 @@ import i18n
 import numpy as np
 
 from ...schemas.op_result import OpResult, err, ok
-from .detect_decode import Decoder
 from .detect_inference import create_inferencer
 from .note_definition import (
     Note_Geometry,
@@ -56,10 +55,7 @@ def main(
             )
         coord_scale = std_video_width / decode_imgsz
 
-        # 2. 构造 Decoder
-        decoder = Decoder(str(std_video_path), decode_imgsz, batch_detect, total_frames)
-
-        # 3. 构造 Inferencer
+        # 2. 构造 Inferencer（同时创建共享帧缓冲）
         create_r = create_inferencer(
             detect_model_path,
             obb_model_path,
@@ -73,11 +69,16 @@ def main(
             return err("[detect] create_inferencer failed", inner=create_r)
         inferencer = create_r.value
 
-        # 3. 构造 progress monitor (打印进度 + 停滞检测)
+        # 3. 启动独立解码进程；它直接向 inferencer 的共享帧缓冲发布帧
+        decoder = inferencer.create_decoder(
+            str(std_video_path), decode_imgsz, total_frames
+        )
+
+        # 4. 构造 progress monitor (打印进度 + 推理停滞检测)
         monitor = _ProgressMonitor(total_frames)
 
-        # 4. 主循环: 先收结果, 再从 decoder 取帧, 最后给 inferencer 喂帧
-        while True:
+        # 5. 解码进程直接生产；主进程负责收结果、检查解码 watchdog 和 worker 健康
+        while not decoder.is_done:
             get_r = inferencer.get_results()
             if not get_r.is_ok:
                 return err(
@@ -85,25 +86,22 @@ def main(
                 )
             raw_results.extend(get_r.value)
 
+            # 先检查解码阶段，避免把 cap.read() 停滞误报成推理停滞。
+            decoder_r = decoder.check()
+            if not decoder_r.is_ok:
+                return err("[detect.main.loop1] decoder worker failed", inner=decoder_r)
+
             update_r = monitor.update(inferencer)
             if not update_r.is_ok:
                 return err("[detect.main.loop1] progress monitor error", inner=update_r)
+            time.sleep(0.01)
 
-            batch_r = decoder.get_next_batch()
-            if not batch_r.is_ok:
-                return err(
-                    "[detect.main.loop1] decoder.get_next_batch failed", inner=batch_r
-                )
-            if batch_r.value is None:
-                break  # 解码 EOF
+        decoder_r = decoder.check()
+        if not decoder_r.is_ok:
+            return err("[detect.main] decoder worker failed", inner=decoder_r)
 
-            put_r = inferencer.put_batch(batch_r.value)
-            if not put_r.is_ok:
-                return err(
-                    "[detect.main.loop1] inferencer.put_batch failed", inner=put_r
-                )
-
-        # 解码完成, 通知 worker 不再有新输入
+        # 解码完成, 通知 worker 不再有新输入；worker 已经发布过 EOF，这里是幂等确认。
+        monitor.reset()
         eof_r = inferencer.send_eof()
         if not eof_r.is_ok:
             return err("[detect.main] inferencer.send_eof failed", inner=eof_r)
@@ -148,10 +146,10 @@ def main(
     except Exception as e:
         return err("[detect.main] unexpected error", error_raw=e)
     finally:
-        if inferencer is not None:
-            inferencer.stop()
         if decoder is not None:
             decoder.close()
+        if inferencer is not None:
+            inferencer.stop()
 
 
 class _ProgressMonitor:
@@ -165,6 +163,7 @@ class _ProgressMonitor:
 
         self._last_progress = None  # 上次进度的数值, 用于停滞检测
         self._last_change_time = time.monotonic()  # 上次进度变化的时刻, 用于停滞检测
+        self._last_printed_progress = None
 
     def update(self, inferencer) -> OpResult:
         # 1. 读取 progress
@@ -187,21 +186,30 @@ class _ProgressMonitor:
         total = self._total_frames
         pct_d = min(pd / total * 100, 100.0) if total else 0.0
         pct_o = min(po / total * 100, 100.0) if total else 0.0
-        print(
-            "\r"
-            + i18n.t(
-                "detect.progress_line",
-                detect=pd,
-                obb=po,
-                total=total,
-                pct_d=f"{pct_d:.1f}",
-                pct_o=f"{pct_o:.1f}",
-            ),
-            end="    ",
-            flush=True,
-        )
+        if progress != self._last_printed_progress:
+            print(
+                "\r"
+                + i18n.t(
+                    "detect.progress_line",
+                    detect=pd,
+                    obb=po,
+                    total=total,
+                    pct_d=f"{pct_d:.1f}",
+                    pct_o=f"{pct_o:.1f}",
+                ),
+                end="    ",
+                flush=True,
+            )
+            self._last_printed_progress = progress
 
         return ok()
+
+    def reset(self) -> None:
+        """开始推理收尾阶段时重新计算停滞时间。"""
+
+        self._last_progress = None
+        self._last_change_time = time.monotonic()
+        self._last_printed_progress = None
 
 
 def _prefilter_tap_hold_by_size(note_geometrys: list, size_thresh: float) -> list:

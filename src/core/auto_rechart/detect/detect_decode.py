@@ -1,136 +1,241 @@
+from __future__ import annotations
+
+import sys
+import time
+from queue import Empty
+
 import cv2
 import i18n
-import torch
-import torch.utils.data
+import torch.multiprocessing as tmp
 
 from ...schemas.op_result import OpResult, err, ok
+from .shared_frame_buffer import SharedFrameBuffer
+
+_DECODE_STALL_TIMEOUT = 60.0
+_DECODE_PUBLISH_WAIT_TIMEOUT = 0.1
+_DECODE_BACKPRESSURE_TIMEOUT = 60.0
+_DECODE_PHASE_FINISHED = 0
+_DECODE_PHASE_READING = 1
+_DECODE_PHASE_PUBLISHING = 2
 
 
 class Decoder:
-    """
-    api:
-    - __init__(std_video_path, imgsz, batch_size, total_frames)
-    - get_next_batch() -> OpResult[List[(frame_idx, frame)]]
-                          ok(value=None) 表示 eof 解码完毕
-    - close()
-    """
-
-    _TIMEOUT = 60.0  # timeout for collecting a batch from workers
+    """控制直接向共享帧缓冲写入数据的解码进程。"""
 
     def __init__(
-        self, std_video_path: str, imgsz: int, batch_size: int, total_frames: int
+        self,
+        std_video_path: str,
+        imgsz: int,
+        total_frames: int,
+        *,
+        frame_buffer: SharedFrameBuffer,
+        stop_event,
     ):
+        if imgsz <= 0:
+            raise ValueError(f"decoder image size must be positive: {imgsz}")
 
-        dataset = _VideoFrameDataset(std_video_path, imgsz, total_frames)
+        self._frame_buffer = frame_buffer
+        self._stop_event = stop_event
+        self._control_queue = tmp.Queue()
+        self._progress_frame = tmp.Value("q", 0)
+        self._decode_phase = tmp.Value("b", _DECODE_PHASE_READING)
+        self._decode_phase_started = tmp.Value("d", time.monotonic())
+        self._status: OpResult | None = None
+        self._force_closed = False
 
-        self._loader = torch.utils.data.DataLoader(
-            dataset,
-            batch_size=batch_size,
-            num_workers=1,
-            collate_fn=_to_list,
-            persistent_workers=False,
-            timeout=self._TIMEOUT,
+        self._process = tmp.Process(
+            target=decode_worker_main,
+            args=(
+                std_video_path,
+                imgsz,
+                total_frames,
+                frame_buffer.spec,
+                self._control_queue,
+                self._progress_frame,
+                self._decode_phase,
+                self._decode_phase_started,
+                stop_event,
+            ),
+            daemon=True,
         )
+        try:
+            self._process.start()
+        except BaseException:
+            self._control_queue.close()
+            raise
 
-        self._iter = iter(self._loader)  # 预热: 尽早启动 worker
+    @property
+    def is_done(self) -> bool:
+        return self._status is not None
 
-        self._eof = False  # 正常解码完毕后为 True
-        self._failed = False  # 报错时为 True
-        self._force_closed = False  # 仅在用户主动关闭解码器时为 True
+    @property
+    def progress_frame(self) -> int:
+        return int(self._progress_frame.value)
 
-    def get_next_batch(self) -> OpResult:
-        """取下一个 batch, 返回 OpResult"""
+    def check(self) -> OpResult:
+        """检查解码状态，并执行 60 秒无解码进度 watchdog。"""
 
         if self._force_closed:
-            return err("[decoder] get_next_batch: decoder already force closed.")
-        if self._failed:
-            return err("[decoder] get_next_batch: decoder already failed.")
-        if self._eof:
-            return ok(value=None)
+            return err("[decoder] check: decoder already force closed.")
+        if self._status is not None:
+            return self._status
 
-        try:
-            # 获取下一个 batch
-            batch = next(self._iter)
-        except StopIteration:
-            # 视频解码完毕
-            self._eof = True
-            return ok(value=None)
-        except Exception as e:
-            # cv2 解码失败 / worker 死亡 / timeout 等
-            self._failed = True
-            return err(f"[decoder] get_next_batch: decoder error: {e}", error_raw=e)
+        for item in _drain_queue(self._control_queue):
+            if not isinstance(item, OpResult):
+                self._status = err("[decoder] invalid decoder worker status")
+                self._request_stop()
+                break
+            self._status = item
+            if not item.is_ok:
+                self._request_stop()
+            break
 
-        return ok(value=batch)  # 成功拿到 batch
+        if self._status is None and not self._process.is_alive():
+            self._process.join(timeout=0)
+            if self._process.exitcode == 0:
+                self._status = err(
+                    "[decoder] decoder worker exited without publishing completion"
+                )
+            else:
+                self._status = err(_format_exit_line(self._process))
+            self._request_stop()
 
-    def close(self):
+        if self._status is None and self._decode_phase.value == _DECODE_PHASE_READING:
+            stalled_for = time.monotonic() - self._decode_phase_started.value
+            if stalled_for > _DECODE_STALL_TIMEOUT:
+                self._status = err(
+                    "[decoder] decode stalled for "
+                    f"{_DECODE_STALL_TIMEOUT:.0f}s at frame {self.progress_frame}"
+                )
+                self._request_stop()
+
+        return self._status if self._status is not None else ok()
+
+    def close(self) -> None:
         if self._force_closed:
             return
         self._force_closed = True
-        self._eof = True
-        self._failed = True
-        _shutdown_loader(self._loader, self._iter)
-        self._iter = None
+        self._request_stop()
+        if self._process.is_alive():
+            self._process.terminate()
+        self._process.join(timeout=10.0)
+        if self._process.is_alive():
+            from src.services import kill_process_tree
+
+            kill_process_tree(self._process.pid)
+        try:
+            self._control_queue.close()
+        except (AttributeError, OSError, ValueError):
+            pass
+
+    def _request_stop(self) -> None:
+        self._stop_event.set()
+        self._frame_buffer.wake_all()
 
 
-def _to_list(batch):
-    return list(batch)
+def decode_worker_main(
+    std_video_path,
+    imgsz,
+    total_frames,
+    frame_buffer_spec,
+    control_queue,
+    progress_frame,
+    decode_phase,
+    decode_phase_started,
+    stop_event,
+):
+    """在独立进程中解码，并直接向共享帧缓冲发布每一帧。"""
 
-
-def _shutdown_loader(loader, iterator=None):
-    """强制关闭 dataloader worker"""
-
-    # 通过销毁 iterator 触发 dataloader 内部 _shutdown_workers 实现
+    frame_buffer = None
+    cap = None
+    frame_idx = 0
     try:
-        it = iterator if iterator is not None else getattr(loader, "_iterator", None)
-        if it is not None:
-            shutdown = getattr(it, "_shutdown_workers", None)
-            if shutdown is not None:
-                shutdown()
-        loader._iterator = None
-    except Exception as e:
-        print(f"[decoder] _shutdown_loader failed: {e}")
-
-
-class _VideoFrameDataset(torch.utils.data.IterableDataset):
-    def __init__(self, std_video_path: str, imgsz: int, total_frames: int):
-        super().__init__()
-        self._std_video_path = std_video_path
-        self._imgsz = (imgsz, imgsz)
-        self._total_frames = total_frames
-
-    def __iter__(self):
-        cap = cv2.VideoCapture(self._std_video_path)
+        frame_buffer = SharedFrameBuffer.attach(frame_buffer_spec)
+        cap = cv2.VideoCapture(std_video_path)
         if not cap.isOpened():
             raise RuntimeError(
                 i18n.t(
                     "detect_decode.error_open_video_failed",
-                    path=str(self._std_video_path),
+                    path=str(std_video_path),
                 )
             )
-        try:
-            frame_idx = 0
-            while True:
-                # 读取视频帧
-                ret, frame = cap.read()
-                if not ret:
-                    if frame_idx >= self._total_frames * 0.98:
-                        break  # 接近预期总帧数，视为正常 EOF
-                    raise RuntimeError(
-                        i18n.t(
-                            "detect_decode.error_decode_stopped_early",
-                            frame=frame_idx,
-                            expected=f"{self._total_frames * 0.98:.2f}",
-                        )
+
+        while not stop_event.is_set():
+            decode_phase.value = _DECODE_PHASE_READING
+            decode_phase_started.value = time.monotonic()
+            ret, frame = cap.read()
+            if not ret:
+                if frame_idx >= total_frames * 0.98:
+                    decode_phase.value = _DECODE_PHASE_FINISHED
+                    frame_buffer.finish_input()
+                    control_queue.put(ok())
+                    return
+                raise RuntimeError(
+                    i18n.t(
+                        "detect_decode.error_decode_stopped_early",
+                        frame=frame_idx,
+                        expected=f"{total_frames * 0.98:.2f}",
                     )
+                )
 
-                # 此处提前 resize 好可以避免在推理内部 resize 从而加快推理速度
-                # 目前 detect/obb imgsz 相同所以能这么干
-                frame = cv2.resize(frame, self._imgsz, interpolation=cv2.INTER_LINEAR)
+            frame = cv2.resize(frame, (imgsz, imgsz), interpolation=cv2.INTER_LINEAR)
+            decode_phase.value = _DECODE_PHASE_PUBLISHING
+            decode_phase_started.value = time.monotonic()
 
-                yield (frame_idx, frame)
-                frame_idx += 1
+            deadline = time.monotonic() + _DECODE_BACKPRESSURE_TIMEOUT
+            while True:
+                if stop_event.is_set():
+                    return
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError(
+                        "decoder shared frame buffer remained full for "
+                        f"{_DECODE_BACKPRESSURE_TIMEOUT:.0f}s"
+                    )
+                if frame_buffer.publish(
+                    frame_idx,
+                    frame,
+                    timeout=min(_DECODE_PUBLISH_WAIT_TIMEOUT, remaining),
+                    stop_event=stop_event,
+                ):
+                    break
 
-        # 不需要显式 except Exception
-        # DataLoader 会自动捕获异常并由 next(self._iter) 处理
-        finally:
+            frame_idx += 1
+            progress_frame.value = frame_idx
+
+    except BaseException as e:
+        if stop_event.is_set():
+            return
+        try:
+            control_queue.put(
+                err(
+                    f"[decoder] decoder worker failed at frame {frame_idx}",
+                    error_raw=e,
+                )
+            )
+        except Exception:
+            pass
+        sys.exit(1)
+    finally:
+        if cap is not None:
             cap.release()
+        if frame_buffer is not None:
+            frame_buffer.close()
+
+
+def _drain_queue(queue):
+    items = []
+    while True:
+        try:
+            items.append(queue.get_nowait())
+        except Empty:
+            return items
+
+
+def _format_exit_line(process):
+    exitcode = process.exitcode
+    win_code = (
+        (exitcode & 0xFFFFFFFF) if exitcode is not None and exitcode < 0 else None
+    )
+    win_str = f"0x{win_code:08X}" if win_code is not None else "N/A"
+    return f"decoder worker died, exitcode={exitcode} win_code={win_str}"

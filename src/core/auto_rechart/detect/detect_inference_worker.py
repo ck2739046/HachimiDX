@@ -18,6 +18,7 @@ from .note_definition import (
     get_imgsz,
     map_model_class_to_note_type,
 )
+from .shared_frame_buffer import SharedFrameBuffer
 
 _PUT_TO_OUTPUT_QUEUE_TIMEOUT = 0.1
 _OUTPUT_QUEUE_STALL_TIMEOUT = 60.0
@@ -30,7 +31,8 @@ def inference_worker_main(
     coord_scale,
     half,
     model_backend,
-    input_queue,
+    frame_buffer_spec,
+    batch_size,
     output_queue,
     control_queue,
     progress_ref,
@@ -40,7 +42,7 @@ def inference_worker_main(
     模型推理 worker 主函数 (detect/obb 共用)
 
     循环流程:
-    - 输入: 从 input_queue 取 batch
+    - 输入: 从共享帧缓冲取 batch
     - 处理: model.predict + 解析为 Note_Geometrys
     - 输出: (note_geometry, task_name) 放入 output_queue
     -       推进 progress_ref 数值
@@ -51,6 +53,7 @@ def inference_worker_main(
     model = None
     results = None
     native_stderr = None
+    frame_buffer = None
     try:
         # detect/obb 是两个兄弟进程, 必须各持一条私有管道:
         # 若共用父进程转发用的那条管道, 两边并发的 write 会互相插入, 字节序当场被破坏
@@ -62,62 +65,62 @@ def inference_worker_main(
             install_ort_cpu_thread_tuning()
 
         last_frame_idx = 0  # 仅用于报错提示
+        frame_buffer = SharedFrameBuffer.attach(frame_buffer_spec)
         model = YOLO(model_path, task=task_name)
         imgsz_val = get_imgsz(task_name)
 
         while True:
             if stop_event is not None and stop_event.is_set():
                 break
-            batch = input_queue.get()
-            if batch is None:
+            frame_batch = frame_buffer.read_batch(task_name, batch_size, stop_event)
+            if frame_batch is None:
                 break  # batch=None 表示 EOF
 
-            # batch = List[(frame_idx, frame)]
-            frame_indexes = [idx for idx, _ in batch]
-            frames = [f for _, f in batch]
-            last_frame_idx = frame_indexes[0]
+            try:
+                frame_indexes = frame_batch.frame_indices
+                frames = frame_batch.frames
+                last_frame_idx = frame_indexes[0]
 
-            # 推理
-            results = model.predict(
-                source=frames,
-                batch=len(frames),
-                device=inference_device,
-                half=half,
-                imgsz=imgsz_val,
-                max_det=50,
-                verbose=False,
-            )
-
-            # 处理结果
-            for i, result in enumerate(results):
-                frame_number = frame_indexes[i]
-                last_frame_idx = frame_number
-                # 解析为 note_geometry
-                note_geometrys = _parse_detections_to_note_geometrys(
-                    result, frame_number, task_name, coord_scale
+                # 推理
+                results = model.predict(
+                    source=frames,
+                    batch=len(frames),
+                    device=inference_device,
+                    half=half,
+                    imgsz=imgsz_val,
+                    max_det=50,
+                    verbose=False,
                 )
-                # 放入 output_queue
-                for note_geometry in note_geometrys:
-                    deadline = time.monotonic() + _OUTPUT_QUEUE_STALL_TIMEOUT
-                    while True:
-                        if stop_event is not None and stop_event.is_set():
-                            return
-                        try:
-                            output_queue.put(
-                                (note_geometry, task_name),
-                                block=True,
-                                timeout=_PUT_TO_OUTPUT_QUEUE_TIMEOUT,
-                            )
-                            break
-                        except Full:
-                            if time.monotonic() > deadline:
-                                raise TimeoutError(
-                                    f"{task_name} output queue remained full for "
-                                    f"{_OUTPUT_QUEUE_STALL_TIMEOUT}s"
+
+                # 处理结果
+                for i, result in enumerate(results):
+                    frame_number = frame_indexes[i]
+                    last_frame_idx = frame_number
+                    note_geometrys = _parse_detections_to_note_geometrys(
+                        result, frame_number, task_name, coord_scale
+                    )
+                    for note_geometry in note_geometrys:
+                        deadline = time.monotonic() + _OUTPUT_QUEUE_STALL_TIMEOUT
+                        while True:
+                            if stop_event is not None and stop_event.is_set():
+                                return
+                            try:
+                                output_queue.put(
+                                    (note_geometry, task_name),
+                                    block=True,
+                                    timeout=_PUT_TO_OUTPUT_QUEUE_TIMEOUT,
                                 )
-                            continue
-                # 更新进度
-                progress_ref.value = frame_number + 1
+                                break
+                            except Full:
+                                if time.monotonic() > deadline:
+                                    raise TimeoutError(
+                                        f"{task_name} output queue remained full for "
+                                        f"{_OUTPUT_QUEUE_STALL_TIMEOUT}s"
+                                    )
+                                continue
+                    progress_ref.value = frame_number + 1
+            finally:
+                frame_buffer.release(task_name, frame_batch.end_sequence)
 
         # 正常结束
         time.sleep(0.1)
@@ -146,6 +149,8 @@ def inference_worker_main(
         # 子进程可能在正常结束或 terminate 前走到这里, 都要恢复 fd 2 并收尾转发
         if native_stderr is not None:
             native_stderr.close()
+        if frame_buffer is not None:
+            frame_buffer.close()
         release_ncnn_vulkan(inference_device)
 
 
