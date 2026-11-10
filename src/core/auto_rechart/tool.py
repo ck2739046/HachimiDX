@@ -7,7 +7,6 @@ from src.services import ModelInferenceManage
 
 __all__ = [
     "SEEK_THRESHOLD",
-    "calculate_all_position",
     "calculate_oct_position",
     "catmull_rom_spline",
     "draw_path_on_frame",
@@ -119,20 +118,6 @@ def calculate_oct_position(circle_center_x, circle_center_y, note_x, note_y):
             return 7
         else:
             return 8
-
-
-def calculate_all_position(touch_areas, note_x, note_y):
-
-    closeset_label = None
-    closeset_dist = 9999
-
-    for label, (cx, cy) in touch_areas.items():
-        dist = np.sqrt((note_x - cx) ** 2 + (note_y - cy) ** 2)
-        if dist < closeset_dist:
-            closeset_label = label
-            closeset_dist = dist
-
-    return closeset_label
 
 
 def draw_path_on_frame(

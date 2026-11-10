@@ -11,8 +11,9 @@ from ..analyze.preprocess_slide import (
     _guess_target_a_zone_by_inertia,
     _is_close_to_A_zone_endpoint,
 )
-from ..analyze.shared_context import get_a_zone_endpoint, get_touch_areas
-from ..tool import calculate_all_position, calculate_oct_position, catmull_rom_spline
+from ..analyze.shared_context import get_a_zone_endpoint
+from ..tool import calculate_oct_position, catmull_rom_spline
+from ..touch_area import TouchAreaMap, get_touch_area_map
 from .note_definition import NoteType
 from .track import _load_track_results, _save_track_results
 
@@ -27,7 +28,7 @@ class _PostTrackContext:
     std_video_size: int
     std_video_cx: int
     std_video_cy: int
-    touch_areas: dict
+    touch_area_map: TouchAreaMap
     a_zone_endpoint: dict
     note_travel_dist: float
 
@@ -58,7 +59,7 @@ def _build_context(std_video_path: Path) -> _PostTrackContext:
     std_video_cx = std_video_size // 2
     std_video_cy = std_video_cx
 
-    touch_areas = get_touch_areas(std_video_size, std_video_cx, std_video_cy)
+    touch_area_map = get_touch_area_map(std_video_size)
     a_zone_endpoint = get_a_zone_endpoint(std_video_size, std_video_cx, std_video_cy)
 
     judgeline_start = std_video_size * 120 / 1080
@@ -69,7 +70,7 @@ def _build_context(std_video_path: Path) -> _PostTrackContext:
         std_video_size=std_video_size,
         std_video_cx=std_video_cx,
         std_video_cy=std_video_cy,
-        touch_areas=touch_areas,
+        touch_area_map=touch_area_map,
         a_zone_endpoint=a_zone_endpoint,
         note_travel_dist=note_travel_dist,
     )
@@ -102,7 +103,7 @@ def _split_touch_notes(tracks: dict, context: _PostTrackContext, next_track_id: 
 
         segments = _split_single_touch(
             note_geometry_list,
-            context.touch_areas,
+            context.touch_area_map,
             reverse_growth_threshold,
         )
 
@@ -137,7 +138,7 @@ def _split_touch_notes(tracks: dict, context: _PostTrackContext, next_track_id: 
 
 
 def _split_single_touch(
-    note_geometry_list, touch_areas: dict, reverse_growth_threshold: float
+    note_geometry_list, touch_area_map: TouchAreaMap, reverse_growth_threshold: float
 ):
     """
     分割条件1 位置不同
@@ -148,13 +149,13 @@ def _split_single_touch(
     start_idx = 0
 
     first_note = note_geometry_list[0]
-    prev_position = calculate_all_position(touch_areas, first_note.cx, first_note.cy)
+    prev_position = touch_area_map.locate(first_note.cx, first_note.cy)
     prev_size = (first_note.w + first_note.h) / 2.0
 
     for idx in range(1, len(note_geometry_list)):
         note = note_geometry_list[idx]
 
-        curr_position = calculate_all_position(touch_areas, note.cx, note.cy)
+        curr_position = touch_area_map.locate(note.cx, note.cy)
         curr_size = (note.w + note.h) / 2.0
         dist_diff = (curr_size - prev_size) / 2.0
 
@@ -255,11 +256,7 @@ def _classify_segment(
         return note_geometry_list, None, False
 
     all_positions = [
-        calculate_all_position(
-            context.touch_areas,
-            note.cx,
-            note.cy,
-        )
+        context.touch_area_map.locate(note.cx, note.cy)
         for note in note_geometry_list
     ]
     # 如果开头在A区, 可能是星星尾，return

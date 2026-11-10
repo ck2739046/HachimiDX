@@ -6,7 +6,6 @@ from ..detect.note_definition import (
     NoteType,
 )
 from ..tool import (
-    calculate_all_position,
     calculate_oct_position,
 )
 from .shared_context import (
@@ -88,7 +87,7 @@ def _classify_segment(shared_context: SharedContext, note_geometry_list) -> str 
 
     # 如果开头在A区, 可能是星星尾
     all_positions = [
-        calculate_all_position(shared_context.touch_areas, note.cx, note.cy)
+        shared_context.touch_area_map.locate(note.cx, note.cy)
         for note in note_geometry_list
     ]
     if all_positions[0].startswith("A"):
@@ -299,7 +298,7 @@ def preprocess_slide_tail_data(
 
         # 开头在分类时已经检查过，此处仅检查结尾
         all_postions = [
-            calculate_all_position(shared_context.touch_areas, note.cx, note.cy)
+            shared_context.touch_area_map.locate(note.cx, note.cy)
             for note in note_geometry_list
         ]
         if not all_postions[-1].startswith("A"):
@@ -333,9 +332,7 @@ def preprocess_slide_tail_data(
             if dist_to_center > shared_context.judgeline_end * 1.05:  # 105%
                 continue
             # 计算方位
-            position = calculate_all_position(
-                shared_context.touch_areas, note.cx, note.cy
-            )
+            position = shared_context.touch_area_map.locate(note.cx, note.cy)
             # 添加轨迹点
             valid_track_path.append(
                 (note.frame, note.cx, note.cy, position, dist_to_center)

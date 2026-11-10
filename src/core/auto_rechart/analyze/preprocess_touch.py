@@ -3,9 +3,6 @@ import itertools
 from ..detect.note_definition import (
     NoteType,
 )
-from ..tool import (
-    calculate_all_position,
-)
 from .shared_context import (
     SharedContext,
 )
@@ -52,9 +49,7 @@ def preprocess_touch_data(shared_context: SharedContext):
             avg_touch_size = (note.w + note.h) / 2
             dist = avg_touch_size / 2 - outer_size
             # 计算方位
-            position = calculate_all_position(
-                shared_context.touch_areas, note.cx, note.cy
-            )
+            position = shared_context.touch_area_map.locate(note.cx, note.cy)
             # 过滤前后两端的数据
             if dist > valid_dist_start:
                 continue  # 掐头

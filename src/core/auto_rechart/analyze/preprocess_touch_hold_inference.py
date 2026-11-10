@@ -23,7 +23,6 @@ from ..detect.note_definition import NoteType, get_imgsz
 from ..pipeline import Consumer, Pipeline, Producer
 from ..tool import (
     SEEK_THRESHOLD,
-    calculate_all_position,
     print_progress,
     release_ncnn_vulkan,
 )
@@ -319,9 +318,7 @@ def _build_touch_hold_sampling_plan(shared_context: SharedContext):
 
         for note in note_geometry_list:
             frame_num = int(note.frame)
-            position = calculate_all_position(
-                shared_context.touch_areas, note.cx, note.cy
-            )
+            position = shared_context.touch_area_map.locate(note.cx, note.cy)
             frame_plan[frame_num].append(
                 {
                     "track_id": track_id,

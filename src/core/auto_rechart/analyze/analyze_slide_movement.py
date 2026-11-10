@@ -2,7 +2,7 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from ..tool import calculate_all_position, catmull_rom_spline
+from ..tool import catmull_rom_spline
 
 shared_context = None
 track_id = None
@@ -1205,9 +1205,7 @@ def _divide_path_by_A_zone(note_path, start_pos, end_pos) -> list:
                 interp_point = {
                     "cx": cx,
                     "cy": cy,
-                    "position": calculate_all_position(
-                        shared_context.touch_areas, cx, cy
-                    ),
+                    "position": shared_context.touch_area_map.locate(cx, cy),
                     "frame": note_path[i]["frame"],
                 }
                 enriched_path.append(interp_point)

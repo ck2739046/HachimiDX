@@ -8,13 +8,13 @@ import i18n
 from ...schemas.op_result import print_op_result
 from ...tools import FFprobeInspect
 from ..detect.track import _load_track_results
+from ..touch_area import TouchAreaMap, get_touch_area_map
 
 __all__ = [
     "SharedContext",
     "create_shared_context",
     "get_a_zone_endpoint",
     "get_max_track_id",
-    "get_touch_areas",
 ]
 
 
@@ -44,7 +44,7 @@ class SharedContext:
     touch_OptionNotespeed: float = 0.0
 
     # 预计算数据
-    touch_areas: dict[str, tuple[int, int]] = None
+    touch_area_map: TouchAreaMap = None
     a_zone_endpoint: dict[str, tuple[int, int]] = None
     track_data: dict[Any, Any] = None
     max_track_id: int = None
@@ -133,7 +133,7 @@ def create_shared_context(std_video_path: Path, is_big_touch: bool) -> SharedCon
         touch_hold_travel_dist = touch_hold_travel_dist * 1.3
         touch_hold_max_size = touch_hold_max_size * 1.3
 
-    touch_areas = get_touch_areas(std_video_size, std_video_cx, std_video_cy)
+    touch_area_map = get_touch_area_map(std_video_size)
     a_zone_endpoint = get_a_zone_endpoint(std_video_size, std_video_cx, std_video_cy)
     track_data = _load_track_results(std_video_path.parent)
     max_track_id = get_max_track_id(track_data)
@@ -168,39 +168,11 @@ def create_shared_context(std_video_path: Path, is_big_touch: bool) -> SharedCon
         touch_outer_size=touch_outer_size,
         touch_hold_travel_dist=touch_hold_travel_dist,
         touch_hold_max_size=touch_hold_max_size,
-        touch_areas=touch_areas,
+        touch_area_map=touch_area_map,
         a_zone_endpoint=a_zone_endpoint,
         track_data=track_data,
         max_track_id=max_track_id,
     )
-
-
-def get_touch_areas(std_video_size, std_video_cx, std_video_cy) -> dict:
-    # 1080p的触摸区域中心坐标
-    # fmt: off
-    std_touch_areas = {
-        # A
-        "A1": (693, 171), "A2": (909, 388), "A3": (908, 693), "A4": (692, 910),
-        "A5": (387, 909), "A6": (170, 694), "A7": (170, 388), "A8": (386, 170),
-        # B
-        "B1": (624, 336), "B2": (745, 456), "B3": (744, 626), "B4": (624, 745),
-        "B5": (455, 745), "B6": (335, 626), "B7": (335, 456), "B8": (454, 336),
-        # C
-        "C1": (540, 540),
-        # D
-        "D1": (540, 117), "D2": (840, 241), "D3": (963, 542), "D4": (839, 840),
-        "D5": (540, 964), "D6": (241, 840), "D7": (116, 540), "D8": (239, 241),
-        # E
-        "E1": (540, 229), "E2": (760, 320), "E3": (852, 540), "E4": (760, 761),
-        "E5": (539, 853), "E6": (319, 760), "E7": (228, 540), "E8": (319, 321),
-    }
-    # fmt: on
-    new_touch_areas = {}
-    for area_label, (x, y) in std_touch_areas.items():
-        scaled_x = round((x - 540) * std_video_size / 1080 + std_video_cx)
-        scaled_y = round((y - 540) * std_video_size / 1080 + std_video_cy)
-        new_touch_areas[area_label] = (scaled_x, scaled_y)
-    return new_touch_areas
 
 
 def get_a_zone_endpoint(std_video_size, std_video_cx, std_video_cy) -> dict:
