@@ -165,8 +165,8 @@ class OutputLogWidget(QWidget):
         self.clear_button.setStyleSheet(
             f"""
             QPushButton {{
-                background-color: rgba(95, 95, 95, 30%);
-                color: rgba(190, 190, 190, 30%);
+                background-color: rgba(95, 95, 95, 35%);
+                color: rgba(220, 220, 220, 65%);
                 border: none;
                 border-radius: 4px;
                 padding: 0px 6px;
