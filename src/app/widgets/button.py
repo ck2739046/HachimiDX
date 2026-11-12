@@ -76,6 +76,56 @@ class StatedButton(PointerCursorButton):
             )
 
 
+class OutlineButton(PointerCursorButton):
+    """次要操作按钮：描边、无填充，供各页面复用的次级按钮变体。
+
+    big=False 为普通行内尺寸（25px，13px 常规字重）。
+    big=True 与 StatedButton 的 big 形式对齐：35px、16px、加粗。
+    """
+
+    def __init__(
+        self,
+        text: str = "",
+        width: int | None = None,
+        big: bool = False,
+        parent=None,
+    ):
+        super().__init__(text, parent)
+        if width is not None:
+            self.setFixedWidth(width)
+        self.setFixedHeight(35 if big else UI_Style.element_height)
+        font_size = 16 if big else UI_Style.default_text_size
+        weight = " font-weight: bold;" if big else ""
+        self.setStyleSheet(
+            f"""
+            QPushButton {{
+                background-color: transparent;
+                color: {c["text_primary"]};
+                border: 1px solid {c["light_grey"]};
+                border-radius: 6px;
+                padding: 0px 10px;
+                font-size: {font_size}px;{weight}
+            }}
+            QPushButton:hover {{
+                background-color: {c["grey_hover"]};
+            }}
+            QPushButton:disabled {{
+                color: {c["light_grey"]};
+                border-color: {c["grey"]};
+            }}
+            """
+        )
+
+
+def create_outline_button(
+    text: str,
+    width: int | None = None,
+    big: bool = False,
+) -> OutlineButton:
+    """创建描边次级按钮"""
+    return OutlineButton(text, width=width, big=big)
+
+
 def create_stated_button(
     text: str, isbig: bool = False, width: int | None = None
 ) -> StatedButton:

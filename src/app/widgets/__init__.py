@@ -4,9 +4,11 @@ Common widgets package
 
 from . import widget_utils
 from .button import (
+    OutlineButton,
     PointerCursorButton,
     StatedButton,
     create_button,
+    create_outline_button,
     create_stated_button,
 )
 from .check_box import StyledCheckBox, create_check_box
@@ -35,6 +37,7 @@ from .square_widget import SquareWidget
 
 __all__ = [
     "MediaInputProbeWidget",
+    "OutlineButton",
     "OutputLogWidget",
     "OverlayWidget",
     "PointerCursorButton",
@@ -60,6 +63,7 @@ __all__ = [
     "create_help_icon",
     "create_label",
     "create_line_edit",
+    "create_outline_button",
     "create_path_display",
     "create_slider",
     "create_split_drop_button",
