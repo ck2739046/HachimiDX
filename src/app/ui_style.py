@@ -21,6 +21,10 @@ class UI_Style:
         "accent_hover": "#3A86FF",
         "stop": "#B61D2D",
         "stop_hover": "#DC3545",
+        # Semantic status text colors (readable on the page background)
+        "success": "#5FC97E",
+        "warning": "#E6B450",
+        "error": "#FF8A8A",
         # Task status colors (Tasks page)
         "task_pending": "#005F66",  # cyan
         "task_running": "#1F6F3D",  # green

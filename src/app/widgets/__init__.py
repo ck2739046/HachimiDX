@@ -34,6 +34,7 @@ from .scrollable_image_label import ScrollableImageLabel
 from .slider import create_slider
 from .split_drop_button import SplitDropButton, create_split_drop_button
 from .square_widget import SquareWidget
+from .status_pill import StatusPill, create_status_pill
 
 __all__ = [
     "MediaInputProbeWidget",
@@ -48,6 +49,7 @@ __all__ = [
     "SplitDropLineEdit",
     "SquareWidget",
     "StatedButton",
+    "StatusPill",
     "StyledCheckBox",
     "StyledComboBox",
     "StyledLineEdit",
@@ -69,6 +71,7 @@ __all__ = [
     "create_split_drop_button",
     "create_split_drop_line_edit",
     "create_stated_button",
+    "create_status_pill",
     "create_vertical_divider",
     "widget_utils",
 ]
