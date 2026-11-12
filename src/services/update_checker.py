@@ -2,6 +2,7 @@
 
 import json
 import re
+from collections.abc import Callable
 from datetime import datetime
 from typing import NamedTuple
 
@@ -114,7 +115,9 @@ def _extract_tag_name(reply: QNetworkReply) -> OpResult[str]:
 # ---------------------------------------------------------------------------
 
 
-def check_update(force: bool = False) -> None:
+def check_update(
+    force: bool = False, on_finished: Callable[[], None] | None = None
+) -> None:
     """
     Main Entry point
 
@@ -123,7 +126,20 @@ def check_update(force: bool = False) -> None:
     Otherwise only runs when enabled and not yet checked today.
     Only on a successful check (network OK + valid response) will it persist
     today's date to last_check_update_time, preventing retries on failure.
+
+    on_finished: optional callback invoked exactly once when this check is done
+    (including early skips, errors and the async reply completion).
     """
+    finished = False
+
+    def _finish() -> None:
+        nonlocal finished
+        if finished:
+            return
+        finished = True
+        if on_finished is not None:
+            on_finished()
+
     try:
         if not force:
             # 先查看设置项，决定是否检查更新
@@ -132,9 +148,11 @@ def check_update(force: bool = False) -> None:
                 print(
                     i18n.t("check_update.notice_check_failed", error=result.error_msg)
                 )
+                _finish()
                 return
             if not result.value:
                 print(i18n.t("check_update.notice_skipped"))
+                _finish()
                 return
 
             # 检查今天是否已经检查过更新
@@ -146,6 +164,7 @@ def check_update(force: bool = False) -> None:
                 and str(last_result.value) >= today_str
             ):
                 print(i18n.t("check_update.notice_already_checked_today"))
+                _finish()
                 return
         else:
             today_str = datetime.now().astimezone().date().isoformat()
@@ -244,8 +263,11 @@ def check_update(force: bool = False) -> None:
                     QDesktopServices.openUrl(QUrl(f"{REPO}/releases/latest"))
             finally:
                 # cleanup
-                nam.finished.disconnect(_on_reply_finished)
-                nam.deleteLater()
+                try:
+                    nam.finished.disconnect(_on_reply_finished)
+                    nam.deleteLater()
+                finally:
+                    _finish()
 
         nam.finished.connect(_on_reply_finished)
 
@@ -263,3 +285,4 @@ def check_update(force: bool = False) -> None:
         print(msg)
         if force:
             show_notify_dialog(i18n.t("check_update.dialog_title"), msg)
+        _finish()
