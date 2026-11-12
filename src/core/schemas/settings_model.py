@@ -40,6 +40,7 @@ class MainAppWindowState(BaseModel):
             le=S_Defs.main_app_ui_scale.constraints["le"],
         ),
     ]
+    maximized: bool = False
 
 
 class SettingsModel(BaseModel):

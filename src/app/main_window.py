@@ -320,6 +320,7 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(1000, check_update)
 
     def _restore_window_state(self) -> None:
+        restore_maximized = False
         # 是否启用了 "记住窗口状态" 功能
         res = SettingsManage.get(S_Defs.main_app_remember_window_state.key)
         if res.is_ok and res.value is True:
@@ -328,12 +329,17 @@ class MainWindow(QMainWindow):
             state = result.value if result.is_ok else None
             if state is not None and state.ui_scale == self._runtime_ui_scale:
                 # 成功获取到上次窗口状态，尝试恢复
+                restore_maximized = bool(getattr(state, "maximized", False))
                 center = QPoint(state.x + state.width // 2, state.y + state.height // 2)
                 if any(
                     screen.availableGeometry().contains(center)
                     for screen in QApplication.screens()
                 ):
                     self.setGeometry(state.x, state.y, state.width, state.height)
+                    if restore_maximized:
+                        self.setWindowState(
+                            self.windowState() | Qt.WindowState.WindowMaximized
+                        )
                     return
         # fallback: 居中显示
         screen = QApplication.primaryScreen()
@@ -344,6 +350,8 @@ class MainWindow(QMainWindow):
             available.x() + (available.width() - self.width()) // 2,
             available.y() + (available.height() - self.height()) // 2,
         )
+        if restore_maximized:
+            self.setWindowState(self.windowState() | Qt.WindowState.WindowMaximized)
 
     def _save_window_state(self) -> None:
         # 是否启用了 "记住窗口状态" 功能
@@ -360,6 +368,7 @@ class MainWindow(QMainWindow):
                 "width": geometry.width(),
                 "height": geometry.height(),
                 "ui_scale": self._runtime_ui_scale,
+                "maximized": self.isMaximized(),
             },
         )
         if not save_result.is_ok:
