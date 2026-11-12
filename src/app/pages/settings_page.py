@@ -3,7 +3,8 @@ from datetime import datetime
 
 import i18n
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QMessageBox, QVBoxLayout
+from PyQt6.QtGui import QFontMetrics
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from src.core.build_worker_cmd import build_cmd_head_python_exe
 from src.core.schemas.op_result import print_op_result
@@ -30,8 +31,10 @@ from ..widgets import (
     create_help_icon,
     create_label,
     create_line_edit,
+    create_outline_button,
     create_slider,
     create_stated_button,
+    create_status_pill,
 )
 from .about_dialog import show_about_dialog
 from .base_output_page import BaseOutputPage
@@ -43,6 +46,15 @@ from .settings_page_sub_model_infer import (
 )
 
 I18N_Prefix = "app.settings_page"
+
+# 自动标签列：最长字段文字 + 固定留白，新增/删除行后自动重新计算
+_LABEL_TEXT_OFFSET = 40
+
+# 语言设置的值是内部代码，界面显示可读名称
+_LANGUAGE_LABELS = {
+    "zh_CN": "简体中文",
+    "en_US": "English",
+}
 
 
 @dataclass(slots=True)
@@ -70,9 +82,9 @@ class _SettingsTaskState:
 
 class SettingsPage(BaseOutputPage):
     def setup_content(self):
-
         self.content_layout = QVBoxLayout(self.content_area)
         self.content_layout.setContentsMargins(10, 10, 10, 10)
+        self.content_layout.setSpacing(6)
 
         self.model_backend_combo_box = None
         self.check_model_button = None
@@ -84,6 +96,7 @@ class SettingsPage(BaseOutputPage):
         self.open_install_script_button = None
         self.ffmpeg_hw_encoder_combo_box = None
         self.check_ffmpeg_hw_accel_button = None
+        self.ffmpeg_detect_status_label = None
 
         # Lite 版无模型推理功能，隐藏相关组件
         self.model_divider = None
@@ -107,15 +120,13 @@ class SettingsPage(BaseOutputPage):
         self.check_update_checkbox = None
         self.check_update_now_button = None
         self.language_combo_box = None
+        self._update_check_in_progress = False
 
         self.default_width_line_edit = None
         self.default_height_line_edit = None
-        self.min_width_line_edit = None
-        self.min_height_line_edit = None
         self.ui_scale_slider = None
         self.ui_scale_display = None
         self.remember_window_state_checkbox = None
-        self.reset_window_state_label = None
         self.reset_window_state_button = None
 
         self.save_button = None
@@ -134,20 +145,21 @@ class SettingsPage(BaseOutputPage):
             S_Defs.main_app_remember_window_state.key,
         ]
 
+        # 所有字段标签会在建完表单后按当前语言的最长文字自动定宽
+        self._field_labels: list[QLabel] = []
+
         self._build_model_section()
         self._build_ffmpeg_section()
         self._build_common_section()
         self._build_window_section()
         self._build_actions()
+        self._apply_label_column_width()
 
         # Lite 版无模型推理功能，隐藏相关组件
         if PathManage.is_lite():
             self.model_divider.setVisible(False)
             self.model_backend_row.setVisible(False)
             self.inference_device_row.setVisible(False)
-
-        self.content_layout.addStretch()
-        self.build_bottom_section()
 
         process_manager_api.get_signals().runner_output.connect(
             self.output_widget.handle_process_output
@@ -159,60 +171,98 @@ class SettingsPage(BaseOutputPage):
 
         self._load_settings_to_ui()
 
+    def _add_row(
+        self, label_text: str, *controls: QWidget, add_stretch: bool = True
+    ) -> tuple[QWidget, QLabel]:
+        """一行「字段标签 + 控件」，标签列宽在全页构建完后自动计算。"""
+        row = QWidget()
+        row_layout = QHBoxLayout(row)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(8)
+
+        label = create_label(label_text, color=UI_Style.COLORS["text_primary"])
+        label.setFixedHeight(UI_Style.element_height)
+        label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        row_layout.addWidget(label)
+        self._field_labels.append(label)
+
+        for control in controls:
+            if control is not None:
+                row_layout.addWidget(control, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        if add_stretch:
+            row_layout.addStretch(1)
+
+        self.content_layout.addWidget(row)
+        return row, label
+
+    def _apply_label_column_width(self) -> None:
+        """取所有字段文字的最长长度，加固定留白，统一标签列宽。"""
+        if not self._field_labels:
+            return
+        font = self.font()
+        font.setPixelSize(UI_Style.default_text_size)
+        metrics = QFontMetrics(font)
+        longest = max(
+            metrics.horizontalAdvance(label.text()) for label in self._field_labels
+        )
+        column_width = longest + _LABEL_TEXT_OFFSET
+        for label in self._field_labels:
+            label.setFixedWidth(column_width)
+
     def _build_model_section(self) -> None:
-        self.model_divider = create_divider(i18n.t(f"{I18N_Prefix}.ui_model_divider"))
+        self.model_divider = create_divider(
+            i18n.t(f"{I18N_Prefix}.ui_model_section_title")
+        )
         self.content_layout.addWidget(self.model_divider)
 
-        backend_label = create_label(i18n.t(f"{I18N_Prefix}.ui_model_backend_label"))
         self.model_backend_combo_box = self._create_combo_from_definition(
-            S_Defs.model_backend, length=120
+            S_Defs.model_backend, length=130
         )
-        self.check_model_button = create_stated_button(
+        self.check_model_button = create_outline_button(
             i18n.t(f"{I18N_Prefix}.ui_check_model_button")
         )
-        self.convert_model_button = create_stated_button(
+        check_help = create_help_icon(i18n.t(f"{I18N_Prefix}.ui_check_model_tooltip"))
+        self.convert_model_button = create_outline_button(
             i18n.t(f"{I18N_Prefix}.ui_convert_model_button")
         )
-        self.cancel_check_model_button = create_stated_button(
+        self.cancel_check_model_button = create_outline_button(
             i18n.t(f"{I18N_Prefix}.ui_cancel_check_model_button")
         )
-        self.cancel_convert_model_button = create_stated_button(
+        self.cancel_convert_model_button = create_outline_button(
             i18n.t(f"{I18N_Prefix}.ui_cancel_convert_model_button")
-        )
-        self.inference_device_label = create_label(
-            i18n.t(f"{I18N_Prefix}.ui_inference_device_label")
-        )
-        self.inference_device_combo_box = create_combo_box(length=400)
-        self.environment_status_label = create_label()
-        self.model_status_label = create_label()
-        self.open_install_script_button = create_stated_button(
-            i18n.t(f"{I18N_Prefix}.ui_open_install_script_button")
         )
         self.convert_model_button.setVisible(False)  # 默认隐藏
         self.cancel_check_model_button.setVisible(False)  # 默认隐藏
         self.cancel_convert_model_button.setVisible(False)  # 默认隐藏
-        self.inference_device_label.setVisible(False)  # 默认隐藏
-        self.inference_device_combo_box.setVisible(False)  # 默认隐藏
-        self.environment_status_label.setVisible(False)  # 默认隐藏
-        self.model_status_label.setVisible(False)  # 默认隐藏
-        self.open_install_script_button.setVisible(False)  # 默认隐藏
 
-        self.model_backend_row = self.create_row(
-            backend_label,
+        self.environment_status_label = create_status_pill(
+            i18n.t(f"{I18N_Prefix}.ui_status_not_checked"), "warning"
+        )
+        self.model_status_label = create_status_pill("", "success")
+        self.model_status_label.setVisible(False)
+        self.open_install_script_button = create_outline_button(
+            i18n.t(f"{I18N_Prefix}.ui_open_install_script_button")
+        )
+        self.open_install_script_button.setVisible(False)
+
+        self.model_backend_row, _ = self._add_row(
+            i18n.t(f"{I18N_Prefix}.ui_model_backend_label"),
             self.model_backend_combo_box,
             self.check_model_button,
             self.cancel_check_model_button,
+            check_help,
             self.environment_status_label,
-            self.open_install_script_button,
             self.model_status_label,
-            add_stretch=True,
+            self.open_install_script_button,
         )
-        self.inference_device_row = self.create_row(
-            self.inference_device_label,
+
+        self.inference_device_combo_box = create_combo_box(length=380)
+        self.inference_device_row, self.inference_device_label = self._add_row(
+            i18n.t(f"{I18N_Prefix}.ui_inference_device_label"),
             self.inference_device_combo_box,
             self.convert_model_button,
             self.cancel_convert_model_button,
-            add_stretch=True,
         )
 
         self.check_model_button.clicked.connect(self.on_check_model_clicked)
@@ -235,18 +285,13 @@ class SettingsPage(BaseOutputPage):
 
     def _build_ffmpeg_section(self) -> None:
         self.content_layout.addWidget(
-            create_divider(i18n.t(f"{I18N_Prefix}.ui_ffmpeg_divider"))
+            create_divider(i18n.t(f"{I18N_Prefix}.ui_ffmpeg_section_title"))
         )
 
-        encoder_label = create_label(i18n.t(f"{I18N_Prefix}.ui_ffmpeg_encoder_label"))
         self.ffmpeg_hw_encoder_combo_box = self._create_combo_from_definition(
-            S_Defs.ffmpeg_hw_encoder, length=80
+            S_Defs.ffmpeg_hw_encoder, length=130
         )
-
-        auto_detect_label = create_label(
-            i18n.t(f"{I18N_Prefix}.ui_auto_detect_hw_label")
-        )
-        self.check_ffmpeg_hw_accel_button = create_stated_button(
+        self.check_ffmpeg_hw_accel_button = create_outline_button(
             i18n.t(f"{I18N_Prefix}.ui_auto_detect_hw_button")
         )
         self.check_ffmpeg_hw_accel_button.clicked.connect(
@@ -255,133 +300,122 @@ class SettingsPage(BaseOutputPage):
         auto_detect_help = create_help_icon(
             i18n.t(f"{I18N_Prefix}.ui_auto_detect_hw_help")
         )
+        self.ffmpeg_detect_status_label = create_label("", font_size=12)
+        self.ffmpeg_detect_status_label.setVisible(False)
 
-        self.create_row(
-            encoder_label,
+        self._add_row(
+            i18n.t(f"{I18N_Prefix}.ui_ffmpeg_encoder_label"),
             self.ffmpeg_hw_encoder_combo_box,
-            auto_detect_label,
             self.check_ffmpeg_hw_accel_button,
             auto_detect_help,
-            add_stretch=True,
+            self.ffmpeg_detect_status_label,
+        )
+        self.ffmpeg_hw_encoder_combo_box.currentIndexChanged.connect(
+            self._on_ffmpeg_encoder_changed
         )
 
     def _build_common_section(self) -> None:
         self.content_layout.addWidget(
-            create_divider(i18n.t(f"{I18N_Prefix}.ui_general_divider"))
+            create_divider(i18n.t(f"{I18N_Prefix}.ui_general_section_title"))
         )
 
-        language_label = create_label(i18n.t(f"{I18N_Prefix}.ui_language_label"))
-        self.language_combo_box = self._create_combo_from_definition(
-            S_Defs.language, length=80
+        self.language_combo_box = create_combo_box(length=130)
+        for language_code in S_Defs.language.constraints["options"]:
+            self.language_combo_box.addItem(
+                _LANGUAGE_LABELS.get(language_code, language_code),
+                language_code,
+            )
+        self._add_row(
+            i18n.t(f"{I18N_Prefix}.ui_language_label"),
+            self.language_combo_box,
         )
 
-        check_update_label = create_label(
-            i18n.t(f"{I18N_Prefix}.ui_check_update_label")
-        )
         self.check_update_checkbox = create_check_box()
-        check_update_now_label = create_label(
-            i18n.t(f"{I18N_Prefix}.ui_check_update_now_label")
-        )
         self.check_update_now_button = create_stated_button(
             i18n.t(f"{I18N_Prefix}.ui_check_update_now_button")
         )
-
-        self.create_row(
-            language_label,
-            self.language_combo_box,
-            check_update_label,
-            self.check_update_checkbox,
-            check_update_now_label,
-            self.check_update_now_button,
-            add_stretch=True,
-        )
-
         self.check_update_now_button.clicked.connect(self._on_check_update_now_clicked)
+        self._add_row(
+            i18n.t(f"{I18N_Prefix}.ui_check_update_label"),
+            self.check_update_checkbox,
+            self.check_update_now_button,
+        )
 
     def _build_window_section(self) -> None:
         self.content_layout.addWidget(
-            create_divider(i18n.t(f"{I18N_Prefix}.ui_window_divider"))
+            create_divider(i18n.t(f"{I18N_Prefix}.ui_window_section_title"))
         )
 
-        default_label = create_label(i18n.t(f"{I18N_Prefix}.ui_default_size_label"))
-        self.default_width_line_edit = create_line_edit(length=60, validator="int")
-        self.default_height_line_edit = create_line_edit(length=60, validator="int")
-
-        self.create_row(
-            default_label,
+        self.default_width_line_edit = create_line_edit(length=64, validator="int")
+        self.default_height_line_edit = create_line_edit(length=64, validator="int")
+        self.reset_window_state_button = create_outline_button(
+            i18n.t(f"{I18N_Prefix}.ui_reset_window_state_button")
+        )
+        self.reset_window_state_button.clicked.connect(
+            self._on_reset_window_state_clicked
+        )
+        self._add_row(
+            i18n.t(f"{I18N_Prefix}.ui_default_size_label"),
             self.default_width_line_edit,
-            create_label("×"),
+            create_label("×", color=UI_Style.COLORS["text_secondary"]),
             self.default_height_line_edit,
-            add_stretch=True,
+            self.reset_window_state_button,
         )
 
-        ui_scale_label = create_label(i18n.t(f"{I18N_Prefix}.ui_ui_scale_label"))
         self.ui_scale_slider, self.ui_scale_display = create_slider(
             min_val=S_Defs.main_app_ui_scale.constraints["ge"],
             max_val=S_Defs.main_app_ui_scale.constraints["le"],
             step=5,
             default_value=S_Defs.main_app_ui_scale.default,
-            slider_length=250,
+            slider_length=220,
             text_transform=lambda v: f" {v}%",
         )
-
-        self.create_row(
-            ui_scale_label,
+        self._add_row(
+            i18n.t(f"{I18N_Prefix}.ui_ui_scale_label"),
             self.ui_scale_slider,
             self.ui_scale_display,
-            add_stretch=True,
         )
 
-        remember_window_state_label = create_label(
-            i18n.t(f"{I18N_Prefix}.ui_remember_window_state_label")
-        )
         self.remember_window_state_checkbox = create_check_box()
-        self.create_row(
-            remember_window_state_label,
+        self._add_row(
+            i18n.t(f"{I18N_Prefix}.ui_remember_window_state_label"),
             self.remember_window_state_checkbox,
-            add_stretch=True,
-        )
-        self.reset_window_state_label = create_label(
-            i18n.t(f"{I18N_Prefix}.ui_reset_window_state_label")
-        )
-        self.reset_window_state_button = create_stated_button(
-            i18n.t(f"{I18N_Prefix}.ui_reset_window_state_button")
-        )
-        self.create_row(
-            self.reset_window_state_label,
-            self.reset_window_state_button,
-            add_stretch=True,
-        )
-        self.reset_window_state_button.clicked.connect(
-            self._on_reset_window_state_clicked
         )
 
     def _build_actions(self) -> None:
-        self.content_layout.addSpacing(UI_Style.widget_spacing)
-        self.save_button = create_stated_button(
-            i18n.t(f"{I18N_Prefix}.ui_save_button"), isbig=True
-        )
-        self.reset_button = create_stated_button(
-            i18n.t(f"{I18N_Prefix}.ui_reset_button"), isbig=True
-        )
+        # 与设置行拉开，底部动作读成一条独立的操作带
+        self.content_layout.addSpacing(12)
 
-        self.create_row(self.save_button, self.reset_button, add_stretch=True)
+        action_row = QWidget()
+        action_layout = QHBoxLayout(action_row)
+        action_layout.setContentsMargins(0, 0, 0, 0)
+        action_layout.setSpacing(8)
 
-        self.save_button.clicked.connect(self.on_save_clicked)
-        self.reset_button.clicked.connect(self.on_reset_clicked)
-
-    def build_bottom_section(self) -> None:
         about_label = create_clickable_label(
             label_text=i18n.t(f"{I18N_Prefix}.ui_about_label"),
             tooltip_text=i18n.t(f"{I18N_Prefix}.ui_about_tooltip"),
             on_click=lambda: show_about_dialog(self.window()),
             label_color=UI_Style.COLORS["text_secondary"],
-            label_bold=True,
+            label_font_size=12,
             underline=True,
         )
-        self.content_layout.addWidget(
-            about_label, alignment=Qt.AlignmentFlag.AlignRight
+        action_layout.addWidget(about_label)
+        action_layout.addStretch(1)
+
+        self.reset_button = create_outline_button(
+            i18n.t(f"{I18N_Prefix}.ui_reset_button"),
         )
+        self.save_button = create_stated_button(
+            i18n.t(f"{I18N_Prefix}.ui_save_button"), isbig=True
+        )
+        action_layout.addWidget(self.reset_button)
+        action_layout.addSpacing(16)
+        action_layout.addWidget(self.save_button)
+        self.content_layout.addWidget(action_row)
+        self.content_layout.addStretch(1)
+
+        self.save_button.clicked.connect(self.on_save_clicked)
+        self.reset_button.clicked.connect(self.on_reset_clicked)
 
     def _create_combo_from_definition(self, definition, length: int):
         options = [str(item) for item in definition.constraints["options"]]
@@ -403,6 +437,11 @@ class SettingsPage(BaseOutputPage):
 
     def _set_combo_value(self, combo_box, value: str) -> None:
         idx = combo_box.findText(str(value))
+        if idx >= 0:
+            combo_box.setCurrentIndex(idx)
+
+    def _set_combo_data_value(self, combo_box, value: str) -> None:
+        idx = combo_box.findData(str(value))
         if idx >= 0:
             combo_box.setCurrentIndex(idx)
 
@@ -451,15 +490,21 @@ class SettingsPage(BaseOutputPage):
     ) -> list[InferenceDeviceItem]:
         return parse_inference_device_results(recent_output, backend)
 
-    def _reset_inference_device_combo(self) -> None:
-        # 清空并隐藏设备控件
-        if self.inference_device_combo_box is None:
-            return
-        self.inference_device_combo_box.blockSignals(True)
-        self.inference_device_combo_box.clear()
-        self.inference_device_combo_box.blockSignals(False)
-        self.inference_device_label.setVisible(False)
-        self.inference_device_combo_box.setVisible(False)
+    def _show_inference_device_placeholder(self, use_saved: bool) -> None:
+        """未检测时也让设备行常驻，避免页面高度跳动。
+
+        下拉框只表示设备身份，不塞入“未检测”等状态文案；状态由后端行
+        右侧的状态文字单独表达。
+        """
+        if use_saved and self._saved_inference_device:
+            item = InferenceDeviceItem(
+                self._saved_inference_device,
+                "",
+                self._saved_inference_device_half,
+            )
+        else:
+            item = InferenceDeviceItem("", "", False)
+        self._populate_inference_device_combo([item])
 
     def _populate_inference_device_combo(
         self, items: list[InferenceDeviceItem]
@@ -468,10 +513,13 @@ class SettingsPage(BaseOutputPage):
         self.inference_device_combo_box.clear()
         for item in items:
             half_text = "FP16" if item.half_supported else "FP32"
-            self.inference_device_combo_box.addItem(
-                f"[{item.device_id}] {item.name} ({half_text})",
-                item,
-            )
+            if item.device_id and item.name:
+                item_text = f"[{item.device_id}] {item.name} ({half_text})"
+            elif item.device_id:
+                item_text = f"[{item.device_id}] ({half_text})"
+            else:
+                item_text = "—"
+            self.inference_device_combo_box.addItem(item_text, item)
 
         target_index = -1
         if self._saved_inference_device:
@@ -504,7 +552,7 @@ class SettingsPage(BaseOutputPage):
         if items:
             self._populate_inference_device_combo(items)
         else:
-            self._reset_inference_device_combo()
+            self._show_inference_device_placeholder(use_saved=False)
 
     def _load_settings_to_ui(self) -> None:
         settings = {}
@@ -539,12 +587,14 @@ class SettingsPage(BaseOutputPage):
         if self._cached_device_items:
             self._populate_inference_device_combo(self._cached_device_items)
         else:
-            self._reset_inference_device_combo()
+            self._show_inference_device_placeholder(use_saved=True)
 
         self._set_combo_value(
             self.ffmpeg_hw_encoder_combo_box, settings[S_Defs.ffmpeg_hw_encoder.key]
         )
-        self._set_combo_value(self.language_combo_box, settings[S_Defs.language.key])
+        self._set_combo_data_value(
+            self.language_combo_box, settings[S_Defs.language.key]
+        )
         self.check_update_checkbox.setChecked(bool(settings[S_Defs.check_update.key]))
 
         self.default_width_line_edit.setText(
@@ -560,11 +610,12 @@ class SettingsPage(BaseOutputPage):
         self._sync_ui_state()
 
     def _collect_form_data(self) -> dict:
+        language_value = self.language_combo_box.currentData()
 
         data = {
             S_Defs.model_backend.key: self.model_backend_combo_box.currentText().strip(),
             S_Defs.ffmpeg_hw_encoder.key: self.ffmpeg_hw_encoder_combo_box.currentText().strip(),
-            S_Defs.language.key: self.language_combo_box.currentText().strip(),
+            S_Defs.language.key: str(language_value or S_Defs.language.default),
             S_Defs.check_update.key: self.check_update_checkbox.isChecked(),
             S_Defs.main_app_w_default.key: self.default_width_line_edit.text().strip(),
             S_Defs.main_app_h_default.key: self.default_height_line_edit.text().strip(),
@@ -650,17 +701,14 @@ class SettingsPage(BaseOutputPage):
             self.reset_button.setEnabled(True)
 
     def on_reset_clicked(self) -> None:
-        reply = QMessageBox.question(
-            self,
+        confirmed = show_confirm_dialog(
             i18n.t(f"{I18N_Prefix}.ui_reset_confirm_title"),
             i18n.t(f"{I18N_Prefix}.ui_reset_confirm_text"),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
         )
         # 对话框关闭后，确保主窗口回到前台
         self.window().raise_()
         self.window().activateWindow()
-        if reply != QMessageBox.StandardButton.Yes:
+        if not confirmed:
             return
 
         self.save_button.setEnabled(False)
@@ -709,6 +757,10 @@ class SettingsPage(BaseOutputPage):
         for widget in widgets:
             widget.setEnabled(not is_busy)
 
+        self.check_update_now_button.setEnabled(
+            not is_busy and not self._update_check_in_progress
+        )
+
         self.convert_model_button.setEnabled(not is_busy)
         self.convert_model_button.setVisible(
             bool(self._model_view and self._model_view.show_convert and not is_busy)
@@ -721,10 +773,14 @@ class SettingsPage(BaseOutputPage):
     def _on_backend_changed(self, _text: str) -> None:
         if not self._task_state.is_busy:
             self._model_view = None
-        # 切换后端：清空缓存的设备列表并隐藏设备行
+        # 切换后端：清空缓存的设备列表，设备行保持常驻
+        # 切回当前已保存的后端时显示已保存设备，切到其他后端时只说「未检测」
         self._last_checked_backend = None
         self._cached_device_items = []
-        self._reset_inference_device_combo()
+        current_backend = self.model_backend_combo_box.currentText().strip()
+        self._show_inference_device_placeholder(
+            use_saved=current_backend == self._loaded_model_backend
+        )
         self._hide_environment_state()
         self._hide_model_state()
         self._sync_ui_state()
@@ -796,19 +852,41 @@ class SettingsPage(BaseOutputPage):
         if self.model_status_label is not None:
             self.model_status_label.setVisible(False)
 
+    def _set_status_pill(self, pill, text: str, level: str) -> None:
+        pill.set_status(text, level)
+        pill.setVisible(True)
+
     def _hide_environment_state(self) -> None:
+        # 重置为「未检测」，但状态位本身常驻，避免行高变化
         if self.environment_status_label is not None:
-            self.environment_status_label.setVisible(False)
+            self._set_status_pill(
+                self.environment_status_label,
+                i18n.t(f"{I18N_Prefix}.ui_status_not_checked"),
+                "warning",
+            )
+        if self.open_install_script_button is not None:
+            self.open_install_script_button.setVisible(False)
+
+    def _show_checking_state(self) -> None:
+        if self.environment_status_label is not None:
+            self._set_status_pill(
+                self.environment_status_label,
+                i18n.t(f"{I18N_Prefix}.ui_status_checking"),
+                "warning",
+            )
+        self._hide_model_state()
         if self.open_install_script_button is not None:
             self.open_install_script_button.setVisible(False)
 
     def _show_environment_state(self, status_text: str) -> None:
         if self.environment_status_label is None:
             return
-        self.environment_status_label.setText(
-            i18n.t(f"{I18N_Prefix}.environment_status_{status_text}")
+        level = "success" if status_text == "available" else "error"
+        self._set_status_pill(
+            self.environment_status_label,
+            i18n.t(f"{I18N_Prefix}.environment_status_{status_text}"),
+            level,
         )
-        self.environment_status_label.setVisible(True)
         if self.open_install_script_button is not None:
             # 环境不可用时才提供「切换后端」入口
             if status_text == "unavailable":
@@ -826,10 +904,16 @@ class SettingsPage(BaseOutputPage):
             self._hide_model_state()
             return
         self._model_view = view
-        self.model_status_label.setText(
-            i18n.t(f"{I18N_Prefix}.model_status_{view.status_text}")
+        levels = {
+            "compatible": "success",
+            "not_converted": "warning",
+            "error": "error",
+        }
+        self._set_status_pill(
+            self.model_status_label,
+            i18n.t(f"{I18N_Prefix}.model_status_{view.status_text}"),
+            levels.get(view.status_text, "error"),
         )
-        self.model_status_label.setVisible(True)
 
     def _append_model_check_result(self, backend: str) -> None:
         device_item = self._current_device_item()
@@ -869,12 +953,11 @@ class SettingsPage(BaseOutputPage):
         if self._has_active_runner():
             return
         self._model_view = None
-        # 开始新检查：清空缓存的设备列表并隐藏设备行
+        # 开始新检查：保留设备行，先显示上次保存的设备；状态改为检测中
         self._last_checked_backend = None
         self._cached_device_items = []
-        self._reset_inference_device_combo()
-        self._hide_environment_state()
-        self._hide_model_state()
+        self._show_inference_device_placeholder(use_saved=True)
+        self._show_checking_state()
         self._sync_ui_state()
         backend = self.model_backend_combo_box.currentText().strip()
         self.output_widget.append_text(
@@ -891,12 +974,36 @@ class SettingsPage(BaseOutputPage):
             self._show_environment_state("unavailable")
             self._sync_ui_state()
 
+    def _set_ffmpeg_detect_status(self, text: str | None, color: str) -> None:
+        if self.ffmpeg_detect_status_label is None:
+            return
+        if not text:
+            self.ffmpeg_detect_status_label.setVisible(False)
+            return
+        self.ffmpeg_detect_status_label.setText(text)
+        self.ffmpeg_detect_status_label.setStyleSheet(
+            f"color: {color}; font-size: 12px;"
+        )
+        self.ffmpeg_detect_status_label.setVisible(True)
+
+    def _on_ffmpeg_encoder_changed(self, _index: int) -> None:
+        # 手动改下拉框后，上一次自动检测的结论不再对应当前选择
+        self._set_ffmpeg_detect_status(None, UI_Style.COLORS["text_secondary"])
+
     def on_check_ffmpeg_hw_accel_clicked(self) -> None:
         if self._has_active_runner():
             return
 
+        self._set_ffmpeg_detect_status(
+            i18n.t(f"{I18N_Prefix}.ui_ffmpeg_detect_running"),
+            UI_Style.COLORS["text_secondary"],
+        )
         cmd = build_cmd_head_python_exe(PathManage.CHECK_FFMPEG_HW_ACCEL_WORKER_PATH)
-        self._start_worker_cmd(cmd, "ffmpeg_hw_accel_check")
+        if not self._start_worker_cmd(cmd, "ffmpeg_hw_accel_check"):
+            self._set_ffmpeg_detect_status(
+                i18n.t(f"{I18N_Prefix}.ui_ffmpeg_detect_failed"),
+                UI_Style.COLORS["error"],
+            )
 
     def on_convert_model_clicked(self) -> None:
         if self._has_active_runner():
@@ -1036,6 +1143,7 @@ class SettingsPage(BaseOutputPage):
             )
             self._hide_environment_state()
             self._hide_model_state()
+            self._show_inference_device_placeholder(use_saved=True)
             self._sync_ui_state()
             return
 
@@ -1051,6 +1159,7 @@ class SettingsPage(BaseOutputPage):
             )
             self._show_environment_state("unavailable")
             self._hide_model_state()
+            self._show_inference_device_placeholder(use_saved=True)
             self._sync_ui_state()
             return
 
@@ -1133,7 +1242,14 @@ class SettingsPage(BaseOutputPage):
         self._sync_ui_state()
 
     def _on_check_update_now_clicked(self) -> None:
-        check_update(force=True)
+        self._update_check_in_progress = True
+        self.check_update_now_button.setEnabled(False)
+
+        def _on_finished() -> None:
+            self._update_check_in_progress = False
+            self._sync_ui_state()
+
+        check_update(force=True, on_finished=_on_finished)
 
     def _on_reset_window_state_clicked(self) -> None:
         result = self.window().reset_window_to_default()
@@ -1151,6 +1267,7 @@ class SettingsPage(BaseOutputPage):
 
     def _handle_ffmpeg_hw_accel_runner_ended(self, ended) -> None:
         if getattr(ended, "cancelled", False):
+            self._set_ffmpeg_detect_status(None, UI_Style.COLORS["text_secondary"])
             return
 
         failed = bool(getattr(ended, "crashed", False))
@@ -1159,6 +1276,10 @@ class SettingsPage(BaseOutputPage):
             failed = True
 
         if failed:
+            self._set_ffmpeg_detect_status(
+                i18n.t(f"{I18N_Prefix}.ui_ffmpeg_detect_failed"),
+                UI_Style.COLORS["error"],
+            )
             return
 
         self.output_widget.flush_buffer()
@@ -1166,3 +1287,16 @@ class SettingsPage(BaseOutputPage):
             self.output_widget.get_recent_lines(7)
         )
         self._refresh_ffmpeg_hw_accel_ui(encoder_value)
+        if encoder_value:
+            self._set_ffmpeg_detect_status(
+                i18n.t(
+                    f"{I18N_Prefix}.ui_ffmpeg_detect_recommended",
+                    encoder=encoder_value,
+                ),
+                UI_Style.COLORS["success"],
+            )
+        else:
+            self._set_ffmpeg_detect_status(
+                i18n.t(f"{I18N_Prefix}.ui_ffmpeg_detect_no_result"),
+                UI_Style.COLORS["warning"],
+            )

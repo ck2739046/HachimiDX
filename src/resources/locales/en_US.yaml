@@ -868,25 +868,28 @@ en_US:
       ui_about_label: "About…"
       ui_about_tooltip: "Click to open \"About\""
 
-      ui_model_divider: "Model Inference"
-      ui_model_backend_label: "Model Backend: "
-      ui_inference_device_label: "Inference Device: "
+      ui_model_section_title: "Model Inference"
+      ui_model_backend_label: "Model backend"
+      ui_inference_device_label: "Inference device"
       ui_model_backend_onnx_cpu_tooltip: "Slowest, CPU only, best compatibility"
       ui_model_backend_ncnn_tooltip: "Slower, requires a Vulkan-compatible GPU"
       ui_model_backend_onnx_dml_tooltip: "Medium, requires a DX12-compatible GPU"
       ui_model_backend_onnx_cuda_tooltip: "Faster, NVIDIA GPU only"
       ui_model_backend_tensorrt_tooltip: "Fastest, NVIDIA GPU only"
       ui_check_model_button: "Check"
+      ui_check_model_tooltip: "Check whether the selected backend works on this machine and list available devices"
       ui_convert_model_button: "Convert Model"
       ui_cancel_check_model_button: "Cancel"
       ui_cancel_convert_model_button: "Cancel"
       warning_inference_settings_not_ready: "The selected inference backend or device has not been checked successfully, or the model is unavailable for the current device."
-      model_status_not_converted: "🔴 Model not converted"
-      model_status_compatible: "🟢 Model ready"
-      model_status_error: "🔴 Model status check failed"
-      environment_status_available: "🟢 Environment ready"
-      environment_status_unavailable: "🔴 Environment unavailable"
-      ui_open_install_script_button: "Open Install Script"
+      ui_status_not_checked: "Not checked"
+      ui_status_checking: "Checking…"
+      model_status_not_converted: "Model not converted"
+      model_status_compatible: "Model ready"
+      model_status_error: "Model status check failed"
+      environment_status_available: "Environment ready"
+      environment_status_unavailable: "Environment unavailable"
+      ui_open_install_script_button: "Install script"
       ui_open_install_script_confirm_title: "Switch Backend"
       ui_open_install_script_confirm_text: |
         HachimiDX will be closed first, then the install script will be opened.
@@ -897,39 +900,40 @@ en_US:
       warning_install_script_missing: "Install script not found: %{path}"
       warning_install_script_launch_failed: "Failed to launch install script: %{path}"
 
-      ui_ffmpeg_divider: "FFmpeg"
-      ui_ffmpeg_encoder_label: "Video Encoder: "
+      ui_ffmpeg_section_title: "FFmpeg"
+      ui_ffmpeg_encoder_label: "Video encoder"
       ui_ffmpeg_encoder_cpu_tooltip: "slowest, CPU software encoding (libx264)"
       ui_ffmpeg_encoder_intel_tooltip: "medium, Intel GPU hardware encoding (h264_qsv)"
       ui_ffmpeg_encoder_nvidia_tooltip: "fastest, NVIDIA GPU hardware encoding (h264_nvenc)"
-      ui_auto_detect_hw_label: " Auto Detect Best Encoder: "
-      ui_auto_detect_hw_button: "Detect"
+      ui_auto_detect_hw_button: "Auto-detect"
       ui_auto_detect_hw_help: |
         If you don't know which one to choose, click this button.
 
-        Note: detecting only updates the dropdown selection.
+        Note: auto-detect only recommends an encoder and updates the dropdown selection.
               Remember to click the "Save" button to apply the change.
+      ui_ffmpeg_detect_running: "Detecting…"
+      ui_ffmpeg_detect_recommended: "Recommended: %{encoder}"
+      ui_ffmpeg_detect_no_result: "No usable hardware encoder found"
+      ui_ffmpeg_detect_failed: "Detection failed. See the run log."
 
-      ui_general_divider: "General"
-      ui_language_label: "Language: "
+      ui_general_section_title: "General Settings"
+      ui_language_label: "Language"
       ui_language_zh_cn_tooltip: "简体中文"
       ui_language_en_us_tooltip: "English"
-      ui_check_update_label: "  Check for updates daily: "
-      ui_check_update_now_label: "  Check for updates now: "
-      ui_check_update_now_button: "Check"
+      ui_check_update_label: "Daily update check"
+      ui_check_update_now_button: "Check now"
 
-      ui_window_divider: "Window"
-      ui_default_size_label: "Default Window Size (W×H): "
-      ui_ui_scale_label: "UI Scale: "
-      ui_remember_window_state_label: "Remember Last Window Size/Position: "
-      ui_reset_window_state_label: "Reset Window Size/Position to Default: "
-      ui_reset_window_state_button: "Reset"
+      ui_window_section_title: "Window Settings"
+      ui_default_size_label: "Default window size"
+      ui_ui_scale_label: "UI scale"
+      ui_remember_window_state_label: "Remember window layout"
+      ui_reset_window_state_button: "Reset window"
 
       ui_save_button: "Save"
-      ui_reset_button: "Reset"
+      ui_reset_button: "Restore defaults"
 
-      ui_reset_confirm_title: "Reset Confirmation"
       ui_reset_confirm_text: "Are you sure you want to reset all settings to defaults?"
+      ui_reset_confirm_title: "Restore Defaults"
 
       log_window_state_reset: "Window size/position reset to default."
       log_window_state_reset_failed: "Failed to reset window state: %{error}"
@@ -941,8 +945,8 @@ en_US:
         Runtime check failed: %{backend}
 
         This error may occur because the backend selected during installation differs from the currently selected one.
-        To switch backends, click the "Open Install Script" button and re-run the install script.
-      warning_model_missing: "Models check failed: %{backend}"
+        To switch backends, click the "Install script" button and re-run the install script.
+      warning_model_missing: "Model check failed: %{backend}"
       notice_model_missing_instruction: |
         If you haven't completed the "Convert Model" step, this error may occur.
         Please click the "Convert Model" button to convert the models.
